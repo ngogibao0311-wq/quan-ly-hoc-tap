@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Trang Học Sinh</title>
+    <link rel="stylesheet" href="css/common.css">
+    <link rel="stylesheet" href="css/student.css">
+</head>
+
+<body>
+    <div class="dashboard">
+        <div class="sidebar">
+            <div class="sidebar-toggle" onclick="toggleSidebar()">
+                <span class="toggle-icon">◀</span>
+            </div>
+
+            <div class="sidebar-top">
+                <h3 id="studentName">Học sinh</h3><br>
+                <button class="nav-item active" onclick="switchTab('tab-todo', this)">📝 <span class="nav-text">Bài tập
+                        cần làm</span></button>
+                <button class="nav-item" onclick="switchTab('tab-grades', this)">📈 <span class="nav-text">Kết quả học
+                        tập</span></button>
+                <button class="nav-item" onclick="switchTab('tab-materials', this)">📚 <span class="nav-text">Tài liệu
+                        học tập</span></button>
+                <button class="nav-item" onclick="switchTab('tab-roadmap', this)">🗺️ <span class="nav-text">Lộ
+                        trình & Lịch</span></button>
+                <button class="nav-item" id="btnSettingsNav" onclick="switchTab('tab-settings', this)">⚙️ <span
+                        class="nav-text">Cài đặt</span></button>
+            </div>
+            <div class="sidebar-bottom">
+                <button class="btn-logout" onclick="logout()">🚪 <span class="nav-text">Đăng xuất</span></button>
+            </div>
+        </div>
+
+        <div class="content">
+            <button class="profile-trigger-btn" onclick="openStudentInfoModal()" title="Hồ sơ cá nhân">
+                <img id="avatarImage" src=""
+                    style="display: none; width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+
+                <span id="avatarPlaceholder" style="font-size: 1.5em;">👤</span>
+            </button>
+            <div id="tab-todo" class="tab-content active">
+                <h2>Bài tập cần làm</h2>
+                <div id="assignmentsList"></div>
+            </div>
+
+            <div id="tab-grades" class="tab-content">
+                <h2>Kết quả học tập</h2>
+                <div id="gradesList"></div>
+            </div>
+
+            <div id="tab-materials" class="tab-content">
+                <h2>Tài liệu học tập</h2>
+                <div id="studentMaterialsList"></div>
+            </div>
+
+            <div id="tab-roadmap" class="tab-content">
+                <h2>Lộ trình & Thời khóa biểu</h2>
+                
+                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                    <button id="btnSubRoadmap" onclick="toggleRoadmapView('roadmap')" style="flex: 1; padding: 12px; border-radius: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: bold; border: none; cursor: pointer; transition: 0.3s;">🗺️ Lộ trình cá nhân</button>
+                    <button id="btnSubSchedule" onclick="toggleRoadmapView('schedule')" style="flex: 1; padding: 12px; border-radius: 12px; background: rgba(255,255,255,0.5); color: #667eea; font-weight: bold; border: 2px solid #667eea; cursor: pointer; transition: 0.3s;">📅 Thời khóa biểu</button>
+                </div>
+
+                <div id="view-roadmap">
+                    <div class="card">
+                        <div style="overflow-x: auto;">
+                            <table style="width:100%; border-collapse: collapse; text-align: left;">
+                                <thead>
+                                    <tr
+                                        style="background:rgba(255,255,255,0.7); border-bottom: 2px solid rgba(0,0,0,0.05);">
+                                        <th style="padding:15px;">Bài học</th>
+                                        <th style="padding:15px; text-align: center;">Số điểm</th>
+                                        <th style="padding:15px; text-align: center;">Tình trạng</th>
+                                        <th style="padding:15px; text-align: center;">Cộng tiền</th>
+                                        <th style="padding:15px;">Hạn nộp</th>
+                                        <th style="padding:15px;">Điều kiện cụ thể</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="studentRoadmapBody">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="view-schedule" style="display: none;">
+                    <div class="card">
+                        <h3 style="margin-bottom: 15px; color: #2c3e50;">Thời khóa biểu lớp học</h3>
+                        <div style="overflow-x: auto;">
+                            <table style="width:100%; border-collapse: collapse; text-align: left;">
+                                <thead>
+                                    <tr style="background:rgba(255,255,255,0.7); border-bottom: 2px solid rgba(0,0,0,0.05);">
+                                        <th style="padding:15px;">Thứ / Ngày</th>
+                                        <th style="padding:15px;">Thời gian</th>
+                                        <th style="padding:15px;">Môn / Nội dung</th>
+                                        <th style="padding:15px;">Ghi chú</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="studentScheduleBody">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-settings" class="tab-content">
+                <h2>Cài đặt tài khoản</h2>
+                <div id="updateBannerArea" class="update-banner">
+                    <div>
+                        <h4 style="margin: 0; font-size: 1.2em;">🚀 Có phiên bản hệ thống mới!</h4>
+                        <p style="margin: 5px 0 0 0; font-size: 0.95em;">Nhấn nút bên cạnh để tải lại toàn bộ tài nguyên
+                            web mới nhất.</p>
+                    </div>
+                    <button class="btn-do-update" onclick="applySystemUpdate()">Cập nhật ngay</button>
+                </div>
+                <div class="card form-container">
+                    <label><strong>🎨 Giao diện hiển thị:</strong></label>
+                    <select id="themeSelector" onchange="changeTheme(this.value)"
+                        style="margin-bottom: 20px; font-weight: bold; color: #667eea;">
+                        <option value="default">✨ Mặc định (Tím mộng mơ)</option>
+                        <option value="blue">🌊 Xanh biển (Tươi mát)</option>
+                        <option value="green">🌿 Xanh lá (Yên bình)</option>
+                        <option value="pink">🌸 Hồng (Ngọt ngào)</option>
+                    </select>
+                    <label><strong>Tên hiển thị của bạn:</strong></label>
+                    <input type="text" id="settingName" placeholder="Nhập tên hiển thị mới...">
+
+                    <label><strong>Mật khẩu mới (để trống nếu không muốn đổi):</strong></label>
+                    <input type="password" id="settingPass" placeholder="Nhập mật khẩu mới...">
+
+                    <button onclick="updateProfile()"
+                        style="margin-top: 15px; background: linear-gradient(135deg, #f6d365 0%, #fda085 100%); color: #fff;">Gửi
+                        yêu cầu thay đổi</button>
+
+                    <div id="requestNotifications" style="margin-top: 25px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="studentInfoModal" class="modal-overlay">
+        <div class="modal-content form-container" style="max-width: 400px; text-align: center;">
+            <button class="close-btn" onclick="closeStudentInfoModal()">✖</button>
+
+            <div class="avatar-upload-container"
+                style="position: relative; display: inline-block; margin-bottom: 20px; cursor: pointer;"
+                onclick="document.getElementById('avatarInput').click()" title="Click để đổi ảnh đại diện">
+                <img id="modalAvatarPreview" src=""
+                    style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 3px solid rgba(102, 126, 234, 0.3);">
+                <span
+                    style="position: absolute; bottom: 0; right: 0; background: #667eea; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; justify-content: center; align-items: center; font-size: 0.8em; border: 2px solid white;">✏️</span>
+            </div>
+
+            <input type="file" id="avatarInput" accept="image/png, image/jpeg, image/gif" style="display: none;"
+                onchange="previewAvatar(this)">
+            <button id="saveAvatarBtn" onclick="saveNewAvatar()"
+                style="display: none; width: auto; font-size: 0.8em; padding: 5px 15px; background: linear-gradient(135deg, #16a085 0%, #2ecc71 100%); margin: -10px auto 15px auto;">Lưu
+                ảnh mới ✅</button>
+
+            <h3 id="infoModalName" style="color: #764ba2; margin-bottom: 5px; font-size: 1.5em;">Tên học sinh</h3>
+            <p style="color: #667eea; font-weight: bold; margin-bottom: 20px;" id="infoModalClass">Lớp: ...</p>
+
+            <div
+                style="text-align: left; background: rgba(255,255,255,0.5); padding: 15px; border-radius: 12px; margin-bottom: 15px;">
+                <strong style="color: #2c3e50;">🌟 Sở thích:</strong>
+                <p id="infoModalHobbies" style="margin-top: 5px; color: #444;">Chưa cập nhật</p>
+            </div>
+
+            <div style="text-align: left; background: rgba(255,255,255,0.5); padding: 15px; border-radius: 12px;">
+                <strong style="color: #2c3e50;">💬 Chân ngôn:</strong>
+                <p id="infoModalMotto" style="margin-top: 5px; font-style: italic; color: #444;">Chưa cập nhật</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/common.js"></script>
+    <script src="js/student.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-database-compat.js"></script>
+    <script src="js/firebase-config.js"></script>
+    <script src="js/security.js"></script>
+</body>
+
+</html>
