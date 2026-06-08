@@ -82,8 +82,17 @@ async function loadAssignments() {
         if (assign.targetStudent !== 'all' && assign.targetStudent !== currentUser.username) return;
         const mySub = submissions.find(s => s.assignmentId === assign.id && s.studentUsername === currentUser.username);
 
-        // NẾU ĐÃ NỘP VÀ KHÔNG TRONG TRẠNG THÁI LÀM LẠI -> Bảng điểm
-        if (mySub && !mySub.isRedoing) {
+        const now = new Date();
+        const startTime = assign.startDate ? new Date(assign.startDate.replace(" ", "T")) : new Date(0);
+        const endTime = assign.endDate ? new Date(assign.endDate.replace(" ", "T")) : new Date("2100-01-01");
+        const isRedoing = mySub && mySub.isRedoing;
+        
+        // --- LOGIC 5 PHÚT ÂN HẠN HIỂN THỊ (GRACE PERIOD) ---
+        const gracePeriodEndTime = new Date(endTime.getTime() + 5 * 60000); 
+        const isGracePeriod = (now > endTime && now <= gracePeriodEndTime) && !isRedoing && (!mySub || mySub.isAutoSubmitted);
+
+        // NẾU ĐÃ NỘP VÀ KHÔNG TRONG TRẠNG THÁI LÀM LẠI VÀ KHÔNG NẰM TRONG 5 PHÚT HIỂN THỊ TRỄ -> Bảng điểm
+        if (mySub && !isRedoing && !isGracePeriod) {
             let typeText = assign.assessmentType === 'trac_nghiem' ? 'Trắc nghiệm' : (assign.assessmentType === 'ket_hop' ? 'Kết hợp' : 'Tự luận');
             let teacherFileHTML = '';
             if (assign.file && assign.assessmentType !== 'trac_nghiem') {
@@ -111,10 +120,8 @@ async function loadAssignments() {
                 });
             }
 
-            // Xử lý hiển thị phần nhận xét của Giáo viên
             let teacherCommentHTML = mySub.teacherComment ? `<div style="background: rgba(253, 203, 110, 0.15); border-left: 4px solid #fdcb6e; padding: 15px; border-radius: 12px; margin-top: 15px;"><p style="margin: 0; color: #d35400;"><strong>💬 Lời nhận xét của Giáo viên:</strong></p><p style="margin-top: 5px; color: #444; white-space: pre-wrap;">${mySub.teacherComment}</p></div>` : '';
 
-            // CƠ CHẾ THU HỒI ĐIỂM SỐ KHI GIÁO VIÊN ĐANG CHẤM LẠI
             let gradeDisplay = 'Chưa chấm';
             let statusText = `Đã hoàn thành (${typeText})`;
 
@@ -125,7 +132,6 @@ async function loadAssignments() {
                 gradeDisplay = mySub.grade;
             }
 
-            // NÚT XEM LẠI CÂU HỎI
             let viewQuestionsBtnHTML = `<button class="btn-approve" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; margin-top: 15px; padding: 12px 15px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; display: block; width: 100%; transition: 0.3s;" onclick="viewAssignmentQuestions('${assign.id}')">👁️ Xem lại tất cả câu hỏi</button>`;
 
             const uniqueId = `student-done-${assign.id}`;
@@ -134,25 +140,44 @@ async function loadAssignments() {
                 <div id="${uniqueId}" class="accordion-content"><div class="assignment-meta"><p>🕒 <strong>Bạn đã nộp lúc:</strong> ${mySub.submitTime || 'Không rõ'}</p></div>${videoHTML}<div style="background: rgba(255,255,255,0.5); padding: 15px; border-radius: 12px; margin-top: 15px;"><strong>Nội dung bài làm của bạn:</strong><br><p style="margin-top: 5px; color: ${mySub.isAutoSubmitted ? '#e74c3c' : '#444'}; white-space: pre-wrap;">${mySub.answer || '<i>(Không có)</i>'}</p>${myFileHTML}</div>${teacherFileHTML}${gradedFileHTML}${teacherCommentHTML}${viewQuestionsBtnHTML}</div>`;
             grades.appendChild(div);
         }
-        // NẾU CHƯA NỘP HOẶC ĐANG LÀM LẠI -> Bảng Bài tập cần làm
+        // NẾU CHƯA NỘP HOẶC ĐANG LÀM LẠI HOẶC ĐANG TRONG 5 PHÚT TRỄ
         else {
-            const now = new Date();
-            const startTime = assign.startDate ? new Date(assign.startDate.replace(" ", "T")) : new Date(0);
-            const endTime = assign.endDate ? new Date(assign.endDate.replace(" ", "T")) : new Date("2100-01-01");
-            const isRedoing = mySub && mySub.isRedoing;
-
             if (now < startTime) {
                 const div = document.createElement('div'); div.className = 'card submit-box';
                 div.innerHTML = `<h4 style="font-size: 1.3em; color: #764ba2; font-weight: 800; opacity: 0.6;">${assign.title}</h4><div class="assignment-meta" style="opacity: 0.8;"><p>📅 <strong>Hạn làm bài:</strong> Từ <span class="time-highlight">${assign.startDate}</span> đến <span class="time-highlight">${assign.endDate}</span></p></div><div class="glass-alert" style="margin-top: 15px; border-left-color: #667eea; background: rgba(102, 126, 234, 0.1);"><h4 style="color: #444; margin-bottom: 5px;">⏳ Chưa đến thời gian làm bài</h4><p style="margin: 0; font-size: 0.95em;">Hệ thống sẽ tự động mở khóa sau: <strong id="cd-start-${assign.id}" style="color: #667eea; font-size: 1.1em;">...</strong></p></div>`;
                 list.appendChild(div);
                 const timer = setInterval(() => { const c = new Date(); if (c >= startTime) { clearInterval(timer); loadAssignments(); } else { const el = document.getElementById(`cd-start-${assign.id}`); if (el) el.innerText = formatCountdown(startTime - c); } }, 1000); assignmentTimers.push(timer);
             }
-            else if (now > endTime && !isRedoing) {
-                // Hết hạn và không ở chế độ làm lại -> Thu bài tự động
+            else if (isGracePeriod || (now > endTime && !isRedoing)) {
+                // Thu bài tự động ngầm dưới DB ngay lập tức
                 const autoFlagKey = `auto_sub_${assign.id}_${currentUser.username}`;
-                if (!localStorage.getItem(autoFlagKey)) {
+                if (!mySub && !localStorage.getItem(autoFlagKey)) {
                     localStorage.setItem(autoFlagKey, 'true'); hasAutoSubmitted = true;
                     pushDB('submissions', { id: Date.now().toString() + Math.floor(Math.random() * 1000), assignmentId: assign.id, studentUsername: currentUser.username, studentName: currentUser.name, answer: "⚠️ [Hệ thống tự động nộp do đã quá hạn - Học sinh không làm bài kịp]", rawEssay: "", mcAnswers: {}, grade: null, submitTime: now.toLocaleTimeString('vi-VN') + ' ' + now.toLocaleDateString('vi-VN'), file: null, teacherFile: null, isAutoSubmitted: true, isRedoing: false, isLateFail: true });
+                }
+
+                // Nhưng vẫn hiển thị thẻ TRỄ ở danh sách bài tập cần làm trong 5 phút
+                if (isGracePeriod) {
+                    const div = document.createElement('div'); div.className = 'card submit-box';
+                    div.innerHTML = `<h4 style="font-size: 1.3em; color: #764ba2; font-weight: 800; opacity: 0.6;">${assign.title}</h4>
+                    <div class="assignment-meta" style="opacity: 0.8;"><p>📅 <strong>Hạn nộp bài:</strong> <span class="time-highlight">${assign.endDate}</span></p></div>
+                    <div class="glass-alert" style="margin-top: 15px; border-left-color: #e11d48; background: rgba(225, 29, 72, 0.1);">
+                        <h4 style="color: #e11d48; margin-bottom: 5px;">⚠️ Đã quá hạn nộp bài (Trễ)</h4>
+                        <p style="margin: 0; font-size: 0.95em;">Hệ thống đã khóa chức năng nộp bài. Bài tập sẽ tự động chuyển hoàn toàn vào kết quả sau: <strong id="cd-late-${assign.id}" style="color: #e11d48; font-size: 1.1em;">...</strong></p>
+                    </div>`;
+                    list.appendChild(div);
+
+                    const timer = setInterval(() => { 
+                        const c = new Date(); 
+                        if (c > gracePeriodEndTime) { 
+                            clearInterval(timer); 
+                            loadAssignments(); // Quá 5 phút thì chuyển sang bảng điểm
+                        } else { 
+                            const el = document.getElementById(`cd-late-${assign.id}`); 
+                            if (el) el.innerText = formatCountdown(gracePeriodEndTime - c); 
+                        } 
+                    }, 1000); 
+                    assignmentTimers.push(timer);
                 }
             }
             else {
@@ -161,7 +186,7 @@ async function loadAssignments() {
 
                 let countdownHTML = '';
                 if (!isRedoing) {
-                    countdownHTML = `<p style="margin-top: 5px;">⏳ Tự động thu bài sau: <strong id="cd-end-${assign.id}" style="color: #e74c3c; font-size: 1.1em;">...</strong></p>`;
+                    countdownHTML = `<p style="margin-top: 5px;">⏳ Tự động khóa nộp bài sau: <strong id="cd-end-${assign.id}" style="color: #e74c3c; font-size: 1.1em;">...</strong></p>`;
                 } else if (isRedoing && now <= endTime) {
                     countdownHTML = `<p style="margin-top: 5px;">⏳ Thời gian làm lại còn: <strong id="cd-end-${assign.id}" style="color: #e74c3c; font-size: 1.1em;">...</strong></p>`;
                 } else {
@@ -198,7 +223,6 @@ async function loadAssignments() {
                 if (assign.assessmentType === 'tu_luan' || assign.assessmentType === 'ket_hop' || !assign.assessmentType) {
                     videoHTML = assign.videoLink ? getEmbedHTML(assign.videoLink) : '';
                     descHTML = assign.desc ? `<div class="assignment-desc"><strong>Yêu cầu bài tập:</strong> <br>${(assign.desc || '').replace(/\n/g, '<br>')}</div>` : '';
-                    // --- BẮT ĐẦU ĐOẠN FIX LỖI UNDEFINED FILE ---
                     if (assign.file) {
                         let aFiles = Array.isArray(assign.file) ? assign.file : [assign.file];
                         aFiles.forEach(f => {
@@ -217,8 +241,6 @@ async function loadAssignments() {
                         });
                         prevFileHTML += `<p style="font-size: 0.85em; color: #e74c3c; margin-bottom: 8px;">(Bạn có thể tải file khác để ghi đè)</p>`;
                     }
-                    // --- KẾT THÚC ĐOẠN FIX LỖI ---
-                    // LOGIC CHUYỂN ĐỔI HIỂN THỊ Ô NHẬP VĂN BẢN HOẶC BANNER THÔNG BÁO CHỈ NỘP TỆP
                     let essayTextAreaHTML = assign.hideEssayText
                         ? `<div class="glass-alert success" style="padding: 12px; margin-bottom: 12px; border-left-color: #38ef7d; background: rgba(56, 239, 125, 0.1);"><p style="margin:0; font-size:0.95em; font-weight:bold;">📁 Giáo viên yêu cầu nộp bài bằng tệp đính kèm (Không cần nhập nội dung văn bản).</p></div>`
                         : `<textarea id="answer-${assign.id}" placeholder="Nhập câu trả lời..." rows="4">${savedEssay}</textarea>`;
@@ -250,13 +272,12 @@ async function loadAssignments() {
                     </div>`;
                 list.appendChild(div);
 
-                // Khởi động đồng hồ đếm ngược (nếu không giới hạn thời gian làm lại thì không cần đếm)
                 if (!isRedoing || (isRedoing && now <= endTime)) {
                     const timer = setInterval(() => {
                         const c = new Date();
                         if (c > endTime) {
                             clearInterval(timer);
-                            if (!isRedoing) submitAssignment(assign.id, true); // Chỉ tự thu bài nếu nộp lần đầu
+                            if (!isRedoing) loadAssignments(); // Ép render lại giao diện 5 phút khóa chức năng
                         } else {
                             const el = document.getElementById(`cd-end-${assign.id}`);
                             if (el) el.innerText = formatCountdown(endTime - c);
@@ -350,7 +371,13 @@ async function submitAssignment(assignId, isAuto = false) {
     const endTime = assign.endDate ? new Date(assign.endDate.replace(" ", "T")) : new Date("2100-01-01");
 
     if (now < startTime) return alert("⚠️ Lỗi: Chưa đến thời gian làm bài!");
-    if (!isAuto && now > endTime && !isRedoing) return alert("⚠️ Lỗi: Đã quá thời gian nộp bài!");
+    
+    // --- KHÓA LỖI NẾU QUÁ HẠN MÀ CỐ TÌNH BẤM NỘP ---
+    if (!isAuto && now > endTime && !isRedoing) {
+        alert("⚠️ Lỗi: Đã quá thời gian nộp bài (Dù chỉ 1 giây)! Hệ thống lập tức khóa chức năng nộp.");
+        loadAssignments(); // Tải lại để ép ẩn đi nút nộp
+        return;
+    }
 
     let mcAnswersObj = {};
     let mcText = '';
@@ -363,7 +390,7 @@ async function submitAssignment(assignId, isAuto = false) {
             assign.questions.forEach((q, idx) => {
                 const selected = document.querySelector(`input[name="q-${assignId}-${idx}"]:checked`);
                 if (selected) {
-                    mcAnswersObj[idx] = selected.value; // Lưu lại đáp án cụ thể
+                    mcAnswersObj[idx] = selected.value; 
                     const isCorrect = selected.value === q.correct;
                     if (isCorrect) autoScore++;
                     mcText += `Câu ${idx + 1}: Chọn ${selected.value} ${isCorrect ? '✅' : '❌ (Đúng là ' + q.correct + ')'}\n`;
@@ -387,7 +414,7 @@ async function submitAssignment(assignId, isAuto = false) {
     }
 
     let answer = '';
-    let filesArray = null; // Khai báo dạng mảng
+    let filesArray = null;
 
     if (assign.assessmentType === 'tu_luan' || assign.assessmentType === 'ket_hop' || !assign.assessmentType) {
         const answerEl = document.getElementById(`answer-${assignId}`); if (answerEl) answer = answerEl.value;
@@ -433,7 +460,6 @@ async function submitAssignment(assignId, isAuto = false) {
             isRedoing: false
         };
 
-        // BẢO LƯU TRẠNG THÁI NỘP TRỄ NẾU ĐÃ BỊ HỆ THỐNG ĐÁNH DẤU TỪ TRƯỚC
         if (mySub && mySub.isLateFail) {
             payload.isLateFail = true;
         }
@@ -448,7 +474,6 @@ async function submitAssignment(assignId, isAuto = false) {
         if (!isAuto) alert("Nộp bài tập thành công!");
     };
 
-    // Gọi hàm xử lý
     await processSubmission(filesArray);
 }
 
