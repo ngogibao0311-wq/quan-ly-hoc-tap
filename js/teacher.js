@@ -780,13 +780,13 @@ window.pardonRoadmap = async function (subKey, mode) {
             await updateDB('submissions', subKey, { isLateFail: false, isAutoSubmitted: false });
             alert("✨ Đã tha lỗi nộp trễ thành công!");
         }
-    } 
+    }
     else if (mode === 'score') {
         if (confirm("Xác nhận tha lỗi điểm thấp cho học sinh?\n\nHệ thống sẽ ép trạng thái bài học này thành 'Đạt' để tính lộ trình cộng tiền bình thường.")) {
             await updateDB('submissions', subKey, { forcePass: true });
             alert("✨ Đã tha lỗi điểm thấp thành công!");
         }
-    } 
+    }
     else if (mode === 'unpardon') {
         if (confirm("Bạn muốn hủy trạng thái tha lỗi điểm thấp cho bài này?")) {
             await updateDB('submissions', subKey, { forcePass: false });
@@ -795,8 +795,9 @@ window.pardonRoadmap = async function (subKey, mode) {
     }
 };
 
-// Biến toàn cục lưu trữ key của bài tập đang được chọn để sửa
+// Biến toàn cục lưu trữ key của bài tập và số thứ tự câu hỏi khi sửa
 let currentEditingAssignmentKey = null;
+let editQuestionCount = 0;
 
 // Hàm mở popup chỉnh sửa và đổ dữ liệu cũ vào các ô nhập liệu
 window.openEditAssignmentModal = async function (fbKey) {
@@ -805,28 +806,104 @@ window.openEditAssignmentModal = async function (fbKey) {
     const assign = assignments.find(a => a._fbKey === fbKey);
     if (!assign) return alert("Không tìm thấy thông tin bài tập này!");
 
+    // 1. Đổ dữ liệu Thông tin chung
     document.getElementById('editTitle').value = assign.title || '';
-    document.getElementById('editDesc').value = assign.desc || '';
-    document.getElementById('editVideoLink').value = assign.videoLink || '';
-
-    // Đổ dữ liệu checkbox cũ vào popup sửa
-    if (document.getElementById('editHideEssayText')) {
-        document.getElementById('editHideEssayText').checked = !!assign.hideEssayText;
-    }
-
     document.getElementById('editStartDate').value = assign.startDate ? assign.startDate.replace(" ", "T") : '';
     document.getElementById('editEndDate').value = assign.endDate ? assign.endDate.replace(" ", "T") : '';
 
-    const weightFields = document.getElementById('editScoreWeightFields');
+    // Lấy các Section
+    const tuLuanSec = document.getElementById('editTuLuanSection');
+    const tracNghiemSec = document.getElementById('editTracNghiemSection');
+    const weightSec = document.getElementById('editScoreWeightFields');
+
+    // Ẩn tất cả trước khi xác định loại
+    tuLuanSec.style.display = 'none';
+    tracNghiemSec.style.display = 'none';
+    weightSec.style.display = 'none';
+
+    // 2. Xử lý phần Tự Luận
+    if (assign.assessmentType === 'tu_luan' || assign.assessmentType === 'ket_hop' || !assign.assessmentType) {
+        tuLuanSec.style.display = 'block';
+        document.getElementById('editDesc').value = assign.desc || '';
+        document.getElementById('editVideoLink').value = assign.videoLink || '';
+        if (document.getElementById('editHideEssayText')) {
+            document.getElementById('editHideEssayText').checked = !!assign.hideEssayText;
+        }
+    }
+
+    // 3. Xử lý phần Điểm số (Bài kết hợp)
     if (assign.assessmentType === 'ket_hop') {
-        weightFields.style.display = 'block';
+        weightSec.style.display = 'block';
         document.getElementById('editMcWeight').value = assign.mcWeight || 4;
         document.getElementById('editEssayWeight').value = assign.essayWeight || 6;
-    } else {
-        weightFields.style.display = 'none';
+    }
+
+    // 4. Xử lý phần Trắc Nghiệm (Load câu hỏi cũ)
+    if (assign.assessmentType === 'trac_nghiem' || assign.assessmentType === 'ket_hop') {
+        tracNghiemSec.style.display = 'block';
+        const qContainer = document.getElementById('editQuestionsContainer');
+        qContainer.innerHTML = ''; // Xóa trắng dữ liệu cũ
+        editQuestionCount = 0;
+
+        if (assign.questions && assign.questions.length > 0) {
+            assign.questions.forEach(q => {
+                addEditQuestionBlock(q);
+            });
+        }
     }
 
     document.getElementById('editAssignmentModal').classList.add('active');
+};
+
+// Hàm thêm 1 block câu hỏi trong lúc Sửa bài
+window.addEditQuestionBlock = function (qData = null) {
+    editQuestionCount++;
+    const container = document.getElementById('editQuestionsContainer');
+    const div = document.createElement('div');
+    div.className = 'edit-question-block';
+    div.style.cssText = 'background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid rgba(0,0,0,0.1); box-shadow: 0 4px 6px rgba(0,0,0,0.02);';
+
+    let qText = qData ? qData.qText : '';
+    let optA = qData ? qData.A : '';
+    let optB = qData ? qData.B : '';
+    let optC = qData ? qData.C : '';
+    let optD = qData ? qData.D : '';
+    let correct = qData ? qData.correct : '';
+
+    div.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
+            <strong style="color: #e11d48;">Câu ${editQuestionCount}:</strong>
+            <button type="button" style="background: rgba(225, 29, 72, 0.1); color: #e11d48; border: none; padding: 5px 10px; border-radius: 6px; font-weight: bold; width: auto; box-shadow: none; font-size: 0.85em;" onclick="removeEditQuestion(this)">🗑️ Xóa</button>
+        </div>
+        <input type="text" class="eq-text" value="${qText}" placeholder="Nhập nội dung câu hỏi..." style="margin-bottom: 10px; background: rgba(0,0,0,0.02);">
+        <div style="display:flex; gap:10px; margin-bottom: 10px;">
+            <input type="text" class="eq-optA" value="${optA}" placeholder="A. Đáp án A" style="background: rgba(0,0,0,0.02);">
+            <input type="text" class="eq-optB" value="${optB}" placeholder="B. Đáp án B" style="background: rgba(0,0,0,0.02);">
+        </div>
+        <div style="display:flex; gap:10px; margin-bottom: 10px;">
+            <input type="text" class="eq-optC" value="${optC}" placeholder="C. Đáp án C" style="background: rgba(0,0,0,0.02);">
+            <input type="text" class="eq-optD" value="${optD}" placeholder="D. Đáp án D" style="background: rgba(0,0,0,0.02);">
+        </div>
+        <select class="eq-correct" style="border-color: #e11d48; background: rgba(0,0,0,0.02);">
+            <option value="">-- Chọn đáp án ĐÚNG --</option>
+            <option value="A" ${correct === 'A' ? 'selected' : ''}>A</option>
+            <option value="B" ${correct === 'B' ? 'selected' : ''}>B</option>
+            <option value="C" ${correct === 'C' ? 'selected' : ''}>C</option>
+            <option value="D" ${correct === 'D' ? 'selected' : ''}>D</option>
+        </select>
+    `;
+    container.appendChild(div);
+};
+
+// Hàm xóa câu hỏi và cập nhật lại số thứ tự
+window.removeEditQuestion = function (btnElement) {
+    btnElement.closest('.edit-question-block').remove();
+    const remaining = document.querySelectorAll('.edit-question-block');
+    editQuestionCount = remaining.length;
+    remaining.forEach((block, index) => {
+        const label = block.querySelector('strong');
+        if (label) label.innerText = `Câu ${index + 1}:`;
+    });
 };
 
 // Hàm đóng popup chỉnh sửa bài tập
@@ -842,24 +919,28 @@ window.saveAssignmentEdit = async function () {
     const title = document.getElementById('editTitle').value.trim();
     const startDate = document.getElementById('editStartDate').value;
     const endDate = document.getElementById('editEndDate').value;
-    const desc = document.getElementById('editDesc').value;
-    const videoLink = document.getElementById('editVideoLink').value.trim();
-    const hideEssayText = document.getElementById('editHideEssayText') ? document.getElementById('editHideEssayText').checked : false;
 
     if (!title || !startDate || !endDate) return alert("Vui lòng điền đầy đủ Tiêu đề và Thời hạn nộp!");
+
+    const assignments = await getDB('assignments');
+    const assign = assignments.find(a => a._fbKey === currentEditingAssignmentKey);
+    if (!assign) return;
 
     const updateObj = {
         title: title,
         startDate: startDate.replace("T", " "),
-        endDate: endDate.replace("T", " "),
-        desc: desc,
-        videoLink: videoLink,
-        hideEssayText: hideEssayText // Cập nhật cấu hình mới lên DB khi lưu thông tin sửa
+        endDate: endDate.replace("T", " ")
     };
 
-    const assignments = await getDB('assignments');
-    const assign = assignments.find(a => a._fbKey === currentEditingAssignmentKey);
-    if (assign && assign.assessmentType === 'ket_hop') {
+    // Thu thập dữ liệu Tự Luận
+    if (assign.assessmentType === 'tu_luan' || assign.assessmentType === 'ket_hop' || !assign.assessmentType) {
+        updateObj.desc = document.getElementById('editDesc').value;
+        updateObj.videoLink = document.getElementById('editVideoLink').value.trim();
+        updateObj.hideEssayText = document.getElementById('editHideEssayText') ? document.getElementById('editHideEssayText').checked : false;
+    }
+
+    // Thu thập dữ liệu Điểm số
+    if (assign.assessmentType === 'ket_hop') {
         const mcWeight = parseFloat(document.getElementById('editMcWeight').value);
         const essayWeight = parseFloat(document.getElementById('editEssayWeight').value);
 
@@ -870,9 +951,36 @@ window.saveAssignmentEdit = async function () {
         updateObj.essayWeight = essayWeight;
     }
 
+    // Thu thập dữ liệu Trắc Nghiệm
+    if (assign.assessmentType === 'trac_nghiem' || assign.assessmentType === 'ket_hop') {
+        const editedQuestions = [];
+        document.querySelectorAll('.edit-question-block').forEach((block) => {
+            editedQuestions.push({
+                qText: block.querySelector('.eq-text').value.trim(),
+                A: block.querySelector('.eq-optA').value.trim(),
+                B: block.querySelector('.eq-optB').value.trim(),
+                C: block.querySelector('.eq-optC').value.trim(),
+                D: block.querySelector('.eq-optD').value.trim(),
+                correct: block.querySelector('.eq-correct').value
+            });
+        });
+
+        if (editedQuestions.length === 0) return alert("Vui lòng để lại ít nhất 1 câu hỏi trắc nghiệm!");
+        for (let q of editedQuestions) {
+            if (!q.qText || !q.A || !q.B || !q.C || !q.D || !q.correct) {
+                return alert("Vui lòng điền đầy đủ nội dung và chọn đáp án đúng cho TẤT CẢ câu hỏi trắc nghiệm!");
+            }
+        }
+        updateObj.questions = editedQuestions;
+    }
+
+    // Đẩy lên Firebase
     await updateDB('assignments', currentEditingAssignmentKey, updateObj);
     closeEditAssignmentModal();
-    alert("Cập nhật thông tin bài tập thành công!");
+    alert("Đã cập nhật toàn bộ nội dung bài tập thành công!");
+
+    // Ép render lại danh sách
+    loadAssignedList();
 };
 
 // ================= HÀM ĐÓNG / MỞ POPUP TRẠNG THÁI LÀM BÀI =================

@@ -399,63 +399,86 @@
     </div>
 
     <div id="editAssignmentModal" class="modal-overlay">
-        <div class="modal-content form-container">
-            <button class="close-btn" onclick="closeEditAssignmentModal()">✖</button>
+        <div class="modal-content form-container"
+            style="max-width: 700px; padding: 25px; max-height: 90vh; display: flex; flex-direction: column;">
+            <button class="close-btn" onclick="closeEditAssignmentModal()"
+                style="top: 15px; right: 15px; z-index: 10;">✖</button>
             <h3
-                style="color: #764ba2; margin-bottom: 20px; border-bottom: 2px solid rgba(0,0,0,0.1); padding-bottom: 10px;">
-                ✏️ Chỉnh sửa thông tin bài tập
+                style="color: #764ba2; margin-bottom: 20px; border-bottom: 2px solid rgba(118, 75, 162, 0.2); padding-bottom: 10px; font-size: 1.5em;">
+                ✏️ Chỉnh sửa bài tập
             </h3>
 
-            <label for="editTitle"><strong>Tiêu đề bài tập:</strong></label>
-            <input type="text" id="editTitle" placeholder="Nhập tiêu đề bài tập...">
+            <div style="overflow-y: auto; padding-right: 10px; flex-grow: 1;">
 
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="editStartDate"><strong>Hạn bắt đầu:</strong></label>
-                    <input type="datetime-local" id="editStartDate">
-                </div>
-                <div class="form-group">
-                    <label for="editEndDate"><strong>Hạn nộp bài:</strong></label>
-                    <input type="datetime-local" id="editEndDate">
-                </div>
-            </div>
+                <div
+                    style="background: rgba(102, 126, 234, 0.05); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid rgba(102, 126, 234, 0.2);">
+                    <h4 style="color: #667eea; margin-bottom: 15px;">📝 Thông tin chung</h4>
+                    <label for="editTitle"><strong>Tiêu đề bài tập:</strong></label>
+                    <input type="text" id="editTitle" placeholder="Nhập tiêu đề bài tập..." style="background: white;">
 
-            <label for="editDesc"><strong>Yêu cầu bài tập (Tự luận):</strong></label>
-            <textarea id="editDesc" placeholder="Nội dung chi tiết yêu cầu..." rows="4"></textarea>
-
-            <label for="editVideoLink"><strong>Đính kèm Video (Link YouTube):</strong></label>
-            <input type="text" id="editVideoLink" placeholder="Dán link YouTube vào đây...">
-
-            <label
-                style="display: flex; align-items: center; gap: 8px; margin-top: 15px; margin-bottom: 15px; cursor: pointer;">
-                <input type="checkbox" id="editHideEssayText"
-                    style="width: 20px; height: 20px; flex-shrink: 0; margin: 0; cursor: pointer; transition: none;">
-                <strong style="color: #764ba2;">📁 Chỉ cho phép nộp bằng Tệp (Ẩn ô viết chữ tự luận)</strong>
-            </label>
-
-            <div id="editScoreWeightFields"
-                style="display: none; background: rgba(0,0,0,0.02); padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px dashed #764ba2;">
-                <label style="color: #764ba2; font-weight: 800; display: block; margin-bottom: 8px;">⚖️ Cập nhật
-                    phân
-                    chia thang điểm 10:</label>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Điểm Trắc nghiệm tối đa:</label>
-                        <input type="number" id="editMcWeight" min="1" max="9" step="0.5"
-                            oninput="document.getElementById('editEssayWeight').value = 10 - this.value"
-                            style="font-weight: bold; color: #d35400; margin-bottom: 0;">
-                    </div>
-                    <div class="form-group">
-                        <label>Điểm Tự luận tối đa:</label>
-                        <input type="number" id="editEssayWeight" readonly
-                            style="background: rgba(0,0,0,0.05); font-weight: bold; margin-bottom: 0;">
+                    <div class="form-row" style="margin-bottom: 0;">
+                        <div class="form-group">
+                            <label for="editStartDate"><strong>Hạn bắt đầu:</strong></label>
+                            <input type="datetime-local" id="editStartDate" style="background: white;">
+                        </div>
+                        <div class="form-group">
+                            <label for="editEndDate"><strong>Hạn nộp bài:</strong></label>
+                            <input type="datetime-local" id="editEndDate" style="background: white;">
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <button onclick="saveAssignmentEdit()"
-                style="margin-top: 10px; background: linear-gradient(135deg, #f6d365 0%, #fda085 100%); color: #fff;">
-                💾 Lưu thay đổi
+                <div id="editScoreWeightFields"
+                    style="display: none; background: rgba(246, 211, 101, 0.1); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px dashed #f6d365;">
+                    <h4 style="color: #d35400; margin-bottom: 15px;">⚖️ Phân chia thang điểm 10</h4>
+                    <div class="form-row" style="margin-bottom: 0;">
+                        <div class="form-group">
+                            <label>Điểm Trắc nghiệm tối đa:</label>
+                            <input type="number" id="editMcWeight" min="1" max="9" step="0.5"
+                                oninput="document.getElementById('editEssayWeight').value = 10 - this.value"
+                                style="font-weight: bold; color: #d35400; background: white;">
+                        </div>
+                        <div class="form-group">
+                            <label>Điểm Tự luận tối đa:</label>
+                            <input type="number" id="editEssayWeight" readonly
+                                style="background: rgba(0,0,0,0.05); font-weight: bold; margin-bottom: 0;">
+                        </div>
+                    </div>
+                </div>
+
+                <div id="editTuLuanSection"
+                    style="display: none; background: rgba(56, 239, 125, 0.05); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid rgba(56, 239, 125, 0.2);">
+                    <h4 style="color: #11998e; margin-bottom: 15px;">✍️ Phần Tự luận</h4>
+                    <label for="editDesc"><strong>Yêu cầu bài tập:</strong></label>
+                    <textarea id="editDesc" placeholder="Nội dung chi tiết yêu cầu..." rows="3"
+                        style="background: white;"></textarea>
+
+                    <label for="editVideoLink"><strong>Đính kèm Video (Link YouTube):</strong></label>
+                    <input type="text" id="editVideoLink" placeholder="Dán link YouTube vào đây..."
+                        style="background: white;">
+
+                    <label
+                        style="display: flex; align-items: center; gap: 8px; margin-top: 15px; cursor: pointer; background: rgba(255,255,255,0.7); padding: 10px; border-radius: 8px;">
+                        <input type="checkbox" id="editHideEssayText"
+                            style="width: 20px; height: 20px; flex-shrink: 0; margin: 0; cursor: pointer;">
+                        <strong style="color: #764ba2; font-size: 0.9em;">📁 Chỉ cho phép nộp bằng Tệp (Ẩn ô viết chữ
+                            phía học sinh)</strong>
+                    </label>
+                </div>
+
+                <div id="editTracNghiemSection"
+                    style="display: none; background: rgba(255, 8, 68, 0.05); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid rgba(255, 8, 68, 0.2);">
+                    <h4 style="color: #e11d48; margin-bottom: 15px;">📚 Phần Trắc nghiệm</h4>
+                    <div id="editQuestionsContainer">
+                    </div>
+                    <button type="button" onclick="addEditQuestionBlock()"
+                        style="background: rgba(225, 29, 72, 0.1); color: #e11d48; border: 2px dashed #e11d48; box-shadow: none; margin-top: 10px; width: 100%; padding: 12px; font-weight: bold;">+
+                        Thêm câu hỏi trắc nghiệm</button>
+                </div>
+
+            </div> <button onclick="saveAssignmentEdit()"
+                style="margin-top: 15px; background: linear-gradient(135deg, #f6d365 0%, #fda085 100%); color: #fff; flex-shrink: 0; font-size: 1.1em; padding: 15px;">
+                💾 Lưu toàn bộ thay đổi
             </button>
         </div>
     </div>
