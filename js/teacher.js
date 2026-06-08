@@ -561,9 +561,9 @@ window.requestRedo = async function (subKey) {
 window.pardonSubmission = async function (subKey) {
     if (confirm("Bạn có chắc chắn muốn tha lỗi nộp trễ cho bài này?\n\nHệ thống sẽ gỡ bỏ án phạt, bài làm sẽ được tính điểm và cộng tiền Lộ trình như bình thường.")) {
         // Ghi đè 2 cờ phạt thành false
-        await updateDB('submissions', subKey, { 
-            isLateFail: false, 
-            isAutoSubmitted: false 
+        await updateDB('submissions', subKey, {
+            isLateFail: false,
+            isAutoSubmitted: false
         });
         alert("✨ Đã tha lỗi thành công! Lộ trình của học sinh đã được cập nhật lại theo điểm số thực tế.");
     }
@@ -676,11 +676,11 @@ async function renderTeacherRoadmap() {
         let statusText = 'Chưa nộp';
         let statusClass = 'status-pending';
         let cellBgStyle = '';
+        let pardonBtnHTML = ''; // Biến lưu cấu trúc nút Tha lỗi
 
         const moneyVal = assign.roadmapMoney || '';
         const conditionVal = assign.roadmapCondition || '';
 
-        // Mặc định hiển thị ô input để giáo viên nhập tiền cho cả lớp
         let moneyInputHTML = `<input type="number" value="${moneyVal}" placeholder="Số tiền..." 
                 onblur="updateAssignmentRoadmap('${assign._fbKey}', 'roadmapMoney', this.value)"
                 style="margin:0; padding:6px 10px; font-size:0.9em; min-width:90px; text-align: center; font-weight: bold;">`;
@@ -688,19 +688,28 @@ async function renderTeacherRoadmap() {
         if (selectedStudent) {
             const sub = submissions.find(s => s.assignmentId === assign.id && s.studentUsername === selectedStudent);
             if (sub) {
-                // ÉP TRẠNG THÁI NỘP TRỄ THÀNH "LOẠI" VÀ VÔ HIỆU HÓA Ô TIỀN THƯỞNG
-                if (sub.isAutoSubmitted || sub.isLateFail) {
+                // TRƯỜNG HỢP 1: GIÁO VIÊN ĐÃ ẤN NÚT THA ĐIỂM THẤP (FORCE PASS)
+                if (sub.forcePass) {
+                    statusText = 'Đạt (Được tha)';
+                    statusClass = 'status-done';
+                    cellBgStyle = 'background: rgba(16, 185, 129, 0.25) !important; color: #047857; font-weight: bold; border-radius: 8px;';
+                    studentScore = (sub.grade !== null && sub.grade !== undefined && sub.grade !== '') ? parseFloat(sub.grade) : '0';
+                    pardonBtnHTML = `<br><button onclick="pardonRoadmap('${sub._fbKey}', 'unpardon')" style="margin-top:6px; padding:3px 8px; font-size:0.8em; background:#6b7280; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; width:100%;">Hủy Tha</button>`;
+                }
+                // TRƯỜNG HỢP 2: BỊ HỆ THỐNG TỰ THU HOẶC GHIM CỜ NỘP TRỄ
+                else if (sub.isAutoSubmitted || sub.isLateFail) {
                     statusText = 'Loại';
                     statusClass = 'status-pending';
                     cellBgStyle = 'background: rgba(225, 29, 72, 0.2) !important; color: #b91c1c; font-weight: bold; border-radius: 8px;';
                     studentScore = (sub.grade !== null && sub.grade !== undefined && sub.grade !== '') ? parseFloat(sub.grade) : '0';
-                    // Thay thế ô input bằng chữ tĩnh "0 đ" để gv không bấm nhầm
                     moneyInputHTML = `<strong style="color: #e11d48; font-size: 1.1em;">0 đ</strong> <span style="font-size:0.75em; color:#666; display:block;">(Nộp trễ)</span>`;
+                    pardonBtnHTML = `<br><button onclick="pardonRoadmap('${sub._fbKey}', 'late')" style="margin-top:6px; padding:3px 8px; font-size:0.8em; background:#10b981; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; width:100%;">✨ Tha trễ</button>`;
                 }
                 else if (sub.isRegrading) {
                     statusText = 'Chấm lại';
                     studentScore = '🔄';
                 }
+                // TRƯỜNG HỢP 3: BÀI LÀM ĐÃ CHẤM ĐIỂM BÌNH THƯỜNG
                 else if (sub.grade !== null && sub.grade !== undefined && sub.grade !== '') {
                     studentScore = parseFloat(sub.grade);
                     if (studentScore >= passingGrade) {
@@ -711,6 +720,7 @@ async function renderTeacherRoadmap() {
                         statusText = 'Loại';
                         statusClass = 'status-pending';
                         cellBgStyle = 'background: rgba(225, 29, 72, 0.2) !important; color: #b91c1c; font-weight: bold; border-radius: 8px;';
+                        pardonBtnHTML = `<br><button onclick="pardonRoadmap('${sub._fbKey}', 'score')" style="margin-top:6px; padding:3px 8px; font-size:0.8em; background:#10b981; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; width:100%;">✨ Tha điểm</button>`;
                     }
                 } else {
                     statusText = 'Chưa chấm';
@@ -739,6 +749,7 @@ async function renderTeacherRoadmap() {
         <td style="padding:12px; text-align: center;">
             ${conditionSelectHTML}
             <span class="${statusClass}">${statusText}</span>
+            ${pardonBtnHTML}
         </td>
         <td style="padding:12px; text-align: center; ${cellBgStyle}">
             ${moneyInputHTML}
@@ -760,6 +771,28 @@ window.updateAssignmentRoadmap = async function (fbKey, field, value) {
     updateObj[field] = value;
     await updateDB('assignments', fbKey, updateObj);
     renderTeacherRoadmap();
+};
+
+// ================= HÀM THA LỖI TRÊN GIAO DIỆN LỘ TRÌNH =================
+window.pardonRoadmap = async function (subKey, mode) {
+    if (mode === 'late') {
+        if (confirm("Xác nhận tha lỗi nộp trễ cho học sinh?\n\nHệ thống sẽ gỡ bỏ án phạt quá hạn, bài làm sẽ quay về tính trạng thái theo điểm số thực tế.")) {
+            await updateDB('submissions', subKey, { isLateFail: false, isAutoSubmitted: false });
+            alert("✨ Đã tha lỗi nộp trễ thành công!");
+        }
+    } 
+    else if (mode === 'score') {
+        if (confirm("Xác nhận tha lỗi điểm thấp cho học sinh?\n\nHệ thống sẽ ép trạng thái bài học này thành 'Đạt' để tính lộ trình cộng tiền bình thường.")) {
+            await updateDB('submissions', subKey, { forcePass: true });
+            alert("✨ Đã tha lỗi điểm thấp thành công!");
+        }
+    } 
+    else if (mode === 'unpardon') {
+        if (confirm("Bạn muốn hủy trạng thái tha lỗi điểm thấp cho bài này?")) {
+            await updateDB('submissions', subKey, { forcePass: false });
+            alert("Đã hủy bỏ trạng thái tha lỗi.");
+        }
+    }
 };
 
 // Biến toàn cục lưu trữ key của bài tập đang được chọn để sửa

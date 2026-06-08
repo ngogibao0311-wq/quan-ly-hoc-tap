@@ -629,8 +629,15 @@ async function renderStudentRoadmap() {
         let moneyVal = assign.roadmapMoney ? parseInt(assign.roadmapMoney).toLocaleString('vi-VN') + ' đ' : '-';
 
         if (sub) {
+            // KIỂM TRA XEM CÓ ĐƯỢC GIÁO VIÊN THA ĐIỂM THẤP/NỘP TRỄ KHÔNG
+            if (sub.forcePass) {
+                statusText = 'Đạt';
+                statusClass = 'status-done';
+                cellBgStyle = 'background: rgba(16, 185, 129, 0.25) !important; color: #047857; font-weight: bold; border-radius: 8px;';
+                studentScore = (sub.grade !== null && sub.grade !== undefined && sub.grade !== '') ? parseFloat(sub.grade) : '0';
+            }
             // ƯU TIÊN KIỂM TRA NỘP TRỄ TRƯỚC
-            if (sub.isAutoSubmitted || sub.isLateFail) {
+            else if (sub.isAutoSubmitted || sub.isLateFail) {
                 statusText = 'Loại';
                 statusClass = 'status-pending';
                 cellBgStyle = 'background: rgba(225, 29, 72, 0.2) !important; color: #b91c1c; font-weight: bold; border-radius: 8px;';
