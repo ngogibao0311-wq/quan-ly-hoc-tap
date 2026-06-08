@@ -388,6 +388,12 @@ async function loadSubmissions() {
         let gradeStatus = '';
         let actionHTML = '';
 
+        // Nút tha lỗi (Chỉ xuất hiện nếu bài đang bị đánh dấu nộp trễ/hệ thống tự thu)
+        let pardonHTML = '';
+        if (sub.isLateFail || sub.isAutoSubmitted) {
+            pardonHTML = `<button class="btn-approve" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; margin-left: 5px; border: 2px solid #059669;" onclick="pardonSubmission('${sub._fbKey}')">✨ Tha lỗi (Tính bình thường)</button>`;
+        }
+
         if (sub.isRedoing) {
             gradeStatus = `<span class="status-pending" style="background: rgba(59, 130, 246, 0.15); color: #2563eb;">Đang làm lại</span>`;
 
@@ -400,6 +406,7 @@ async function loadSubmissions() {
             } else {
                 actionHTML = `<span style="color:#666; font-size:0.9em; font-style:italic;">⏳ Đang đợi học sinh nộp lại...</span>`;
             }
+            actionHTML += pardonHTML; // Thêm nút tha lỗi kể cả khi đang làm lại
         } else {
             let regradeStatusText = sub.isRegrading ? " (Đang chấm lại)" : "";
             gradeStatus = hasGrade ? `<span class="status-done">Đã chấm: ${sub.grade} điểm${regradeStatusText}</span>` : `<span class="status-pending">Chưa chấm${regradeStatusText}</span>`;
@@ -412,6 +419,7 @@ async function loadSubmissions() {
             if (hasGrade && !sub.isRegrading) {
                 actionHTML += `<button class="btn-reject" style="background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%); color: white; margin-left: 5px;" onclick="requestRegrade('${sub._fbKey}')">Chấm lại</button>`;
             }
+            actionHTML += pardonHTML; // Thêm nút tha lỗi
         }
 
         const uniqueId = `teacher-sub-${sub.id}`;
@@ -548,6 +556,18 @@ window.requestRedo = async function (subKey) {
         alert("Đã cấp quyền làm lại bài!");
     }
 }
+
+// ================= HÀM THA LỖI NỘP TRỄ =================
+window.pardonSubmission = async function (subKey) {
+    if (confirm("Bạn có chắc chắn muốn tha lỗi nộp trễ cho bài này?\n\nHệ thống sẽ gỡ bỏ án phạt, bài làm sẽ được tính điểm và cộng tiền Lộ trình như bình thường.")) {
+        // Ghi đè 2 cờ phạt thành false
+        await updateDB('submissions', subKey, { 
+            isLateFail: false, 
+            isAutoSubmitted: false 
+        });
+        alert("✨ Đã tha lỗi thành công! Lộ trình của học sinh đã được cập nhật lại theo điểm số thực tế.");
+    }
+};
 
 window.forceSubmitRedo = async function (subKey) {
     if (confirm("Bạn muốn khóa bài ngay lập tức? Học sinh sẽ mất quyền làm tiếp và bài sẽ được thu ngay.")) {
