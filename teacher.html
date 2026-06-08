@@ -123,11 +123,15 @@
 
             <div id="tab-assigned" class="tab-content">
                 <h2>Danh sách bài tập đã giao</h2>
+                <input type="text" class="search-bar" placeholder="🔍 Tìm kiếm theo tên bài tập, loại hình..."
+                    onkeyup="filterItems('assignedListContainer', this.value)">
                 <div id="assignedListContainer"></div>
             </div>
 
             <div id="tab-list" class="tab-content">
                 <h2>Danh sách bài đã nộp</h2>
+                <input type="text" class="search-bar" placeholder="🔍 Tìm kiếm theo tên học sinh, tên bài tập..."
+                    onkeyup="filterItems('submissionsList', this.value)">
                 <div id="submissionsList"></div>
             </div>
 
@@ -142,6 +146,8 @@
 
                 <div class="card">
                     <h3 style="margin-bottom: 15px; color: #2c3e50;">Danh sách tài liệu đã đăng tải</h3>
+                    <input type="text" class="search-bar" placeholder="🔍 Tìm kiếm tài liệu..."
+                        onkeyup="filterItems('teacherMaterialsContainer', this.value)">
                     <div id="teacherMaterialsContainer"></div>
                 </div>
             </div>
@@ -162,6 +168,8 @@
 
                 <div class="card">
                     <h3 style="margin-bottom: 15px; color: #2c3e50;">Danh sách tài khoản</h3>
+                    <input type="text" class="search-bar" placeholder="🔍 Tìm kiếm họ tên, tài khoản, lớp học..."
+                        onkeyup="filterItems('studentsListContainer', this.value)">
                     <div id="studentsListContainer"></div>
                 </div>
             </div>

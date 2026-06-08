@@ -183,3 +183,41 @@ window.addEventListener('DOMContentLoaded', () => {
         dashboard.classList.add('collapsed');
     }
 });
+// ==============================================================
+// HÀM TÌM KIẾM DỮ LIỆU ĐA NĂNG (DÙNG CHUNG)
+// ==============================================================
+window.filterItems = function(containerId, keyword) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    
+    const term = keyword.toLowerCase().trim();
+    
+    // Kiểm tra xem container đang chứa Table (Bảng) hay Div (Card)
+    if (container.tagName === 'TBODY' || container.querySelector('table')) {
+        // Xử lý tìm kiếm trong Bảng (Ví dụ: Danh sách học sinh)
+        const tbody = container.tagName === 'TBODY' ? container : container.querySelector('tbody');
+        if (tbody) {
+            const rows = tbody.querySelectorAll('tr');
+            rows.forEach((row, index) => {
+                // Bỏ qua hàng tiêu đề (th) nếu có
+                if (row.querySelector('th')) return;
+                
+                const text = row.innerText.toLowerCase();
+                row.style.display = text.includes(term) ? '' : 'none';
+            });
+        }
+    } else {
+        // Xử lý tìm kiếm trong danh sách Card (Ví dụ: Bài tập, Tài liệu)
+        const items = container.children;
+        for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            
+            // Bỏ qua các thẻ thông báo trống (Chưa có bài nộp...)
+            if (item.tagName === 'P' && item.innerText.includes('Chưa có')) continue;
+            
+            // Tìm kiếm dựa trên toàn bộ text hiển thị trong Card đó
+            const text = item.innerText.toLowerCase();
+            item.style.display = text.includes(term) ? '' : 'none';
+        }
+    }
+};

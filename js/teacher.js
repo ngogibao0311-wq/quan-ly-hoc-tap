@@ -780,13 +780,13 @@ window.pardonRoadmap = async function (subKey, mode) {
             await updateDB('submissions', subKey, { isLateFail: false, isAutoSubmitted: false });
             alert("✨ Đã tha lỗi nộp trễ thành công!");
         }
-    }
+    } 
     else if (mode === 'score') {
         if (confirm("Xác nhận tha lỗi điểm thấp cho học sinh?\n\nHệ thống sẽ ép trạng thái bài học này thành 'Đạt' để tính lộ trình cộng tiền bình thường.")) {
             await updateDB('submissions', subKey, { forcePass: true });
             alert("✨ Đã tha lỗi điểm thấp thành công!");
         }
-    }
+    } 
     else if (mode === 'unpardon') {
         if (confirm("Bạn muốn hủy trạng thái tha lỗi điểm thấp cho bài này?")) {
             await updateDB('submissions', subKey, { forcePass: false });
@@ -799,66 +799,73 @@ window.pardonRoadmap = async function (subKey, mode) {
 let currentEditingAssignmentKey = null;
 let editQuestionCount = 0;
 
-// Hàm mở popup chỉnh sửa và đổ dữ liệu cũ vào các ô nhập liệu
+// MỞ POPUP SỬA BÀI
 window.openEditAssignmentModal = async function (fbKey) {
-    currentEditingAssignmentKey = fbKey;
-    const assignments = await getDB('assignments');
-    const assign = assignments.find(a => a._fbKey === fbKey);
-    if (!assign) return alert("Không tìm thấy thông tin bài tập này!");
+    try {
+        currentEditingAssignmentKey = fbKey;
+        const assignments = await getDB('assignments');
+        const assign = assignments.find(a => a._fbKey === fbKey);
+        if (!assign) return alert("Không tìm thấy thông tin bài tập này!");
 
-    // 1. Đổ dữ liệu Thông tin chung
-    document.getElementById('editTitle').value = assign.title || '';
-    document.getElementById('editStartDate').value = assign.startDate ? assign.startDate.replace(" ", "T") : '';
-    document.getElementById('editEndDate').value = assign.endDate ? assign.endDate.replace(" ", "T") : '';
+        // 1. Đổ dữ liệu Thông tin chung
+        document.getElementById('editTitle').value = assign.title || '';
+        document.getElementById('editStartDate').value = assign.startDate ? assign.startDate.replace(" ", "T") : '';
+        document.getElementById('editEndDate').value = assign.endDate ? assign.endDate.replace(" ", "T") : '';
 
-    // Lấy các Section
-    const tuLuanSec = document.getElementById('editTuLuanSection');
-    const tracNghiemSec = document.getElementById('editTracNghiemSection');
-    const weightSec = document.getElementById('editScoreWeightFields');
+        // Lấy các Section
+        const tuLuanSec = document.getElementById('editTuLuanSection');
+        const tracNghiemSec = document.getElementById('editTracNghiemSection');
+        const weightSec = document.getElementById('editScoreWeightFields');
 
-    // Ẩn tất cả trước khi xác định loại
-    tuLuanSec.style.display = 'none';
-    tracNghiemSec.style.display = 'none';
-    weightSec.style.display = 'none';
+        // Reset ẩn đi trước
+        if(tuLuanSec) tuLuanSec.style.display = 'none';
+        if(tracNghiemSec) tracNghiemSec.style.display = 'none';
+        if(weightSec) weightSec.style.display = 'none';
 
-    // 2. Xử lý phần Tự Luận
-    if (assign.assessmentType === 'tu_luan' || assign.assessmentType === 'ket_hop' || !assign.assessmentType) {
-        tuLuanSec.style.display = 'block';
-        document.getElementById('editDesc').value = assign.desc || '';
-        document.getElementById('editVideoLink').value = assign.videoLink || '';
-        if (document.getElementById('editHideEssayText')) {
-            document.getElementById('editHideEssayText').checked = !!assign.hideEssayText;
+        // 2. Xử lý phần Tự Luận
+        if (assign.assessmentType === 'tu_luan' || assign.assessmentType === 'ket_hop' || !assign.assessmentType) {
+            if(tuLuanSec) tuLuanSec.style.display = 'block';
+            if(document.getElementById('editDesc')) document.getElementById('editDesc').value = assign.desc || '';
+            if(document.getElementById('editVideoLink')) document.getElementById('editVideoLink').value = assign.videoLink || '';
+            if (document.getElementById('editHideEssayText')) {
+                document.getElementById('editHideEssayText').checked = !!assign.hideEssayText;
+            }
         }
-    }
 
-    // 3. Xử lý phần Điểm số (Bài kết hợp)
-    if (assign.assessmentType === 'ket_hop') {
-        weightSec.style.display = 'block';
-        document.getElementById('editMcWeight').value = assign.mcWeight || 4;
-        document.getElementById('editEssayWeight').value = assign.essayWeight || 6;
-    }
-
-    // 4. Xử lý phần Trắc Nghiệm (Load câu hỏi cũ)
-    if (assign.assessmentType === 'trac_nghiem' || assign.assessmentType === 'ket_hop') {
-        tracNghiemSec.style.display = 'block';
-        const qContainer = document.getElementById('editQuestionsContainer');
-        qContainer.innerHTML = ''; // Xóa trắng dữ liệu cũ
-        editQuestionCount = 0;
-
-        if (assign.questions && assign.questions.length > 0) {
-            assign.questions.forEach(q => {
-                addEditQuestionBlock(q);
-            });
+        // 3. Xử lý phần Điểm số (Bài kết hợp)
+        if (assign.assessmentType === 'ket_hop') {
+            if(weightSec) weightSec.style.display = 'block';
+            if(document.getElementById('editMcWeight')) document.getElementById('editMcWeight').value = assign.mcWeight || 4;
+            if(document.getElementById('editEssayWeight')) document.getElementById('editEssayWeight').value = assign.essayWeight || 6;
         }
-    }
 
-    document.getElementById('editAssignmentModal').classList.add('active');
+        // 4. Xử lý phần Trắc Nghiệm (Load câu hỏi cũ)
+        if (assign.assessmentType === 'trac_nghiem' || assign.assessmentType === 'ket_hop') {
+            if(tracNghiemSec) tracNghiemSec.style.display = 'block';
+            const qContainer = document.getElementById('editQuestionsContainer');
+            if(qContainer) {
+                qContainer.innerHTML = ''; // Xóa trắng dữ liệu cũ
+                editQuestionCount = 0;
+                
+                if (assign.questions && assign.questions.length > 0) {
+                    assign.questions.forEach(q => addEditQuestionBlock(q));
+                }
+            }
+        }
+
+        document.getElementById('editAssignmentModal').classList.add('active');
+    } catch(err) {
+        console.log("Lỗi tải popup:", err);
+        alert("Có lỗi khi mở cửa sổ chỉnh sửa!");
+    }
 };
 
-// Hàm thêm 1 block câu hỏi trong lúc Sửa bài
-window.addEditQuestionBlock = function (qData = null) {
+// THÊM KHỐI CÂU HỎI KHI SỬA
+window.addEditQuestionBlock = function(qData = null) {
     editQuestionCount++;
     const container = document.getElementById('editQuestionsContainer');
+    if(!container) return;
+
     const div = document.createElement('div');
     div.className = 'edit-question-block';
     div.style.cssText = 'background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid rgba(0,0,0,0.1); box-shadow: 0 4px 6px rgba(0,0,0,0.02);';
@@ -895,7 +902,7 @@ window.addEditQuestionBlock = function (qData = null) {
     container.appendChild(div);
 };
 
-// Hàm xóa câu hỏi và cập nhật lại số thứ tự
+// XÓA CÂU HỎI KHI SỬA
 window.removeEditQuestion = function (btnElement) {
     btnElement.closest('.edit-question-block').remove();
     const remaining = document.querySelectorAll('.edit-question-block');
@@ -906,20 +913,20 @@ window.removeEditQuestion = function (btnElement) {
     });
 };
 
-// Hàm đóng popup chỉnh sửa bài tập
+// ĐÓNG POPUP SỬA
 window.closeEditAssignmentModal = function () {
     document.getElementById('editAssignmentModal').classList.remove('active');
     currentEditingAssignmentKey = null;
 };
 
-// Hàm xử lý lưu thông tin bài tập sau khi chỉnh sửa lên Firebase Database
+// LƯU TOÀN BỘ THAY ĐỔI
 window.saveAssignmentEdit = async function () {
     if (!currentEditingAssignmentKey) return;
 
     const title = document.getElementById('editTitle').value.trim();
     const startDate = document.getElementById('editStartDate').value;
     const endDate = document.getElementById('editEndDate').value;
-
+    
     if (!title || !startDate || !endDate) return alert("Vui lòng điền đầy đủ Tiêu đề và Thời hạn nộp!");
 
     const assignments = await getDB('assignments');
@@ -978,7 +985,7 @@ window.saveAssignmentEdit = async function () {
     await updateDB('assignments', currentEditingAssignmentKey, updateObj);
     closeEditAssignmentModal();
     alert("Đã cập nhật toàn bộ nội dung bài tập thành công!");
-
+    
     // Ép render lại danh sách
     loadAssignedList();
 };

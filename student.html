@@ -43,25 +43,35 @@
             </button>
             <div id="tab-todo" class="tab-content active">
                 <h2>Bài tập cần làm</h2>
+                <input type="text" class="search-bar" placeholder="🔍 Tìm kiếm bài tập..."
+                    onkeyup="filterItems('assignmentsList', this.value)">
                 <div id="assignmentsList"></div>
             </div>
 
             <div id="tab-grades" class="tab-content">
                 <h2>Kết quả học tập</h2>
+                <input type="text" class="search-bar" placeholder="🔍 Tìm kiếm bài đã nộp, điểm số..."
+                    onkeyup="filterItems('gradesList', this.value)">
                 <div id="gradesList"></div>
             </div>
 
             <div id="tab-materials" class="tab-content">
                 <h2>Tài liệu học tập</h2>
+                <input type="text" class="search-bar" placeholder="🔍 Tìm kiếm tài liệu, bài giảng..."
+                    onkeyup="filterItems('studentMaterialsList', this.value)">
                 <div id="studentMaterialsList"></div>
             </div>
 
             <div id="tab-roadmap" class="tab-content">
                 <h2>Lộ trình & Thời khóa biểu</h2>
-                
+
                 <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-                    <button id="btnSubRoadmap" onclick="toggleRoadmapView('roadmap')" style="flex: 1; padding: 12px; border-radius: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: bold; border: none; cursor: pointer; transition: 0.3s;">🗺️ Lộ trình cá nhân</button>
-                    <button id="btnSubSchedule" onclick="toggleRoadmapView('schedule')" style="flex: 1; padding: 12px; border-radius: 12px; background: rgba(255,255,255,0.5); color: #667eea; font-weight: bold; border: 2px solid #667eea; cursor: pointer; transition: 0.3s;">📅 Thời khóa biểu</button>
+                    <button id="btnSubRoadmap" onclick="toggleRoadmapView('roadmap')"
+                        style="flex: 1; padding: 12px; border-radius: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: bold; border: none; cursor: pointer; transition: 0.3s;">🗺️
+                        Lộ trình cá nhân</button>
+                    <button id="btnSubSchedule" onclick="toggleRoadmapView('schedule')"
+                        style="flex: 1; padding: 12px; border-radius: 12px; background: rgba(255,255,255,0.5); color: #667eea; font-weight: bold; border: 2px solid #667eea; cursor: pointer; transition: 0.3s;">📅
+                        Thời khóa biểu</button>
                 </div>
 
                 <div id="view-roadmap">
@@ -92,7 +102,8 @@
                         <div style="overflow-x: auto;">
                             <table style="width:100%; border-collapse: collapse; text-align: left;">
                                 <thead>
-                                    <tr style="background:rgba(255,255,255,0.7); border-bottom: 2px solid rgba(0,0,0,0.05);">
+                                    <tr
+                                        style="background:rgba(255,255,255,0.7); border-bottom: 2px solid rgba(0,0,0,0.05);">
                                         <th style="padding:15px;">Thứ / Ngày</th>
                                         <th style="padding:15px;">Thời gian</th>
                                         <th style="padding:15px;">Môn / Nội dung</th>
