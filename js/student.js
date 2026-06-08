@@ -152,7 +152,7 @@ async function loadAssignments() {
                 const autoFlagKey = `auto_sub_${assign.id}_${currentUser.username}`;
                 if (!localStorage.getItem(autoFlagKey)) {
                     localStorage.setItem(autoFlagKey, 'true'); hasAutoSubmitted = true;
-                    pushDB('submissions', { id: Date.now().toString() + Math.floor(Math.random() * 1000), assignmentId: assign.id, studentUsername: currentUser.username, studentName: currentUser.name, answer: "⚠️ [Hệ thống tự động nộp do đã quá hạn - Học sinh không làm bài kịp]", rawEssay: "", mcAnswers: {}, grade: null, submitTime: now.toLocaleTimeString('vi-VN') + ' ' + now.toLocaleDateString('vi-VN'), file: null, teacherFile: null, isAutoSubmitted: true, isRedoing: false });
+                    pushDB('submissions', { id: Date.now().toString() + Math.floor(Math.random() * 1000), assignmentId: assign.id, studentUsername: currentUser.username, studentName: currentUser.name, answer: "⚠️ [Hệ thống tự động nộp do đã quá hạn - Học sinh không làm bài kịp]", rawEssay: "", mcAnswers: {}, grade: null, submitTime: now.toLocaleTimeString('vi-VN') + ' ' + now.toLocaleDateString('vi-VN'), file: null, teacherFile: null, isAutoSubmitted: true, isRedoing: false, isLateFail: true });
                 }
             }
             else {
@@ -427,11 +427,16 @@ async function submitAssignment(assignId, isAuto = false) {
             mcAnswers: mcAnswersObj,
             grade: finalCalculatedGrade,
             submitTime: submitNow.toLocaleTimeString('vi-VN') + ' ' + submitNow.toLocaleDateString('vi-VN'),
-            file: finalFile, // Đẩy mảng file lên
+            file: finalFile,
             teacherFile: null,
             isAutoSubmitted: isAuto,
             isRedoing: false
         };
+
+        // BẢO LƯU TRẠNG THÁI NỘP TRỄ NẾU ĐÃ BỊ HỆ THỐNG ĐÁNH DẤU TỪ TRƯỚC
+        if (mySub && mySub.isLateFail) {
+            payload.isLateFail = true;
+        }
 
         if (mySub) {
             await updateDB('submissions', mySub._fbKey, payload);
@@ -620,8 +625,19 @@ async function renderStudentRoadmap() {
         let statusClass = 'status-pending';
         let cellBgStyle = '';
 
+        // Đưa việc khai báo tiền lên trước để có thể ghi đè nếu học sinh bị loại do nộp trễ
+        let moneyVal = assign.roadmapMoney ? parseInt(assign.roadmapMoney).toLocaleString('vi-VN') + ' đ' : '-';
+
         if (sub) {
-            if (sub.isRegrading) {
+            // ƯU TIÊN KIỂM TRA NỘP TRỄ TRƯỚC
+            if (sub.isAutoSubmitted || sub.isLateFail) {
+                statusText = 'Loại';
+                statusClass = 'status-pending';
+                cellBgStyle = 'background: rgba(225, 29, 72, 0.2) !important; color: #b91c1c; font-weight: bold; border-radius: 8px;';
+                studentScore = (sub.grade !== null && sub.grade !== undefined && sub.grade !== '') ? parseFloat(sub.grade) : '0';
+                moneyVal = '0 đ'; // Ép tiền thưởng về 0 đ
+            }
+            else if (sub.isRegrading) {
                 statusText = 'Chấm lại';
                 statusClass = 'status-pending';
                 studentScore = '🔄';
@@ -643,8 +659,6 @@ async function renderStudentRoadmap() {
             }
         }
 
-        // Định dạng số tiền hiển thị có dấu chấm phân cách
-        const moneyVal = assign.roadmapMoney ? parseInt(assign.roadmapMoney).toLocaleString('vi-VN') + ' đ' : '-';
         const conditionVal = assign.roadmapCondition || '-';
 
         const tr = document.createElement('tr');
@@ -829,10 +843,10 @@ async function readMultipleFiles(files) {
             reader.readAsDataURL(file);
         });
     });
-    
+
     // Đợi tất cả file đọc xong
     const results = await Promise.all(promises);
-    
+
     // Lọc bỏ những file bị lỗi (dung lượng quá lớn trả về null ở trên)
     return results.filter(item => item !== null);
 }

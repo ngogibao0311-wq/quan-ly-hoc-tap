@@ -122,7 +122,7 @@ async function createAssignment() {
         desc = document.getElementById('desc').value;
         videoLink = document.getElementById('videoLink').value.trim();
         hideEssayText = document.getElementById('hideEssayText').checked;
-        
+
         // Đọc toàn bộ file đính kèm ngay tại lúc bấm nút Phát hành
         const fInput = document.getElementById('fileInput');
         if (fInput && fInput.files.length > 0) {
@@ -657,15 +657,32 @@ async function renderTeacherRoadmap() {
         let statusClass = 'status-pending';
         let cellBgStyle = '';
 
+        const moneyVal = assign.roadmapMoney || '';
+        const conditionVal = assign.roadmapCondition || '';
+
+        // Mặc định hiển thị ô input để giáo viên nhập tiền cho cả lớp
+        let moneyInputHTML = `<input type="number" value="${moneyVal}" placeholder="Số tiền..." 
+                onblur="updateAssignmentRoadmap('${assign._fbKey}', 'roadmapMoney', this.value)"
+                style="margin:0; padding:6px 10px; font-size:0.9em; min-width:90px; text-align: center; font-weight: bold;">`;
+
         if (selectedStudent) {
             const sub = submissions.find(s => s.assignmentId === assign.id && s.studentUsername === selectedStudent);
             if (sub) {
-                if (sub.isRegrading) {
+                // ÉP TRẠNG THÁI NỘP TRỄ THÀNH "LOẠI" VÀ VÔ HIỆU HÓA Ô TIỀN THƯỞNG
+                if (sub.isAutoSubmitted || sub.isLateFail) {
+                    statusText = 'Loại';
+                    statusClass = 'status-pending';
+                    cellBgStyle = 'background: rgba(225, 29, 72, 0.2) !important; color: #b91c1c; font-weight: bold; border-radius: 8px;';
+                    studentScore = (sub.grade !== null && sub.grade !== undefined && sub.grade !== '') ? parseFloat(sub.grade) : '0';
+                    // Thay thế ô input bằng chữ tĩnh "0 đ" để gv không bấm nhầm
+                    moneyInputHTML = `<strong style="color: #e11d48; font-size: 1.1em;">0 đ</strong> <span style="font-size:0.75em; color:#666; display:block;">(Nộp trễ)</span>`;
+                }
+                else if (sub.isRegrading) {
                     statusText = 'Chấm lại';
                     studentScore = '🔄';
-                } else if (sub.grade !== null && sub.grade !== undefined && sub.grade !== '') {
+                }
+                else if (sub.grade !== null && sub.grade !== undefined && sub.grade !== '') {
                     studentScore = parseFloat(sub.grade);
-                    // Hệ thống sẽ dùng passingGrade riêng của bài này để so sánh
                     if (studentScore >= passingGrade) {
                         statusText = 'Đạt';
                         statusClass = 'status-done';
@@ -683,10 +700,6 @@ async function renderTeacherRoadmap() {
             statusText = 'Chọn HS';
         }
 
-        const moneyVal = assign.roadmapMoney || '';
-        const conditionVal = assign.roadmapCondition || '';
-
-        // Tạo HTML cho Dropdown điều kiện điểm chuẩn (Gọi trực tiếp hàm updateAssignmentRoadmap có sẵn)
         const conditionSelectHTML = `
         <select onchange="updateAssignmentRoadmap('${assign._fbKey}', 'passingGrade', parseFloat(this.value))" 
             style="width: auto; padding: 4px 8px; margin-bottom: 8px; display: inline-block; font-size: 0.85em; border-radius: 6px; border: 1px solid rgba(0,0,0,0.15); font-weight: bold; color: #764ba2; cursor: pointer; text-align: center;">
@@ -703,15 +716,12 @@ async function renderTeacherRoadmap() {
         tr.innerHTML = `
         <td style="padding:12px;"><strong>${assign.title}</strong></td>
         <td style="padding:12px; text-align: center;"><strong>${studentScore}</strong></td>
-        <!-- CẬP NHẬT LẠI CỘT TÌNH TRẠNG -->
         <td style="padding:12px; text-align: center;">
             ${conditionSelectHTML}
             <span class="${statusClass}">${statusText}</span>
         </td>
-        <td style="padding:12px; ${cellBgStyle}">
-            <input type="number" value="${moneyVal}" placeholder="Số tiền..." 
-                onblur="updateAssignmentRoadmap('${assign._fbKey}', 'roadmapMoney', this.value)"
-                style="margin:0; padding:6px 10px; font-size:0.9em; min-width:90px; text-align: center; font-weight: bold;">
+        <td style="padding:12px; text-align: center; ${cellBgStyle}">
+            ${moneyInputHTML}
         </td>
         <td style="padding:12px; font-size:0.85em; color:#555; white-space: nowrap;">${assign.endDate}</td>
         <td style="padding:12px;">
@@ -1078,10 +1088,10 @@ async function readMultipleFiles(files) {
             reader.readAsDataURL(file);
         });
     });
-    
+
     // Đợi tất cả file đọc xong
     const results = await Promise.all(promises);
-    
+
     // Lọc bỏ những file bị lỗi (dung lượng quá lớn trả về null ở trên)
     return results.filter(item => item !== null);
 }
