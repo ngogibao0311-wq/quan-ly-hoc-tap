@@ -44,6 +44,18 @@ window.onload = async function () {
     db.ref('schedule').on('value', async () => {
         if (typeof loadScheduleTeacher === 'function') await loadScheduleTeacher();
     });
+
+    // DÁN ĐOẠN THỜI GIAN THỰC ĐỒNG BỘ NÀY VÀO ĐÂY
+    db.ref('game_settings').on('value', (snapshot) => {
+        const settings = snapshot.val() || { isOpen: true, lockMessage: '' };
+        const toggleInput = document.getElementById('gameToggle');
+        const msgArea = document.getElementById('gameLockMessageArea');
+        const msgInput = document.getElementById('gameLockMessage');
+
+        if (toggleInput) toggleInput.checked = !!settings.isOpen;
+        if (msgInput && !msgInput.matches(':focus')) msgInput.value = settings.lockMessage || '';
+        if (msgArea) msgArea.style.display = settings.isOpen ? 'none' : 'block';
+    });
 };
 
 function getEmbedHTML(url) {
@@ -563,7 +575,24 @@ async function updateProfile() {
     const users = await getDB('users'); const userRecord = users.find(u => u.username === currentUser.username);
     if (userRecord) { const updateData = { name: newName }; if (newPass) updateData.password = newPass; await updateDB('users', userRecord._fbKey, updateData); currentUser.name = newName; if (newPass) currentUser.password = newPass; localStorage.setItem('currentUser', JSON.stringify(currentUser)); alert("Cập nhật thông tin thành công!"); document.getElementById('settingPass').value = ''; }
 }
-function switchTab(tabId, btnElement) { document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active')); document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active')); document.getElementById(tabId).classList.add('active'); btnElement.classList.add('active'); }
+function switchTab(tabId, btnElement) {
+    // 1. Reset trạng thái active của các tab
+    document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
+
+    // 2. Kích hoạt tab mới
+    document.getElementById(tabId).classList.add('active');
+    btnElement.classList.add('active');
+
+    // 3. Xóa vị trí cuộn cũ, cuộn mượt mà lên vị trí cao nhất
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    // Nếu bạn đang dùng scroll trên thẻ div .content, thì dòng này sẽ xử lý nó
+    const contentArea = document.querySelector('.content');
+    if (contentArea) {
+        contentArea.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+}
 window.requestRedo = async function (subKey) {
     if (confirm("Cấp quyền cho học sinh làm lại bài? Hệ thống sẽ giữ nguyên đáp án cũ để học sinh chỉnh sửa.")) {
         await updateDB('submissions', subKey, { isRedoing: true });
@@ -591,64 +620,64 @@ window.forceSubmitRedo = async function (subKey) {
 }
 
 window.importQuestions = function () {
-    let text = document.getElementById('quickImportText').value.trim(); 
+    let text = document.getElementById('quickImportText').value.trim();
     if (!text) return alert("Vui lòng dán văn bản!");
 
     // Ép xuống dòng trước các từ khóa Câu, Đáp án và Lựa chọn ABCD để dễ xử lý
     text = text.replace(/(Câu\s*\d+[\.\:\-]?)/gi, '\n$1')
-               .replace(/\s+([A-D][\.\:\/\)])/g, '\n$1')
-               .replace(/(Đáp án|ĐA|Trả lời)[\s\:\-\.]*([A-D])/gi, '\n$1: $2');
+        .replace(/\s+([A-D][\.\:\/\)])/g, '\n$1')
+        .replace(/(Đáp án|ĐA|Trả lời)[\s\:\-\.]*([A-D])/gi, '\n$1: $2');
 
-    const lines = text.split(/\r?\n/); 
-    let currentQ = null; 
+    const lines = text.split(/\r?\n/);
+    let currentQ = null;
     const questionsParsed = [];
 
     // Các bộ lọc nhận diện
-    const optionRegex = /^([A-D])[\.\:\/\)]\s*(.*)/i; 
+    const optionRegex = /^([A-D])[\.\:\/\)]\s*(.*)/i;
     const questionRegex = /^(Câu\s*\d+|Bài\s*\d+|\d+[\.\:\)])/i;
     const answerRegex = /^(?:Đáp án|ĐA|Trả lời)[\s\:\-\.]*([A-D])/i; // Thêm bộ lọc đáp án
 
     lines.forEach(line => {
-        let t = line.trim(); 
+        let t = line.trim();
         if (!t) return;
 
-        const optMatch = t.match(optionRegex); 
+        const optMatch = t.match(optionRegex);
         const ansMatch = t.match(answerRegex);
         const isNewQuestion = questionRegex.test(t) || t.toLowerCase().startsWith('câu');
 
-        if (isNewQuestion || (!optMatch && !ansMatch && !currentQ)) { 
-            if (currentQ) questionsParsed.push(currentQ); 
+        if (isNewQuestion || (!optMatch && !ansMatch && !currentQ)) {
+            if (currentQ) questionsParsed.push(currentQ);
             // Khởi tạo thêm trường correct rỗng
-            currentQ = { text: t, options: { A: '', B: '', C: '', D: '' }, correct: '' }; 
+            currentQ = { text: t, options: { A: '', B: '', C: '', D: '' }, correct: '' };
         }
         else if (ansMatch && currentQ) {
             // Nếu phát hiện dòng đáp án, lấy chữ cái in hoa gán vào correct
             currentQ.correct = ansMatch[1].toUpperCase();
         }
-        else if (optMatch && currentQ) { 
-            const letter = optMatch[1].toUpperCase(); 
-            currentQ.options[letter] = optMatch[2].trim(); 
+        else if (optMatch && currentQ) {
+            const letter = optMatch[1].toUpperCase();
+            currentQ.options[letter] = optMatch[2].trim();
         }
         else if (currentQ) {
             // Dồn các text thừa vào đúng chỗ
-            if (currentQ.options.D) currentQ.options.D += ' ' + t; 
+            if (currentQ.options.D) currentQ.options.D += ' ' + t;
             else if (currentQ.options.C) currentQ.options.C += ' ' + t;
-            else if (currentQ.options.B) currentQ.options.B += ' ' + t; 
-            else if (currentQ.options.A) currentQ.options.A += ' ' + t; 
+            else if (currentQ.options.B) currentQ.options.B += ' ' + t;
+            else if (currentQ.options.A) currentQ.options.A += ' ' + t;
             else currentQ.text += ' ' + t;
         }
     });
-    
+
     if (currentQ) questionsParsed.push(currentQ);
     if (questionsParsed.length === 0) return alert("Không nhận diện được câu hỏi.");
 
     const container = document.getElementById('questionsContainer');
     questionsParsed.forEach(q => {
-        questionCount++; 
+        questionCount++;
         questionIdGen++;
         let qId = questionIdGen;
         let cleanText = q.text.replace(/^(Câu|Bài)\s*\d+[\.\:\-]*\s*/i, '').replace(/^\d+[\.\:\)]\s*/, '').trim();
-        
+
         // Kiểm tra xem đáp án nào đang được chọn để gắn thẻ 'checked'
         let chkA = q.correct === 'A' ? 'checked' : '';
         let chkB = q.correct === 'B' ? 'checked' : '';
@@ -682,8 +711,8 @@ window.importQuestions = function () {
             </div>`;
         container.appendChild(div);
     });
-    
-    document.getElementById('quickImportText').value = ''; 
+
+    document.getElementById('quickImportText').value = '';
     alert(`✅ Đã bóc tách thành công ${questionsParsed.length} câu hỏi!`);
 };
 
@@ -1353,3 +1382,18 @@ async function readMultipleFiles(files) {
     // Lọc bỏ những file bị lỗi (dung lượng quá lớn trả về null ở trên)
     return results.filter(item => item !== null);
 }
+
+// DÁN VÀO DÒNG CUỐI CÙNG CỦA FILE TEACHER.JS
+window.toggleGameStatus = async function (isOpen) {
+    await db.ref('game_settings').update({ isOpen: isOpen });
+    const msgArea = document.getElementById('gameLockMessageArea');
+    if (msgArea) msgArea.style.display = isOpen ? 'none' : 'block';
+};
+
+window.saveGameLockMessage = async function () {
+    const msg = document.getElementById('gameLockMessage').value.trim();
+    if (!msg) return alert("Vui lòng nhập nội dung thông báo khóa mục trò chơi!");
+    
+    await db.ref('game_settings').update({ lockMessage: msg });
+    alert("🔒 Đã khóa mục trò chơi học sinh và gửi thông báo thành công!");
+};

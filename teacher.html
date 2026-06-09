@@ -30,6 +30,8 @@
                         lý học sinh</span></button>
                 <button class="nav-item" onclick="switchTab('tab-roadmap', this)">🗺️ <span class="nav-text">Lộ
                         trình & Lịch</span></button>
+                <button class="nav-item" onclick="switchTab('tab-game-manage', this)">🎮 <span class="nav-text">Quản lý
+                        trò chơi</span></button>
                 <button class="nav-item" id="btnSettingsNav" onclick="switchTab('tab-settings', this)">⚙️ <span
                         class="nav-text">Cài đặt</span></button>
             </div>
@@ -247,6 +249,15 @@
                 </div>
             </div>
 
+            <div id="tab-game-manage" class="tab-content">
+                <h2>Quản lý trò chơi (Giáo viên)</h2>
+                <div class="card">
+                    <h3 style="color: #764ba2; margin-bottom: 12px;">Kho lưu trữ & Thiết lập Sự kiện</h3>
+                    <p style="color: #666; font-style: italic;">Nơi tích hợp, theo dõi và cấu hình các hoạt động
+                        mini-game học tập (Ví dụ: Sự kiện Xưởng Bánh Lang Liêu...).</p>
+                </div>
+            </div>
+
             <div id="tab-settings" class="tab-content">
                 <h2>Cài đặt tài khoản Giáo Viên</h2>
                 <div id="updateBannerArea" class="update-banner">
@@ -271,6 +282,29 @@
                     <label><strong>Mật khẩu mới:</strong></label>
                     <input type="password" id="settingPass" placeholder="Nhập mật khẩu mới...">
                     <button onclick="updateProfile()" style="margin-top: 15px;">Lưu thay đổi</button>
+
+                    <hr style="border: 0; border-top: 1px dashed rgba(0,0,0,0.1); margin: 20px 0;">
+                    <label style="color: #764ba2; font-weight: bold; display: block; margin-bottom: 10px;">⚙️ CẤU HÌNH
+                        TRÒ CHƠI CHO HỌC SINH:</label>
+                    <label
+                        style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 15px; background: rgba(255,255,255,0.4); padding: 12px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.05);">
+                        <input type="checkbox" id="gameToggle" onchange="toggleGameStatus(this.checked)"
+                            style="width: 22px; height: 22px; margin: 0; cursor: pointer;">
+                        <strong style="color: #2c3e50; font-size: 0.95em;">Cho phép học sinh truy cập mục Trò chơi (Bật
+                            = Mở khóa)</strong>
+                    </label>
+
+                    <div id="gameLockMessageArea"
+                        style="display: none; background: rgba(225, 29, 72, 0.05); padding: 15px; border-radius: 12px; border: 1px dashed #e11d48; margin-bottom: 20px;">
+                        <label><strong style="color: #b91c1c; font-size: 0.9em;">💬 Nhập tin nhắn thông báo lý do khóa
+                                mục trò chơi:</strong></label>
+                        <input type="text" id="gameLockMessage"
+                            placeholder="Ví dụ: Đã hết giờ chơi giải trí, các em tập trung làm bài tập nhé!..."
+                            style="background: white; border: 1px solid rgba(0,0,0,0.12); margin-top: 8px; margin-bottom: 10px;">
+                        <button type="button" onclick="saveGameLockMessage()"
+                            style="width: auto; padding: 10px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">Xác
+                            nhận khóa & Gửi tin nhắn</button>
+                    </div>
                 </div>
             </div>
         </div>

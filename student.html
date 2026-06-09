@@ -28,6 +28,8 @@
                         trình & Lịch</span></button>
                 <button class="nav-item" id="btnSettingsNav" onclick="switchTab('tab-settings', this)">⚙️ <span
                         class="nav-text">Cài đặt</span></button>
+                <button class="nav-item" onclick="switchTab('tab-game', this)">🎮 <span class="nav-text">Trò
+                        chơi</span></button>
             </div>
             <div class="sidebar-bottom">
                 <button class="btn-logout" onclick="logout()">🚪 <span class="nav-text">Đăng xuất</span></button>
@@ -114,6 +116,29 @@
                                 </tbody>
                             </table>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-game" class="tab-content">
+                <h2>Khu vực giải trí & Trò chơi học tập</h2>
+
+                <div id="gameLockedView" style="display: none;">
+                    <div class="glass-alert danger"
+                        style="padding: 25px; text-align: center; border-left: 6px solid #e11d48; background: rgba(225, 29, 72, 0.08); border-radius: 16px;">
+                        <h3 style="color: #e11d48; margin-bottom: 12px; font-size: 1.4em; font-weight: 800;">🔒 Mục trò
+                            chơi đã bị Giáo viên tạm khóa</h3>
+                        <p id="gameLockedMessageText"
+                            style="font-size: 1.1em; font-weight: bold; color: #b91c1c; white-space: pre-wrap; background: rgba(255,255,255,0.7); padding: 15px; border-radius: 12px; margin-top: 15px; border: 1px solid rgba(225, 29, 72, 0.15); line-height: 1.6;">
+                            Nội dung tin nhắn nhắc nhở từ giáo viên sẽ hiển thị tại đây...</p>
+                    </div>
+                </div>
+
+                <div id="gameActiveView" style="display: block;">
+                    <div class="card">
+                        <h3 style="color: #059669; margin-bottom: 15px;">🎉 Chào mừng các em đến với Khu vui chơi!</h3>
+                        <p style="color: #333; line-height: 1.6;">Nơi tham gia các hoạt động, sự kiện trò chơi tích điểm
+                            và đổi tiền thưởng Lộ trình một cách chủ động.</p>
                     </div>
                 </div>
             </div>

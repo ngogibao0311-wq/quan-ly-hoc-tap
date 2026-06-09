@@ -39,6 +39,23 @@ window.onload = async function () {
     db.ref('schedule').on('value', async () => {
         if (typeof loadScheduleStudent === 'function') await loadScheduleStudent();
     });
+
+    // CHÈN THÊM LOGIC ĐỒNG BỘ GAME REALTIME VÀO ĐÂY
+    db.ref('game_settings').on('value', (snapshot) => {
+        const settings = snapshot.val() || { isOpen: true, lockMessage: '' };
+        const activeView = document.getElementById('gameActiveView');
+        const lockedView = document.getElementById('gameLockedView');
+        const msgText = document.getElementById('gameLockedMessageText');
+        
+        if (settings.isOpen) {
+            if (activeView) activeView.style.display = 'block';
+            if (lockedView) lockedView.style.display = 'none';
+        } else {
+            if (activeView) activeView.style.display = 'none';
+            if (lockedView) lockedView.style.display = 'block';
+            if (msgText) msgText.innerText = settings.lockMessage || 'Hiện tại mục trò chơi đã tạm khóa, hãy tập trung học bài nhé!';
+        }
+    });
 };
 
 function getEmbedHTML(url) {
@@ -618,7 +635,24 @@ window.toggleOldRequests = function () {
         }
     }
 };
-function switchTab(tabId, btnElement) { document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active')); document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active')); document.getElementById(tabId).classList.add('active'); btnElement.classList.add('active'); }
+function switchTab(tabId, btnElement) { 
+    // 1. Reset trạng thái active của các tab
+    document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active')); 
+    document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active')); 
+    
+    // 2. Kích hoạt tab mới
+    document.getElementById(tabId).classList.add('active'); 
+    btnElement.classList.add('active'); 
+    
+    // 3. Xóa vị trí cuộn cũ, cuộn mượt mà lên vị trí cao nhất
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    
+    // Nếu bạn đang dùng scroll trên thẻ div .content, thì dòng này sẽ xử lý nó
+    const contentArea = document.querySelector('.content');
+    if (contentArea) {
+        contentArea.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+}
 
 // Render lộ trình cá nhân của học sinh đang đăng nhập
 async function renderStudentRoadmap() {
