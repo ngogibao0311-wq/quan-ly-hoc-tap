@@ -40,9 +40,32 @@ window.onload = async function () {
     });
 
     db.ref('game_settings').on('value', (snapshot) => {
-        // ... (giữ nguyên code cũ của bạn)
-    });
+        if (snapshot.exists()) {
+            const settings = snapshot.val();
 
+            // Lưu trạng thái bật/tắt vào biến toàn cục. 
+            // LƯU Ý: Nếu code cũ của bạn dùng tên khác (như settings.status, settings.active...), hãy đổi lại cho khớp nhé.
+            window.isGameEnabled = settings.isGameEnabled;
+
+            // TÌM VÀ VÔ HIỆU HÓA NÚT QUAY/CHƠI
+            // Hãy thay 'id_nut_quay' bằng ID thật của nút bấm mở game/quay thưởng trong student.html
+            const btnPlay = document.getElementById('id_nut_quay');
+            if (btnPlay) {
+                if (window.isGameEnabled === false) {
+                    btnPlay.style.opacity = '0.5';
+                    btnPlay.style.cursor = 'not-allowed';
+                    btnPlay.onclick = (e) => {
+                        e.preventDefault();
+                        alert("🔒 Trò chơi hiện đang bị Giáo viên tạm khóa!");
+                    };
+                } else {
+                    btnPlay.style.opacity = '1';
+                    btnPlay.style.cursor = 'pointer';
+                    btnPlay.onclick = null; // Trả lại sự kiện click bình thường
+                }
+            }
+        }
+    });
     window.wheelProbs = { miss: 50, c100: 20, c150: 25, c500: 4, gift: 1 };
     db.ref('game_settings/wheel_probabilities').on('value', (snapshot) => {
         if (snapshot.exists()) {
@@ -59,8 +82,8 @@ window.onload = async function () {
         if (coinEl) {
             coinEl.style.transform = 'scale(1.5)';
             coinEl.style.color = '#ff9f43';
-            coinEl.innerText = coins.toLocaleString('vi-VN'); 
-            
+            coinEl.innerText = coins.toLocaleString('vi-VN');
+
             setTimeout(() => {
                 coinEl.style.transform = 'scale(1)';
                 coinEl.style.color = '#fff';
@@ -930,6 +953,12 @@ async function readMultipleFiles(files) {
 
 // THAY THẾ TOÀN BỘ HÀM spinWheel CŨ Ở CUỐI FILE STUDENT.JS BẰNG ĐOẠN NÀY
 window.spinWheel = async function () {
+    if (window.isGameEnabled === false) {
+        alert("🔒 Trò chơi hiện đang bị Giáo viên tạm khóa!");
+        closeLuckyWheel(); // Đóng luôn bảng vòng quay
+        return;
+    }
+
     if (isSpinning) return;
 
     // --- 1. KIỂM TRA GIỚI HẠN BẰNG BỘ ĐẾM ĐỘC LẬP TỪ FIREBASE ---
@@ -1020,7 +1049,7 @@ window.spinWheel = async function () {
         resultText.style.transform = 'scale(1.2)';
         resultText.style.color = finalRewardStr.includes('Coin') || finalRewardStr.includes('Bí ẩn') ? '#ffd700' : '#ff4757';
         resultText.innerText = `🎁 KẾT QUẢ: ${finalRewardStr.toUpperCase()}!`;
-        
+
         setTimeout(() => {
             resultText.style.transform = 'scale(1)';
         }, 300);
@@ -1048,7 +1077,7 @@ window.spinWheel = async function () {
 
         const recordNow = new Date();
         const currentTimestamp = recordNow.getTime();
-        
+
         // Push kết quả lên lịch sử
         await pushDB('spin_history', {
             studentName: currentUser.name,
@@ -1065,6 +1094,12 @@ window.spinWheel = async function () {
 let isSpinning = false;
 
 window.openLuckyWheel = function () {
+    // --- CHỐT CHẶN 1: TỪ CHỐI MỞ BẢNG NẾU GIÁO VIÊN TẮT ---
+    if (window.isGameEnabled === false) {
+        alert("🔒 Trò chơi hiện đang bị Giáo viên tạm khóa!");
+        return; 
+    }
+    
     document.getElementById('luckyWheelModal').classList.add('active');
 };
 
@@ -1159,7 +1194,7 @@ document.addEventListener('DOMContentLoaded', () => {
         isDraggingCoin = false;
         coinWidget.style.cursor = 'grab';
         coinWidget.style.transition = 'transform 0.1s';
-        
+
         // Lưu lại tọa độ để lần sau tải trang nó vẫn nằm ở vị trí cũ
         localStorage.setItem('coinWidgetPos', JSON.stringify({
             left: coinWidget.style.left,
@@ -1168,8 +1203,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Sự kiện cảm ứng trên Điện thoại
-    coinWidget.addEventListener('touchstart', handleDragStart, {passive: false});
-    document.addEventListener('touchmove', handleDragMove, {passive: false});
+    coinWidget.addEventListener('touchstart', handleDragStart, { passive: false });
+    document.addEventListener('touchmove', handleDragMove, { passive: false });
     document.addEventListener('touchend', handleDragEnd);
 
     // Sự kiện chuột trên Máy tính
