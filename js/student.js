@@ -35,32 +35,36 @@ window.onload = async function () {
         if (document.getElementById('studentRoadmapBody')) renderStudentRoadmap();
     });
 
-    // BỔ SUNG: Lắng nghe cấu hình Lịch học (Chỉ xem)
     db.ref('schedule').on('value', async () => {
         if (typeof loadScheduleStudent === 'function') await loadScheduleStudent();
     });
 
-    // CHÈN THÊM LOGIC ĐỒNG BỘ GAME REALTIME VÀO ĐÂY
     db.ref('game_settings').on('value', (snapshot) => {
-        const settings = snapshot.val() || { isOpen: true, lockMessage: '' };
-        const activeView = document.getElementById('gameActiveView');
-        const lockedView = document.getElementById('gameLockedView');
-        const msgText = document.getElementById('gameLockedMessageText');
-
-        if (settings.isOpen) {
-            if (activeView) activeView.style.display = 'block';
-            if (lockedView) lockedView.style.display = 'none';
-        } else {
-            if (activeView) activeView.style.display = 'none';
-            if (lockedView) lockedView.style.display = 'block';
-            if (msgText) msgText.innerText = settings.lockMessage || 'Hiện tại mục trò chơi đã tạm khóa, hãy tập trung học bài nhé!';
-        }
+        // ... (giữ nguyên code cũ của bạn)
     });
 
-    window.wheelProbs = { miss: 50, c100: 20, c150: 25, c500: 4, gift: 1 }; // Mặc định dự phòng
+    window.wheelProbs = { miss: 50, c100: 20, c150: 25, c500: 4, gift: 1 };
     db.ref('game_settings/wheel_probabilities').on('value', (snapshot) => {
         if (snapshot.exists()) {
             window.wheelProbs = snapshot.val();
+        }
+    });
+
+    // ==========================================
+    // DÁN ĐOẠN LẮNG NGHE COIN VÀO ĐÂY LÀ HẾT LỖI
+    // ==========================================
+    db.ref('student_coins/' + currentUser.username).on('value', (snapshot) => {
+        const coins = snapshot.val() || 0;
+        const coinEl = document.getElementById('studentCoinBalance');
+        if (coinEl) {
+            coinEl.style.transform = 'scale(1.5)';
+            coinEl.style.color = '#ff9f43';
+            coinEl.innerText = coins.toLocaleString('vi-VN'); 
+            
+            setTimeout(() => {
+                coinEl.style.transform = 'scale(1)';
+                coinEl.style.color = '#fff';
+            }, 300);
         }
     });
 };
@@ -1080,25 +1084,6 @@ window.closeLuckyWheel = function () {
         resultText.style.transform = 'scale(0.8)';
     }
 };
-
-// ================= HỆ THỐNG COIN VÀ WIDGET KÉO THẢ =================
-
-// 1. Lắng nghe số dư Coin thời gian thực từ Firebase
-db.ref('student_coins/' + currentUser.username).on('value', (snapshot) => {
-    const coins = snapshot.val() || 0;
-    const coinEl = document.getElementById('studentCoinBalance');
-    if (coinEl) {
-        // Tạo hiệu ứng nhảy số màu vàng khi tiền được cộng
-        coinEl.style.transform = 'scale(1.5)';
-        coinEl.style.color = '#ff9f43';
-        coinEl.innerText = coins.toLocaleString('vi-VN'); // Thêm dấu chấm cho số tiền
-        
-        setTimeout(() => {
-            coinEl.style.transform = 'scale(1)';
-            coinEl.style.color = '#fff';
-        }, 300);
-    }
-});
 
 // 2. Logic Kéo - Thả (Drag & Drop) Widget
 document.addEventListener('DOMContentLoaded', () => {
