@@ -416,6 +416,20 @@ async function loadSubmissions() {
 
     if (submissions.length === 0) { list.innerHTML = '<p style="color: #666; font-style: italic;">Chưa có bài nộp nào.</p>'; return; }
 
+    const uniqueSubmissions = {};
+    rawSubmissions.forEach(sub => {
+        const key = `${sub.assignmentId}_${sub.studentUsername}`;
+        if (!uniqueSubmissions[key]) {
+            uniqueSubmissions[key] = sub; // Lần đầu tiên thấy -> Lưu lại
+        } else {
+            // Nếu phát hiện trùng lặp, ƯU TIÊN bài học sinh tự nộp (không bị gắn cờ isAutoSubmitted)
+            if (!sub.isAutoSubmitted) {
+                uniqueSubmissions[key] = sub;
+            }
+        }
+    });
+    const submissions = Object.values(uniqueSubmissions);
+    
     [...submissions].reverse().forEach(sub => {
         const assign = assignments.find(a => a.id === sub.assignmentId);
         if (!assign) return;

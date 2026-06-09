@@ -304,7 +304,7 @@ async function loadAssignments() {
 
                 let submitBtnHTML = currentUser.isLocked
                     ? `<button type="button" style="width: 100%; margin-top: 15px; padding: 14px; border-radius: 12px; border: none; background: #95a5a6; color: white; font-weight: bold; cursor: not-allowed;" onclick="alert('🔒 Tài khoản của bạn đang bị khóa tạm thời. Bạn không thể nộp bài!')">🔒 Tài khoản bị khóa (Không thể thao tác)</button>`
-                    : `<button class="btn-approve" style="width: 100%; color: #111; margin-top: 15px;" onclick="submitAssignment('${assign.id}')">Nộp bài tập ngay</button>`;
+                    : `<button id="btn-submit-${assign.id}" class="btn-approve" style="width: 100%; color: #111; margin-top: 15px;" onclick="this.disabled=true; this.style.opacity='0.6'; this.innerText='⏳ Đang xử lý, vui lòng đợi...'; submitAssignment('${assign.id}').finally(() => { this.disabled=false; this.style.opacity='1'; this.innerText='Nộp bài tập ngay'; })">Nộp bài tập ngay</button>`;
 
                 const uniqueId = `student-todo-${assign.id}`;
                 const div = document.createElement('div'); div.className = 'card submit-box accordion-card';
@@ -969,7 +969,7 @@ window.spinWheel = async function () {
     mySubs.forEach(sub => {
         let score = parseFloat(sub.grade);
         let subTickets = 0;
-        
+
         // Tính vé cơ bản theo điểm
         if (score === 10) subTickets = 3;
         else if (score > 7) subTickets = 2;
@@ -980,7 +980,7 @@ window.spinWheel = async function () {
         if (sub.hasRedone && subTickets > 0) {
             subTickets -= 1;
         }
-        
+
         totalTickets += subTickets;
     });
 
@@ -1122,7 +1122,7 @@ window.openLuckyWheel = async function () {
     mySubs.forEach(sub => {
         let score = parseFloat(sub.grade);
         let subTickets = 0;
-        
+
         // Tính vé cơ bản theo điểm
         if (score === 10) subTickets = 3;
         else if (score > 7) subTickets = 2;
@@ -1132,7 +1132,7 @@ window.openLuckyWheel = async function () {
         if (sub.hasRedone && subTickets > 0) {
             subTickets -= 1;
         }
-        
+
         totalTickets += subTickets;
     });
 
