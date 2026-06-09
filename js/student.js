@@ -1068,9 +1068,9 @@ window.spinWheel = async function () {
 
         if (wonCoins > 0) {
             const coinRef = db.ref('student_coins/' + currentUser.username);
-            coinRef.once('value', snapshot => {
-                const currentCoins = snapshot.val() || 0;
-                coinRef.set(currentCoins + wonCoins); // Cộng dồn tiền trên Firebase
+            // Thay once + set bằng transaction
+            coinRef.transaction((currentCoins) => {
+                return (currentCoins || 0) + wonCoins;
             });
         }
         // --------------------------------
