@@ -88,6 +88,29 @@ window.onload = async function () {
             }, 300);
         }
     });
+    
+    // === LẮNG NGHE HỆ THỐNG CỬA HÀNG ===
+    db.ref('store_settings').on('value', (snapshot) => {
+        const settings = snapshot.val();
+        // Mặc định là mở (true) nếu chưa có cấu hình trên Firebase
+        const isOpen = (settings !== null && settings.isOpen !== undefined) ? settings.isOpen : true;
+        
+        const activeView = document.getElementById('storeActiveView');
+        const lockedView = document.getElementById('storeLockedView');
+        
+        if (activeView) activeView.style.display = isOpen ? 'block' : 'none';
+        if (lockedView) lockedView.style.display = isOpen ? 'none' : 'block';
+    });
+    
+    db.ref('store_items').on('value', async () => {
+        if (typeof loadStoreItems === 'function') await loadStoreItems();
+    });
+    
+    db.ref('student_inventory/' + currentUser.username).on('value', (snapshot) => {
+        myInventory = snapshot.val() ? Object.values(snapshot.val()) : [];
+        if (typeof loadStoreItems === 'function') loadStoreItems();
+        if (typeof applyEquippedItems === 'function') applyEquippedItems();
+    });
 };
 
 function getEmbedHTML(url) {
