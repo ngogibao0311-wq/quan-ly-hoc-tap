@@ -533,17 +533,40 @@ window.requestRegrade = async function (subKey) {
 }
 
 async function loadStudentsList() {
-    const users = await getDB('users'); const container = document.getElementById('studentsListContainer'); if (!container) return;
-    const students = users.filter(u => u.role === 'student'); if (students.length === 0) { container.innerHTML = '<p style="color: #666; font-style: italic;">Chưa có học sinh nào.</p>'; return; }
-    let html = `<div style="overflow-x: auto;"><table style="width:100%; border-collapse: collapse; text-align: left;"><tr style="background:rgba(255,255,255,0.7); border-bottom: 2px solid rgba(0,0,0,0.05);"><th style="padding:15px;">Họ và Tên</th><th style="padding:15px;">Tên đăng nhập</th><th style="padding:15px;">Mật khẩu</th><th style="padding:15px; text-align: center;">Thao tác</th></tr>`;
+    const users = await getDB('users'); 
+    const container = document.getElementById('studentsListContainer'); 
+    if (!container) return;
+    
+    const students = users.filter(u => u.role === 'student'); 
+    if (students.length === 0) { 
+        container.innerHTML = '<p style="color: #666; font-style: italic;">Chưa có học sinh nào.</p>'; 
+        return; 
+    }
+
+    // LẤY DỮ LIỆU COIN TỪ FIREBASE CỦA TẤT CẢ HỌC SINH
+    const coinSnap = await db.ref('student_coins').once('value');
+    const coinData = coinSnap.val() || {};
+
+    // THÊM CỘT "SỐ DƯ COIN" VÀO TIÊU ĐỀ BẢNG
+    let html = `<div style="overflow-x: auto;"><table style="width:100%; border-collapse: collapse; text-align: left;"><tr style="background:rgba(255,255,255,0.7); border-bottom: 2px solid rgba(0,0,0,0.05);"><th style="padding:15px;">Họ và Tên</th><th style="padding:15px;">Tên đăng nhập</th><th style="padding:15px;">Mật khẩu</th><th style="padding:15px; text-align: center;">Số dư Coin</th><th style="padding:15px; text-align: center;">Thao tác</th></tr>`;
+    
     students.forEach(st => {
         let lockBtnText = st.isLocked ? '🔓 Mở khóa' : '🔒 Khóa';
         let lockBtnStyle = st.isLocked ? 'background: #10b981; color: white;' : 'background: #f59e0b; color: white;';
         let statusText = st.isLocked ? '<br><span style="color: #e11d48; font-size: 0.85em; font-weight: bold;">(Đang bị khóa)</span>' : '';
+        
+        // LẤY SỐ COIN TƯƠNG ỨNG VỚI USERNAME (Mặc định là 0 nếu chưa có)
+        let studentCoins = coinData[st.username] || 0;
+
         html += `<tr style="border-bottom: 1px solid rgba(0,0,0,0.05); ${st.isLocked ? 'background: rgba(225, 29, 72, 0.05);' : ''}">
             <td style="padding:12px;"><strong>${st.name}</strong> <br><span style="font-size: 0.85em; color: #666;">Lớp: ${st.classInfo || '---'}</span>${statusText}</td>
             <td style="padding:12px;">${st.username}</td>
             <td style="padding:12px;">${st.password}</td>
+            
+            <td style="padding:12px; text-align: center; color: #d35400; font-weight: bold; font-size: 1.1em;">
+                ${studentCoins.toLocaleString('vi-VN')} 🪙
+            </td>
+
             <td style="padding:12px; text-align: center; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
                 <button style="padding:5px 12px; font-size: 0.85em; border: none; border-radius: 6px; cursor: pointer; ${lockBtnStyle}" onclick="toggleLockStudent('${st._fbKey}', ${!!st.isLocked})">${lockBtnText}</button>
                 <button class="btn-approve" style="padding:5px 12px; font-size: 0.85em; background: #3b82f6; color: white;" onclick="openEditStudentModal('${st._fbKey}')">Sửa</button>
