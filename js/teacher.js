@@ -408,13 +408,18 @@ function initFileListener() {
 async function populateStudentDropdown() { const users = await getDB('users'); const select = document.getElementById('targetStudent'); if (!select) return; select.innerHTML = '<option value="all">Tất cả học sinh</option>'; users.forEach(u => { if (u.role === 'student') { const opt = document.createElement('option'); opt.value = u.username; opt.innerText = u.name; select.appendChild(opt); } }); }
 
 async function loadSubmissions() {
-    const submissions = await getDB('submissions');
+    // 1. Khai báo đúng tên rawSubmissions
+    const rawSubmissions = await getDB('submissions');
     const assignments = await getDB('assignments');
     const list = document.getElementById('submissionsList');
     if (!list) return;
     list.innerHTML = '';
 
-    if (submissions.length === 0) { list.innerHTML = '<p style="color: #666; font-style: italic;">Chưa có bài nộp nào.</p>'; return; }
+    // 2. Sử dụng rawSubmissions
+    if (rawSubmissions.length === 0) {
+        list.innerHTML = '<p style="color: #666; font-style: italic;">Chưa có bài nộp nào.</p>';
+        return;
+    }
 
     const uniqueSubmissions = {};
     rawSubmissions.forEach(sub => {
@@ -428,8 +433,10 @@ async function loadSubmissions() {
             }
         }
     });
+
+    // 3. Khai báo biến submissions duy nhất 1 lần ở đây
     const submissions = Object.values(uniqueSubmissions);
-    
+
     [...submissions].reverse().forEach(sub => {
         const assign = assignments.find(a => a.id === sub.assignmentId);
         if (!assign) return;
@@ -665,10 +672,10 @@ window.requestRedo = async function (subKey) {
     if (confirm("Cấp quyền cho học sinh làm lại bài? Hệ thống sẽ thu hồi điểm/vé cũ (nếu có) và giữ nguyên đáp án để học sinh sửa.")) {
         // Đặt grade = null để thu hồi vé ngay lập tức
         // Bật cờ hasRedone = true để đánh dấu bài này sẽ bị trừ 1 vé khi chấm lại
-        await updateDB('submissions', subKey, { 
-            isRedoing: true, 
-            grade: null, 
-            hasRedone: true 
+        await updateDB('submissions', subKey, {
+            isRedoing: true,
+            grade: null,
+            hasRedone: true
         });
         alert("Đã cấp quyền làm lại bài và thu hồi kết quả cũ!");
     }
