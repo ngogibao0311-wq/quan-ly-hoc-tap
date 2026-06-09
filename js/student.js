@@ -1101,11 +1101,13 @@ db.ref('student_coins/' + currentUser.username).on('value', (snapshot) => {
 });
 
 // 2. Logic Kéo - Thả (Drag & Drop) Widget
-const coinWidget = document.getElementById('coinWidget');
-let isDraggingCoin = false;
-let startX, startY, initialX, initialY;
+document.addEventListener('DOMContentLoaded', () => {
+    const coinWidget = document.getElementById('coinWidget');
+    if (!coinWidget) return;
 
-if (coinWidget) {
+    let isDraggingCoin = false;
+    let startX, startY, initialX, initialY;
+
     // Khôi phục vị trí lưu trước đó (nếu có)
     const savedPos = JSON.parse(localStorage.getItem('coinWidgetPos'));
     if (savedPos) {
@@ -1115,78 +1117,78 @@ if (coinWidget) {
         coinWidget.style.top = savedPos.top;
     }
 
+    function handleDragStart(e) {
+        isDraggingCoin = true;
+        coinWidget.style.cursor = 'grabbing';
+        coinWidget.style.transition = 'none'; // Tắt mượt để kéo không bị lag trễ
+
+        if (e.type === 'touchstart') {
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+        } else {
+            startX = e.clientX;
+            startY = e.clientY;
+        }
+
+        const rect = coinWidget.getBoundingClientRect();
+        initialX = rect.left;
+        initialY = rect.top;
+    }
+
+    function handleDragMove(e) {
+        if (!isDraggingCoin) return;
+        e.preventDefault(); // Ngăn trình duyệt cuộn trang khi đang kéo widget
+
+        let currentX, currentY;
+        if (e.type === 'touchmove') {
+            currentX = e.touches[0].clientX;
+            currentY = e.touches[0].clientY;
+        } else {
+            currentX = e.clientX;
+            currentY = e.clientY;
+        }
+
+        const diffX = currentX - startX;
+        const diffY = currentY - startY;
+
+        let newX = initialX + diffX;
+        let newY = initialY + diffY;
+
+        // Giới hạn để widget không bị kéo lọt ra ngoài màn hình
+        const maxX = window.innerWidth - coinWidget.offsetWidth;
+        const maxY = window.innerHeight - coinWidget.offsetHeight;
+
+        if (newX < 0) newX = 0;
+        if (newY < 0) newY = 0;
+        if (newX > maxX) newX = maxX;
+        if (newY > maxY) newY = maxY;
+
+        coinWidget.style.bottom = 'auto';
+        coinWidget.style.right = 'auto';
+        coinWidget.style.left = newX + 'px';
+        coinWidget.style.top = newY + 'px';
+    }
+
+    function handleDragEnd() {
+        if (!isDraggingCoin) return;
+        isDraggingCoin = false;
+        coinWidget.style.cursor = 'grab';
+        coinWidget.style.transition = 'transform 0.1s';
+        
+        // Lưu lại tọa độ để lần sau tải trang nó vẫn nằm ở vị trí cũ
+        localStorage.setItem('coinWidgetPos', JSON.stringify({
+            left: coinWidget.style.left,
+            top: coinWidget.style.top
+        }));
+    }
+
     // Sự kiện cảm ứng trên Điện thoại
-    coinWidget.addEventListener('touchstart', dragStart, {passive: false});
-    document.addEventListener('touchmove', drag, {passive: false});
-    document.addEventListener('touchend', dragEnd);
+    coinWidget.addEventListener('touchstart', handleDragStart, {passive: false});
+    document.addEventListener('touchmove', handleDragMove, {passive: false});
+    document.addEventListener('touchend', handleDragEnd);
 
     // Sự kiện chuột trên Máy tính
-    coinWidget.addEventListener('mousedown', dragStart);
-    document.addEventListener('mousemove', drag);
-    document.addEventListener('mouseup', dragEnd);
-}
-
-function dragStart(e) {
-    isDraggingCoin = true;
-    coinWidget.style.cursor = 'grabbing';
-    coinWidget.style.transition = 'none'; // Tắt mượt để kéo không bị lag trễ
-
-    if (e.type === 'touchstart') {
-        startX = e.touches[0].clientX;
-        startY = e.touches[0].clientY;
-    } else {
-        startX = e.clientX;
-        startY = e.clientY;
-    }
-
-    const rect = coinWidget.getBoundingClientRect();
-    initialX = rect.left;
-    initialY = rect.top;
-}
-
-function drag(e) {
-    if (!isDraggingCoin) return;
-    e.preventDefault(); // Ngăn trình duyệt cuộn trang khi đang kéo widget
-
-    let currentX, currentY;
-    if (e.type === 'touchmove') {
-        currentX = e.touches[0].clientX;
-        currentY = e.touches[0].clientY;
-    } else {
-        currentX = e.clientX;
-        currentY = e.clientY;
-    }
-
-    const diffX = currentX - startX;
-    const diffY = currentY - startY;
-
-    let newX = initialX + diffX;
-    let newY = initialY + diffY;
-
-    // Giới hạn để widget không bị kéo lọt ra ngoài màn hình
-    const maxX = window.innerWidth - coinWidget.offsetWidth;
-    const maxY = window.innerHeight - coinWidget.offsetHeight;
-
-    if (newX < 0) newX = 0;
-    if (newY < 0) newY = 0;
-    if (newX > maxX) newX = maxX;
-    if (newY > maxY) newY = maxY;
-
-    coinWidget.style.bottom = 'auto';
-    coinWidget.style.right = 'auto';
-    coinWidget.style.left = newX + 'px';
-    coinWidget.style.top = newY + 'px';
-}
-
-function dragEnd() {
-    if (!isDraggingCoin) return;
-    isDraggingCoin = false;
-    coinWidget.style.cursor = 'grab';
-    coinWidget.style.transition = 'transform 0.1s';
-    
-    // Lưu lại tọa độ để lần sau tải trang nó vẫn nằm ở vị trí cũ
-    localStorage.setItem('coinWidgetPos', JSON.stringify({
-        left: coinWidget.style.left,
-        top: coinWidget.style.top
-    }));
-}
+    coinWidget.addEventListener('mousedown', handleDragStart);
+    document.addEventListener('mousemove', handleDragMove);
+    document.addEventListener('mouseup', handleDragEnd);
+});
