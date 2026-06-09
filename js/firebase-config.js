@@ -1,4 +1,5 @@
 // 1. DÁN ĐOẠN CODE BẠN LẤY ĐƯỢC TỪ FIREBASE VÀO ĐÂY
+// ---- DỰ ÁN THẬT
 const firebaseConfig = {
     apiKey: "AIzaSyAnxiZEjEFUNoXnPFZR2GJh9mJ9KKYsPqI",
     authDomain: "quan-ly-bai-tap-online.firebaseapp.com",
@@ -9,6 +10,17 @@ const firebaseConfig = {
     appId: "1:1045476145868:web:2019476c328a8b52e1e069",
     measurementId: "G-8MJZ8D9EK1"
 };
+
+// ---- DỰ ÁN NHÁP
+//const firebaseConfig = {
+//  apiKey: "AIzaSyDb4pnn0E16MY-aJ1UXD8p59X5vXkcRT_w",
+//  authDomain: "web-chan-doan-test.firebaseapp.com",
+//  databaseURL: "https://web-chan-doan-test-default-rtdb.asia-southeast1.firebasedatabase.app",
+//  projectId: "web-chan-doan-test",
+//  storageBucket: "web-chan-doan-test.firebasestorage.app",
+//  messagingSenderId: "623035254774",
+//  appId: "1:623035254774:web:70ee10a059363d8cb429d7"
+//};
 
 
 // 2. Khởi tạo kết nối

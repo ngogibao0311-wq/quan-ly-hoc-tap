@@ -961,29 +961,38 @@ window.spinWheel = async function () {
 
     if (isSpinning) return;
 
-    // --- 1. KIỂM TRA GIỚI HẠN BẰNG BỘ ĐẾM ĐỘC LẬP TỪ FIREBASE ---
-    // Tính toán mốc thời gian 00:00:00 của ngày Thứ 2 tuần này
-    const nowTime = new Date();
-    const day = nowTime.getDay();
-    const diff = nowTime.getDate() - day + (day === 0 ? -6 : 1);
-    const startOfWeek = new Date(nowTime);
-    startOfWeek.setDate(diff);
-    startOfWeek.setHours(0, 0, 0, 0);
-    const startOfWeekTs = startOfWeek.getTime();
+    // --- 1. KIỂM TRA GIỚI HẠN BẰNG VÉ TỪ ĐIỂM SỐ ---
+    const submissions = await getDB('submissions');
+    const mySubs = submissions.filter(s => s.studentUsername === currentUser.username && s.grade !== null && s.grade !== undefined && s.grade !== '');
 
-    // Lấy bộ đếm số lần quay của học sinh từ Firebase (Tách biệt hoàn toàn với bảng lịch sử)
+    let totalTickets = 0;
+    mySubs.forEach(sub => {
+        let score = parseFloat(sub.grade);
+        let subTickets = 0;
+        
+        // Tính vé cơ bản theo điểm
+        if (score === 10) subTickets = 3;
+        else if (score > 7) subTickets = 2;
+        else if (score > 5) subTickets = 1;
+
+        // Nếu bài này từng bị giáo viên bắt làm lại (có cờ hasRedone)
+        // và học sinh có đạt đủ điểm lấy vé, thì phạt trừ đi 1 vé
+        if (sub.hasRedone && subTickets > 0) {
+            subTickets -= 1;
+        }
+        
+        totalTickets += subTickets;
+    });
+
     const countSnapshot = await db.ref('spin_counts/' + currentUser.username).once('value');
-    let spinTracking = countSnapshot.val() || { count: 0, weekStartTs: 0 };
+    let spinTracking = countSnapshot.val() || { count: 0 };
+    let usedSpins = spinTracking.count || 0;
 
-    // Nếu đã sang tuần mới (thời gian lưu cũ hơn Thứ 2 tuần này) -> Reset biến đếm về 0
-    if (spinTracking.weekStartTs < startOfWeekTs) {
-        spinTracking.count = 0;
-        spinTracking.weekStartTs = startOfWeekTs;
-    }
+    let remainingTickets = totalTickets - usedSpins;
 
-    // Kiểm tra giới hạn 5 lần
-    if (spinTracking.count >= 5) {
-        alert(`⚠️ Bạn đã dùng hết 5 lượt quay của tuần này! Hãy quay lại vào tuần sau nhé.`);
+    // Kiểm tra còn vé hay không
+    if (remainingTickets <= 0) {
+        alert(`⚠️ Bạn đã hết vé quay! Hãy hoàn thành bài tập (trên 5đ = 1 vé, trên 7đ = 2 vé, 10đ = 3 vé) để nhận vé nhé.`);
         closeLuckyWheel();
         return;
     }
@@ -1056,9 +1065,14 @@ window.spinWheel = async function () {
 
         isSpinning = false;
 
-        // Tăng biến đếm lên 1 (Giới hạn 5 lần/tuần)
-        spinTracking.count += 1;
-        await db.ref('spin_counts/' + currentUser.username).set(spinTracking);
+        spinTracking.count = usedSpins + 1;
+        await db.ref('spin_counts/' + currentUser.username).set({ count: spinTracking.count });
+
+        // Cập nhật lại giao diện số vé hiển thị trên tiêu đề
+        const titleWheel = document.querySelector('#luckyWheelModal h3');
+        if (titleWheel) {
+            titleWheel.innerHTML = `🎡 Vòng Quay Nhân Phẩm<br><span style="font-size: 0.5em; color: #ffd700; text-transform: none;">🎫 Vé hiện có: ${remainingTickets - 1}</span>`;
+        }
 
         // --- CỘNG TIỀN NẾU TRÚNG COIN ---
         let wonCoins = 0;
@@ -1093,11 +1107,45 @@ window.spinWheel = async function () {
 // ================= HỆ THỐNG VÒNG QUAY MAY MẮN =================
 let isSpinning = false;
 
-window.openLuckyWheel = function () {
+window.openLuckyWheel = async function () {
     // --- CHỐT CHẶN 1: TỪ CHỐI MỞ BẢNG NẾU GIÁO VIÊN TẮT ---
     if (window.isGameEnabled === false) {
         alert("🔒 Trò chơi hiện đang bị Giáo viên tạm khóa!");
         return;
+    }
+
+    // --- LẤY SỐ VÉ HIỆN CÓ ĐỂ HIỂN THỊ ---
+    const submissions = await getDB('submissions');
+    const mySubs = submissions.filter(s => s.studentUsername === currentUser.username && s.grade !== null && s.grade !== undefined && s.grade !== '');
+
+    let totalTickets = 0;
+    mySubs.forEach(sub => {
+        let score = parseFloat(sub.grade);
+        let subTickets = 0;
+        
+        // Tính vé cơ bản theo điểm
+        if (score === 10) subTickets = 3;
+        else if (score > 7) subTickets = 2;
+        else if (score > 5) subTickets = 1;
+
+        // Trừ 1 vé nếu bài này từng bị bắt làm lại
+        if (sub.hasRedone && subTickets > 0) {
+            subTickets -= 1;
+        }
+        
+        totalTickets += subTickets;
+    });
+
+    const countSnapshot = await db.ref('spin_counts/' + currentUser.username).once('value');
+    let spinTracking = countSnapshot.val() || { count: 0 };
+    // Lấy tổng số lần đã từng quay (dùng count)
+    let usedSpins = spinTracking.count || 0;
+    let remainingTickets = totalTickets - usedSpins;
+
+    // Hiển thị số vé lên tiêu đề vòng quay
+    const titleWheel = document.querySelector('#luckyWheelModal h3');
+    if (titleWheel) {
+        titleWheel.innerHTML = `🎡 Vòng Quay Nhân Phẩm<br><span style="font-size: 0.5em; color: #ffd700; text-transform: none;">🎫 Vé hiện có: ${remainingTickets}</span>`;
     }
 
     document.getElementById('luckyWheelModal').classList.add('active');

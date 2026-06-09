@@ -648,9 +648,15 @@ function switchTab(tabId, btnElement) {
     }
 }
 window.requestRedo = async function (subKey) {
-    if (confirm("Cấp quyền cho học sinh làm lại bài? Hệ thống sẽ giữ nguyên đáp án cũ để học sinh chỉnh sửa.")) {
-        await updateDB('submissions', subKey, { isRedoing: true });
-        alert("Đã cấp quyền làm lại bài!");
+    if (confirm("Cấp quyền cho học sinh làm lại bài? Hệ thống sẽ thu hồi điểm/vé cũ (nếu có) và giữ nguyên đáp án để học sinh sửa.")) {
+        // Đặt grade = null để thu hồi vé ngay lập tức
+        // Bật cờ hasRedone = true để đánh dấu bài này sẽ bị trừ 1 vé khi chấm lại
+        await updateDB('submissions', subKey, { 
+            isRedoing: true, 
+            grade: null, 
+            hasRedone: true 
+        });
+        alert("Đã cấp quyền làm lại bài và thu hồi kết quả cũ!");
     }
 }
 

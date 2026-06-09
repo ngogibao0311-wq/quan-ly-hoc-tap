@@ -215,87 +215,6 @@ select { appearance: none; cursor: pointer; }
     border: 1px solid rgba(255, 255, 255, 0.6) !important;
     box-shadow: 0 4px 15px rgba(0,0,0,0.02) !important;
 }
-/* ==============================================================
-   GIAO DIỆN DÀNH CHO ĐIỆN THOẠI (RESPONSIVE)
-   ============================================================== */
-@media screen and (max-width: 992px) {
-    .dashboard {
-        flex-direction: column;
-    }
-
-    /* Tinh chỉnh lại thanh Menu (Sidebar) */
-    .sidebar {
-        width: 100%;
-        height: auto;
-        position: relative; /* Bỏ ghim cố định trên điện thoại để tiết kiệm chỗ */
-        border-right: none;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.5);
-        padding: 10px;
-    }
-
-    .sidebar-top, .sidebar-bottom {
-        padding: 10px;
-    }
-
-    .sidebar h3 {
-        text-align: center;
-        font-size: 1.3em;
-        margin-bottom: 15px;
-    }
-
-    /* Các nút menu dàn đều và căn giữa */
-    .nav-item {
-        text-align: center;
-        padding: 12px;
-    }
-
-    /* Vùng chứa nội dung chính */
-    .content {
-        padding: 15px; /* Giảm lề 2 bên để có không gian đọc chữ */
-        width: 100%;
-    }
-
-    .content h2 {
-        font-size: 1.6em;
-        text-align: center;
-        margin-bottom: 20px;
-    }
-
-    .card {
-        padding: 20px 15px;
-    }
-
-    /* Nếu có 2 cột (ví dụ Hạn bắt đầu / Hạn kết thúc) thì tách ra thành 2 dòng */
-    .form-row {
-        flex-direction: column;
-        gap: 0;
-    }
-
-    /* Thu nhỏ form đăng nhập ngoài trang chủ */
-    .login-container {
-        margin: 40px 15px;
-        padding: 30px 20px;
-    }
-
-    /* Xử lý bảng danh sách học sinh: Cho phép vuốt ngang nếu bảng quá to */
-    #studentsListContainer {
-        overflow-x: auto;
-        display: block;
-        white-space: nowrap;
-    }
-
-    /* Khu vực chấm điểm của giáo viên: Xếp dọc lại cho dễ bấm */
-    .grading-box > div {
-        flex-direction: column;
-        align-items: flex-start !important;
-        gap: 15px;
-    }
-    
-    .grading-box input {
-        width: 100%;
-        margin-bottom: 10px;
-    }
-}
 /* --- Khung Video YouTube (Cinematic) --- */
 .video-wrapper {
     margin-top: 15px;
@@ -376,11 +295,7 @@ select { appearance: none; cursor: pointer; }
 .accordion-content { display: none; padding-top: 15px; animation: fadeInUp 0.4s ease; }
 .accordion-content.active { display: block; }
 
-/* Responsive cho điện thoại */
-@media screen and (max-width: 768px) {
-    .accordion-header { flex-direction: column; align-items: flex-start; gap: 10px; }
-    .accordion-meta { width: 100%; justify-content: space-between; }
-}
+
 /* ==============================================================
    MODAL POPUP (KHUNG NỔI HIỂN THỊ TRÊN MÀN HÌNH) - BẢN ĐÃ SỬA LỖI
    ============================================================== */
@@ -623,18 +538,6 @@ body.theme-pink h2, body.theme-pink h3, body.theme-pink h4 {
     transform: rotate(180deg) scale(1.15);
 }
 
-/* ================= ĐIỀU CHỈNH TRÊN ĐIỆN THOẠI ================= */
-@media screen and (max-width: 992px) {
-    .sidebar-toggle { 
-        display: none; /* Ẩn nút rút gọn trên điện thoại vì Menu đã full màn hình */
-    } 
-    .dashboard.collapsed .sidebar { width: 100%; }
-    .dashboard.collapsed .content { width: 100%; }
-    .dashboard.collapsed .nav-text { display: inline-block; }
-    .dashboard.collapsed .nav-item { text-align: center; }
-    .dashboard.collapsed .sidebar-top h3 { font-size: 1.3em; }
-    .dashboard.collapsed .sidebar-top h3::before { display: none; }
-}
 /* Nút mở Hồ sơ cá nhân ở góc phải */
 /* Nút mở Hồ sơ cá nhân ở góc phải */
 .profile-trigger-btn {
