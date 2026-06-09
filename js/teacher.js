@@ -56,6 +56,27 @@ window.onload = async function () {
         if (msgInput && !msgInput.matches(':focus')) msgInput.value = settings.lockMessage || '';
         if (msgArea) msgArea.style.display = settings.isOpen ? 'none' : 'block';
     });
+
+    window.wheelProbs = { miss: 50, c100: 20, c150: 25, c500: 4, gift: 1 }; // Mặc định
+    db.ref('game_settings/wheel_probabilities').on('value', (snapshot) => {
+        if (snapshot.exists()) {
+            window.wheelProbs = snapshot.val();
+        }
+    });
+
+    db.ref('spin_history').on('value', async () => {
+        if (typeof loadSpinHistory === 'function') await loadSpinHistory();
+    });
+    db.ref('game_settings/wheel_probabilities').on('value', (snapshot) => {
+        const probs = snapshot.val() || { miss: 50, c100: 20, c150: 25, c500: 4, gift: 1 };
+        if (document.getElementById('probMiss')) {
+            document.getElementById('probMiss').value = probs.miss;
+            document.getElementById('prob100').value = probs.c100;
+            document.getElementById('prob150').value = probs.c150;
+            document.getElementById('prob500').value = probs.c500;
+            document.getElementById('probGift').value = probs.gift;
+        }
+    });
 };
 
 function getEmbedHTML(url) {
@@ -1393,7 +1414,120 @@ window.toggleGameStatus = async function (isOpen) {
 window.saveGameLockMessage = async function () {
     const msg = document.getElementById('gameLockMessage').value.trim();
     if (!msg) return alert("Vui lòng nhập nội dung thông báo khóa mục trò chơi!");
-    
+
     await db.ref('game_settings').update({ lockMessage: msg });
     alert("🔒 Đã khóa mục trò chơi học sinh và gửi thông báo thành công!");
+};
+
+// ================= QUẢN LÝ VÒNG QUAY MAY MẮN =================
+
+window.loadSpinHistory = async function () {
+    const history = await getDB('spin_history');
+    const tbody = document.getElementById('spinHistoryBody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (history.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" style="padding:15px; text-align:center; color:#666; font-style:italic;">Chưa có học sinh nào tham gia vòng quay.</td></tr>`;
+        return;
+    }
+
+    // Sắp xếp mảng để kết quả mới nhất luôn nằm trên cùng (Dựa vào timestamp)
+    const sortedHistory = [...history].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+    sortedHistory.forEach((record, index) => {
+        let isWin = record.reward.includes('Coin') || record.reward.includes('Quà');
+        let rewardColor = isWin ? '#059669' : '#888';
+        let rewardBg = isWin ? 'rgba(16, 185, 129, 0.15)' : 'transparent';
+
+        const tr = document.createElement('tr');
+        tr.style.borderBottom = '1px solid rgba(0,0,0,0.05)';
+        
+        // Nếu là dòng thứ 6 trở đi thì gán class ẩn đi
+        if (index >= 5) {
+            tr.classList.add('hidden-spin-row');
+            tr.style.display = 'none';
+        }
+
+        tr.innerHTML = `
+            <td style="padding:12px; font-weight:bold; color:#2c3e50;">${record.studentName}</td>
+            <td style="padding:12px; text-align: center; color:#666; font-size: 0.9em;">${record.time}</td>
+            <td style="padding:12px;">
+                <span style="color: ${rewardColor}; background: ${rewardBg}; padding: 6px 12px; border-radius: 20px; font-weight: bold;">
+                    ${record.reward}
+                </span>
+            </td>
+            <td style="padding:12px; text-align: center;">
+                <button class="btn-reject" style="padding: 5px 12px; font-size: 0.85em;" onclick="deleteSpinRecord('${record._fbKey}')">Xóa</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    // Nếu có nhiều hơn 5 dòng, in ra nút "Xem thêm"
+    if (sortedHistory.length > 5) {
+        const btnRow = document.createElement('tr');
+        btnRow.id = "toggleSpinBtnRow";
+        btnRow.innerHTML = `
+            <td colspan="4" style="text-align: center; padding: 15px; background: #f8f9fa;">
+                <button id="toggleSpinBtn" onclick="toggleSpinHistoryRows()" style="background: transparent; border: 1px dashed #059669; color: #059669; padding: 8px 20px; border-radius: 20px; cursor: pointer; font-size: 0.95em; font-weight: bold; transition: all 0.2s;">
+                    👇 Xem thêm ${sortedHistory.length - 5} lịch sử cũ hơn
+                </button>
+            </td>
+        `;
+        tbody.appendChild(btnRow);
+    }
+};
+
+// Hàm xử lý khi bấm nút Xem thêm / Thu gọn
+window.toggleSpinHistoryRows = function () {
+    const hiddenRows = document.querySelectorAll('.hidden-spin-row');
+    const btn = document.getElementById('toggleSpinBtn');
+    if (hiddenRows.length === 0) return;
+
+    // Kiểm tra xem dòng đầu tiên đang ẩn hay hiện
+    const isCurrentlyHidden = hiddenRows[0].style.display === 'none';
+
+    hiddenRows.forEach(row => {
+        row.style.display = isCurrentlyHidden ? 'table-row' : 'none';
+    });
+
+    if (isCurrentlyHidden) {
+        btn.innerHTML = `👆 Thu gọn danh sách`;
+        btn.style.borderColor = '#e11d48';
+        btn.style.color = '#e11d48';
+    } else {
+        btn.innerHTML = `👇 Xem thêm ${hiddenRows.length} lịch sử cũ hơn`;
+        btn.style.borderColor = '#059669';
+        btn.style.color = '#059669';
+    }
+};
+
+window.deleteSpinRecord = async function (fbKey) {
+    if (confirm("Xóa lịch sử quay này?")) {
+        await removeDB('spin_history', fbKey);
+    }
+};
+
+window.saveWheelProbabilities = async function () {
+    const miss = parseInt(document.getElementById('probMiss').value) || 0;
+    const c100 = parseInt(document.getElementById('prob100').value) || 0;
+    const c150 = parseInt(document.getElementById('prob150').value) || 0;
+    const c500 = parseInt(document.getElementById('prob500').value) || 0;
+    const gift = parseInt(document.getElementById('probGift').value) || 0;
+
+    const total = miss + c100 + c150 + c500 + gift;
+    const errorMsg = document.getElementById('probErrorMsg');
+
+    if (total !== 100) {
+        errorMsg.innerText = `❌ LỖI: Tổng tỉ lệ đang là ${total}%. Vui lòng điều chỉnh lại cho đúng bằng 100%!`;
+        errorMsg.style.display = 'block';
+        return;
+    }
+
+    errorMsg.style.display = 'none';
+    await db.ref('game_settings/wheel_probabilities').set({
+        miss: miss, c100: c100, c150: c150, c500: c500, gift: gift
+    });
+    alert('✅ Đã áp dụng tỉ lệ Vòng quay mới cho toàn bộ học sinh!');
 };

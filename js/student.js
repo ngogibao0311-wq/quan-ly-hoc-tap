@@ -46,7 +46,7 @@ window.onload = async function () {
         const activeView = document.getElementById('gameActiveView');
         const lockedView = document.getElementById('gameLockedView');
         const msgText = document.getElementById('gameLockedMessageText');
-        
+
         if (settings.isOpen) {
             if (activeView) activeView.style.display = 'block';
             if (lockedView) lockedView.style.display = 'none';
@@ -54,6 +54,13 @@ window.onload = async function () {
             if (activeView) activeView.style.display = 'none';
             if (lockedView) lockedView.style.display = 'block';
             if (msgText) msgText.innerText = settings.lockMessage || 'Hiện tại mục trò chơi đã tạm khóa, hãy tập trung học bài nhé!';
+        }
+    });
+
+    window.wheelProbs = { miss: 50, c100: 20, c150: 25, c500: 4, gift: 1 }; // Mặc định dự phòng
+    db.ref('game_settings/wheel_probabilities').on('value', (snapshot) => {
+        if (snapshot.exists()) {
+            window.wheelProbs = snapshot.val();
         }
     });
 };
@@ -103,9 +110,9 @@ async function loadAssignments() {
         const startTime = assign.startDate ? new Date(assign.startDate.replace(" ", "T")) : new Date(0);
         const endTime = assign.endDate ? new Date(assign.endDate.replace(" ", "T")) : new Date("2100-01-01");
         const isRedoing = mySub && mySub.isRedoing;
-        
+
         // --- LOGIC 5 PHÚT ÂN HẠN HIỂN THỊ (GRACE PERIOD) ---
-        const gracePeriodEndTime = new Date(endTime.getTime() + 5 * 60000); 
+        const gracePeriodEndTime = new Date(endTime.getTime() + 5 * 60000);
         const isGracePeriod = (now > endTime && now <= gracePeriodEndTime) && !isRedoing && (!mySub || mySub.isAutoSubmitted);
 
         // NẾU ĐÃ NỘP VÀ KHÔNG TRONG TRẠNG THÁI LÀM LẠI VÀ KHÔNG NẰM TRONG 5 PHÚT HIỂN THỊ TRỄ -> Bảng điểm
@@ -184,16 +191,16 @@ async function loadAssignments() {
                     </div>`;
                     list.appendChild(div);
 
-                    const timer = setInterval(() => { 
-                        const c = new Date(); 
-                        if (c > gracePeriodEndTime) { 
-                            clearInterval(timer); 
+                    const timer = setInterval(() => {
+                        const c = new Date();
+                        if (c > gracePeriodEndTime) {
+                            clearInterval(timer);
                             loadAssignments(); // Quá 5 phút thì chuyển sang bảng điểm
-                        } else { 
-                            const el = document.getElementById(`cd-late-${assign.id}`); 
-                            if (el) el.innerText = formatCountdown(gracePeriodEndTime - c); 
-                        } 
-                    }, 1000); 
+                        } else {
+                            const el = document.getElementById(`cd-late-${assign.id}`);
+                            if (el) el.innerText = formatCountdown(gracePeriodEndTime - c);
+                        }
+                    }, 1000);
                     assignmentTimers.push(timer);
                 }
             }
@@ -388,7 +395,7 @@ async function submitAssignment(assignId, isAuto = false) {
     const endTime = assign.endDate ? new Date(assign.endDate.replace(" ", "T")) : new Date("2100-01-01");
 
     if (now < startTime) return alert("⚠️ Lỗi: Chưa đến thời gian làm bài!");
-    
+
     // --- KHÓA LỖI NẾU QUÁ HẠN MÀ CỐ TÌNH BẤM NỘP ---
     if (!isAuto && now > endTime && !isRedoing) {
         alert("⚠️ Lỗi: Đã quá thời gian nộp bài (Dù chỉ 1 giây)! Hệ thống lập tức khóa chức năng nộp.");
@@ -407,7 +414,7 @@ async function submitAssignment(assignId, isAuto = false) {
             assign.questions.forEach((q, idx) => {
                 const selected = document.querySelector(`input[name="q-${assignId}-${idx}"]:checked`);
                 if (selected) {
-                    mcAnswersObj[idx] = selected.value; 
+                    mcAnswersObj[idx] = selected.value;
                     const isCorrect = selected.value === q.correct;
                     if (isCorrect) autoScore++;
                     mcText += `Câu ${idx + 1}: Chọn ${selected.value} ${isCorrect ? '✅' : '❌ (Đúng là ' + q.correct + ')'}\n`;
@@ -635,18 +642,18 @@ window.toggleOldRequests = function () {
         }
     }
 };
-function switchTab(tabId, btnElement) { 
+function switchTab(tabId, btnElement) {
     // 1. Reset trạng thái active của các tab
-    document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active')); 
-    document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active')); 
-    
+    document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
+
     // 2. Kích hoạt tab mới
-    document.getElementById(tabId).classList.add('active'); 
-    btnElement.classList.add('active'); 
-    
+    document.getElementById(tabId).classList.add('active');
+    btnElement.classList.add('active');
+
     // 3. Xóa vị trí cuộn cũ, cuộn mượt mà lên vị trí cao nhất
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    
+
     // Nếu bạn đang dùng scroll trên thẻ div .content, thì dòng này sẽ xử lý nó
     const contentArea = document.querySelector('.content');
     if (contentArea) {
@@ -916,3 +923,145 @@ async function readMultipleFiles(files) {
     // Lọc bỏ những file bị lỗi (dung lượng quá lớn trả về null ở trên)
     return results.filter(item => item !== null);
 }
+
+// THAY THẾ TOÀN BỘ HÀM spinWheel CŨ Ở CUỐI FILE STUDENT.JS BẰNG ĐOẠN NÀY
+window.spinWheel = async function () {
+    if (isSpinning) return;
+
+    // --- 1. KIỂM TRA GIỚI HẠN BẰNG BỘ ĐẾM ĐỘC LẬP TỪ FIREBASE ---
+    // Tính toán mốc thời gian 00:00:00 của ngày Thứ 2 tuần này
+    const nowTime = new Date();
+    const day = nowTime.getDay();
+    const diff = nowTime.getDate() - day + (day === 0 ? -6 : 1);
+    const startOfWeek = new Date(nowTime);
+    startOfWeek.setDate(diff);
+    startOfWeek.setHours(0, 0, 0, 0);
+    const startOfWeekTs = startOfWeek.getTime();
+
+    // Lấy bộ đếm số lần quay của học sinh từ Firebase (Tách biệt hoàn toàn với bảng lịch sử)
+    const countSnapshot = await db.ref('spin_counts/' + currentUser.username).once('value');
+    let spinTracking = countSnapshot.val() || { count: 0, weekStartTs: 0 };
+
+    // Nếu đã sang tuần mới (thời gian lưu cũ hơn Thứ 2 tuần này) -> Reset biến đếm về 0
+    if (spinTracking.weekStartTs < startOfWeekTs) {
+        spinTracking.count = 0;
+        spinTracking.weekStartTs = startOfWeekTs;
+    }
+
+    // Kiểm tra giới hạn 5 lần
+    if (spinTracking.count >= 5) {
+        alert(`⚠️ Bạn đã dùng hết 5 lượt quay của tuần này! Hãy quay lại vào tuần sau nhé.`);
+        closeLuckyWheel();
+        return;
+    }
+    // ------------------------------------------------
+
+    isSpinning = true;
+
+    const wheel = document.getElementById('wheelContainer');
+    const resultText = document.getElementById('spinResultText');
+
+    // Reset giao diện text trước khi quay
+    resultText.style.opacity = '0';
+    resultText.style.transform = 'scale(0.8)';
+    resultText.style.color = '#fff';
+
+    setTimeout(() => {
+        resultText.innerText = 'Đang quay... 🌀';
+        resultText.style.opacity = '1';
+        resultText.style.transform = 'scale(1)';
+    }, 200);
+
+    // TÍNH TOÁN TỈ LỆ ĐỘNG TỪ GIÁO VIÊN
+    const rand = Math.random() * 100;
+    let targetSlice;
+    let finalRewardStr = "";
+
+    const p = window.wheelProbs || { miss: 50, c100: 20, c150: 25, c500: 4, gift: 1 };
+    let cumulative = 0;
+
+    if (rand < (cumulative += p.miss)) {
+        const luckRand = Math.random();
+        if (luckRand < 0.33) targetSlice = 0;
+        else if (luckRand < 0.66) targetSlice = 2;
+        else targetSlice = 4;
+        finalRewardStr = "Chúc may mắn lần sau";
+    }
+    else if (rand < (cumulative += p.c100)) {
+        targetSlice = 1; finalRewardStr = "100 Coin";
+    }
+    else if (rand < (cumulative += p.c150)) {
+        targetSlice = 3; finalRewardStr = "150 Coin";
+    }
+    else if (rand < (cumulative += p.c500)) {
+        targetSlice = 5; finalRewardStr = "500 Coin";
+    }
+    else {
+        targetSlice = 6; finalRewardStr = "Quà bí ẩn";
+    }
+
+    const sliceAngle = 360 / 7;
+    const centerOffset = (targetSlice * sliceAngle) + (sliceAngle / 2);
+    const finalRotation = (360 * 5) + (360 - centerOffset);
+
+    wheel.style.transition = 'none';
+    wheel.style.transform = 'rotate(0deg)';
+
+    setTimeout(() => {
+        wheel.style.transition = 'transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99)';
+        wheel.style.transform = `rotate(${finalRotation}deg)`;
+    }, 50);
+
+    setTimeout(async () => {
+        resultText.style.transform = 'scale(1.2)';
+        resultText.style.color = finalRewardStr.includes('Coin') || finalRewardStr.includes('Bí ẩn') ? '#ffd700' : '#ff4757';
+        resultText.innerText = `🎁 KẾT QUẢ: ${finalRewardStr.toUpperCase()}!`;
+
+        setTimeout(() => {
+            resultText.style.transform = 'scale(1)';
+        }, 300);
+
+        isSpinning = false;
+
+        // Tăng biến đếm lên 1 (Giới hạn 5 lần/tuần)
+        spinTracking.count += 1;
+        await db.ref('spin_counts/' + currentUser.username).set(spinTracking);
+
+        const recordNow = new Date();
+        const currentTimestamp = recordNow.getTime();
+
+        // Chỉ lưu kết quả mới nhất lên Firebase (KHÔNG XÓA CÁC LẦN QUAY CŨ NỮA)
+        await pushDB('spin_history', {
+            studentName: currentUser.name,
+            username: currentUser.username,
+            reward: finalRewardStr,
+            time: recordNow.toLocaleTimeString('vi-VN') + ' ' + recordNow.toLocaleDateString('vi-VN'),
+            timestamp: currentTimestamp
+        });
+
+    }, 4050);
+};
+
+// ================= HỆ THỐNG VÒNG QUAY MAY MẮN =================
+let isSpinning = false;
+
+window.openLuckyWheel = function () {
+    document.getElementById('luckyWheelModal').classList.add('active');
+};
+
+window.closeLuckyWheel = function () {
+    if (isSpinning) return; // Đang quay thì không cho đóng để tránh lỗi
+    document.getElementById('luckyWheelModal').classList.remove('active');
+
+    // Reset lại vòng quay và text khi đóng
+    const wheel = document.getElementById('wheelContainer');
+    const resultText = document.getElementById('spinResultText');
+    if (wheel) {
+        wheel.style.transition = 'none';
+        wheel.style.transform = `rotate(0deg)`;
+    }
+    if (resultText) {
+        resultText.style.opacity = '0';
+        resultText.style.transform = 'scale(0.8)';
+    }
+};

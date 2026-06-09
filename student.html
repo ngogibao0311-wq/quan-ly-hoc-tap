@@ -136,9 +136,22 @@
 
                 <div id="gameActiveView" style="display: block;">
                     <div class="card">
-                        <h3 style="color: #059669; margin-bottom: 15px;">🎉 Chào mừng các em đến với Khu vui chơi!</h3>
-                        <p style="color: #333; line-height: 1.6;">Nơi tham gia các hoạt động, sự kiện trò chơi tích điểm
-                            và đổi tiền thưởng Lộ trình một cách chủ động.</p>
+                        <h3 style="color: #059669; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
+                            🎉 Chào mừng các em đến với Khu vui chơi!</h3>
+                        <p style="color: #333; line-height: 1.6; font-size: 1em;">Nơi tham gia các hoạt động, sự kiện
+                            trò chơi tích điểm và đổi tiền thưởng Lộ trình một cách chủ động.</p>
+                    </div>
+
+                    <div class="card"
+                        style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px; background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%);">
+                        <div>
+                            <h3 style="color: #d35400; margin-bottom: 8px;">🎡 Vòng quay nhân phẩm</h3>
+                            <p style="color: #666; font-size: 0.9em; margin: 0;">Thử vận may mỗi ngày để nhận Coin và
+                                Quà bí ẩn!</p>
+                        </div>
+                        <button onclick="openLuckyWheel()"
+                            style="background: linear-gradient(135deg, #f6d365 0%, #fda085 100%); color: white; padding: 12px 25px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(246, 211, 101, 0.4);">Chơi
+                            ngay ➡️</button>
                     </div>
                 </div>
             </div>
@@ -209,6 +222,76 @@
             <div style="text-align: left; background: rgba(255,255,255,0.5); padding: 15px; border-radius: 12px;">
                 <strong style="color: #2c3e50;">💬 Chân ngôn:</strong>
                 <p id="infoModalMotto" style="margin-top: 5px; font-style: italic; color: #444;">Chưa cập nhật</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="luckyWheelModal" class="modal-overlay" style="background: rgba(0,0,0,0.6);">
+        <div class="modal-content"
+            style="max-width: 480px; text-align: center; position: relative; background: rgba(30, 30, 50, 0.75); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.2); box-shadow: 0 30px 60px rgba(0,0,0,0.5); border-radius: 24px; padding: 35px 20px 45px 20px;">
+
+            <button class="close-btn" onclick="closeLuckyWheel()"
+                style="z-index: 10; background: rgba(255,255,255,0.1); border-radius: 50%; color: #fff; top: 15px; right: 15px; border: 1px solid rgba(255,255,255,0.2);">✖</button>
+
+            <h3
+                style="color: #fff; margin-bottom: 35px; font-size: 1.8em; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 4px 10px rgba(0,0,0,0.5); font-weight: 900;">
+                🎡 Vòng Quay Nhân Phẩm</h3>
+
+            <div style="position: relative; width: 320px; height: 320px; margin: 0 auto 40px auto;">
+                <div
+                    style="position: absolute; top: -15px; left: 50%; transform: translateX(-50%); z-index: 10; width: 0; height: 0; border-left: 18px solid transparent; border-right: 18px solid transparent; border-top: 35px solid #ff0844; filter: drop-shadow(0 6px 4px rgba(0,0,0,0.5));">
+                </div>
+                <div
+                    style="position: absolute; top: -18px; left: 50%; transform: translateX(-50%); z-index: 11; width: 36px; height: 12px; background: #ff0844; border-radius: 50px; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+                </div>
+
+                <div id="wheelContainer" style="width: 100%; height: 100%; border-radius: 50%; border: 8px solid #f8f9fa; box-shadow: 0 15px 35px rgba(0,0,0,0.5), inset 0 0 25px rgba(0,0,0,0.6); position: relative; overflow: hidden; transition: transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99); background: conic-gradient(
+                #ff4757 0deg 51.4deg, #2ed573 51.4deg 102.8deg, #1e90ff 102.8deg 154.2deg, #ffa502 154.2deg 205.7deg, #3742fa 205.7deg 257.1deg, #ff69b4 257.1deg 308.5deg, #2f3542 308.5deg 360deg
+            );">
+                    <style>
+                        .wheel-text {
+                            position: absolute;
+                            top: 50%;
+                            left: 50%;
+                            width: 50%;
+                            height: 40px;
+                            margin-top: -20px;
+                            transform-origin: 0 50%;
+                            font-weight: 900;
+                            font-size: 0.95em;
+                            color: #fff;
+                            text-shadow: 1px 2px 5px rgba(0, 0, 0, 0.9), 0 0 10px rgba(255, 255, 255, 0.2);
+                            display: flex;
+                            align-items: center;
+                            justify-content: flex-end;
+                            padding-right: 25px;
+                            box-sizing: border-box;
+                            letter-spacing: 0.5px;
+                        }
+                    </style>
+                    <div class="wheel-text" style="transform: rotate(-64.3deg);">Mất lượt 1</div>
+                    <div class="wheel-text" style="transform: rotate(-12.9deg);">100 Coin</div>
+                    <div class="wheel-text" style="transform: rotate(38.5deg);">Mất lượt 2</div>
+                    <div class="wheel-text" style="transform: rotate(89.9deg);">150 Coin</div>
+                    <div class="wheel-text" style="transform: rotate(141.3deg);">Mất lượt 3</div>
+                    <div class="wheel-text" style="transform: rotate(192.7deg);">500 Coin</div>
+                    <div class="wheel-text" style="transform: rotate(244.1deg);">🎁 Bí ẩn</div>
+                </div>
+
+                <div
+                    style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 45px; height: 45px; background: radial-gradient(circle, #fff 0%, #bdc3c7 100%); border-radius: 50%; border: 6px solid #2f3542; box-shadow: 0 5px 15px rgba(0,0,0,0.6), inset 0 2px 5px rgba(255,255,255,0.8); z-index: 10;">
+                </div>
+            </div>
+
+            <button id="spinBtn" onclick="spinWheel()"
+                style="background: linear-gradient(135deg, #ff0844 0%, #ffb199 100%); color: white; padding: 15px 45px; font-size: 1.3em; border-radius: 50px; border: 2px solid rgba(255,255,255,0.3); font-weight: 900; cursor: pointer; box-shadow: 0 10px 25px rgba(255, 8, 68, 0.5); text-transform: uppercase; transition: all 0.2s ease;">Quay
+                Ngay!</button>
+
+            <div
+                style="min-height: 70px; margin-top: 25px; display: flex; align-items: center; justify-content: center;">
+                <p id="spinResultText"
+                    style="font-weight: 900; color: #fff; font-size: 1.3em; text-shadow: 0 2px 5px rgba(0,0,0,0.5); transition: all 0.3s ease; transform: scale(0.8); opacity: 0; margin: 0; line-height: 1.4;">
+                </p>
             </div>
         </div>
     </div>
