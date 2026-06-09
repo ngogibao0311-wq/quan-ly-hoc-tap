@@ -77,6 +77,12 @@ window.onload = async function () {
             document.getElementById('probGift').value = probs.gift;
         }
     });
+    // Lắng nghe sự thay đổi biến động Coin để cập nhật bảng quản lý tự động
+    db.ref('student_coins').on('value', async () => {
+        if (document.getElementById('studentsListContainer')) {
+            await loadStudentsList();
+        }
+    });
 };
 
 function getEmbedHTML(url) {
@@ -169,6 +175,8 @@ async function createAssignment() {
         const fInput = document.getElementById('fileInput');
         if (fInput && fInput.files.length > 0) {
             attachedFile = await readMultipleFiles(fInput.files);
+            // Thêm dòng này để chặn giao bài
+            if (attachedFile.length === 0) return;
         } else {
             attachedFile = null;
         }
@@ -519,6 +527,8 @@ async function gradeSubmission(subId) {
 
     if (fileInput && fileInput.files.length > 0) {
         const filesArray = await readMultipleFiles(fileInput.files);
+        // Thêm dòng này để chặn chấm bài
+        if (filesArray.length === 0) return;
         await processGrading(filesArray);
     } else {
         await processGrading(null);
@@ -533,14 +543,14 @@ window.requestRegrade = async function (subKey) {
 }
 
 async function loadStudentsList() {
-    const users = await getDB('users'); 
-    const container = document.getElementById('studentsListContainer'); 
+    const users = await getDB('users');
+    const container = document.getElementById('studentsListContainer');
     if (!container) return;
-    
-    const students = users.filter(u => u.role === 'student'); 
-    if (students.length === 0) { 
-        container.innerHTML = '<p style="color: #666; font-style: italic;">Chưa có học sinh nào.</p>'; 
-        return; 
+
+    const students = users.filter(u => u.role === 'student');
+    if (students.length === 0) {
+        container.innerHTML = '<p style="color: #666; font-style: italic;">Chưa có học sinh nào.</p>';
+        return;
     }
 
     // LẤY DỮ LIỆU COIN TỪ FIREBASE CỦA TẤT CẢ HỌC SINH
@@ -549,12 +559,12 @@ async function loadStudentsList() {
 
     // THÊM CỘT "SỐ DƯ COIN" VÀO TIÊU ĐỀ BẢNG
     let html = `<div style="overflow-x: auto;"><table style="width:100%; border-collapse: collapse; text-align: left;"><tr style="background:rgba(255,255,255,0.7); border-bottom: 2px solid rgba(0,0,0,0.05);"><th style="padding:15px;">Họ và Tên</th><th style="padding:15px;">Tên đăng nhập</th><th style="padding:15px;">Mật khẩu</th><th style="padding:15px; text-align: center;">Số dư Coin</th><th style="padding:15px; text-align: center;">Thao tác</th></tr>`;
-    
+
     students.forEach(st => {
         let lockBtnText = st.isLocked ? '🔓 Mở khóa' : '🔒 Khóa';
         let lockBtnStyle = st.isLocked ? 'background: #10b981; color: white;' : 'background: #f59e0b; color: white;';
         let statusText = st.isLocked ? '<br><span style="color: #e11d48; font-size: 0.85em; font-weight: bold;">(Đang bị khóa)</span>' : '';
-        
+
         // LẤY SỐ COIN TƯƠNG ỨNG VỚI USERNAME (Mặc định là 0 nếu chưa có)
         let studentCoins = coinData[st.username] || 0;
 
@@ -1465,7 +1475,7 @@ window.loadSpinHistory = async function () {
 
         const tr = document.createElement('tr');
         tr.style.borderBottom = '1px solid rgba(0,0,0,0.05)';
-        
+
         // Nếu là dòng thứ 6 trở đi thì gán class ẩn đi
         if (index >= 5) {
             tr.classList.add('hidden-spin-row');

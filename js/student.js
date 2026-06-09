@@ -43,26 +43,24 @@ window.onload = async function () {
         if (snapshot.exists()) {
             const settings = snapshot.val();
 
-            // Lưu trạng thái bật/tắt vào biến toàn cục. 
-            // LƯU Ý: Nếu code cũ của bạn dùng tên khác (như settings.status, settings.active...), hãy đổi lại cho khớp nhé.
-            window.isGameEnabled = settings.isGameEnabled;
+            // 1. Đồng bộ đúng tên biến isOpen từ Firebase do teacher.js đẩy lên
+            window.isGameEnabled = settings.isOpen;
 
-            // TÌM VÀ VÔ HIỆU HÓA NÚT QUAY/CHƠI
-            // Hãy thay 'id_nut_quay' bằng ID thật của nút bấm mở game/quay thưởng trong student.html
-            const btnPlay = document.getElementById('id_nut_quay');
-            if (btnPlay) {
-                if (window.isGameEnabled === false) {
-                    btnPlay.style.opacity = '0.5';
-                    btnPlay.style.cursor = 'not-allowed';
-                    btnPlay.onclick = (e) => {
-                        e.preventDefault();
-                        alert("🔒 Trò chơi hiện đang bị Giáo viên tạm khóa!");
-                    };
-                } else {
-                    btnPlay.style.opacity = '1';
-                    btnPlay.style.cursor = 'pointer';
-                    btnPlay.onclick = null; // Trả lại sự kiện click bình thường
-                }
+            // 2. Lấy các vùng giao diện Trò chơi bên thẻ student.html
+            const gameActiveView = document.getElementById('gameActiveView');
+            const gameLockedView = document.getElementById('gameLockedView');
+            const messageText = document.getElementById('gameLockedMessageText');
+
+            // 3. Xử lý logic Ẩn/Hiện và hiển thị Lời nhắn của giáo viên
+            if (window.isGameEnabled === false) {
+                // Khóa mục trò chơi
+                if (gameActiveView) gameActiveView.style.display = 'none';
+                if (gameLockedView) gameLockedView.style.display = 'block';
+                if (messageText) messageText.innerText = settings.lockMessage || "Giáo viên đã tạm khóa khu vực trò chơi.";
+            } else {
+                // Mở mục trò chơi
+                if (gameActiveView) gameActiveView.style.display = 'block';
+                if (gameLockedView) gameLockedView.style.display = 'none';
             }
         }
     });
@@ -472,6 +470,8 @@ async function submitAssignment(assignId, isAuto = false) {
         const fileInput = document.getElementById(`studentFile-${assignId}`);
         if (fileInput && fileInput.files.length > 0) {
             filesArray = await readMultipleFiles(fileInput.files);
+            // Thêm dòng này để chặn nộp bài nếu file bị từ chối do quá dung lượng
+            if (filesArray.length === 0) return;
         }
 
         let hasOldFile = mySub && mySub.file;
@@ -1097,9 +1097,9 @@ window.openLuckyWheel = function () {
     // --- CHỐT CHẶN 1: TỪ CHỐI MỞ BẢNG NẾU GIÁO VIÊN TẮT ---
     if (window.isGameEnabled === false) {
         alert("🔒 Trò chơi hiện đang bị Giáo viên tạm khóa!");
-        return; 
+        return;
     }
-    
+
     document.getElementById('luckyWheelModal').classList.add('active');
 };
 
