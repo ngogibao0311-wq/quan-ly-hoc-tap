@@ -27,6 +27,17 @@ const StoreConfig = {
             customIcon: '🏰'
         },
         {
+            id: 'pet_cotich_2',
+            name: 'Hồ Ly Chín Đuôi',
+            type: 'pet',
+            price: 0,
+            isNonCoin: true,
+            tag: 'Cổ tích',
+            value: 'assets/pet/cổ tích/cổ tích 2.png',
+            isIcon: false,
+            petEffect: 'nine-tailed-fox-magic'
+        },
+        {
             id: 'effect_cotich',
             name: 'Bụi Phép Thuật',
             type: 'effect',
@@ -70,27 +81,37 @@ class StoreManager {
         let actionButton = '';
         let trialButton = '';
 
-        // --- ĐOẠN MỚI: XỬ LÝ VẬT PHẨM CHƯA ĐẾN GIỜ MỞ BÁN ---
-        if (isUpcoming) {
+        // --- LOGIC 1: XỬ LÝ VẬT PHẨM BỊ GIÁO VIÊN KHÓA SỬ DỤNG VÀ MUA ---
+        if (item.isLocked) {
+            trialButton = `<button class="btn-preview disabled" disabled>🔒 Đã bị khóa</button>`;
+            actionButton = `<button class="btn-equip disabled" disabled style="background: #e11d48; color: white; border: none; cursor: not-allowed; box-shadow: none;">🔒 Giáo viên đã khóa</button>`;
+        }
+        // --- LOGIC 2: XỬ LÝ VẬT PHẨM CHƯA ĐẾN GIỜ MỞ BÁN ---
+        else if (isUpcoming) {
             trialButton = `<button class="btn-preview disabled" disabled>🔒 Chưa mở bán</button>`;
-            // Cập nhật lại style: Nền xanh đen, chữ vàng, có viền chìm để dễ nhìn hơn
             actionButton = `<button class="btn-equip active" disabled id="countdown-btn-${item.id}" style="background: #2c3e50; color: #f1c40f; cursor: not-allowed; font-family: 'Courier New', Courier, monospace; font-size: 1.05em; font-weight: bold; border: 1px solid #7f8c8d; box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);">⏳ Đang tính toán...</button>`;
         }
-        // ----------------------------------------------------
+        // --- LOGIC LUỒNG HOẠT ĐỘNG BÌNH THƯỜNG ---
         else {
-            // 1. Logic nút Hành động chính (Trang bị / Mua)
             if (isEquipped) {
-                // Thay nút "Đang sử dụng" tĩnh thành nút "Tháo trang bị" có thể bấm được
                 actionButton = `<button class="btn-equip active" onclick="StoreManager.unapplyItem('${item.id}')" style="background: rgba(225, 29, 72, 0.08); color: #e11d48; border: 1px dashed #e11d48; cursor: pointer; box-shadow: none;" title="Nhấn để tháo vật phẩm này">❌ Tháo trang bị</button>`;
             } else if (isOwned) {
                 actionButton = `<button class="btn-equip" onclick="StoreManager.applyItem('${item.id}')">✨ Mặc ngay</button>`;
             } else {
-                let priceDisplay = item.isNonCoin ? 'Sự kiện' : `${item.price}`;
-                actionButton = `<button class="btn-buy" onclick="buyItem('${item.id}')">🛒 Mua đứt: ${priceDisplay} 🪙</button>`;
+                if (item.isNonCoin) {
+                    // NẾU GIÁO VIÊN XÉT GIÁ > 0 THÌ CHO PHÉP MUA BẰNG COIN TRONG THỜI GIAN GIỚI HẠN
+                    if (item.price > 0) {
+                        actionButton = `<button class="btn-buy" onclick="buyItem('${item.id}')">🛒 Mua giới hạn: ${item.price} 🪙</button>`;
+                    } else {
+                        actionButton = `<button class="btn-buy" onclick="buyItem('${item.id}')">🎁 Nhận được từ sự kiện</button>`;
+                    }
+                } else {
+                    actionButton = `<button class="btn-buy" onclick="buyItem('${item.id}')">🛒 Mua đứt: ${item.price} 🪙</button>`;
+                }
             }
 
-            // 2. Logic nút Dùng thử & Nâng cấp
-            if (item.isNonCoin) {
+            // Cấu hình hiển thị nút dùng thử đối với vật phẩm Sự kiện được mở bán bằng Coin
+            if (item.isNonCoin && (!item.price || item.price <= 0)) {
                 trialButton = `<button class="btn-preview disabled" disabled title="Không khả dụng">🚫 Không hỗ trợ thử nghiệm</button>`;
             } else if (isTrial) {
                 let trialPrice = item.price / 2;
@@ -105,57 +126,40 @@ class StoreManager {
             }
         }
 
-        // Ánh xạ tên tiếng Việt cho phân loại
         let typeName = item.type === 'theme' ? 'Giao diện' : (item.type === 'effect' ? 'Hiệu ứng' : 'Thú cưng ảo');
 
-        // --- THÊM ĐOẠN XỬ LÝ NÀY: Kiểm tra xem dùng ảnh thật hay dùng Icon ---
         let iconHTML = '';
         if (item.isIcon === false && item.value) {
-            // Lấy tên class hiệu ứng (nếu có) để truyền thẳng vào ảnh
             let extraClass = item.petEffect ? item.petEffect : '';
-
-            // NÂNG CẤP: Nếu là Phượng Hoàng Lửa, dùng class chuyên biệt cho Cửa hàng
-            if (item.id === 'pet_cotich_1') {
-                extraClass = 'phoenix-store-fire';
-            }
+            if (item.id === 'pet_cotich_1') extraClass = 'phoenix-store-fire';
+            else if (item.id === 'pet_cotich_2') extraClass = 'fox-store-magic';
 
             iconHTML = `<img src="${item.value}" class="item-icon ${extraClass}" style="width: 80px; height: 80px; object-fit: contain;">`;
         } else {
-            // FIX LỖI "THEME-FAIRY-TALE" TẠI ĐÂY:
-            let displayIcon = this.getIconForType(item.type); // Lấy mặc định trước (🎨, ✨, 🐾)
-
-            // 1. Nếu có cài đặt 'customIcon' riêng thì ưu tiên dùng
-            if (item.customIcon) {
-                displayIcon = item.customIcon;
-            }
-            // 2. Nếu không phải là theme, mà value có chứa emoji thì mới dùng value
-            else if (item.type !== 'theme' && item.value) {
-                displayIcon = item.value;
-            }
+            let displayIcon = this.getIconForType(item.type);
+            if (item.customIcon) displayIcon = item.customIcon;
+            else if (item.type !== 'theme' && item.value) displayIcon = item.value;
 
             iconHTML = `<div class="item-icon">${displayIcon}</div>`;
         }
 
         return `
-            <div class="store-item-card" data-type="${item.type}">
-                <div class="card-glow"></div>
-                <div class="item-tag ${tagClass}">${item.tag}</div>
-                
-                <div class="item-icon-wrapper">
-                    ${iconHTML}
-                </div>
-                
-                <div class="item-info">
-                    <h4 class="item-name">${item.name}</h4>
-                    <span class="item-type-label">${typeName}</span>
-                </div>
-                
-                <div class="item-actions">
-                    ${trialButton}
-                    ${actionButton}
-                </div>
+        <div class="store-item-card" data-type="${item.type}" style="${item.isLocked ? 'opacity: 0.75; filter: grayscale(0.4); border: 1px solid rgba(225,29,72,0.3);' : ''}">
+            <div class="card-glow"></div>
+            <div class="item-tag ${tagClass}">${item.tag}</div>
+            <div class="item-icon-wrapper">
+                ${iconHTML}
             </div>
-        `;
+            <div class="item-info">
+                <h4 class="item-name">${item.name}</h4>
+                <span class="item-type-label">${typeName}</span>
+            </div>
+            <div class="item-actions">
+                ${trialButton}
+                ${actionButton}
+            </div>
+        </div>
+    `;
     }
 
     static getIconForType(type) {

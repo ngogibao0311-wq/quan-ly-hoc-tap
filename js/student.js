@@ -89,30 +89,27 @@ window.onload = async function () {
         }
     });
 
-    // === LẮNG NGHE HỆ THỐNG CỬA HÀNG (REAL-TIME) ===
+    // === LẮNG NGHE HỆ THỐNG CỬA HÀNG (REAL-TIME PHÍA HỌC SINH) ===
     db.ref('store_settings').on('value', (snapshot) => {
         const settings = snapshot.val();
-
-        // 1. Quản lý trạng thái Đóng/Mở cửa hàng
-        const isOpen = (settings !== null && settings.isOpen !== undefined) ? settings.isOpen : true;
         const activeView = document.getElementById('storeActiveView');
         const lockedView = document.getElementById('storeLockedView');
 
+        const isOpen = (settings !== null && settings.isOpen !== undefined) ? settings.isOpen : true;
         if (activeView) activeView.style.display = isOpen ? 'block' : 'none';
         if (lockedView) lockedView.style.display = isOpen ? 'none' : 'block';
 
-        // 2. Cập nhật Giá và Ngày giờ liên tục vào cấu hình cục bộ
         if (settings) {
             StoreConfig.items.forEach(item => {
                 if (settings[item.id]) {
                     if (settings[item.id].price !== undefined) item.price = settings[item.id].price;
                     if (settings[item.id].startDate !== undefined) item.startDate = settings[item.id].startDate;
                     if (settings[item.id].endDate !== undefined) item.endDate = settings[item.id].endDate;
+                    item.isLocked = !!settings[item.id].isLocked; // ĐỒNG BỘ TRẠNG THÁI KHÓA VỀ HỌC SINH
                 }
             });
         }
 
-        // 3. Tự động vẽ lại Cửa hàng ngay lập tức khi Giáo viên bấm Lưu (Không cần F5)
         if (typeof window.filterStore === 'function') {
             window.filterStore(window.currentStoreFilterType || 'all');
         }
@@ -1320,7 +1317,7 @@ function formatStoreCountdown(ms) {
 }
 
 // 1. Hàm lọc và hiển thị vật phẩm ra màn hình (Có kiểm tra Ngày Mở Bán)
-window.filterStore = function(type) {
+window.filterStore = function (type) {
     window.currentStoreFilterType = type;
     const container = document.getElementById('storeItemsContainer');
     if (!container) return;
@@ -1337,7 +1334,7 @@ window.filterStore = function(type) {
 
     const items = StoreManager.getItemsByType(type);
     let htmlContent = '';
-    const now = new Date().getTime(); 
+    const now = new Date().getTime();
 
     // Dọn dẹp bộ đếm ngược cũ nếu có để tránh bị giật lag khi chuyển Tab
     if (window.storeCountdownInterval) clearInterval(window.storeCountdownInterval);
@@ -1350,7 +1347,7 @@ window.filterStore = function(type) {
         if (item.startDate && item.endDate) {
             const startT = new Date(item.startDate).getTime();
             const endT = new Date(item.endDate).getTime();
-            
+
             if (now > endT) return; // Đã quá hạn -> Bỏ qua hẳn không hiện
 
             if (now < startT) {
@@ -1362,7 +1359,7 @@ window.filterStore = function(type) {
         const isOwned = studentOwnedItems.includes(item.id);
         const isEquipped = studentEquippedItems[item.type] === item.id;
         const isTrial = trialItemsList.includes(item.id);
-        
+
         // Truyền tham số isUpcoming vào trong (Tham số thứ 5)
         htmlContent += StoreManager.renderStoreItem(item, isOwned, isEquipped, isTrial, isUpcoming);
     });
@@ -1399,7 +1396,7 @@ window.filterStore = function(type) {
                     }
                 }
             });
-            
+
             // Nếu tất cả vật phẩm đã qua mốc đếm ngược thì dừng vòng lặp Interval
             if (allStarted) clearInterval(window.storeCountdownInterval);
         }, 1000);
@@ -1407,11 +1404,11 @@ window.filterStore = function(type) {
 };
 
 // 2. Render Cửa hàng & Kiểm tra thời hạn dùng thử 
-window.loadStoreItems = async function() {
+window.loadStoreItems = async function () {
     studentOwnedItems = ['theme_default'];
     studentEquippedItems = { theme: 'default', effect: '', pet: '' };
     trialItemsList = [];
-    
+
     const now = Date.now();
     let hasExpiredTrials = false;
     let updates = {};
@@ -1421,7 +1418,7 @@ window.loadStoreItems = async function() {
             if (item.isTrial && item.trialExpiry && now > item.trialExpiry) {
                 hasExpiredTrials = true;
                 updates[`student_inventory/${currentUser.username}/${item.id}`] = null;
-                
+
                 if (item.isEquipped) {
                     const itemDef = StoreConfig.items.find(i => i.id === item.id);
                     if (itemDef) {
@@ -1429,7 +1426,7 @@ window.loadStoreItems = async function() {
                         if (itemDef.type === 'effect') EffectManager.clearEffects();
                         if (itemDef.type === 'pet') {
                             const petContainer = document.getElementById('virtual-pet-container');
-                            if(petContainer) petContainer.style.display = 'none';
+                            if (petContainer) petContainer.style.display = 'none';
                         }
                     }
                 }
@@ -1448,14 +1445,16 @@ window.loadStoreItems = async function() {
         await db.ref().update(updates);
         alert("⏰ Một số vật phẩm dùng thử của bạn đã hết thời gian 24 giờ và bị thu hồi!");
     }
-    
+
     window.filterStore(window.currentStoreFilterType);
 };
 
 // 3. Logic kích hoạt dùng thử 1 Ngày (Nửa giá)
 window.trialItem = async function (itemId) {
     const item = StoreManager.getItemById(itemId);
-    if (!item || item.isNonCoin) return;
+    if (!item) return;
+    if (item.isLocked) return alert("🔒 Vật phẩm này hiện đang bị Giáo viên khóa, không thể dùng thử!");
+    if (item.isNonCoin && (!item.price || item.price <= 0)) return alert("🚫 Vật phẩm sự kiện không hỗ trợ thử nghiệm!");
 
     const trialPrice = item.price / 2;
     const coinRef = db.ref('student_coins/' + currentUser.username);
@@ -1464,14 +1463,14 @@ window.trialItem = async function (itemId) {
 
     if (currentCoins < trialPrice) return alert(`❌ Không đủ Coin! Phí dùng thử yêu cầu ${trialPrice} Coin.`);
 
-    if (confirm(`Bạn sẽ dùng ${trialPrice} Coin để trải nghiệm [ ${item.name} ] trong 24 giờ.\n(Nếu mua đứt trong thời gian thử, sẽ được hoàn lại 30% phí dùng thử).\n\nĐồng ý kích hoạt?`)) {
+    if (confirm(`Bạn sẽ dùng ${trialPrice} Coin để trải nghiệm [ ${item.name} ] trong 24 giờ?\nĐồng ý kích hoạt?`)) {
         await coinRef.set(currentCoins - trialPrice);
 
-        const trialExpiry = Date.now() + (24 * 60 * 60 * 1000); // 24 tiếng sau
+        const trialExpiry = Date.now() + (24 * 60 * 60 * 1000);
         await db.ref(`student_inventory/${currentUser.username}/${item.id}`).set({
             id: item.id,
             purchaseTime: Date.now(),
-            isEquipped: true, // Tự mặc vào ngay lập tức
+            isEquipped: true,
             isTrial: true,
             trialExpiry: trialExpiry
         });
@@ -1490,9 +1489,7 @@ window.trialItem = async function (itemId) {
                     }
                 }
             }
-            if (Object.keys(updates).length > 0) {
-                await db.ref(`student_inventory/${currentUser.username}`).update(updates);
-            }
+            if (Object.keys(updates).length > 0) await db.ref(`student_inventory/${currentUser.username}`).update(updates);
         }
         alert(`⏳ Bắt đầu dùng thử [ ${item.name} ]! (Thời hạn: 24 giờ)`);
     }
@@ -1502,29 +1499,27 @@ window.trialItem = async function (itemId) {
 window.buyItem = async function (itemId, isUpgradingFromTrial = false) {
     const item = StoreManager.getItemById(itemId);
     if (!item) return;
+    if (item.isLocked) return alert("🔒 Vật phẩm này hiện đang bị Giáo viên khóa, không thể mua!");
+    if (item.isNonCoin && (!item.price || item.price <= 0)) return alert(`🎁 Đây là vật phẩm sự kiện, không thể mua bằng Coin!`);
 
     const coinRef = db.ref('student_coins/' + currentUser.username);
     const snap = await coinRef.once('value');
     let currentCoins = snap.val() || 0;
 
-    if (item.isNonCoin) return alert(`🎁 Đây là vật phẩm sự kiện, không thể mua bằng Coin!`);
-
     let finalPrice = item.price;
     let confirmMsg = `Xác nhận dùng ${finalPrice} Coin để mua vĩnh viễn [ ${item.name} ]?`;
 
-    // Tính toán lại giá trị nếu đang nâng cấp từ gói dùng thử
     if (isUpgradingFromTrial) {
         const trialPrice = item.price / 2;
         const refund = trialPrice * 0.3;
         finalPrice = item.price - refund;
-        confirmMsg = `Bạn đang dùng thử vật phẩm này. Nâng cấp vĩnh viễn ngay bây giờ sẽ được hệ thống hoàn lại 30% phí dùng thử.\n\n💰 Giá cần thanh toán: ${finalPrice} Coin.\nXác nhận mua?`;
+        confirmMsg = `Bạn đang dùng thử vật phẩm này. Nâng cấp vĩnh viễn ngay bây giờ sẽ được hoàn lại 30% phí dùng thử.\n\n💰 Giá cần thanh toán: ${finalPrice} Coin.\nXác nhận mua?`;
     }
 
     if (currentCoins < finalPrice) return alert(`❌ Số dư Coin không đủ! Bạn cần ${finalPrice} Coin.`);
 
     if (confirm(confirmMsg)) {
         await coinRef.set(currentCoins - finalPrice);
-
         await db.ref(`student_inventory/${currentUser.username}/${item.id}`).update({
             id: item.id,
             purchaseTime: Date.now(),
@@ -1532,7 +1527,6 @@ window.buyItem = async function (itemId, isUpgradingFromTrial = false) {
             trialExpiry: null,
             isEquipped: true
         });
-
         alert(`🎉 Chúc mừng! Bạn đã sở hữu vĩnh viễn [ ${item.name} ].`);
     }
 };
