@@ -1,0 +1,174 @@
+/* css/store-items.css - Giao diện Glassmorphism 3D */
+
+.store-item-card {
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-radius: 24px;
+    padding: 25px 20px;
+    text-align: center;
+    position: relative;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05), inset 0 2px 5px rgba(255, 255, 255, 0.8);
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    z-index: 1;
+}
+
+.store-item-card:hover {
+    transform: translateY(-10px) scale(1.02);
+    box-shadow: 0 20px 40px rgba(102, 126, 234, 0.15), inset 0 2px 5px rgba(255, 255, 255, 1);
+    border-color: rgba(102, 126, 234, 0.3);
+}
+
+/* Hiệu ứng ánh sáng nền phía sau Icon */
+.card-glow {
+    position: absolute;
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 120px;
+    height: 120px;
+    background: radial-gradient(circle, rgba(102, 126, 234, 0.15) 0%, rgba(255,255,255,0) 70%);
+    z-index: -1;
+    border-radius: 50%;
+}
+
+.item-icon-wrapper {
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 10px;
+}
+
+.item-icon {
+    font-size: 3.5em;
+    filter: drop-shadow(0 8px 10px rgba(0,0,0,0.15));
+    transition: transform 0.3s ease;
+}
+
+.store-item-card:hover .item-icon {
+    transform: scale(1.15) rotate(5deg);
+}
+
+.item-info {
+    margin-bottom: 20px;
+}
+
+.item-name {
+    color: #2c3e50;
+    margin: 0 0 5px 0;
+    font-size: 1.25em;
+    font-weight: 800;
+}
+
+.item-type-label {
+    font-size: 0.8em;
+    color: #7f8fa6;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 700;
+}
+
+.item-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.item-actions button {
+    padding: 12px 15px;
+    border: none;
+    border-radius: 12px;
+    font-weight: 800;
+    font-size: 0.9em;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.item-actions button:active {
+    transform: scale(0.95);
+}
+
+/* Styling cho từng loại nút bấm */
+.btn-buy {
+    background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+    color: white;
+    box-shadow: 0 4px 15px rgba(246, 211, 101, 0.4);
+}
+.btn-buy:hover { box-shadow: 0 6px 20px rgba(246, 211, 101, 0.6); }
+
+.btn-buy.upgrade {
+    background: linear-gradient(135deg, #00b09b 0%, #96c93d 100%);
+    box-shadow: 0 4px 15px rgba(0, 176, 155, 0.3);
+}
+
+.btn-equip {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+.btn-equip:hover { box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6); }
+
+.btn-equip.active {
+    background: #e2e8f0;
+    color: #64748b;
+    box-shadow: none;
+    cursor: not-allowed;
+}
+.btn-equip.active:active { transform: none; }
+
+.btn-preview {
+    background: rgba(102, 126, 234, 0.1);
+    color: #667eea;
+    border: 1px solid rgba(102, 126, 234, 0.2);
+}
+.btn-preview:hover { background: rgba(102, 126, 234, 0.2); }
+
+.btn-preview.active {
+    background: rgba(211, 84, 0, 0.08);
+    color: #d35400;
+    border-color: rgba(211, 84, 0, 0.3);
+    cursor: default;
+}
+.btn-preview.active:active { transform: none; }
+
+.btn-preview.disabled {
+    background: rgba(0,0,0,0.03);
+    color: #a4b0be;
+    border: 1px dashed rgba(0,0,0,0.1);
+    cursor: not-allowed;
+}
+
+/* Tag Mặc định */
+.item-tag {
+    position: absolute;
+    top: 15px;
+    right: -30px;
+    background: #667eea;
+    color: white;
+    font-size: 0.75em;
+    padding: 5px 35px;
+    transform: rotate(45deg);
+    font-weight: 800;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+/* Tag UI Độc Quyền: Tứ kị sĩ */
+.tag-tu-ki-si {
+    background: linear-gradient(90deg, #870000, #190a05);
+    color: #ffd700;
+    border-bottom: 2px solid #ffd700;
+    box-shadow: 0 4px 15px rgba(135, 0, 0, 0.5);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-family: 'Courier New', Courier, monospace;
+}
