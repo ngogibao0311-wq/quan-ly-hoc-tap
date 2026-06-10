@@ -5,6 +5,35 @@ const StoreConfig = {
         { id: 'theme_ocean', name: 'Đại Dương Xanh', type: 'theme', price: 150, isNonCoin: false, tag: 'Giao diện' },
         { id: 'effect_snow', name: 'Tuyết Mùa Đông', type: 'effect', price: 200, isNonCoin: false, tag: 'Hiệu ứng' },
         { id: 'pet_shiba', name: 'Chó Shiba', type: 'pet', price: 300, isNonCoin: false, tag: 'Thú cưng', value: '🐕', isIcon: true },
+        { 
+            id: 'pet_cotich_1', 
+            name: 'Phượng Hoàng Lửa', 
+            type: 'pet', 
+            price: 400, 
+            isNonCoin: false, 
+            tag: 'Cổ tích', 
+            value: 'assets/pet/cổ tích/cổ tích 1.png', 
+            isIcon: false,
+            petEffect: 'phoenix-fire' 
+        },
+        { 
+            id: 'theme_cotich', 
+            name: 'Vương Quốc Thần Thoại', 
+            type: 'theme', 
+            price: 450, 
+            isNonCoin: false, 
+            tag: 'Cổ tích',
+            value: 'theme-fairy-tale' // Đây là tên Class CSS sẽ áp dụng cho toàn bộ trang
+        },
+        { 
+            id: 'effect_cotich', 
+            name: 'Bụi Phép Thuật', 
+            type: 'effect', 
+            price: 300, 
+            isNonCoin: false, 
+            tag: 'Cổ tích',
+            value: '🧚‍♂️' 
+        }
     ]
 };
 
@@ -36,7 +65,7 @@ class StoreManager {
     }
 
     static renderStoreItem(item, isOwned = false, isEquipped = false, isTrial = false, isUpcoming = false) {
-        let tagClass = item.tag === 'Tứ kị sĩ' ? 'tag-tu-ki-si' : 'tag-normal';
+        let tagClass = item.tag === 'Tứ kị sĩ' ? 'tag-tu-ki-si' : (item.tag === 'Cổ tích' ? 'tag-co-tich' : 'tag-normal');
         let actionButton = '';
         let trialButton = '';
 
@@ -78,13 +107,30 @@ class StoreManager {
         // Ánh xạ tên tiếng Việt cho phân loại
         let typeName = item.type === 'theme' ? 'Giao diện' : (item.type === 'effect' ? 'Hiệu ứng' : 'Thú cưng ảo');
 
+        // --- THÊM ĐOẠN XỬ LÝ NÀY: Kiểm tra xem dùng ảnh thật hay dùng Icon ---
+        let iconHTML = '';
+        if (item.isIcon === false && item.value) {
+            // Lấy tên class hiệu ứng (nếu có) để truyền thẳng vào ảnh
+            let extraClass = item.petEffect ? item.petEffect : '';
+            
+            // NÂNG CẤP: Nếu là Phượng Hoàng Lửa, dùng class chuyên biệt cho Cửa hàng
+            if (item.id === 'pet_cotich_1') {
+                extraClass = 'phoenix-store-fire';
+            }
+            
+            iconHTML = `<img src="${item.value}" class="item-icon ${extraClass}" style="width: 80px; height: 80px; object-fit: contain;">`;
+        } else {
+            // Dùng emoji mặc định
+            iconHTML = `<div class="item-icon">${this.getIconForType(item.type)}</div>`;
+        }
+
         return `
             <div class="store-item-card" data-type="${item.type}">
                 <div class="card-glow"></div>
                 <div class="item-tag ${tagClass}">${item.tag}</div>
                 
                 <div class="item-icon-wrapper">
-                    <div class="item-icon">${this.getIconForType(item.type)}</div>
+                    ${iconHTML}
                 </div>
                 
                 <div class="item-info">

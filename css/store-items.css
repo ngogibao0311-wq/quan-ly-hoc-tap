@@ -172,3 +172,166 @@
     text-transform: uppercase;
     font-family: 'Courier New', Courier, monospace;
 }
+/* =========================================================
+   GIAO DIỆN CỔ TÍCH - VƯƠNG QUỐC THẦN THOẠI
+   Chỉ kích hoạt khi body có class .theme-fairy-tale
+========================================================= */
+
+/* 1. Thay đổi Phông chữ và Nền tổng thể */
+.theme-fairy-tale {
+    font-family: 'Georgia', 'Times New Roman', serif; /* Phông có chân cổ điển */
+    color: #e0e0e0;
+    background-image: radial-gradient(circle at 50% 0%, #2a2a4a 0%, #0f0f1a 80%);
+}
+
+/* 2. Style riêng cho Tag "Cổ tích" trong cửa hàng */
+.tag-co-tich {
+    background: linear-gradient(90deg, #d4af37, #f39c12);
+    color: #1a1a2e;
+    border-bottom: 2px dashed #fff;
+    box-shadow: 0 4px 15px rgba(212, 175, 55, 0.4);
+    font-family: 'Georgia', serif;
+    font-style: italic;
+    letter-spacing: 1px;
+}
+
+/* 3. Thay đổi hình dáng Card, Ô chứa (Sách gấp / Cuộn giấy) */
+.theme-fairy-tale .card,
+.theme-fairy-tale .store-item-card,
+.theme-fairy-tale .submit-box {
+    background: rgba(26, 26, 46, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid #d4af37; /* Viền vàng kim */
+    border-radius: 30px 5px 30px 5px; /* Bo góc vát chéo bất đối xứng */
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 0 15px rgba(212, 175, 55, 0.05);
+    transition: all 0.4s ease;
+}
+
+.theme-fairy-tale .store-item-card:hover {
+    border-color: #f1c40f;
+    box-shadow: 0 15px 40px rgba(212, 175, 55, 0.2), inset 0 0 20px rgba(255, 215, 0, 0.15);
+}
+
+/* 4. Sidebar / Thanh điều hướng */
+.theme-fairy-tale .sidebar,
+.theme-fairy-tale .nav-bar {
+    background: linear-gradient(180deg, rgba(15, 15, 26, 0.95), rgba(26, 26, 46, 0.95));
+    border-right: 2px solid #d4af37;
+    border-radius: 0 25px 25px 0;
+    box-shadow: 5px 0 20px rgba(0, 0, 0, 0.5);
+}
+
+/* 5. Định hình lại Modal / Popup */
+.theme-fairy-tale .modal-content,
+.theme-fairy-tale #viewQuestionsModal > div {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%) !important;
+    border: 2px solid #d4af37 !important;
+    border-radius: 40px 10px 40px 10px !important;
+    box-shadow: 0 0 60px rgba(212, 175, 55, 0.2) !important;
+}
+
+/* 6. Text, Tiêu đề mang âm hưởng Cinematic */
+.theme-fairy-tale h1, 
+.theme-fairy-tale h2, 
+.theme-fairy-tale h3, 
+.theme-fairy-tale h4,
+.theme-fairy-tale .item-name {
+    font-family: 'Palatino Linotype', 'Book Antiqua', Palatino, serif;
+    color: #d4af37 !important;
+    text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.8);
+    letter-spacing: 0.5px;
+}
+
+/* 7. Định dạng lại Nút bấm (Buttons) */
+.theme-fairy-tale button,
+.theme-fairy-tale .btn-approve {
+    background: linear-gradient(45deg, #d4af37, #f1c40f) !important;
+    color: #0f0f1a !important;
+    border: 1px solid #fff !important;
+    border-radius: 8px !important;
+    font-family: 'Georgia', serif;
+    font-weight: bold;
+    box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3) !important;
+    text-transform: uppercase;
+}
+
+.theme-fairy-tale button:hover {
+    box-shadow: 0 6px 20px rgba(212, 175, 55, 0.6) !important;
+    transform: translateY(-2px);
+}
+
+/* Nút Preview / Nút phụ trong theme Cổ tích */
+.theme-fairy-tale .btn-preview {
+    background: rgba(212, 175, 55, 0.1) !important;
+    color: #d4af37 !important;
+    border: 1px solid rgba(212, 175, 55, 0.4) !important;
+}
+.theme-fairy-tale .btn-preview:hover {
+    background: rgba(212, 175, 55, 0.2) !important;
+}
+/* =========================================================
+   HIỆU ỨNG: BỤI PHÉP THUẬT (CỔ TÍCH)
+========================================================= */
+
+/* Đảm bảo container chứa hiệu ứng phủ kín màn hình và không cản trở thao tác click */
+#global-effect-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none; /* Rất quan trọng: Xuyên click */
+    z-index: 9998; /* Nằm dưới Modal nhưng trên giao diện chính */
+    overflow: hidden;
+}
+
+/* Định hình hạt bụi sáng to và rõ hơn */
+.fairy-dust {
+    position: absolute;
+    background: #ffffff; /* Lõi trắng sáng gắt để chống lại nền tối */
+    border-radius: 50%;
+    
+    /* Box-shadow 4 LỚP: Trắng -> Vàng -> Cam -> Cam đỏ. 
+       Lớp cam đỏ ngoài cùng giúp tách biệt hạt bụi khỏi các nền web sáng màu */
+    box-shadow: 
+        0 0 4px #ffffff, 
+        0 0 10px #ffeb3b, 
+        0 0 20px #f39c12, 
+        0 0 35px #d35400;
+        
+    opacity: 0;
+    animation-name: floatMagicDust;
+    animation-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    animation-iteration-count: infinite;
+}
+
+/* Keyframes: Chớp sáng mạnh lúc đầu và bay lượn rõ rệt */
+@keyframes floatMagicDust {
+    0% {
+        transform: translateY(0) scale(0.5);
+        opacity: 0;
+    }
+    15% {
+        /* Hiện hình rất nhanh và lóe sáng */
+        opacity: 1;
+        transform: translateY(-20px) translateX(15px) scale(1.5);
+        box-shadow: 
+            0 0 6px #ffffff, 
+            0 0 15px #ffeb3b, 
+            0 0 30px #f39c12, 
+            0 0 50px #d35400;
+    }
+    50% {
+        opacity: 0.85;
+        transform: translateY(-60px) translateX(-15px) scale(1);
+    }
+    85% {
+        opacity: 0.7;
+        transform: translateY(-100px) translateX(20px) scale(0.8);
+    }
+    100% {
+        transform: translateY(-130px) translateX(-10px) scale(0);
+        opacity: 0;
+    }
+}

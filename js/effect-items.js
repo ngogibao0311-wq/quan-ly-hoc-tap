@@ -17,7 +17,9 @@ class EffectManager {
             case 'effect_snow':
                 this.createSnowEffect();
                 break;
-            // Thêm các case hiệu ứng khác ở đây
+            case 'effect_cotich': // Thêm case kích hoạt hiệu ứng Bụi Phép Thuật
+                this.createFairyDust();
+                break;
         }
         localStorage.setItem('active_effect', effectId);
     }
@@ -30,12 +32,37 @@ class EffectManager {
             snowflake.style.left = Math.random() * 100 + 'vw';
             snowflake.style.animationDuration = Math.random() * 3 + 2 + 's'; // 2-5s
             snowflake.style.fontSize = Math.random() * 10 + 10 + 'px';
-            
+
             this.container.appendChild(snowflake);
 
             setTimeout(() => {
                 snowflake.remove();
             }, 5000);
         }, 300);
+    }
+
+    static createFairyDust() {
+        this.currentInterval = setInterval(() => {
+            const particle = document.createElement('div');
+            particle.classList.add('fairy-dust');
+
+            // TĂNG KÍCH THƯỚC: Random từ 5px đến 12px (to và dễ nhìn hơn rất nhiều)
+            let size = Math.random() * 7 + 5;
+            particle.style.width = `${size}px`;
+            particle.style.height = `${size}px`;
+
+            particle.style.left = Math.random() * 100 + 'vw';
+            particle.style.top = Math.random() * 100 + 'vh';
+
+            let duration = Math.random() * 4 + 4;
+            particle.style.animationDuration = duration + 's';
+
+            this.container.appendChild(particle);
+
+            setTimeout(() => {
+                particle.remove();
+            }, duration * 1000);
+
+        }, 200); // Đẩy tốc độ sinh hạt lên (0.2s/hạt) để hiệu ứng nhìn rõ ràng hơn
     }
 }
