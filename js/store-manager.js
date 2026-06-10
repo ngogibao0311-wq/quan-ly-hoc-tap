@@ -24,6 +24,7 @@ const StoreConfig = {
             isNonCoin: false, 
             tag: 'Cổ tích',
             value: 'theme-fairy-tale' // Đây là tên Class CSS sẽ áp dụng cho toàn bộ trang
+            customIcon: '🏰'
         },
         { 
             id: 'effect_cotich', 
