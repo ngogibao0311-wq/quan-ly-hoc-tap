@@ -120,9 +120,18 @@ class StoreManager {
             
             iconHTML = `<img src="${item.value}" class="item-icon ${extraClass}" style="width: 80px; height: 80px; object-fit: contain;">`;
         } else {
-            // SỬA Ở ĐÂY: Ưu tiên dùng icon/emoji riêng của vật phẩm (item.value). 
-            // Nếu vật phẩm nào không cài value thì mới dùng icon mặc định của loại đó.
-            let displayIcon = item.value ? item.value : this.getIconForType(item.type);
+            // FIX LỖI "THEME-FAIRY-TALE" TẠI ĐÂY:
+            let displayIcon = this.getIconForType(item.type); // Lấy mặc định trước (🎨, ✨, 🐾)
+            
+            // 1. Nếu có cài đặt 'customIcon' riêng thì ưu tiên dùng
+            if (item.customIcon) {
+                displayIcon = item.customIcon;
+            } 
+            // 2. Nếu không phải là theme, mà value có chứa emoji thì mới dùng value
+            else if (item.type !== 'theme' && item.value) {
+                displayIcon = item.value;
+            }
+
             iconHTML = `<div class="item-icon">${displayIcon}</div>`;
         }
 
