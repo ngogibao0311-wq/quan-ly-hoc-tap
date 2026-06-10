@@ -120,8 +120,10 @@ class StoreManager {
             
             iconHTML = `<img src="${item.value}" class="item-icon ${extraClass}" style="width: 80px; height: 80px; object-fit: contain;">`;
         } else {
-            // Dùng emoji mặc định
-            iconHTML = `<div class="item-icon">${this.getIconForType(item.type)}</div>`;
+            // SỬA Ở ĐÂY: Ưu tiên dùng icon/emoji riêng của vật phẩm (item.value). 
+            // Nếu vật phẩm nào không cài value thì mới dùng icon mặc định của loại đó.
+            let displayIcon = item.value ? item.value : this.getIconForType(item.type);
+            iconHTML = `<div class="item-icon">${displayIcon}</div>`;
         }
 
         return `
