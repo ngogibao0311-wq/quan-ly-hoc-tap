@@ -5,35 +5,35 @@ const StoreConfig = {
         { id: 'theme_ocean', name: 'Đại Dương Xanh', type: 'theme', price: 150, isNonCoin: false, tag: 'Giao diện' },
         { id: 'effect_snow', name: 'Tuyết Mùa Đông', type: 'effect', price: 200, isNonCoin: false, tag: 'Hiệu ứng' },
         { id: 'pet_shiba', name: 'Chó Shiba', type: 'pet', price: 300, isNonCoin: false, tag: 'Thú cưng', value: '🐕', isIcon: true },
-        { 
-            id: 'pet_cotich_1', 
-            name: 'Phượng Hoàng Lửa', 
-            type: 'pet', 
-            price: 400, 
-            isNonCoin: false, 
-            tag: 'Cổ tích', 
-            value: 'assets/pet/cổ tích/cổ tích 1.png', 
-            isIcon: false,
-            petEffect: 'phoenix-fire' 
-        },
-        { 
-            id: 'theme_cotich', 
-            name: 'Vương Quốc Thần Thoại', 
-            type: 'theme', 
-            price: 450, 
-            isNonCoin: false, 
+        {
+            id: 'pet_cotich_1',
+            name: 'Phượng Hoàng Lửa',
+            type: 'pet',
+            price: 400,
+            isNonCoin: false,
             tag: 'Cổ tích',
-            value: 'theme-fairy-tale' // Đây là tên Class CSS sẽ áp dụng cho toàn bộ trang
+            value: 'assets/pet/cổ tích/cổ tích 1.png',
+            isIcon: false,
+            petEffect: 'phoenix-fire'
+        },
+        {
+            id: 'theme_cotich',
+            name: 'Vương Quốc Thần Thoại',
+            type: 'theme',
+            price: 450,
+            isNonCoin: false,
+            tag: 'Cổ tích',
+            value: 'theme-fairy-tale', // Đây là tên Class CSS sẽ áp dụng cho toàn bộ trang
             customIcon: '🏰'
         },
-        { 
-            id: 'effect_cotich', 
-            name: 'Bụi Phép Thuật', 
-            type: 'effect', 
-            price: 300, 
-            isNonCoin: false, 
+        {
+            id: 'effect_cotich',
+            name: 'Bụi Phép Thuật',
+            type: 'effect',
+            price: 300,
+            isNonCoin: false,
             tag: 'Cổ tích',
-            value: '🧚‍♂️' 
+            value: '🧚‍♂️'
         }
     ]
 };
@@ -113,21 +113,21 @@ class StoreManager {
         if (item.isIcon === false && item.value) {
             // Lấy tên class hiệu ứng (nếu có) để truyền thẳng vào ảnh
             let extraClass = item.petEffect ? item.petEffect : '';
-            
+
             // NÂNG CẤP: Nếu là Phượng Hoàng Lửa, dùng class chuyên biệt cho Cửa hàng
             if (item.id === 'pet_cotich_1') {
                 extraClass = 'phoenix-store-fire';
             }
-            
+
             iconHTML = `<img src="${item.value}" class="item-icon ${extraClass}" style="width: 80px; height: 80px; object-fit: contain;">`;
         } else {
             // FIX LỖI "THEME-FAIRY-TALE" TẠI ĐÂY:
             let displayIcon = this.getIconForType(item.type); // Lấy mặc định trước (🎨, ✨, 🐾)
-            
+
             // 1. Nếu có cài đặt 'customIcon' riêng thì ưu tiên dùng
             if (item.customIcon) {
                 displayIcon = item.customIcon;
-            } 
+            }
             // 2. Nếu không phải là theme, mà value có chứa emoji thì mới dùng value
             else if (item.type !== 'theme' && item.value) {
                 displayIcon = item.value;
