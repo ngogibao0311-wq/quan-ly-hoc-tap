@@ -420,12 +420,25 @@ async function loadAssignments() {
                 if (!isRedoing || (isRedoing && now <= endTime)) {
                     const timer = setInterval(() => {
                         const c = new Date();
+                        const timeLeft = endTime - c;
+
+                        // KHÓA GIAO DIỆN NÚT NỘP KHI DƯỚI 15 GIÂY (Chống click phút chót)
+                        if (!isRedoing && timeLeft <= 15000 && timeLeft > 0) {
+                            const btnSubmit = document.getElementById(`btn-submit-${assign.id}`);
+                            if (btnSubmit && !btnSubmit.disabled) {
+                                btnSubmit.disabled = true;
+                                btnSubmit.style.background = '#95a5a6';
+                                btnSubmit.style.cursor = 'not-allowed';
+                                btnSubmit.innerText = '🔒 Đã khóa (Hệ thống chuẩn bị thu bài)';
+                            }
+                        }
+
                         if (c > endTime) {
                             clearInterval(timer);
                             if (!isRedoing) loadAssignments(); // Ép render lại giao diện 5 phút khóa chức năng
                         } else {
                             const el = document.getElementById(`cd-end-${assign.id}`);
-                            if (el) el.innerText = formatCountdown(endTime - c);
+                            if (el) el.innerText = formatCountdown(timeLeft);
                         }
                     }, 1000);
                     assignmentTimers.push(timer);
@@ -517,11 +530,20 @@ async function submitAssignment(assignId, isAuto = false) {
 
     if (now < startTime) return alert("⚠️ Lỗi: Chưa đến thời gian làm bài!");
 
-    // --- KHÓA LỖI NẾU QUÁ HẠN MÀ CỐ TÌNH BẤM NỘP ---
-    if (!isAuto && now > endTime && !isRedoing) {
-        alert("⚠️ Lỗi: Đã quá thời gian nộp bài (Dù chỉ 1 giây)! Hệ thống lập tức khóa chức năng nộp.");
-        loadAssignments(); // Tải lại để ép ẩn đi nút nộp
-        return;
+    // --- KHÓA CHẶN 15 GIÂY TRƯỚC HẠN CHÓT ---
+    const timeRemaining = endTime.getTime() - now.getTime();
+    
+    if (!isAuto && !isRedoing) {
+        if (timeRemaining <= 15000 && timeRemaining > 0) {
+            alert("⚠️ Lỗi: Chỉ còn dưới 15 giây là hết hạn! Hệ thống đã khóa tính năng nộp bài để chuẩn bị đồng bộ dữ liệu tự động.");
+            loadAssignments(); // Tải lại để ép ẩn đi nút nộp
+            return;
+        }
+        if (now > endTime) {
+            alert("⚠️ Lỗi: Đã quá thời gian nộp bài! Hệ thống lập tức khóa chức năng nộp.");
+            loadAssignments(); 
+            return;
+        }
     }
 
     let mcAnswersObj = {};
@@ -1758,4 +1780,219 @@ window.submitSurvey = async function() {
         btn.style.opacity = '1';
         window.currentActiveSurvey = null; // Dọn dẹp
     }, 1500);
+};
+
+// Render lộ trình cá nhân của học sinh đang đăng nhập
+async function renderStudentRoadmap() {
+    const body = document.getElementById('studentRoadmapBody');
+    if (!body) return;
+    body.innerHTML = '';
+
+    const assignments = await getDB('assignments');
+    const submissions = await getDB('submissions');
+
+    // Lọc bài học được giao cho "Tất cả" hoặc giao riêng cho chính học sinh này
+    const myAssignments = assignments.filter(assign => assign.targetStudent === 'all' || assign.targetStudent === currentUser.username);
+    // Sắp xếp bài tập thông minh theo số đếm trong Tiêu đề (VD: Bài 1 -> Bài 2 -> Bài 10)
+    const sortedAssignments = [...myAssignments].sort((a, b) => (a.title || '').localeCompare(b.title || '', 'vi-VN', { numeric: true, sensitivity: 'base' }));
+
+    if (sortedAssignments.length === 0) {
+        body.innerHTML = `<tr><td colspan="6" style="padding:15px; text-align:center; color:#666; font-style:italic;">Chưa có dữ liệu lộ trình học tập.</td></tr>`;
+        if (document.getElementById('totalRoadmapMoney')) document.getElementById('totalRoadmapMoney').innerText = '0';
+        return;
+    }
+
+    let totalMoney = 0; // Biến lưu tổng số tiền tích lũy
+
+    sortedAssignments.forEach(assign => {
+        // Lấy điểm chuẩn riêng của từng bài do Giáo viên đã thiết lập
+        const passingGrade = assign.passingGrade || 7;
+
+        const sub = submissions.find(s => s.assignmentId === assign.id && s.studentUsername === currentUser.username);
+
+        let studentScore = '-';
+        let statusText = 'Chưa nộp';
+        let statusClass = 'status-pending';
+        let cellBgStyle = '';
+
+        // Đưa việc khai báo tiền lên trước để có thể ghi đè nếu học sinh bị loại do nộp trễ hoặc điểm thấp
+        let moneyVal = assign.roadmapMoney ? parseInt(assign.roadmapMoney).toLocaleString('vi-VN') + ' đ' : '-';
+        let currentItemMoney = assign.roadmapMoney ? parseInt(assign.roadmapMoney) : 0;
+
+        if (sub) {
+            // KIỂM TRA XEM CÓ ĐƯỢC GIÁO VIÊN THA ĐIỂM THẤP/NỘP TRỄ KHÔNG
+            if (sub.forcePass) {
+                statusText = 'Đạt';
+                statusClass = 'status-done';
+                cellBgStyle = 'background: rgba(16, 185, 129, 0.25) !important; color: #047857; font-weight: bold; border-radius: 8px;';
+                studentScore = (sub.grade !== null && sub.grade !== undefined && sub.grade !== '') ? parseFloat(sub.grade) : '0';
+                totalMoney += currentItemMoney; // Được tha điểm thấp -> Cộng tiền tích lũy
+            }
+            // ƯU TIÊN KIỂM TRA NỘP TRỄ TRƯỚC
+            else if (sub.isAutoSubmitted || sub.isLateFail) {
+                statusText = 'Loại';
+                statusClass = 'status-pending';
+                cellBgStyle = 'background: rgba(225, 29, 72, 0.2) !important; color: #b91c1c; font-weight: bold; border-radius: 8px;';
+                studentScore = (sub.grade !== null && sub.grade !== undefined && sub.grade !== '') ? parseFloat(sub.grade) : '0';
+                moneyVal = '0 đ'; // Ép tiền thưởng về 0 đ
+            }
+            else if (sub.isRegrading) {
+                statusText = 'Chấm lại';
+                statusClass = 'status-pending';
+                studentScore = '🔄';
+            } else if (sub.grade !== null && sub.grade !== undefined && sub.grade !== '') {
+                studentScore = parseFloat(sub.grade);
+
+                // So sánh với điểm chuẩn riêng của bài
+                if (studentScore >= passingGrade) {
+                    statusText = 'Đạt';
+                    statusClass = 'status-done';
+                    cellBgStyle = 'background: rgba(16, 185, 129, 0.25) !important; color: #047857; font-weight: bold; border-radius: 8px;';
+                    totalMoney += currentItemMoney; // Đủ điểm chuẩn đạt -> Cộng tiền tích lũy
+                } else {
+                    statusText = 'Loại';
+                    statusClass = 'status-pending';
+                    cellBgStyle = 'background: rgba(225, 29, 72, 0.2) !important; color: #b91c1c; font-weight: bold; border-radius: 8px;';
+                    moneyVal = '0 đ'; // Ép tiền thưởng về 0 đ do điểm thấp hơn điểm chuẩn bài học
+                }
+            } else {
+                statusText = 'Chưa chấm';
+            }
+        }
+
+        const conditionVal = assign.roadmapCondition || '-';
+
+        const tr = document.createElement('tr');
+        tr.style.borderBottom = '1px solid rgba(0,0,0,0.05)';
+        tr.innerHTML = `
+            <td style="padding:12px;"><strong>${assign.title}</strong></td>
+            <td style="padding:12px; text-align: center;"><strong>${studentScore}</strong></td>
+            <td style="padding:12px; text-align: center;"><span class="${statusClass}">${statusText}</span></td>
+            <td style="padding:12px; text-align: center; ${cellBgStyle}"><strong>${moneyVal}</strong></td>
+            <td style="padding:12px; font-size:0.85em; color:#555; white-space: nowrap;">${assign.endDate}</td>
+            <td style="padding:12px; color:#2c3e50; font-weight: 600;">${conditionVal}</td>
+        `;
+        body.appendChild(tr);
+    });
+
+    // FETCH SỐ TIỀN BÙ TRỪ SAU KHI QUY ĐỔI COIN (OFFSET)
+    const offsetSnap = await db.ref('student_money_offset/' + currentUser.username).once('value');
+    let moneyOffset = offsetSnap.val() || 0;
+    
+    // Tổng tiền cuối cùng = Tiền làm bài + Tiền bán Coin - Tiền mua Coin
+    let finalMoney = totalMoney + moneyOffset;
+    if (finalMoney < 0) finalMoney = 0; // Chặn về âm
+
+    // Cập nhật hiển thị số tiền cuối cùng lên ô tổng
+    const totalMoneyEl = document.getElementById('totalRoadmapMoney');
+    if (totalMoneyEl) {
+        totalMoneyEl.innerText = finalMoney.toLocaleString('vi-VN');
+    }
+}
+
+// ================= HÀM ĐÓNG / MỞ VÀ XỬ LÝ QUY ĐỔI COIN ĐỘNG =================
+window.currentConvertDir = 'M2C'; // Mặc định là Tiền đổi sang Coin
+
+window.openCoinConversionModal = function() {
+    document.getElementById('convertAmount').value = '';
+    document.getElementById('convertResult').value = '';
+    setConvertDir('M2C'); // Reset về mặc định
+    document.getElementById('coinConversionModal').classList.add('active');
+};
+
+window.closeCoinConversionModal = function() {
+    document.getElementById('coinConversionModal').classList.remove('active');
+};
+
+// Đổi giao diện và chế độ tùy theo hướng mũi tên
+window.setConvertDir = function(dir) {
+    window.currentConvertDir = dir;
+    const btnM2C = document.getElementById('btnDirM2C');
+    const btnC2M = document.getElementById('btnDirC2M');
+    const lblSource = document.getElementById('lblConvertSource');
+    const lblTarget = document.getElementById('lblConvertTarget');
+    const limitText = document.getElementById('convertLimitText');
+    const resultInput = document.getElementById('convertResult');
+
+    if (dir === 'M2C') {
+        btnM2C.style.background = '#059669'; btnM2C.style.color = 'white'; btnM2C.style.border = 'none';
+        btnC2M.style.background = 'transparent'; btnC2M.style.color = '#d35400'; btnC2M.style.border = '2px solid #d35400';
+        
+        lblSource.innerText = 'Tiền Lộ Trình (đ):'; lblTarget.innerText = 'Nhận được (Coin):';
+        limitText.style.display = 'none'; resultInput.style.color = '#059669'; 
+    } else {
+        btnC2M.style.background = '#d35400'; btnC2M.style.color = 'white'; btnC2M.style.border = 'none';
+        btnM2C.style.background = 'transparent'; btnM2C.style.color = '#059669'; btnM2C.style.border = '2px solid #059669';
+        
+        lblSource.innerText = 'Số dư Coin (🪙):'; lblTarget.innerText = 'Nhận được (đ):';
+        limitText.style.display = 'block'; resultInput.style.color = '#d35400'; 
+    }
+    updateConvertPreview();
+};
+
+// Đồng bộ hóa 2 ô nhập liệu
+window.updateConvertPreview = function() {
+    const amount = document.getElementById('convertAmount').value;
+    document.getElementById('convertResult').value = amount ? amount : '';
+};
+
+// Thực thi giao dịch với cơ sở dữ liệu
+window.executeConversion = async function() {
+    const amountInput = document.getElementById('convertAmount');
+    const amount = parseInt(amountInput.value);
+
+    if (isNaN(amount) || amount <= 0) return alert("⚠️ Vui lòng nhập số lượng hợp lệ!");
+
+    // 1. Lấy dữ liệu Coin hiện tại
+    const coinSnap = await db.ref('student_coins/' + currentUser.username).once('value');
+    let currentCoins = coinSnap.val() || 0;
+
+    // 2. Tính dữ liệu Tiền Lộ Trình Gốc (Theo điểm)
+    let baseRoadmapMoney = 0;
+    const assignments = await getDB('assignments');
+    const submissions = await getDB('submissions');
+    const myAssignments = assignments.filter(assign => assign.targetStudent === 'all' || assign.targetStudent === currentUser.username);
+    
+    myAssignments.forEach(assign => {
+        const passingGrade = assign.passingGrade || 7;
+        const sub = submissions.find(s => s.assignmentId === assign.id && s.studentUsername === currentUser.username);
+        let currentItemMoney = assign.roadmapMoney ? parseInt(assign.roadmapMoney) : 0;
+        
+        if (sub) {
+            if (sub.forcePass) baseRoadmapMoney += currentItemMoney;
+            else if (!sub.isAutoSubmitted && !sub.isLateFail && !sub.isRegrading && sub.grade !== null && sub.grade !== '') {
+                if (parseFloat(sub.grade) >= passingGrade) baseRoadmapMoney += currentItemMoney;
+            }
+        }
+    });
+
+    // 3. Lấy biến động tiền do lịch sử quy đổi trước đây (Offset)
+    const offsetSnap = await db.ref('student_money_offset/' + currentUser.username).once('value');
+    let currentOffset = offsetSnap.val() || 0;
+
+    let currentMoney = baseRoadmapMoney + currentOffset;
+    if (currentMoney < 0) currentMoney = 0;
+
+    // 4. Kiểm tra giới hạn và Xử lý cộng/trừ DB
+    if (window.currentConvertDir === 'M2C') {
+        // Đổi TIỀN LỘ TRÌNH lấy COIN
+        if (amount > currentMoney) return alert(`❌ Không đủ tiền lộ trình! Bạn chỉ có tối đa ${currentMoney.toLocaleString('vi-VN')} đ để đổi.`);
+        
+        await db.ref('student_coins/' + currentUser.username).set(currentCoins + amount);
+        await db.ref('student_money_offset/' + currentUser.username).set(currentOffset - amount);
+        alert(`✅ Quy đổi thành công!\nBạn đã dùng ${amount.toLocaleString('vi-VN')} đ để nhận lại ${amount.toLocaleString('vi-VN')} Coin 🪙.`);
+    
+    } else {
+        // Đổi COIN lấy TIỀN LỘ TRÌNH
+        if (amount > currentCoins) return alert(`❌ Không đủ Coin! Bạn chỉ có ${currentCoins.toLocaleString('vi-VN')} Coin.`);
+        if (amount > 500) return alert(`❌ Vượt quá giới hạn! Mỗi lần chỉ được đổi tối đa 500 Coin sang Tiền lộ trình.`);
+
+        await db.ref('student_coins/' + currentUser.username).set(currentCoins - amount);
+        await db.ref('student_money_offset/' + currentUser.username).set(currentOffset + amount);
+        alert(`✅ Quy đổi thành công!\nBạn đã dùng ${amount.toLocaleString('vi-VN')} Coin 🪙 để nhận lại ${amount.toLocaleString('vi-VN')} đ.`);
+    }
+
+    // 5. Cập nhật và đóng giao diện
+    closeCoinConversionModal();
+    renderStudentRoadmap(); // Render lại bảng để tiền nhảy về số dư mới ngay lập tức
 };
