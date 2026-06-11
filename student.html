@@ -5,11 +5,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Trang Học Sinh</title>
-    <link rel="stylesheet" href="css/common.css?v=1.5">
-    <link rel="stylesheet" href="css/student.css?v=1.5">
-    <link rel="stylesheet" href="css/mobile.css?v=1.5">
-    <link rel="stylesheet" href="css/store-items.css?v=1.5">
-    <link rel="stylesheet" href="css/effects-pets.css?v=1.5">
+    <link rel="stylesheet" href="css/common.css?v=1.6">
+    <link rel="stylesheet" href="css/student.css?v=1.6">
+    <link rel="stylesheet" href="css/mobile.css?v=1.6">
+    <link rel="stylesheet" href="css/store-items.css?v=1.6">
+    <link rel="stylesheet" href="css/effects-pets.css?v=1.6">
 </head>
 
 <body>
@@ -350,17 +350,54 @@
             style="width: 80px; height: auto; filter: drop-shadow(0 5px 15px rgba(0,0,0,0.3));">
     </div>
 
-    <script src="js/common.js?v=1.5"></script>
-    <script src="js/theme-items.js?v=1.5"></script>
-    <script src="js/effect-items.js?v=1.5"></script>
-    <script src="js/pet-items.js?v=1.5"></script>
-    <script src="js/store-manager.js?v=1.5"></script>
+    <div id="studentNotificationModal" class="modal-overlay" style="z-index: 999999;">
+        <div class="modal-content" style="max-width: 450px; text-align: center; border-top: 6px solid #f59e0b;">
+            <h3 style="color: #d35400; margin-bottom: 15px; font-size: 1.6em; text-transform: uppercase;">🔔 Thông Báo
+                Mới</h3>
+            <div
+                style="background: rgba(255,255,255,0.7); padding: 20px; border-radius: 12px; margin-bottom: 20px; text-align: left; border: 1px solid rgba(0,0,0,0.05); box-shadow: inset 0 2px 5px rgba(0,0,0,0.02);">
+                <p id="studentNotificationMessage"
+                    style="font-size: 1.1em; color: #2c3e50; line-height: 1.6; white-space: pre-wrap; margin: 0; font-weight: 700;">
+                </p>
+            </div>
+            <button id="btnAcknowledgeNotification"
+                style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); font-size: 1.1em; padding: 12px; font-weight: 800; border-radius: 12px; box-shadow: 0 4px 15px rgba(17, 153, 142, 0.3);">✅
+                Đã nhận và đọc hiểu</button>
+        </div>
+    </div>
+
+    <div id="studentSurveyModal" class="modal-overlay" style="z-index: 999998;">
+        <div class="modal-content"
+            style="max-width: 550px; background: rgba(255, 255, 255, 0.95); border-top: 6px solid #e83e8c;">
+            <h3 id="studentSurveyTitle"
+                style="color: #e83e8c; margin-bottom: 15px; font-size: 1.5em; border-bottom: 1px solid rgba(232, 62, 140, 0.2); padding-bottom: 10px;">
+                📝 Bảng Khảo Sát</h3>
+
+            <div id="studentSurveyBody"
+                style="max-height: 60vh; overflow-y: auto; padding-right: 10px; margin-bottom: 20px;">
+            </div>
+
+            <p id="surveyAlertMsg"
+                style="color: #e11d48; font-weight: bold; font-size: 0.9em; text-align: center; margin-bottom: 10px;">⚠️
+                Bạn cần hoàn thành tất cả câu hỏi để hiện nút Nộp bài & Thoát!</p>
+
+            <button id="btnSubmitSurvey" onclick="submitSurvey()"
+                style="display: none; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); font-size: 1.1em; padding: 12px; font-weight: 800; border-radius: 12px; width: 100%; box-shadow: 0 4px 15px rgba(17, 153, 142, 0.3);">📤
+                Gửi câu trả lời & Thoát X</button>
+        </div>
+    </div>
+
+    <script src="js/common.js?v=1.6"></script>
+    <script src="js/theme-items.js?v=1.6"></script>
+    <script src="js/effect-items.js?v=1.6"></script>
+    <script src="js/pet-items.js?v=1.6"></script>
+    <script src="js/store-manager.js?v=1.6"></script>
 
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-database-compat.js"></script>
-    <script src="js/firebase-config.js?v=1.5"></script>
+    <script src="js/firebase-config.js?v=1.6"></script>
 
-    <script src="js/student.js?v=1.5"></script>
+    <script src="js/student.js?v=1.6"></script>
 </body>
 
 </html>

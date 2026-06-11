@@ -124,6 +124,66 @@ window.onload = async function () {
         if (typeof loadStoreItems === 'function') loadStoreItems();
         if (typeof applyEquippedItems === 'function') applyEquippedItems();
     });
+
+    // Lắng nghe và kiểm tra thông báo toàn trường
+    db.ref('global_notifications').on('value', (snapshot) => {
+        const notifications = [];
+        snapshot.forEach(child => {
+            notifications.push({ ...child.val(), _fbKey: child.key });
+        });
+
+        if (notifications.length > 0) {
+            // Sắp xếp để lấy thông báo mới nhất
+            const sorted = notifications.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+            const latestNoti = sorted[0];
+
+            // Kiểm tra xem học sinh này đã xác nhận chưa
+            const receivers = latestNoti.receivers || {};
+            if (!receivers[currentUser.username]) {
+                // Nếu chưa nhận -> Ép hiển thị Modal Pop-up
+                document.getElementById('studentNotificationMessage').innerText = latestNoti.message;
+                document.getElementById('studentNotificationModal').classList.add('active');
+
+                // Xử lý sự kiện nút "Đã nhận"
+                const btn = document.getElementById('btnAcknowledgeNotification');
+                btn.onclick = async function () {
+                    btn.disabled = true;
+                    btn.innerText = "⏳ Đang ghi nhận...";
+                    // Đẩy tên đăng nhập của học sinh lên Firebase để điểm danh
+                    await db.ref(`global_notifications/${latestNoti._fbKey}/receivers/${currentUser.username}`).set(true);
+
+                    document.getElementById('studentNotificationModal').classList.remove('active');
+                    btn.disabled = false;
+                    btn.innerText = "✅ Đã nhận và đọc hiểu";
+                };
+            } else {
+                // Đảm bảo không bị kẹt Pop-up nếu đã đọc
+                document.getElementById('studentNotificationModal').classList.remove('active');
+            }
+        }
+    });
+
+    // Lắng nghe và hiển thị Khảo sát bắt buộc
+    db.ref('global_surveys').on('value', (snapshot) => {
+        const surveys = [];
+        snapshot.forEach(child => {
+            surveys.push({ ...child.val(), _fbKey: child.key });
+        });
+
+        if (surveys.length > 0) {
+            // Lọc ra khảo sát mới nhất mà học sinh này CHƯA làm
+            const sorted = surveys.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+            for (let sv of sorted) {
+                const answersObj = sv.answers || {};
+                if (!answersObj[currentUser.username]) {
+                    window.currentActiveSurvey = sv; // Lưu biến toàn cục để submit
+                    renderStudentSurvey(sv);
+                    break; // Chỉ ép làm 1 khảo sát mới nhất, làm xong mới quét tiếp
+                }
+            }
+        }
+    });
 };
 
 function getEmbedHTML(url) {
@@ -1598,4 +1658,104 @@ window.applyEquippedItems = function () {
             }
         });
     }
+};
+
+// ================= HỆ THỐNG KHẢO SÁT =================
+window.renderStudentSurvey = function(surveyData) {
+    document.getElementById('studentSurveyTitle').innerText = surveyData.title;
+    const body = document.getElementById('studentSurveyBody');
+    body.innerHTML = '';
+
+    surveyData.questions.forEach((q, idx) => {
+        const div = document.createElement('div');
+        div.className = 'survey-answer-block';
+        div.dataset.qid = q.id;
+        div.style.cssText = 'background: rgba(0,0,0,0.03); padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 1px solid rgba(0,0,0,0.05);';
+
+        let html = `<p style="margin: 0 0 10px 0; font-weight: bold; color: #2c3e50;">Câu ${idx + 1}: ${q.text}</p>`;
+
+        if (q.type === 'mc') {
+            q.options.forEach(opt => {
+                // Thêm sự kiện onchange để tự động kiểm tra tiến độ
+                html += `
+                <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; cursor: pointer; background: white; padding: 8px 12px; border-radius: 8px;">
+                    <input type="radio" name="ans_${q.id}" value="${opt}" onchange="checkSurveyCompletion()" style="width: auto; margin: 0;"> 
+                    <span>${opt}</span>
+                </label>`;
+            });
+        } else {
+            // Thêm sự kiện onkeyup để tự động kiểm tra tiến độ
+            html += `<textarea id="ans_${q.id}" placeholder="Nhập câu trả lời của bạn..." rows="3" onkeyup="checkSurveyCompletion()" style="width: 100%; padding: 10px; background: white; border-radius: 8px; border: 1px solid rgba(0,0,0,0.1);"></textarea>`;
+        }
+        div.innerHTML = html;
+        body.appendChild(div);
+    });
+
+    // Ẩn nút gửi và mở Modal
+    document.getElementById('btnSubmitSurvey').style.display = 'none';
+    document.getElementById('surveyAlertMsg').style.display = 'block';
+    document.getElementById('studentSurveyModal').classList.add('active');
+};
+
+// Hàm tự động quét xem học sinh đã điền đủ chưa
+window.checkSurveyCompletion = function() {
+    if (!window.currentActiveSurvey) return;
+    
+    let isComplete = true;
+    window.currentActiveSurvey.questions.forEach(q => {
+        if (q.type === 'mc') {
+            const checked = document.querySelector(`input[name="ans_${q.id}"]:checked`);
+            if (!checked) isComplete = false;
+        } else {
+            const txt = document.getElementById(`ans_${q.id}`).value.trim();
+            if (!txt) isComplete = false;
+        }
+    });
+
+    const btn = document.getElementById('btnSubmitSurvey');
+    const alertMsg = document.getElementById('surveyAlertMsg');
+
+    if (isComplete) {
+        btn.style.display = 'block'; // Hiện nút X
+        alertMsg.style.display = 'none'; // Tắt dòng cảnh báo đỏ
+    } else {
+        btn.style.display = 'none';
+        alertMsg.style.display = 'block';
+    }
+};
+
+window.submitSurvey = async function() {
+    if (!window.currentActiveSurvey) return;
+
+    const btn = document.getElementById('btnSubmitSurvey');
+    btn.disabled = true;
+    btn.innerText = "⏳ Đang gửi dữ liệu cho Giáo viên...";
+    btn.style.opacity = '0.7';
+
+    // Thu thập câu trả lời
+    let responses = {};
+    window.currentActiveSurvey.questions.forEach(q => {
+        if (q.type === 'mc') {
+            responses[q.id] = document.querySelector(`input[name="ans_${q.id}"]:checked`).value;
+        } else {
+            responses[q.id] = document.getElementById(`ans_${q.id}`).value.trim();
+        }
+    });
+
+    // Tạo hiệu ứng mất 1 lúc mới đóng (1.5 giây mô phỏng độ trễ truyền tải)
+    setTimeout(async () => {
+        // Đẩy lên Firebase
+        await db.ref(`global_surveys/${window.currentActiveSurvey._fbKey}/answers/${currentUser.username}`).set({
+            studentName: currentUser.name,
+            responses: responses,
+            timestamp: new Date().toLocaleString('vi-VN')
+        });
+
+        // Tắt Modal và reset trạng thái nút
+        document.getElementById('studentSurveyModal').classList.remove('active');
+        btn.disabled = false;
+        btn.innerText = "📤 Gửi câu trả lời & Thoát X";
+        btn.style.opacity = '1';
+        window.currentActiveSurvey = null; // Dọn dẹp
+    }, 1500);
 };
