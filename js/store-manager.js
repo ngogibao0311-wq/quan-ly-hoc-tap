@@ -95,6 +95,36 @@ const StoreConfig = {
             value: 'theme-lifestyle', // Class CSS sẽ áp dụng
             customIcon: '🌿'
         },
+        {
+            id: 'pet_doisong_bandem',
+            name: 'Mèo Đêm Đầy Sao',
+            type: 'pet',
+            price: 400,
+            isNonCoin: false,
+            tag: 'Ban đêm',
+            value: 'assets/pet/đời sống/thời tiết/ban đêm.png',
+            isIcon: false,
+            petEffect: 'night-cat-magic' // Phục vụ cho class CSS hiệu ứng
+        },
+        {
+            id: 'effect_bandem_tinhthu',
+            name: 'Đêm Sao Huyền Bí',
+            type: 'effect',
+            price: 0,
+            isNonCoin: true, // Vật phẩm sự kiện, kích hoạt khóa preview theo logic của bạn
+            tag: 'Ban đêm',
+            value: '🌌' // Icon hiển thị đại diện trong cửa hàng
+        },
+        {
+            id: 'theme_bandem',
+            name: 'Dải Ngân Hà',
+            type: 'theme',
+            price: 0,             // Không bán bằng coin
+            isNonCoin: true,      // Kích hoạt khóa preview theo logic sự kiện của bạn
+            tag: 'Ban đêm',
+            value: 'theme-night-sky', // Class CSS sẽ tiêm vào <body>
+            customIcon: '🌃'
+        },
     ]
 };
 
@@ -126,7 +156,7 @@ class StoreManager {
     }
 
     static renderStoreItem(item, isOwned = false, isEquipped = false, isTrial = false, isUpcoming = false) {
-        let tagClass = item.tag === 'Tứ kị sĩ' ? 'tag-tu-ki-si' : (item.tag === 'Cổ tích' ? 'tag-co-tich' : (item.tag === 'Đời sống' ? 'tag-doi-song' : 'tag-normal'));
+        let tagClass = item.tag === 'Tứ kị sĩ' ? 'tag-tu-ki-si' : (item.tag === 'Cổ tích' ? 'tag-co-tich' : (item.tag === 'Đời sống' ? 'tag-doi-song' : (item.tag === 'Ban đêm' ? 'tag-ban-dem' : 'tag-normal')));
         let actionButton = '';
         let trialButton = '';
 

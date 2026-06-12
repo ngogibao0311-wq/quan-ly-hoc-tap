@@ -26,6 +26,9 @@ class EffectManager {
             case 'effect_doisong_laroi': // Thêm case kích hoạt hiệu ứng Lá Rơi
                 this.createFallingLeavesEffect();
                 break;
+            case 'effect_bandem_tinhthu':
+                this.createNightSkyEffect();
+                break;
         }
         localStorage.setItem('active_effect', effectId);
     }
@@ -102,22 +105,22 @@ class EffectManager {
     static createFallingLeavesEffect() {
         // Mảng chứa các class đại diện cho các màu lá khác nhau
         const leafClasses = ['leaf-green', 'leaf-autumn', 'leaf-yellow', 'leaf-orange'];
-        
+
         this.currentInterval = setInterval(() => {
             const leaf = document.createElement('div');
             leaf.classList.add('effect-leaf-css'); // Class gốc
-            
+
             // Lấy ngẫu nhiên màu lá
             const randomType = leafClasses[Math.floor(Math.random() * leafClasses.length)];
             leaf.classList.add(randomType);
-            
+
             // Vị trí xuất phát ngẫu nhiên
             leaf.style.left = Math.random() * 100 + 'vw';
-            
+
             // Thời gian rơi ngẫu nhiên từ 5s - 9s để nhìn bay bổng hơn
-            let duration = Math.random() * 4 + 5; 
+            let duration = Math.random() * 4 + 5;
             leaf.style.animationDuration = duration + 's';
-            
+
             // Tạo kích thước ngẫu nhiên (tạo độ sâu trường ảnh)
             let scale = Math.random() * 0.6 + 0.6; // Scale từ 0.6 đến 1.2
             leaf.style.setProperty('--leaf-scale', scale); // Truyền vào CSS biến --leaf-scale
@@ -130,5 +133,35 @@ class EffectManager {
             }, duration * 1000);
 
         }, 350); // Nhịp độ sinh lá (0.35s / lá)
+    }
+
+    static createNightSkyEffect() {
+        // 1. Tạo lớp màn đêm phủ tối toàn trang web
+        const darkOverlay = document.createElement('div');
+        darkOverlay.classList.add('night-sky-overlay');
+        this.container.appendChild(darkOverlay);
+
+        // 2. Tạo các vì sao
+        this.currentInterval = setInterval(() => {
+            const star = document.createElement('div');
+            star.classList.add('effect-night-star');
+            
+            star.style.left = Math.random() * 100 + 'vw';
+            star.style.top = Math.random() * 100 + 'vh';
+            
+            // Đã tăng kích thước lõi sao lên to hơn (3px - 6px) để nhìn rõ hơn xíu
+            let size = Math.random() * 3 + 3;
+            star.style.width = `${size}px`;
+            star.style.height = `${size}px`;
+            
+            let duration = Math.random() * 3 + 3;
+            star.style.animationDuration = duration + 's';
+            
+            this.container.appendChild(star);
+            
+            setTimeout(() => {
+                star.remove();
+            }, duration * 1000);
+        }, 350); // Tăng tốc độ xuất hiện một xíu (từ 400ms xuống 350ms)
     }
 }

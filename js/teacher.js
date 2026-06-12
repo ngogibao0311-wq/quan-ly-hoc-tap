@@ -86,6 +86,13 @@ window.onload = async function () {
 
     db.ref('store_settings').on('value', (snapshot) => {
         const settings = snapshot.val();
+
+        // ---> THÊM 4 DÒNG NÀY ĐỂ ĐỒNG BỘ NÚT TICK TỪ FIREBASE <---
+        const storeToggleInput = document.getElementById('storeToggle');
+        if (storeToggleInput && settings !== null && settings.isOpen !== undefined) {
+            storeToggleInput.checked = settings.isOpen;
+        }
+
         if (settings) {
             StoreConfig.items.forEach(item => {
                 if (settings[item.id]) {
@@ -1958,7 +1965,7 @@ function initTeacherStoreManagement() {
         selectEl.appendChild(option);
 
         let priceDisplay = item.isNonCoin ? (item.price > 0 ? `🪙 ${item.price} Coin (Sự kiện)` : 'Vật phẩm Sự kiện') : `🪙 ${item.price} Coin`;
-        
+
         let hiddenClass = index >= 4 ? 'hidden-store-item-row' : '';
         let hiddenStyle = index >= 4 ? 'display: none;' : '';
 
@@ -2056,7 +2063,7 @@ function loadStoreItemDetails() {
 window.toggleLockStoreItem = async function (itemId, isCurrentlyLocked) {
     const actionText = isCurrentlyLocked ? "MỞ KHÓA" : "KHÓA TẠM THỜI";
     if (!confirm(`Bạn có chắc chắn muốn ${actionText} vật phẩm này không? Học sinh sẽ không thể sử dụng hay mua món đồ này.`)) return;
-    
+
     try {
         await db.ref('store_settings/' + itemId).update({
             isLocked: !isCurrentlyLocked
@@ -2122,7 +2129,7 @@ window.loadTeacherStoreItems = function () {
 };
 
 // Hàm điều khiển ẩn/hiện khu vực nhập thông báo
-window.toggleNotificationArea = function(isOpen) {
+window.toggleNotificationArea = function (isOpen) {
     const inputArea = document.getElementById('notificationInputArea');
     if (inputArea) {
         inputArea.style.display = isOpen ? 'block' : 'none';
@@ -2130,10 +2137,10 @@ window.toggleNotificationArea = function(isOpen) {
 };
 
 // Gửi thông báo mới
-window.sendGlobalNotification = async function(customMsg = null) {
+window.sendGlobalNotification = async function (customMsg = null) {
     const msgInput = document.getElementById('globalNotificationMessage');
     const message = customMsg || (msgInput ? msgInput.value.trim() : '');
-    
+
     if (!message) return alert("Vui lòng nhập nội dung thông báo!");
 
     const payload = {
@@ -2145,22 +2152,22 @@ window.sendGlobalNotification = async function(customMsg = null) {
     };
 
     await pushDB('global_notifications', payload);
-    
-    if(msgInput && !customMsg) {
+
+    if (msgInput && !customMsg) {
         msgInput.value = ''; // Xóa nội dung cũ
-        
+
         // Tự động tắt nút gạt và ẩn khung nhập sau khi gửi xong
         const toggleBtn = document.getElementById('notificationToggle');
         if (toggleBtn) toggleBtn.checked = false;
         toggleNotificationArea(false);
     }
-    
+
     alert("✅ Đã phát thông báo đến toàn bộ học sinh!");
 };
 
 
 // Mở lịch sử và thống kê người xem
-window.openNotificationHistory = async function() {
+window.openNotificationHistory = async function () {
     document.getElementById('notificationHistoryModal').classList.add('active');
     const listContainer = document.getElementById('notificationHistoryList');
     listContainer.innerHTML = '<p style="text-align: center; color: #666;">Đang tải dữ liệu...</p>';
@@ -2211,12 +2218,12 @@ window.openNotificationHistory = async function() {
     listContainer.innerHTML = html;
 };
 
-window.closeNotificationHistory = function() {
+window.closeNotificationHistory = function () {
     document.getElementById('notificationHistoryModal').classList.remove('active');
 };
 
-window.deleteNotification = async function(fbKey) {
-    if(confirm('Chắc chắn xóa thông báo này khỏi lịch sử?')) {
+window.deleteNotification = async function (fbKey) {
+    if (confirm('Chắc chắn xóa thông báo này khỏi lịch sử?')) {
         await removeDB('global_notifications', fbKey);
         openNotificationHistory(); // Render lại danh sách
     }
@@ -2225,12 +2232,12 @@ window.deleteNotification = async function(fbKey) {
 // ================= HỆ THỐNG KHẢO SÁT =================
 let surveyQCount = 0;
 
-window.toggleSurveyArea = function(isOpen) {
+window.toggleSurveyArea = function (isOpen) {
     const inputArea = document.getElementById('surveyInputArea');
     if (inputArea) inputArea.style.display = isOpen ? 'block' : 'none';
 };
 
-window.addSurveyQuestion = function(type) {
+window.addSurveyQuestion = function (type) {
     surveyQCount++;
     const container = document.getElementById('surveyQuestionsBuilder');
     const div = document.createElement('div');
@@ -2260,7 +2267,7 @@ window.addSurveyQuestion = function(type) {
     container.appendChild(div);
 };
 
-window.sendGlobalSurvey = async function() {
+window.sendGlobalSurvey = async function () {
     const title = document.getElementById('surveyTitle').value.trim();
     if (!title) return alert("Vui lòng nhập Tiêu đề khảo sát!");
 
@@ -2280,7 +2287,7 @@ window.sendGlobalSurvey = async function() {
         if (qType === 'mc') {
             let opts = [];
             block.querySelectorAll('.sq-opt').forEach(optInput => {
-                if(optInput.value.trim()) opts.push(optInput.value.trim());
+                if (optInput.value.trim()) opts.push(optInput.value.trim());
             });
             if (opts.length < 2) isValid = false; // Trắc nghiệm phải có ít nhất 2 lựa chọn
             qData.options = opts;
@@ -2300,7 +2307,7 @@ window.sendGlobalSurvey = async function() {
     };
 
     await pushDB('global_surveys', payload);
-    
+
     // Dọn dẹp form
     document.getElementById('surveyTitle').value = '';
     document.getElementById('surveyQuestionsBuilder').innerHTML = '';
@@ -2311,7 +2318,7 @@ window.sendGlobalSurvey = async function() {
     alert("🚀 Đã phát hành Khảo sát đến toàn bộ học sinh!");
 };
 
-window.openSurveyHistory = async function() {
+window.openSurveyHistory = async function () {
     document.getElementById('surveyHistoryModal').classList.add('active');
     const container = document.getElementById('surveyHistoryList');
     container.innerHTML = '<p style="text-align: center;">Đang tải...</p>';
@@ -2339,9 +2346,9 @@ window.openSurveyHistory = async function() {
     container.innerHTML = html;
 };
 
-window.closeSurveyHistory = function() { document.getElementById('surveyHistoryModal').classList.remove('active'); };
+window.closeSurveyHistory = function () { document.getElementById('surveyHistoryModal').classList.remove('active'); };
 
-window.viewSurveyResults = async function(fbKey) {
+window.viewSurveyResults = async function (fbKey) {
     const surveys = await getDB('global_surveys');
     const sv = surveys.find(s => s._fbKey === fbKey);
     if (!sv) return;
@@ -2376,9 +2383,9 @@ window.viewSurveyResults = async function(fbKey) {
     document.getElementById('surveyResultsModal').classList.add('active');
 };
 
-window.closeSurveyResults = function() { document.getElementById('surveyResultsModal').classList.remove('active'); };
-window.deleteSurvey = async function(fbKey) {
-    if(confirm('Chắc chắn xóa Khảo sát này khỏi hệ thống?')) {
+window.closeSurveyResults = function () { document.getElementById('surveyResultsModal').classList.remove('active'); };
+window.deleteSurvey = async function (fbKey) {
+    if (confirm('Chắc chắn xóa Khảo sát này khỏi hệ thống?')) {
         await removeDB('global_surveys', fbKey);
         openSurveyHistory(); // Render lại danh sách
     }

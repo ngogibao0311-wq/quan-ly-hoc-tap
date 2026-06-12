@@ -22,6 +22,12 @@ class ThemeManager {
             secondary: '#4a3c31',   // Nâu gỗ đậm
             background: '#fdfaf5',  // Màu giấy kem ấm
             className: 'theme-lifestyle' 
+        },
+        'theme_bandem': { 
+            primary: '#81d4fa',     // Xanh ngọc sáng (Neon Cyan)
+            secondary: '#aa00ff',   // Tím dạ quang
+            background: '#0a0f1e',  // Xanh đen không gian
+            className: 'theme-night-sky' 
         }
     };
 
@@ -34,7 +40,7 @@ class ThemeManager {
         root.style.setProperty('--bg-color', theme.background);
         
         // 1. Xóa tất cả các class theme đặc biệt cũ khỏi body
-        document.body.classList.remove('theme-fairy-tale', 'theme-magic-forest');
+        document.body.classList.remove('theme-fairy-tale', 'theme-magic-forest', 'theme-lifestyle', 'theme-night-sky');
 
         // 2. Tiêm class mới vào body nếu theme đó có yêu cầu thay đổi hình dáng
         if (theme.className) {
