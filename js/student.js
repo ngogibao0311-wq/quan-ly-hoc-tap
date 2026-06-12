@@ -1173,9 +1173,53 @@ window.spinWheel = async function () {
     }, 50);
 
     setTimeout(async () => {
+        let displayResult = finalRewardStr;
+        let actualRewardRecord = finalRewardStr;
+        let wonCoins = 0;
+
+        // Xử lý kết quả quay
+        if (finalRewardStr === "100 Coin") wonCoins = 100;
+        else if (finalRewardStr === "150 Coin") wonCoins = 150;
+        else if (finalRewardStr === "500 Coin") wonCoins = 500;
+        else if (finalRewardStr === "Quà bí ẩn") {
+            // Lấy danh sách các vật phẩm có tag "cổ tích"
+            const cotichItems = (typeof StoreConfig !== 'undefined') 
+                ? StoreConfig.items.filter(i => i.tag && i.tag.toLowerCase() === 'cổ tích') 
+                : [];
+
+            if (cotichItems.length > 0) {
+                // Chọn ngẫu nhiên 1 vật phẩm
+                const randomItem = cotichItems[Math.floor(Math.random() * cotichItems.length)];
+                
+                // Kiểm tra xem học sinh đã sở hữu chưa (dựa vào mảng studentOwnedItems)
+                if (typeof studentOwnedItems !== 'undefined' && studentOwnedItems.includes(randomItem.id)) {
+                    wonCoins = 600;
+                    displayResult = `Trùng ${randomItem.name} (Bù 600 Coin)`;
+                    actualRewardRecord = `Trùng ${randomItem.name} (+600 Coin)`;
+                } else {
+                    // Thêm vật phẩm vào túi đồ của học sinh
+                    await db.ref(`student_inventory/${currentUser.username}/${randomItem.id}`).update({
+                        id: randomItem.id,
+                        purchaseTime: Date.now(),
+                        isTrial: null,
+                        trialExpiry: null,
+                        isEquipped: false
+                    });
+                    displayResult = `Vật phẩm: ${randomItem.name}`;
+                    actualRewardRecord = `Vật phẩm: ${randomItem.name}`;
+                }
+            } else {
+                // Fallback nếu cửa hàng chưa có đồ tag cổ tích
+                wonCoins = 600;
+                displayResult = `600 Coin (Bí ẩn)`;
+                actualRewardRecord = `600 Coin (Bí ẩn)`;
+            }
+        }
+
+        // Hiển thị kết quả ra màn hình
         resultText.style.transform = 'scale(1.2)';
-        resultText.style.color = finalRewardStr.includes('Coin') || finalRewardStr.includes('Bí ẩn') ? '#ffd700' : '#ff4757';
-        resultText.innerText = `🎁 KẾT QUẢ: ${finalRewardStr.toUpperCase()}!`;
+        resultText.style.color = (wonCoins > 0 || finalRewardStr === "Quà bí ẩn") ? '#ffd700' : '#ff4757';
+        resultText.innerText = `🎁 KẾT QUẢ: ${displayResult.toUpperCase()}!`;
 
         setTimeout(() => {
             resultText.style.transform = 'scale(1)';
@@ -1183,6 +1227,7 @@ window.spinWheel = async function () {
 
         isSpinning = false;
 
+        // Cập nhật số lượt đã quay
         spinTracking.count = usedSpins + 1;
         await db.ref('spin_counts/' + currentUser.username).set({ count: spinTracking.count });
 
@@ -1193,14 +1238,8 @@ window.spinWheel = async function () {
         }
 
         // --- CỘNG TIỀN NẾU TRÚNG COIN ---
-        let wonCoins = 0;
-        if (finalRewardStr === "100 Coin") wonCoins = 100;
-        else if (finalRewardStr === "150 Coin") wonCoins = 150;
-        else if (finalRewardStr === "500 Coin") wonCoins = 500;
-
         if (wonCoins > 0) {
             const coinRef = db.ref('student_coins/' + currentUser.username);
-            // Thay once + set bằng transaction
             coinRef.transaction((currentCoins) => {
                 return (currentCoins || 0) + wonCoins;
             });
@@ -1210,11 +1249,11 @@ window.spinWheel = async function () {
         const recordNow = new Date();
         const currentTimestamp = recordNow.getTime();
 
-        // Push kết quả lên lịch sử
+        // Push kết quả thực tế lên lịch sử (bao gồm cả vật phẩm hoặc coin bù)
         await pushDB('spin_history', {
             studentName: currentUser.name,
             username: currentUser.username,
-            reward: finalRewardStr,
+            reward: actualRewardRecord,
             time: recordNow.toLocaleTimeString('vi-VN') + ' ' + recordNow.toLocaleDateString('vi-VN'),
             timestamp: currentTimestamp
         });
