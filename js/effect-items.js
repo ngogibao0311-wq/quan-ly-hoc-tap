@@ -23,6 +23,9 @@ class EffectManager {
             case 'effect_cotich_firefly':
                 this.createFireflyEffect();
                 break;
+            case 'effect_doisong_laroi': // Thêm case kích hoạt hiệu ứng Lá Rơi
+                this.createFallingLeavesEffect();
+                break;
         }
         localStorage.setItem('active_effect', effectId);
     }
@@ -94,5 +97,38 @@ class EffectManager {
             }, duration * 1000);
 
         }, 350); // Tốc độ sinh đom đóm (0.35s/con)
+    }
+
+    static createFallingLeavesEffect() {
+        // Mảng chứa các class đại diện cho các màu lá khác nhau
+        const leafClasses = ['leaf-green', 'leaf-autumn', 'leaf-yellow', 'leaf-orange'];
+        
+        this.currentInterval = setInterval(() => {
+            const leaf = document.createElement('div');
+            leaf.classList.add('effect-leaf-css'); // Class gốc
+            
+            // Lấy ngẫu nhiên màu lá
+            const randomType = leafClasses[Math.floor(Math.random() * leafClasses.length)];
+            leaf.classList.add(randomType);
+            
+            // Vị trí xuất phát ngẫu nhiên
+            leaf.style.left = Math.random() * 100 + 'vw';
+            
+            // Thời gian rơi ngẫu nhiên từ 5s - 9s để nhìn bay bổng hơn
+            let duration = Math.random() * 4 + 5; 
+            leaf.style.animationDuration = duration + 's';
+            
+            // Tạo kích thước ngẫu nhiên (tạo độ sâu trường ảnh)
+            let scale = Math.random() * 0.6 + 0.6; // Scale từ 0.6 đến 1.2
+            leaf.style.setProperty('--leaf-scale', scale); // Truyền vào CSS biến --leaf-scale
+
+            this.container.appendChild(leaf);
+
+            // Dọn dẹp
+            setTimeout(() => {
+                leaf.remove();
+            }, duration * 1000);
+
+        }, 350); // Nhịp độ sinh lá (0.35s / lá)
     }
 }

@@ -16,6 +16,12 @@ class ThemeManager {
             secondary: '#1abc9c',   // Xanh bạc hà
             background: '#04120c',  // Xanh đen rừng sâu
             className: 'theme-magic-forest' // Gắn class vừa viết ở file CSS
+        },
+        'theme_doisong': { 
+            primary: '#88ab75',     // Xanh lá dịu
+            secondary: '#4a3c31',   // Nâu gỗ đậm
+            background: '#fdfaf5',  // Màu giấy kem ấm
+            className: 'theme-lifestyle' 
         }
     };
 

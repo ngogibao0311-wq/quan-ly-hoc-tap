@@ -65,6 +65,36 @@ const StoreConfig = {
             tag: 'Cổ tích',
             value: '🎇'           // Icon hiển thị trong cửa hàng
         },
+        {
+            id: 'pet_doisong_thiennhien',
+            name: 'Cáo Thiên Nhiên',
+            type: 'pet',
+            price: 350,
+            isNonCoin: false,
+            tag: 'Đời sống',
+            value: 'assets/pet/đời sống/thiên nhiên/thiên nhiên.png',
+            isIcon: false,
+            petEffect: 'nature-fox-magic'
+        },
+        {
+            id: 'effect_doisong_laroi',
+            name: 'Lá Rơi Mùa Hạ',
+            type: 'effect',
+            price: 0,             // Không bán bằng coin
+            isNonCoin: true,      // Nhận từ sự kiện, khóa chức năng preview theo logic có sẵn
+            tag: 'Đời sống',
+            value: '🍃'           // Icon hiển thị chính trong cửa hàng
+        },
+        {
+            id: 'theme_doisong',
+            name: 'Nhịp Sống Xanh',
+            type: 'theme',
+            price: 300,
+            isNonCoin: false,
+            tag: 'Đời sống',
+            value: 'theme-lifestyle', // Class CSS sẽ áp dụng
+            customIcon: '🌿'
+        },
     ]
 };
 
@@ -96,7 +126,7 @@ class StoreManager {
     }
 
     static renderStoreItem(item, isOwned = false, isEquipped = false, isTrial = false, isUpcoming = false) {
-        let tagClass = item.tag === 'Tứ kị sĩ' ? 'tag-tu-ki-si' : (item.tag === 'Cổ tích' ? 'tag-co-tich' : 'tag-normal');
+        let tagClass = item.tag === 'Tứ kị sĩ' ? 'tag-tu-ki-si' : (item.tag === 'Cổ tích' ? 'tag-co-tich' : (item.tag === 'Đời sống' ? 'tag-doi-song' : 'tag-normal'));
         let actionButton = '';
         let trialButton = '';
 
@@ -149,11 +179,9 @@ class StoreManager {
 
         let iconHTML = '';
         if (item.isIcon === false && item.value) {
-            let extraClass = item.petEffect ? item.petEffect : '';
-            if (item.id === 'pet_cotich_1') extraClass = 'phoenix-store-fire';
-            else if (item.id === 'pet_cotich_2') extraClass = 'fox-store-magic';
-
-            iconHTML = `<img src="${item.value}" class="item-icon ${extraClass}" style="width: 80px; height: 80px; object-fit: contain;">`;
+            // Đã xóa toàn bộ logic gán extraClass hiệu ứng
+            // Chỉ giữ lại class 'item-icon' mặc định để không bị hiện hiệu ứng trong Cửa hàng
+            iconHTML = `<img src="${item.value}" class="item-icon" style="width: 80px; height: 80px; object-fit: contain;">`;
         } else {
             let displayIcon = this.getIconForType(item.type);
             if (item.customIcon) displayIcon = item.customIcon;

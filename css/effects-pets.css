@@ -209,3 +209,133 @@
         filter: drop-shadow(0 0 25px rgba(236, 72, 153, 1)) drop-shadow(0 15px 25px rgba(139, 92, 246, 0.6)); 
     }
 }
+/* =========================================================================
+   HIỆU ỨNG CÁO THIÊN NHIÊN (MỘC TINH - BẢN NÂNG CẤP CINEMATIC & 3D)
+   ========================================================================= */
+
+/* 1. TRẬN PHÁP THẢO MỘC ĐA TẦNG (Vòng tròn 3D lót dưới chân) */
+#virtual-pet-container:has(.nature-fox-magic)::before {
+    content: '';
+    position: absolute;
+    bottom: -45px; /* Đã kéo âm thêm để vòng tròn hạ thấp xuống sát mép dưới */
+    left: 50%;
+    width: 130px;
+    height: 130px;
+    margin-left: -65px;
+    background: radial-gradient(circle, rgba(46, 204, 113, 0.3) 0%, rgba(39, 174, 96, 0.1) 45%, transparent 70%);
+    border: 2px dashed rgba(241, 196, 15, 0.8);
+    outline: 2px dotted rgba(46, 204, 113, 0.6);
+    outline-offset: -12px;
+    border-radius: 50%;
+    
+    transform: rotateX(75deg);
+    box-shadow: 
+        0 0 25px rgba(46, 204, 113, 0.7), 
+        inset 0 0 30px rgba(39, 174, 96, 0.8),
+        0 0 15px rgba(241, 196, 15, 0.5);
+    animation: natureMagicCircleUltra 6s linear infinite;
+    z-index: -1;
+    pointer-events: none;
+}
+
+/* 2. CƠN MƯA TINH LINH (Hệ thống hạt sáng bay lượn phức tạp) */
+#virtual-pet-container:has(.nature-fox-magic)::after {
+    content: '';
+    position: absolute;
+    top: 25%;
+    left: 50%;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: #fff;
+    
+    /* Ma trận 8 hạt sáng đa sắc phân bố ngẫu nhiên xung quanh */
+    box-shadow: 
+        -45px -15px 10px 2px #2ecc71,
+        50px 10px 12px 2px #f1c40f,
+        -20px -40px 8px 1px #e67e22,
+        -65px 25px 14px 3px #27ae60,
+        55px -35px 10px 2px #1abc9c,
+        25px -65px 12px 2px #f39c12,
+        -35px 45px 8px 1px #d4ac0d,
+        15px 35px 11px 2px #58d68d;
+    filter: blur(0.5px) drop-shadow(0 0 5px #ffffff);
+    animation: natureSporesStorm 4s cubic-bezier(0.4, 0, 0.2, 1) infinite alternate;
+    z-index: 2;
+    pointer-events: none;
+}
+
+/* 3. BẢN THÂN VẬT PHẨM (Đổ bóng có độ sâu) */
+#virtual-pet-img.nature-fox-magic {
+    filter: drop-shadow(0 0 15px rgba(46, 204, 113, 0.7)) drop-shadow(0 8px 15px rgba(0, 0, 0, 0.4));
+    transition: filter 0.3s ease;
+}
+
+/* 4. KHI PET ĐỨNG YÊN (Nhịp thở + Hào quang rực rỡ đa lớp) */
+.pet-idle #virtual-pet-img.nature-fox-magic {
+    animation: natureCinematicAura 4s ease-in-out infinite;
+}
+
+/* 5. CỬA HÀNG: Hiệu ứng Store */
+.nature-store-magic {
+    animation: natureCinematicAura 3.5s ease-in-out infinite;
+}
+
+/* --- KEYFRAMES ĐIỆN ẢNH --- */
+
+@keyframes natureMagicCircleUltra {
+    0% { 
+        transform: rotateX(75deg) rotateZ(0deg); 
+        border-color: rgba(241, 196, 15, 0.3); 
+        outline-color: rgba(46, 204, 113, 0.4);
+    }
+    50% { 
+        border-color: rgba(241, 196, 15, 1); 
+        outline-color: rgba(46, 204, 113, 1);
+        /* Bùng sáng mạnh ở giữa chu kỳ */
+        box-shadow: 
+            0 0 40px rgba(46, 204, 113, 0.9), 
+            inset 0 0 35px rgba(39, 174, 96, 0.9),
+            0 0 20px rgba(241, 196, 15, 0.7);
+    }
+    100% { 
+        transform: rotateX(75deg) rotateZ(360deg); 
+        border-color: rgba(241, 196, 15, 0.3); 
+        outline-color: rgba(46, 204, 113, 0.4);
+    }
+}
+
+@keyframes natureSporesStorm {
+    0% {
+        transform: translateY(0) scale(0.9) rotate(0deg);
+    }
+    100% {
+        /* Bay bổng và xoáy nhẹ */
+        transform: translateY(-35px) scale(1.4) rotate(15deg);
+        /* Các hạt sáng lan rộng, khoảng cách xa hơn và bùng nổ rực rỡ */
+        box-shadow: 
+            -60px -35px 15px 3px #2ecc71,
+            70px -10px 18px 4px #f1c40f,
+            -30px -60px 12px 2px #e67e22,
+            -85px 5px 20px 4px #27ae60,
+            35px -55px 15px 3px #1abc9c,
+            45px -85px 18px 3px #f39c12,
+            -55px 25px 12px 2px #d4ac0d,
+            -15px 55px 16px 3px #58d68d;
+    }
+}
+
+@keyframes natureCinematicAura {
+    0%, 100% { 
+        transform: scale(1) translateY(0); 
+        filter: drop-shadow(0 0 15px rgba(46, 204, 113, 0.6)) drop-shadow(0 5px 10px rgba(0,0,0,0.3)); 
+    }
+    50% { 
+        transform: scale(1.04) translateY(-6px); 
+        /* Bloom effect: Lớp sáng xanh gắt ở tâm tản dần ra viền vàng */
+        filter: 
+            drop-shadow(0 0 40px rgba(46, 204, 113, 1)) 
+            drop-shadow(0 0 20px rgba(241, 196, 15, 0.8)) 
+            drop-shadow(0 15px 25px rgba(0,0,0,0.5)); 
+    }
+}

@@ -457,3 +457,205 @@
         opacity: 0;
     }
 }
+/* Tag Đời Sống */
+.tag-doi-song {
+    background: linear-gradient(90deg, #2ecc71, #27ae60);
+    color: #fff;
+    border-bottom: 2px dashed #a8e6cf;
+    box-shadow: 0 4px 15px rgba(46, 204, 113, 0.4);
+    letter-spacing: 1px;
+}
+/* =========================================================================
+   HIỆU ỨNG TOÀN WEB: LÁ RƠI PURE CSS (KHÔNG DÙNG EMOJI)
+   ========================================================================= */
+
+/* Định dạng hình dáng chung của chiếc lá */
+.effect-leaf-css {
+    position: fixed;
+    top: -50px;
+    width: 22px;
+    height: 22px;
+    z-index: 9998;
+    pointer-events: none; /* Xuyên click */
+    opacity: 0;
+    
+    /* Đổ bóng nhẹ để lá nhìn nổi khối 3D */
+    box-shadow: inset 0 0 5px rgba(0,0,0,0.1), 0 2px 6px rgba(0,0,0,0.15);
+    
+    animation-name: cssLeafFallAndSway;
+    animation-timing-function: ease-in-out;
+    animation-fill-mode: forwards;
+    overflow: hidden; /* Đảm bảo gân lá không tràn ra ngoài */
+}
+
+/* Vẽ gân lá chính chạy chéo qua tâm */
+.effect-leaf-css::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 1px;
+    height: 150%;
+    background: rgba(255, 255, 255, 0.5); /* Gân lá màu trắng đục */
+    transform: translate(-50%, -50%) rotate(45deg);
+}
+
+/* --- CÁC MÀU SẮC & CHIỀU CONG CỦA LÁ --- */
+
+/* Lá mùa xuân xanh mướt */
+.leaf-green {
+    background: linear-gradient(135deg, #a8e063, #56ab2f);
+    border-radius: 0 50% 0 50%;
+}
+
+/* Lá phong đỏ cam */
+.leaf-autumn {
+    background: linear-gradient(135deg, #ff9966, #ff5e62);
+    border-radius: 50% 0 50% 0; /* Đảo góc để tạo chiều cong khác */
+}
+
+/* Lá thu vàng ươm */
+.leaf-yellow {
+    background: linear-gradient(135deg, #fceabb, #f8b500);
+    border-radius: 0 50% 0 50%;
+}
+
+/* Lá khô màu cam đất */
+.leaf-orange {
+    background: linear-gradient(135deg, #f46b45, #eea849);
+    border-radius: 50% 0 50% 0;
+}
+
+/* --- KEYFRAMES: LÁ RƠI XOAY TRÒN & LẮC LƯ --- */
+@keyframes cssLeafFallAndSway {
+    0% {
+        /* Lấy biến --leaf-scale từ JS để giữ đúng kích thước ngẫu nhiên */
+        transform: translateY(0) translateX(0) rotate(0deg) scale(var(--leaf-scale, 1));
+        opacity: 0;
+    }
+    10% { 
+        opacity: 0.9; 
+    }
+    25% { 
+        transform: translateY(25vh) translateX(-45px) rotate(80deg) scale(var(--leaf-scale, 1)); 
+    }
+    50% { 
+        transform: translateY(50vh) translateX(45px) rotate(160deg) scale(var(--leaf-scale, 1)); 
+    }
+    75% { 
+        transform: translateY(75vh) translateX(-35px) rotate(240deg) scale(var(--leaf-scale, 1)); 
+    }
+    90% { 
+        opacity: 0.9; 
+    }
+    100% {
+        transform: translateY(110vh) translateX(25px) rotate(320deg) scale(var(--leaf-scale, 1));
+        opacity: 0; 
+    }
+}
+/* =========================================================
+   GIAO DIỆN: NHỊP SỐNG XANH (LIFESTYLE)
+   Kích hoạt khi body có class .theme-lifestyle
+========================================================= */
+
+/* 1. Import Phông chữ từ Google Fonts (Phông tròn trịa, dễ đọc) */
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800&display=swap');
+
+.theme-lifestyle {
+    font-family: 'Nunito', sans-serif;
+    background-color: #fdfaf5;
+    color: #4a3c31;
+}
+
+/* 2. Thay đổi Sidebar (Thanh slide bar bên trái) */
+.theme-lifestyle .sidebar {
+    background: #ffffff;
+    border-right: 1px solid #e8e0d5;
+    border-radius: 0 40px 40px 0;
+    margin: 15px 0;
+    height: calc(100% - 30px);
+    box-shadow: 10px 0 30px rgba(136, 171, 117, 0.1);
+}
+
+.theme-lifestyle .nav-item.active {
+    background: #88ab75 !important;
+    border-radius: 20px;
+    margin: 5px 15px;
+    color: white !important;
+}
+
+/* 3. Thay đổi hình dạng Ô (Cards) và Vật phẩm cửa hàng */
+.theme-lifestyle .card, 
+.theme-lifestyle .store-item-card,
+.theme-lifestyle .submit-box {
+    background: #ffffff;
+    border: 2px solid #e8e0d5;
+    /* Hình dáng bất đối xứng kiểu chiếc lá / đá cuội */
+    border-radius: 45px 15px 45px 15px !important;
+    box-shadow: 0 10px 20px rgba(74, 60, 49, 0.05);
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.theme-lifestyle .store-item-card:hover {
+    border-color: #88ab75;
+    transform: translateY(-5px) rotate(1deg);
+    box-shadow: 0 15px 30px rgba(136, 171, 117, 0.15);
+}
+
+/* 4. Thay đổi Pop-up (Modals) */
+.theme-lifestyle .modal-content {
+    background: #fdfaf5 !important;
+    border: none !important;
+    border-radius: 50px !important;
+    padding: 30px !important;
+    box-shadow: 0 30px 60px rgba(74, 60, 49, 0.2) !important;
+}
+
+.theme-lifestyle .modal-header {
+    border-bottom: 2px dashed #88ab75;
+    color: #88ab75;
+}
+
+/* 5. Nút bấm phong cách "Pill" (Viên thuốc) */
+.theme-lifestyle button:not(.btn-preview) {
+    background: #88ab75 !important;
+    border-radius: 30px !important;
+    color: white !important;
+    font-weight: 800 !important;
+    text-transform: none !important;
+    letter-spacing: 0px !important;
+    border: none !important;
+}
+
+.theme-lifestyle .btn-preview {
+    background: #f1ede4 !important;
+    color: #4a3c31 !important;
+    border-radius: 30px !important;
+    border: 1px solid #e8e0d5 !important;
+}
+
+/* 6. Tiêu đề và Văn bản */
+.theme-lifestyle h1, .theme-lifestyle h2, .theme-lifestyle h3, 
+.theme-lifestyle .item-name {
+    color: #4a3c31 !important;
+    font-weight: 800;
+}
+
+/* 7. Input và các ô nhập liệu */
+.theme-lifestyle input, .theme-lifestyle textarea {
+    background: #f8f5f0 !important;
+    border: 2px solid #e8e0d5 !important;
+    border-radius: 20px !important;
+    padding: 12px 20px !important;
+}
+
+.theme-lifestyle input:focus {
+    border-color: #88ab75 !important;
+    background: #ffffff !important;
+}
+
+/* Custom riêng cho tag Đời sống trong theme này */
+.theme-lifestyle .tag-doi-song {
+    background: #4a3c31;
+    color: #fdfaf5;
+}
