@@ -2390,3 +2390,105 @@ window.deleteSurvey = async function (fbKey) {
         openSurveyHistory(); // Render lại danh sách
     }
 };
+
+// ================= HỆ THỐNG GỬI QUÀ & THƯ (GIÁO VIÊN) =================
+
+// Hàm tự động tải danh sách Học sinh và Vật phẩm vào mục Gửi quà
+async function initGiftDropdowns() {
+    const users = await getDB('users');
+    const stuSelect = document.getElementById('giftTargetStudent');
+    if (stuSelect) {
+        stuSelect.innerHTML = '<option value="all">Tất cả học sinh</option>';
+        users.filter(u => u.role === 'student').forEach(u => {
+            stuSelect.innerHTML += `<option value="${u.username}">${u.name} (${u.username})</option>`;
+        });
+    }
+
+    const itemSelect = document.getElementById('giftValueItem');
+    if (itemSelect && typeof StoreConfig !== 'undefined') {
+        itemSelect.innerHTML = '';
+        StoreConfig.items.forEach(item => {
+            itemSelect.innerHTML += `<option value="${item.id}">[${item.tag}] ${item.name}</option>`;
+        });
+    }
+}
+
+// Bổ sung gọi hàm vào sự kiện load
+document.addEventListener('DOMContentLoaded', () => {
+    initGiftDropdowns();
+});
+
+window.toggleGiftInput = function() {
+    const type = document.getElementById('giftType').value;
+    const area = document.getElementById('giftValueInputArea');
+    const numInput = document.getElementById('giftValueNumber');
+    const itemInput = document.getElementById('giftValueItem');
+
+    if (type === 'none') {
+        area.style.display = 'none';
+    } else {
+        area.style.display = 'block';
+        if (type === 'coin' || type === 'money') {
+            numInput.style.display = 'block';
+            itemInput.style.display = 'none';
+        } else if (type === 'item') {
+            numInput.style.display = 'none';
+            itemInput.style.display = 'block';
+        }
+    }
+};
+
+window.sendGiftMessage = async function() {
+    const target = document.getElementById('giftTargetStudent').value;
+    const msg = document.getElementById('giftMessage').value.trim();
+    const type = document.getElementById('giftType').value;
+    let value = '';
+
+    if (type === 'coin' || type === 'money') {
+        value = parseInt(document.getElementById('giftValueNumber').value);
+        if (isNaN(value) || value <= 0) return alert("Vui lòng nhập số lượng hợp lệ (> 0)!");
+    } else if (type === 'item') {
+        value = document.getElementById('giftValueItem').value;
+    }
+
+    if (type === 'none' && !msg) return alert("Bạn phải nhập lời nhắn nếu không đính kèm quà tặng!");
+
+    // Thiết lập thư hết hạn sau 5 ngày
+    const expiryTimestamp = Date.now() + (5 * 24 * 60 * 60 * 1000); 
+
+    const payload = {
+        message: msg,
+        giftType: type,
+        giftValue: value,
+        timestamp: Date.now(),
+        timeString: new Date().toLocaleString('vi-VN'),
+        expiry: expiryTimestamp
+    };
+
+    const users = await getDB('users');
+    const students = users.filter(u => u.role === 'student');
+
+    if (target === 'all') {
+        for (let st of students) {
+            await pushDB(`inbox_messages/${st.username}`, payload);
+        }
+    } else {
+        await pushDB(`inbox_messages/${target}`, payload);
+    }
+
+    alert("💌 Đã gửi thư và quà thành công!");
+    document.getElementById('giftMessage').value = '';
+    document.getElementById('giftValueNumber').value = '';
+
+    const toggleBtn = document.getElementById('giftToggle');
+    if (toggleBtn) toggleBtn.checked = false;
+    toggleGiftArea(false);
+};
+
+// Hàm điều khiển ẩn/hiện khu vực nhập quà tặng độc lập
+window.toggleGiftArea = function (isOpen) {
+    const inputArea = document.getElementById('giftInputArea');
+    if (inputArea) {
+        inputArea.style.display = isOpen ? 'block' : 'none';
+    }
+};

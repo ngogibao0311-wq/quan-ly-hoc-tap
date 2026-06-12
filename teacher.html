@@ -533,6 +533,53 @@
                             hành Khảo sát</button>
                     </div>
                 </div>
+
+                <div class="card form-container"
+                    style="margin-top: 20px; position: relative; background: linear-gradient(135deg, rgba(161, 140, 209, 0.15) 0%, rgba(251, 194, 235, 0.15) 100%);">
+                    <h3
+                        style="color: #764ba2; margin-bottom: 15px; border-bottom: 2px solid rgba(118, 75, 162, 0.2); padding-bottom: 10px;">
+                        🎁 Gửi Quà & Lời Nhắn</h3>
+
+                    <label
+                        style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 15px; background: rgba(255,255,255,0.6); padding: 12px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.05);">
+                        <input type="checkbox" id="giftToggle" onchange="toggleGiftArea(this.checked)"
+                            style="width: 22px; height: 22px; margin: 0; cursor: pointer;">
+                        <strong style="color: #2c3e50; font-size: 0.95em;">Bật tính năng gửi Thư & Quà tặng</strong>
+                    </label>
+
+                    <div id="giftInputArea" style="display: none; animation: fadeInUp 0.4s ease;">
+                        <label><strong>Gửi đến:</strong></label>
+                        <select id="giftTargetStudent"
+                            style="background: white; margin-bottom: 15px; font-weight: bold;">
+                            <option value="all">Tất cả học sinh</option>
+                        </select>
+
+                        <label><strong>Lời nhắn (Không bắt buộc nếu có quà):</strong></label>
+                        <textarea id="giftMessage" placeholder="Nhập lời chúc hoặc tin nhắn gửi đến học sinh..."
+                            rows="3" style="background: white; margin-bottom: 15px Pap;"></textarea>
+
+                        <label><strong>Loại quà đính kèm:</strong></label>
+                        <select id="giftType" onchange="toggleGiftInput()"
+                            style="background: white; margin-bottom: 15px; font-weight: bold; color: #d35400;">
+                            <option value="none">Chỉ gửi thư (Không kèm quà)</option>
+                            <option value="coin">🪙 Tặng Coin</option>
+                            <option value="money">💵 Tặng Tiền Lộ Trình (đ)</option>
+                            <option value="item">📦 Tặng Vật Phẩm Cửa Hàng</option>
+                        </select>
+
+                        <div id="giftValueInputArea" style="display: none; margin-bottom: 15px;">
+                            <label id="giftValueLabel"><strong>Nhập Số lượng / Chọn Vật phẩm:</strong></label>
+                            <input type="number" id="giftValueNumber" placeholder="Nhập số lượng..."
+                                style="background: white; display: none; font-weight: bold;">
+                            <select id="giftValueItem" style="background: white; display: none; font-weight: bold;">
+                            </select>
+                        </div>
+
+                        <button onclick="sendGiftMessage()"
+                            style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; width: 100%; padding: 12px; font-size: 1.1em;">💌
+                            Gửi Thư & Quà ngay</button>
+                    </div>
+                </div>
             </div>
 
             <div id="materialModal" class="modal-overlay">

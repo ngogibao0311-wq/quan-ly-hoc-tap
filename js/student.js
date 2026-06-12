@@ -184,6 +184,38 @@ window.onload = async function () {
             }
         }
     });
+
+    // BỔ SUNG: Lắng nghe hộp thư và tự động xóa thư quá 5 ngày
+    db.ref('inbox_messages/' + currentUser.username).on('value', (snapshot) => {
+        const messages = [];
+        const now = Date.now();
+        snapshot.forEach(child => {
+            const msg = child.val();
+            // Nếu đã quá 5 ngày -> Tự động xóa khỏi DB
+            if (msg.expiry && now > msg.expiry) {
+                db.ref(`inbox_messages/${currentUser.username}/${child.key}`).remove();
+            } else {
+                messages.push({ ...msg, _fbKey: child.key });
+            }
+        });
+
+        window.myInboxMessages = messages.sort((a, b) => b.timestamp - a.timestamp);
+
+        // Cập nhật chấm đỏ
+        const badge = document.getElementById('inboxBadge');
+        if (badge) {
+            if (messages.length > 0) {
+                badge.innerText = messages.length;
+                badge.style.display = 'block';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+        // Nếu hộp thư đang mở thì render lại liền
+        if (document.getElementById('studentInboxModal') && document.getElementById('studentInboxModal').classList.contains('active')) {
+            renderStudentInbox();
+        }
+    });
 };
 
 function getEmbedHTML(url) {
@@ -532,7 +564,7 @@ async function submitAssignment(assignId, isAuto = false) {
 
     // --- KHÓA CHẶN 15 GIÂY TRƯỚC HẠN CHÓT ---
     const timeRemaining = endTime.getTime() - now.getTime();
-    
+
     if (!isAuto && !isRedoing) {
         if (timeRemaining <= 15000 && timeRemaining > 0) {
             alert("⚠️ Lỗi: Chỉ còn dưới 15 giây là hết hạn! Hệ thống đã khóa tính năng nộp bài để chuẩn bị đồng bộ dữ liệu tự động.");
@@ -541,7 +573,7 @@ async function submitAssignment(assignId, isAuto = false) {
         }
         if (now > endTime) {
             alert("⚠️ Lỗi: Đã quá thời gian nộp bài! Hệ thống lập tức khóa chức năng nộp.");
-            loadAssignments(); 
+            loadAssignments();
             return;
         }
     }
@@ -1183,14 +1215,14 @@ window.spinWheel = async function () {
         else if (finalRewardStr === "500 Coin") wonCoins = 500;
         else if (finalRewardStr === "Quà bí ẩn") {
             // Lấy danh sách các vật phẩm có tag "cổ tích"
-            const cotichItems = (typeof StoreConfig !== 'undefined') 
-                ? StoreConfig.items.filter(i => i.tag && i.tag.toLowerCase() === 'cổ tích') 
+            const cotichItems = (typeof StoreConfig !== 'undefined')
+                ? StoreConfig.items.filter(i => i.tag && i.tag.toLowerCase() === 'cổ tích')
                 : [];
 
             if (cotichItems.length > 0) {
                 // Chọn ngẫu nhiên 1 vật phẩm
                 const randomItem = cotichItems[Math.floor(Math.random() * cotichItems.length)];
-                
+
                 // Kiểm tra xem học sinh đã sở hữu chưa (dựa vào mảng studentOwnedItems)
                 if (typeof studentOwnedItems !== 'undefined' && studentOwnedItems.includes(randomItem.id)) {
                     wonCoins = 600;
@@ -1722,7 +1754,7 @@ window.applyEquippedItems = function () {
 };
 
 // ================= HỆ THỐNG KHẢO SÁT =================
-window.renderStudentSurvey = function(surveyData) {
+window.renderStudentSurvey = function (surveyData) {
     document.getElementById('studentSurveyTitle').innerText = surveyData.title;
     const body = document.getElementById('studentSurveyBody');
     body.innerHTML = '';
@@ -1759,9 +1791,9 @@ window.renderStudentSurvey = function(surveyData) {
 };
 
 // Hàm tự động quét xem học sinh đã điền đủ chưa
-window.checkSurveyCompletion = function() {
+window.checkSurveyCompletion = function () {
     if (!window.currentActiveSurvey) return;
-    
+
     let isComplete = true;
     window.currentActiveSurvey.questions.forEach(q => {
         if (q.type === 'mc') {
@@ -1785,7 +1817,7 @@ window.checkSurveyCompletion = function() {
     }
 };
 
-window.submitSurvey = async function() {
+window.submitSurvey = async function () {
     if (!window.currentActiveSurvey) return;
 
     const btn = document.getElementById('btnSubmitSurvey');
@@ -1917,7 +1949,7 @@ async function renderStudentRoadmap() {
     // FETCH SỐ TIỀN BÙ TRỪ SAU KHI QUY ĐỔI COIN (OFFSET)
     const offsetSnap = await db.ref('student_money_offset/' + currentUser.username).once('value');
     let moneyOffset = offsetSnap.val() || 0;
-    
+
     // Tổng tiền cuối cùng = Tiền làm bài + Tiền bán Coin - Tiền mua Coin
     let finalMoney = totalMoney + moneyOffset;
     if (finalMoney < 0) finalMoney = 0; // Chặn về âm
@@ -1932,19 +1964,19 @@ async function renderStudentRoadmap() {
 // ================= HÀM ĐÓNG / MỞ VÀ XỬ LÝ QUY ĐỔI COIN ĐỘNG =================
 window.currentConvertDir = 'M2C'; // Mặc định là Tiền đổi sang Coin
 
-window.openCoinConversionModal = function() {
+window.openCoinConversionModal = function () {
     document.getElementById('convertAmount').value = '';
     document.getElementById('convertResult').value = '';
     setConvertDir('M2C'); // Reset về mặc định
     document.getElementById('coinConversionModal').classList.add('active');
 };
 
-window.closeCoinConversionModal = function() {
+window.closeCoinConversionModal = function () {
     document.getElementById('coinConversionModal').classList.remove('active');
 };
 
 // Đổi giao diện và chế độ tùy theo hướng mũi tên
-window.setConvertDir = function(dir) {
+window.setConvertDir = function (dir) {
     window.currentConvertDir = dir;
     const btnM2C = document.getElementById('btnDirM2C');
     const btnC2M = document.getElementById('btnDirC2M');
@@ -1956,27 +1988,27 @@ window.setConvertDir = function(dir) {
     if (dir === 'M2C') {
         btnM2C.style.background = '#059669'; btnM2C.style.color = 'white'; btnM2C.style.border = 'none';
         btnC2M.style.background = 'transparent'; btnC2M.style.color = '#d35400'; btnC2M.style.border = '2px solid #d35400';
-        
+
         lblSource.innerText = 'Tiền Lộ Trình (đ):'; lblTarget.innerText = 'Nhận được (Coin):';
-        limitText.style.display = 'none'; resultInput.style.color = '#059669'; 
+        limitText.style.display = 'none'; resultInput.style.color = '#059669';
     } else {
         btnC2M.style.background = '#d35400'; btnC2M.style.color = 'white'; btnC2M.style.border = 'none';
         btnM2C.style.background = 'transparent'; btnM2C.style.color = '#059669'; btnM2C.style.border = '2px solid #059669';
-        
+
         lblSource.innerText = 'Số dư Coin (🪙):'; lblTarget.innerText = 'Nhận được (đ):';
-        limitText.style.display = 'block'; resultInput.style.color = '#d35400'; 
+        limitText.style.display = 'block'; resultInput.style.color = '#d35400';
     }
     updateConvertPreview();
 };
 
 // Đồng bộ hóa 2 ô nhập liệu
-window.updateConvertPreview = function() {
+window.updateConvertPreview = function () {
     const amount = document.getElementById('convertAmount').value;
     document.getElementById('convertResult').value = amount ? amount : '';
 };
 
 // Thực thi giao dịch với cơ sở dữ liệu
-window.executeConversion = async function() {
+window.executeConversion = async function () {
     const amountInput = document.getElementById('convertAmount');
     const amount = parseInt(amountInput.value);
 
@@ -1991,12 +2023,12 @@ window.executeConversion = async function() {
     const assignments = await getDB('assignments');
     const submissions = await getDB('submissions');
     const myAssignments = assignments.filter(assign => assign.targetStudent === 'all' || assign.targetStudent === currentUser.username);
-    
+
     myAssignments.forEach(assign => {
         const passingGrade = assign.passingGrade || 7;
         const sub = submissions.find(s => s.assignmentId === assign.id && s.studentUsername === currentUser.username);
         let currentItemMoney = assign.roadmapMoney ? parseInt(assign.roadmapMoney) : 0;
-        
+
         if (sub) {
             if (sub.forcePass) baseRoadmapMoney += currentItemMoney;
             else if (!sub.isAutoSubmitted && !sub.isLateFail && !sub.isRegrading && sub.grade !== null && sub.grade !== '') {
@@ -2016,11 +2048,11 @@ window.executeConversion = async function() {
     if (window.currentConvertDir === 'M2C') {
         // Đổi TIỀN LỘ TRÌNH lấy COIN
         if (amount > currentMoney) return alert(`❌ Không đủ tiền lộ trình! Bạn chỉ có tối đa ${currentMoney.toLocaleString('vi-VN')} đ để đổi.`);
-        
+
         await db.ref('student_coins/' + currentUser.username).set(currentCoins + amount);
         await db.ref('student_money_offset/' + currentUser.username).set(currentOffset - amount);
         alert(`✅ Quy đổi thành công!\nBạn đã dùng ${amount.toLocaleString('vi-VN')} đ để nhận lại ${amount.toLocaleString('vi-VN')} Coin 🪙.`);
-    
+
     } else {
         // Đổi COIN lấy TIỀN LỘ TRÌNH
         if (amount > currentCoins) return alert(`❌ Không đủ Coin! Bạn chỉ có ${currentCoins.toLocaleString('vi-VN')} Coin.`);
@@ -2034,4 +2066,97 @@ window.executeConversion = async function() {
     // 5. Cập nhật và đóng giao diện
     closeCoinConversionModal();
     renderStudentRoadmap(); // Render lại bảng để tiền nhảy về số dư mới ngay lập tức
+};
+
+// ================= HỆ THỐNG HỘP THƯ & NHẬN QUÀ (HỌC SINH) =================
+
+window.openStudentInbox = function() {
+    renderStudentInbox();
+    document.getElementById('studentInboxModal').classList.add('active');
+};
+
+window.closeStudentInbox = function() {
+    document.getElementById('studentInboxModal').classList.remove('active');
+};
+
+window.renderStudentInbox = function() {
+    const container = document.getElementById('studentInboxBody');
+    if (!window.myInboxMessages || window.myInboxMessages.length === 0) {
+        container.innerHTML = '<div style="text-align:center; padding: 30px 10px; color: #666;"><span style="font-size:3em; display:block; margin-bottom:10px;">📭</span>Chưa có thư mới nào.</div>';
+        return;
+    }
+
+    let html = '';
+    window.myInboxMessages.forEach(msg => {
+        let giftHTML = '';
+        let btnHTML = '';
+
+        if (msg.giftType !== 'none') {
+            let giftDisplay = '';
+            if (msg.giftType === 'coin') giftDisplay = `🪙 ${parseInt(msg.giftValue).toLocaleString('vi-VN')} Coin`;
+            else if (msg.giftType === 'money') giftDisplay = `💵 ${parseInt(msg.giftValue).toLocaleString('vi-VN')} đ (Tiền Lộ trình)`;
+            else if (msg.giftType === 'item') {
+                const itemDef = StoreConfig.items.find(i => i.id === msg.giftValue);
+                giftDisplay = itemDef ? `📦 ${itemDef.name} (${itemDef.type})` : '📦 Vật phẩm bí ẩn';
+            }
+
+            giftHTML = `<div style="background: rgba(246, 211, 101, 0.2); border: 1px dashed #d35400; padding: 10px; border-radius: 8px; margin: 10px 0;">
+                <strong style="color: #d35400;">🎁 Đính kèm quà tặng:</strong><br>
+                <span style="font-size: 1.1em; font-weight: bold; color: #2c3e50;">${giftDisplay}</span>
+            </div>`;
+
+            btnHTML = `<button onclick="claimGift('${msg._fbKey}', '${msg.giftType}', '${msg.giftValue}')" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); width: 100%; padding: 10px; border-radius: 8px; font-weight: bold; border: none; color: white; cursor: pointer; box-shadow: 0 4px 10px rgba(17, 153, 142, 0.3);">🧧 Mở quà & Nhận vào túi</button>`;
+        } else {
+            btnHTML = `<button onclick="deleteMessage('${msg._fbKey}')" style="background: rgba(0,0,0,0.05); color: #666; width: 100%; padding: 10px; border-radius: 8px; font-weight: bold; border: none; cursor: pointer;">🗑️ Đã đọc & Xóa thư</button>`;
+        }
+
+        html += `<div class="glass-alert" style="margin-bottom: 15px; border-left-color: #3b82f6; padding: 15px;">
+            <p style="margin: 0 0 10px 0; font-size: 0.85em; color: #888;">🕒 Gửi lúc: ${msg.timeString}</p>
+            ${msg.message ? `<p style="margin: 0 0 10px 0; font-weight: 600; color: #2c3e50; white-space: pre-wrap;">"${msg.message}"</p>` : ''}
+            ${giftHTML}
+            ${btnHTML}
+        </div>`;
+    });
+
+    container.innerHTML = html;
+};
+
+window.claimGift = async function(msgKey, giftType, giftValue) {
+    try {
+        if (giftType === 'coin') {
+            const coinRef = db.ref('student_coins/' + currentUser.username);
+            const snap = await coinRef.once('value');
+            await coinRef.set((snap.val() || 0) + parseInt(giftValue));
+            alert(`🎉 Bạn đã nhận được ${parseInt(giftValue).toLocaleString('vi-VN')} Coin!`);
+
+        } else if (giftType === 'money') {
+            // Cộng tiền vào Offset để Lộ trình tự động cộng dồn
+            const offsetRef = db.ref('student_money_offset/' + currentUser.username);
+            const snap = await offsetRef.once('value');
+            await offsetRef.set((snap.val() || 0) + parseInt(giftValue));
+            alert(`🎉 Bạn đã nhận được ${parseInt(giftValue).toLocaleString('vi-VN')} đ vào Tiền Lộ trình!`);
+            if (typeof renderStudentRoadmap === 'function') renderStudentRoadmap(); // Cập nhật lại bảng lộ trình lập tức
+
+        } else if (giftType === 'item') {
+            await db.ref(`student_inventory/${currentUser.username}/${giftValue}`).update({
+                id: giftValue,
+                purchaseTime: Date.now(),
+                isTrial: null,
+                trialExpiry: null,
+                isEquipped: false
+            });
+            alert(`🎉 Vật phẩm đã được thêm vào Túi đồ của bạn!`);
+        }
+
+        // Xóa thư sau khi nhận quà thành công
+        await db.ref(`inbox_messages/${currentUser.username}/${msgKey}`).remove();
+        
+    } catch (error) {
+        console.error(error);
+        alert("❌ Có lỗi xảy ra khi nhận quà. Vui lòng thử lại mạng!");
+    }
+};
+
+window.deleteMessage = async function(msgKey) {
+    await db.ref(`inbox_messages/${currentUser.username}/${msgKey}`).remove();
 };
