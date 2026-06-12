@@ -2402,23 +2402,67 @@ async function initGiftDropdowns() {
         users.filter(u => u.role === 'student').forEach(u => {
             stuSelect.innerHTML += `<option value="${u.username}">${u.name} (${u.username})</option>`;
         });
+
+        // BỔ SUNG: Lắng nghe sự kiện đổi học sinh để lọc tự động vật phẩm
+        stuSelect.addEventListener('change', updateGiftItemDropdown);
     }
 
-    const itemSelect = document.getElementById('giftValueItem');
-    if (itemSelect && typeof StoreConfig !== 'undefined') {
-        itemSelect.innerHTML = '';
-        StoreConfig.items.forEach(item => {
-            itemSelect.innerHTML += `<option value="${item.id}">[${item.tag}] ${item.name}</option>`;
-        });
-    }
+    // Gọi lần đầu để khởi tạo danh sách vật phẩm gốc
+    await updateGiftItemDropdown();
 }
+
+// BỔ SUNG: Hàm kiểm tra kho đồ và làm mờ vật phẩm đã sở hữu
+window.updateGiftItemDropdown = async function () {
+    const target = document.getElementById('giftTargetStudent').value;
+    const itemSelect = document.getElementById('giftValueItem');
+
+    if (!itemSelect || typeof StoreConfig === 'undefined') return;
+
+    let ownedItems = [];
+
+    // Lấy dữ liệu kho đồ trên Firebase nếu chọn 1 học sinh cụ thể
+    if (target !== 'all') {
+        try {
+            const invSnap = await db.ref(`student_inventory/${target}`).once('value');
+            const inventory = invSnap.val();
+            if (inventory) {
+                // Trích xuất ID các vật phẩm học sinh đang có
+                ownedItems = Object.values(inventory).map(item => item.id);
+            }
+        } catch (error) {
+            console.error("Lỗi lấy kho đồ học sinh:", error);
+        }
+    }
+
+    // Reset lại ô chọn
+    itemSelect.innerHTML = '';
+    let hasAvailableItem = false;
+
+    // Đổ danh sách cửa hàng ra, kèm theo điều kiện kiểm tra
+    StoreConfig.items.forEach(item => {
+        const isOwned = ownedItems.includes(item.id);
+
+        // Nếu đã sở hữu -> Khóa (disabled) và đổi màu xám mờ
+        const disabledAttr = isOwned ? 'disabled style="color: #aaa; background: #eee; font-style: italic;"' : '';
+        const suffix = isOwned ? ' (HS đã có)' : '';
+
+        itemSelect.innerHTML += `<option value="${item.id}" ${disabledAttr}>[${item.tag}] ${item.name}${suffix}</option>`;
+
+        if (!isOwned) hasAvailableItem = true;
+    });
+
+    // Nếu học sinh đã có toàn bộ vật phẩm trong Shop
+    if (!hasAvailableItem && StoreConfig.items.length > 0 && target !== 'all') {
+        itemSelect.innerHTML = `<option value="" disabled selected>-- HS đã sở hữu tất cả vật phẩm --</option>` + itemSelect.innerHTML;
+    }
+};
 
 // Bổ sung gọi hàm vào sự kiện load
 document.addEventListener('DOMContentLoaded', () => {
     initGiftDropdowns();
 });
 
-window.toggleGiftInput = function() {
+window.toggleGiftInput = function () {
     const type = document.getElementById('giftType').value;
     const area = document.getElementById('giftValueInputArea');
     const numInput = document.getElementById('giftValueNumber');
@@ -2438,7 +2482,7 @@ window.toggleGiftInput = function() {
     }
 };
 
-window.sendGiftMessage = async function() {
+window.sendGiftMessage = async function () {
     const target = document.getElementById('giftTargetStudent').value;
     const msg = document.getElementById('giftMessage').value.trim();
     const type = document.getElementById('giftType').value;
@@ -2449,12 +2493,14 @@ window.sendGiftMessage = async function() {
         if (isNaN(value) || value <= 0) return alert("Vui lòng nhập số lượng hợp lệ (> 0)!");
     } else if (type === 'item') {
         value = document.getElementById('giftValueItem').value;
+        // Bổ sung chặn gửi nếu bị rỗng (do học sinh đã sở hữu hết và menu bị disabled)
+        if (!value) return alert("❌ Không thể gửi! Học sinh này đã sở hữu tất cả các vật phẩm hiện có.");
     }
 
     if (type === 'none' && !msg) return alert("Bạn phải nhập lời nhắn nếu không đính kèm quà tặng!");
 
     // Thiết lập thư hết hạn sau 5 ngày
-    const expiryTimestamp = Date.now() + (5 * 24 * 60 * 60 * 1000); 
+    const expiryTimestamp = Date.now() + (5 * 24 * 60 * 60 * 1000);
 
     const payload = {
         message: msg,
