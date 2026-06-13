@@ -846,3 +846,245 @@
     border-color: #81d4fa !important;
     box-shadow: 0 0 10px rgba(129, 212, 250, 0.2) !important;
 }
+/* Tag Ban Ngày (Màu xanh da trời - vàng nắng) */
+.tag-ban-ngay {
+    background: linear-gradient(90deg, #36D1DC, #5B86E5);
+    color: #fff;
+    border-bottom: 2px dashed #FFD700;
+    box-shadow: 0 4px 15px rgba(54, 209, 220, 0.5);
+    letter-spacing: 1px;
+}
+/* =========================================================================
+   HIỆU ỨNG TOÀN WEB: NẮNG ẤM BAN MAI (SỰ KIỆN BAN NGÀY)
+   ========================================================================= */
+
+/* 1. Lớp tia nắng ấm áp chiếu từ góc trên bên trái xuống */
+.daylight-sky-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    /* Dải gradient vàng nhạt trong suốt rọi chéo màn hình */
+    background: linear-gradient(135deg, rgba(255, 235, 160, 0.25) 0%, rgba(255, 255, 255, 0) 55%);
+    z-index: 0;
+    pointer-events: none;
+    animation: pulseSunbeam 6s ease-in-out infinite alternate;
+}
+
+@keyframes pulseSunbeam {
+    0% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+/* 2. Hạt bụi nắng / Bồ công anh bay lơ lửng */
+.effect-daylight-mote {
+    position: absolute;
+    background: #ffffff;
+    border-radius: 50%;
+    pointer-events: none;
+    opacity: 0;
+    z-index: 1;
+    
+    /* Vầng hào quang ánh kim bao quanh hạt bụi */
+    box-shadow: 
+        0 0 5px #ffffff,
+        0 0 10px #FFD700,
+        0 0 20px #FFA500;
+        
+    animation-name: floatDaylightMoteGlobal;
+    animation-timing-function: ease-in-out;
+    animation-fill-mode: forwards;
+}
+
+/* Chu kỳ hạt nắng bay lơ lửng chéo lên trên */
+@keyframes floatDaylightMoteGlobal {
+    0% {
+        transform: translateY(0) translateX(0) scale(0.5);
+        opacity: 0;
+    }
+    15% {
+        opacity: 0.8;
+        transform: scale(1.2);
+    }
+    80% {
+        opacity: 0.6;
+    }
+    100% {
+        /* Bay cao lên và xéo sang phải một chút */
+        transform: translateY(-90vh) translateX(60px) scale(0.5);
+        opacity: 0;
+    }
+}
+/* =========================================================================
+   HIỆU ỨNG TOÀN WEB: BẦU TRỜI MÙA HẠ (KHÔNG TÁI CHẾ)
+   ========================================================================= */
+
+/* 1. TIA SÁNG CỦA CHÚA (God Rays) - Tia sáng xoay chầm chậm bao phủ trang */
+.effect-god-rays {
+    position: fixed;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    /* Tạo các mảng sáng tối đan xen phát ra từ tâm giữa mép trên */
+    background: repeating-conic-gradient(
+        from 0deg at 50% 0%,
+        transparent 0deg 10deg,
+        rgba(255, 235, 160, 0.15) 10deg 20deg
+    );
+    z-index: 0;
+    pointer-events: none;
+    animation: sweepGodRays 25s ease-in-out infinite alternate;
+}
+
+@keyframes sweepGodRays {
+    0% { transform: rotate(-5deg); }
+    100% { transform: rotate(5deg); }
+}
+
+/* 2. MÂY TRÔI (Bay ngang màn hình theo đường thẳng) */
+.effect-daylight-cloud {
+    position: fixed;
+    left: -150px; /* Xuất phát ngoài rìa trái */
+    color: #fff;
+    filter: drop-shadow(0 10px 15px rgba(0,0,0,0.05));
+    z-index: 1;
+    pointer-events: none;
+    animation-name: floatCloudAcross;
+    animation-timing-function: linear;
+    animation-fill-mode: forwards;
+}
+
+@keyframes floatCloudAcross {
+    from { transform: translateX(0); }
+    to { transform: translateX(110vw); } /* Trôi tít sang bên phải */
+}
+
+/* 3. CHIM BAY (Bay ngang + Lượn lên lượn xuống nhịp nhàng) */
+.effect-daylight-bird {
+    position: fixed;
+    left: -100px; /* Xoải cánh từ ngoài rìa trái */
+    z-index: 2;
+    pointer-events: none;
+    filter: drop-shadow(0 5px 8px rgba(0,0,0,0.15));
+    /* Animation được gán trực tiếp bằng JS để kết hợp 2 loại chuyển động */
+}
+
+@keyframes flyBirdAcross {
+    from { transform: translateX(0); }
+    to { transform: translateX(110vw); }
+}
+
+@keyframes birdBobbing {
+    0% { margin-top: 0; }
+    100% { margin-top: -30px; } /* Lượn lên lượn xuống */
+}
+/* =========================================================
+   GIAO DIỆN BAN NGÀY - NGÀY MỚI RỰC RỠ (ĐỘC QUYỀN MỚI 100%)
+   Kích hoạt khi body có class .theme-daylight-sky
+========================================================= */
+
+/* 1. Phông chữ Fredoka (Tròn xoe, thân thiện, vui tươi) và Nền bầu trời */
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap');
+
+.theme-daylight-sky {
+    font-family: 'Fredoka', sans-serif;
+    color: #023e8a; /* Xanh dương đậm cho chữ dễ đọc */
+    /* Nền Gradient mượt từ Xanh dương nhạt -> Xanh lơ -> Trắng kem */
+    background: linear-gradient(135deg, #e0fbfc 0%, #caf0f8 50%, #fff1e6 100%);
+    background-attachment: fixed;
+}
+
+/* 2. Định hình Card & Ô chứa (Dáng Đám Mây / Bong bóng viền trắng dày) */
+.theme-daylight-sky .card,
+.theme-daylight-sky .store-item-card,
+.theme-daylight-sky .submit-box {
+    background: rgba(255, 255, 255, 0.85);
+    border: 4px solid #ffffff; /* Viền trắng cực dày tạo viền mây */
+    border-radius: 40px 15px 40px 15px !important; /* Bo lệch tạo dáng đám mây trôi */
+    box-shadow: 0 12px 25px rgba(0, 180, 216, 0.15), inset 0 0 15px rgba(255, 255, 255, 1);
+    backdrop-filter: blur(8px);
+    transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); /* Chuyển động có độ đàn hồi */
+}
+
+.theme-daylight-sky .store-item-card:hover {
+    border-color: #ffd166; /* Chạm vào chuyển viền vàng nắng */
+    transform: translateY(-10px) scale(1.02);
+    box-shadow: 0 15px 35px rgba(255, 170, 0, 0.25);
+}
+
+/* 3. Sidebar / Thanh Điều Hướng (Dáng đám mây lơ lửng) */
+.theme-daylight-sky .sidebar,
+.theme-daylight-sky .nav-bar {
+    background: rgba(255, 255, 255, 0.95);
+    border-right: none;
+    /* Vuốt cong cực tròn để ôm trọn thanh menu */
+    border-radius: 0 45px 45px 0; 
+    box-shadow: 8px 0 25px rgba(0, 180, 216, 0.15);
+}
+
+.theme-daylight-sky .nav-item.active {
+    /* Nút đang chọn mang màu bầu trời */
+    background: linear-gradient(90deg, #00b4d8, #48cae4) !important;
+    border-radius: 25px;
+    color: #ffffff !important;
+    box-shadow: 0 4px 10px rgba(0, 180, 216, 0.4);
+}
+
+/* 4. Định hình Modals / Pop-ups (Sunburst - Nắng Ban Mai) */
+.theme-daylight-sky .modal-content,
+.theme-daylight-sky #viewQuestionsModal > div {
+    background: #ffffff !important;
+    border: 5px solid #ffca3a !important; /* Viền pop-up vàng rực rỡ */
+    border-radius: 50px 20px 50px 20px !important;
+    box-shadow: 0 0 50px rgba(255, 170, 0, 0.25) !important;
+}
+
+/* 5. Tiêu đề và Văn bản nổi bật */
+.theme-daylight-sky h1, 
+.theme-daylight-sky h2, 
+.theme-daylight-sky h3, 
+.theme-daylight-sky h4,
+.theme-daylight-sky .item-name {
+    color: #0077b6 !important;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+/* 6. Nút Bấm (Bouncy Buttons - Màu cam vàng) */
+.theme-daylight-sky button:not(.btn-preview),
+.theme-daylight-sky .btn-approve {
+    background: linear-gradient(135deg, #ffaa00, #ffea00) !important;
+    color: #d00000 !important; /* Chữ đỏ gạch nhạt nổi bật trên nền vàng */
+    border: 3px solid #ffffff !important;
+    border-radius: 30px !important; /* Tròn xoe hoàn toàn */
+    font-weight: 700;
+    box-shadow: 0 6px 15px rgba(255, 170, 0, 0.3) !important;
+    text-transform: capitalize;
+    /* Hiệu ứng nhún (bouncy) khi trỏ chuột */
+    transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) !important; 
+}
+
+.theme-daylight-sky button:not(.btn-preview):hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(255, 170, 0, 0.5) !important;
+}
+
+/* 7. Khung nhập liệu (Input & Textarea) */
+.theme-daylight-sky input, 
+.theme-daylight-sky textarea {
+    background: #f0f8ff !important;
+    border: 2px solid #90e0ef !important;
+    border-radius: 20px !important;
+    color: #023e8a !important;
+    font-family: 'Fredoka', sans-serif;
+}
+
+.theme-daylight-sky input:focus, 
+.theme-daylight-sky textarea:focus {
+    border-color: #ffaa00 !important;
+    background: #ffffff !important;
+    box-shadow: 0 0 15px rgba(255, 170, 0, 0.2) !important;
+    outline: none;
+}

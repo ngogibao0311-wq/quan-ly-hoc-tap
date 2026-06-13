@@ -125,6 +125,36 @@ const StoreConfig = {
             value: 'theme-night-sky', // Class CSS sẽ tiêm vào <body>
             customIcon: '🌃'
         },
+        {
+            id: 'pet_doisong_banngay',
+            name: 'Cún Vui Vẻ',
+            type: 'pet',
+            price: 350,
+            isNonCoin: false,
+            tag: 'Ban ngày',
+            value: 'assets/pet/đời sống/thời tiết/ban ngày.png',
+            isIcon: false,
+            petEffect: 'daylight-magic' // Class CSS tạo hiệu ứng
+        },
+        {
+            id: 'effect_banngay_bautroi',
+            name: 'Bầu Trời Mùa Hạ',
+            type: 'effect',
+            price: 300,
+            isNonCoin: false,
+            tag: 'Ban ngày',
+            value: '🌤️'
+        },
+        {
+            id: 'theme_banngay_ngaymoi',
+            name: 'Ngày Mới Rực Rỡ',
+            type: 'theme',
+            price: 390,
+            isNonCoin: false,
+            tag: 'Ban ngày',
+            value: 'theme-daylight-sky', // Class CSS kích hoạt giao diện
+            customIcon: '🌅'
+        },
     ]
 };
 
@@ -156,7 +186,7 @@ class StoreManager {
     }
 
     static renderStoreItem(item, isOwned = false, isEquipped = false, isTrial = false, isUpcoming = false) {
-        let tagClass = item.tag === 'Tứ kị sĩ' ? 'tag-tu-ki-si' : (item.tag === 'Cổ tích' ? 'tag-co-tich' : (item.tag === 'Đời sống' ? 'tag-doi-song' : (item.tag === 'Ban đêm' ? 'tag-ban-dem' : 'tag-normal')));
+        let tagClass = item.tag === 'Tứ kị sĩ' ? 'tag-tu-ki-si' : (item.tag === 'Cổ tích' ? 'tag-co-tich' : (item.tag === 'Đời sống' ? 'tag-doi-song' : (item.tag === 'Ban đêm' ? 'tag-ban-dem' : (item.tag === 'Ban ngày' ? 'tag-ban-ngay' : 'tag-normal'))));
         let actionButton = '';
         let trialButton = '';
 

@@ -28,7 +28,13 @@ class ThemeManager {
             secondary: '#aa00ff',   // Tím dạ quang
             background: '#0a0f1e',  // Xanh đen không gian
             className: 'theme-night-sky' 
-        }
+        },
+        'theme_banngay_ngaymoi': { 
+            primary: '#ffaa00',     // Vàng cam mặt trời rực rỡ
+            secondary: '#00b4d8',   // Xanh bầu trời trong vắt
+            background: '#e0fbfc',  // Nền trời sáng sủa
+            className: 'theme-daylight-sky' 
+        },
     };
 
     static applyTheme(themeId) {
@@ -40,7 +46,7 @@ class ThemeManager {
         root.style.setProperty('--bg-color', theme.background);
         
         // 1. Xóa tất cả các class theme đặc biệt cũ khỏi body
-        document.body.classList.remove('theme-fairy-tale', 'theme-magic-forest', 'theme-lifestyle', 'theme-night-sky');
+        document.body.classList.remove('theme-fairy-tale', 'theme-magic-forest', 'theme-lifestyle', 'theme-night-sky', 'theme-daylight-sky');
 
         // 2. Tiêm class mới vào body nếu theme đó có yêu cầu thay đổi hình dáng
         if (theme.className) {

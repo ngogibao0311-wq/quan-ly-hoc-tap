@@ -431,3 +431,103 @@
         transform: scale(1.02) translateY(-6px) rotate(2deg); 
     }
 }
+/* =========================================================================
+   HIỆU ỨNG HỆ SINH THÁI BAN NGÀY (BẢN MỚI 100% - RỰC RỠ & ĐA LỚP)
+   ========================================================================= */
+
+/* Tag Ban Ngày (Chỉnh lại cho gắt hơn) */
+.tag-ban-ngay {
+    background: linear-gradient(90deg, #00c6ff, #0072ff);
+    color: #fff;
+    border-bottom: 2px dashed #FFD700;
+    box-shadow: 0 4px 15px rgba(0, 198, 255, 0.6);
+    letter-spacing: 1px;
+    font-weight: 800;
+}
+
+/* 1. VẦNG THÁI DƯƠNG (Hào quang mặt trời xoay tròn phía sau) */
+#virtual-pet-container:has(.daylight-magic)::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 160px;
+    height: 160px;
+    margin-top: -80px; /* Căn giữa hoàn hảo */
+    margin-left: -80px;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.8) 0%, rgba(255, 215, 0, 0.4) 40%, transparent 70%);
+    border-radius: 50%;
+    box-shadow: 0 0 40px rgba(255, 215, 0, 0.9), inset 0 0 20px rgba(255, 255, 255, 1);
+    z-index: -1;
+    pointer-events: none;
+    animation: sunburstRotate 8s linear infinite;
+}
+
+/* 2. HẠT NẮNG & PHẤN HOA BAY (Bay lơ lửng xung quanh bé Corgi) */
+#virtual-pet-container:has(.daylight-magic)::after {
+    content: '';
+    position: absolute;
+    top: 20%;
+    left: 50%;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #fff;
+    /* Dùng box-shadow nặn ra 4 đốm nắng đa sắc */
+    box-shadow: 
+        -50px 30px 10px 2px #FFD700,
+        40px -20px 15px 3px #FFA500,
+        20px 50px 8px 1px #FFFACD,
+        -35px -40px 12px 2px #FF8C00;
+    filter: blur(0.5px) drop-shadow(0 0 5px #ffffff);
+    pointer-events: none;
+    z-index: 2;
+    animation: daylightMotesFloat 3s ease-in-out infinite alternate;
+}
+
+/* 3. BẢN THÂN VẬT PHẨM (Đổ bóng ấm áp) */
+#virtual-pet-img.daylight-magic {
+    filter: drop-shadow(0 10px 15px rgba(255, 140, 0, 0.5));
+    transition: filter 0.3s ease;
+}
+
+/* 4. KHI PET ĐỨNG YÊN (Corgi nhún nhảy tung tăng + Tỏa sáng chói lóa) */
+.pet-idle #virtual-pet-img.daylight-magic {
+    animation: daylightPetBounce 2.5s cubic-bezier(0.28, 0.84, 0.42, 1) infinite;
+}
+
+/* --- KEYFRAMES --- */
+@keyframes sunburstRotate {
+    0% { transform: rotate(0deg) scale(0.9); }
+    50% { 
+        transform: rotate(180deg) scale(1.15); 
+        box-shadow: 0 0 60px rgba(255, 215, 0, 1), inset 0 0 35px rgba(255, 255, 255, 1); 
+    }
+    100% { transform: rotate(360deg) scale(0.9); }
+}
+
+@keyframes daylightMotesFloat {
+    0% { transform: translateY(0) scale(0.8); opacity: 0.7; }
+    100% {
+        transform: translateY(-25px) scale(1.4);
+        opacity: 1;
+        /* Hạt nắng tản ra và sáng rực lên */
+        box-shadow: 
+            -60px 20px 15px 4px #FFD700,
+            50px -30px 20px 5px #FFA500,
+            30px 60px 12px 2px #FFFACD,
+            -45px -50px 18px 4px #FF8C00;
+    }
+}
+
+@keyframes daylightPetBounce {
+    0%, 100% { 
+        transform: scale(1) translateY(0); 
+        filter: drop-shadow(0 10px 15px rgba(255, 140, 0, 0.5)); 
+    }
+    50% { 
+        /* Nhún cao hơn và phát sáng */
+        transform: scale(1.06) translateY(-10px); 
+        filter: drop-shadow(0 20px 30px rgba(255, 215, 0, 0.9)) drop-shadow(0 0 15px rgba(255, 255, 255, 0.8)); 
+    }
+}
