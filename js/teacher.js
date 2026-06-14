@@ -2248,7 +2248,7 @@ window.addSurveyQuestion = function (type) {
     let contentHTML = `
         <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
             <strong style="color:#e83e8c;">Câu ${surveyQCount} (${type === 'mc' ? 'Chọn đáp án' : 'Nhập văn bản'}):</strong>
-            <button onclick="this.closest('.survey-q-block').remove()" style="width:auto; padding:2px 8px; font-size:0.8em; background:#e11d48; color:white; border:none; border-radius:4px;">Xóa</button>
+            <button onclick="removeSurveyQuestion(this)" style="width:auto; padding:2px 8px; font-size:0.8em; background:#e11d48; color:white; border:none; border-radius:4px;">Xóa</button>
         </div>
         <input type="text" class="sq-text" placeholder="Nhập nội dung câu hỏi khảo sát..." style="margin-bottom: ${type === 'mc' ? '10px' : '0'}; background: rgba(0,0,0,0.02);">
     `;
@@ -2265,6 +2265,26 @@ window.addSurveyQuestion = function (type) {
     }
     div.innerHTML = contentHTML;
     container.appendChild(div);
+};
+
+window.removeSurveyQuestion = function (btnElement) {
+    // Xóa khối câu hỏi hiện tại trên giao diện
+    btnElement.closest('.survey-q-block').remove();
+    
+    // Tìm tất cả các câu hỏi còn lại trên màn hình
+    const remaining = document.querySelectorAll('.survey-q-block');
+    
+    // Cập nhật lại biến đếm tổng
+    surveyQCount = remaining.length;
+    
+    // Chạy vòng lặp để đổi lại tên "Câu 1, Câu 2..." cho đúng thứ tự
+    remaining.forEach((block, index) => {
+        const label = block.querySelector('strong');
+        if (label) {
+            const typeText = block.dataset.type === 'mc' ? 'Chọn đáp án' : 'Nhập văn bản';
+            label.innerText = `Câu ${index + 1} (${typeText}):`;
+        }
+    });
 };
 
 window.sendGlobalSurvey = async function () {
@@ -2472,7 +2492,8 @@ window.toggleGiftInput = function () {
         area.style.display = 'none';
     } else {
         area.style.display = 'block';
-        if (type === 'coin' || type === 'money') {
+        // Thêm 'ticket' vào điều kiện này
+        if (type === 'coin' || type === 'money' || type === 'ticket') { 
             numInput.style.display = 'block';
             itemInput.style.display = 'none';
         } else if (type === 'item') {
@@ -2488,7 +2509,7 @@ window.sendGiftMessage = async function () {
     const type = document.getElementById('giftType').value;
     let value = '';
 
-    if (type === 'coin' || type === 'money') {
+    if (type === 'coin' || type === 'money' || type === 'ticket') {
         value = parseInt(document.getElementById('giftValueNumber').value);
         if (isNaN(value) || value <= 0) return alert("Vui lòng nhập số lượng hợp lệ (> 0)!");
     } else if (type === 'item') {

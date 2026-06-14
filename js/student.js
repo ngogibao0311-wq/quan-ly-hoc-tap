@@ -1102,56 +1102,96 @@ async function readMultipleFiles(files) {
 }
 
 // THAY THẾ TOÀN BỘ HÀM spinWheel CŨ Ở CUỐI FILE STUDENT.JS BẰNG ĐOẠN NÀY
+// ================= HỆ THỐNG VÒNG QUAY MAY MẮN =================
+let isSpinning = false;
+
+// HÀM DÙNG CHUNG: Tính vé chính xác (Vé từ điểm + Vé quà tặng - Số lần đã quay)
+window.calculateTotalTickets = async function() {
+    const submissions = await getDB('submissions');
+    const mySubs = submissions.filter(s => s.studentUsername === currentUser.username && s.grade !== null && s.grade !== undefined && s.grade !== '');
+
+    let totalTickets = 0;
+    // 1. Tính vé cơ bản theo điểm
+    mySubs.forEach(sub => {
+        let score = parseFloat(sub.grade);
+        let subTickets = 0;
+        if (score === 10) subTickets = 3;
+        else if (score > 7) subTickets = 2;
+        else if (score > 5) subTickets = 1;
+
+        if (sub.hasRedone && subTickets > 0) subTickets -= 1;
+        totalTickets += subTickets;
+    });
+
+    // 2. Cộng thêm vé quà tặng từ hộp thư
+    const bonusSnap = await db.ref('student_bonus_tickets/' + currentUser.username).once('value');
+    const bonusTickets = parseInt(bonusSnap.val()) || 0; // Đảm bảo luôn là số nguyên
+    totalTickets += bonusTickets;
+
+    // 3. Trừ đi số lần đã quay
+    const countSnapshot = await db.ref('spin_counts/' + currentUser.username).once('value');
+    let spinTracking = countSnapshot.val() || { count: 0 };
+    let usedSpins = parseInt(spinTracking.count) || 0;
+
+    return {
+        remaining: totalTickets - usedSpins,
+        used: usedSpins,
+        spinTracking: spinTracking
+    };
+};
+
+window.openLuckyWheel = async function () {
+    if (window.isGameEnabled === false) {
+        alert("🔒 Trò chơi hiện đang bị Giáo viên tạm khóa!");
+        return;
+    }
+
+    // Gọi hàm tính toán vé
+    const ticketData = await window.calculateTotalTickets();
+
+    // Hiển thị số vé chính xác lên tiêu đề vòng quay
+    const titleWheel = document.querySelector('#luckyWheelModal h3');
+    if (titleWheel) {
+        titleWheel.innerHTML = `🎡 Vòng Quay Nhân Phẩm<br><span style="font-size: 0.5em; color: #ffd700; text-transform: none;">🎫 Vé hiện có: ${ticketData.remaining}</span>`;
+    }
+
+    // Tự động ẩn/hiện nút Quay Nhanh khi mở bảng
+    const quickSpinBtn = document.getElementById('quickSpinBtn');
+    if (quickSpinBtn) {
+        quickSpinBtn.style.display = ticketData.remaining > 1 ? 'block' : 'none';
+    }
+
+    document.getElementById('luckyWheelModal').classList.add('active');
+};
+
 window.spinWheel = async function () {
     if (window.isGameEnabled === false) {
         alert("🔒 Trò chơi hiện đang bị Giáo viên tạm khóa!");
-        closeLuckyWheel(); // Đóng luôn bảng vòng quay
+        closeLuckyWheel();
         return;
     }
 
     if (isSpinning) return;
 
-    // --- 1. KIỂM TRA GIỚI HẠN BẰNG VÉ TỪ ĐIỂM SỐ ---
-    const submissions = await getDB('submissions');
-    const mySubs = submissions.filter(s => s.studentUsername === currentUser.username && s.grade !== null && s.grade !== undefined && s.grade !== '');
+    // Lấy lại dữ liệu vé chuẩn xác trước khi cho phép quay
+    const ticketData = await window.calculateTotalTickets();
 
-    let totalTickets = 0;
-    mySubs.forEach(sub => {
-        let score = parseFloat(sub.grade);
-        let subTickets = 0;
-
-        // Tính vé cơ bản theo điểm
-        if (score === 10) subTickets = 3;
-        else if (score > 7) subTickets = 2;
-        else if (score > 5) subTickets = 1;
-
-        // Nếu bài này từng bị giáo viên bắt làm lại (có cờ hasRedone)
-        // và học sinh có đạt đủ điểm lấy vé, thì phạt trừ đi 1 vé
-        if (sub.hasRedone && subTickets > 0) {
-            subTickets -= 1;
-        }
-
-        totalTickets += subTickets;
-    });
-
-    const countSnapshot = await db.ref('spin_counts/' + currentUser.username).once('value');
-    let spinTracking = countSnapshot.val() || { count: 0 };
-    let usedSpins = spinTracking.count || 0;
-
-    let remainingTickets = totalTickets - usedSpins;
-
-    // Kiểm tra còn vé hay không
-    if (remainingTickets <= 0) {
-        alert(`⚠️ Bạn đã hết vé quay! Hãy hoàn thành bài tập (trên 5đ = 1 vé, trên 7đ = 2 vé, 10đ = 3 vé) để nhận vé nhé.`);
+    if (ticketData.remaining <= 0) {
+        alert(`⚠️ Bạn đã hết vé quay! Hãy làm bài tập điểm cao hoặc kiểm tra hộp thư để nhận vé.`);
         closeLuckyWheel();
         return;
     }
-    // ------------------------------------------------
 
     isSpinning = true;
 
     const wheel = document.getElementById('wheelContainer');
     const resultText = document.getElementById('spinResultText');
+    const titleWheel = document.querySelector('#luckyWheelModal h3');
+
+    // Trừ 1 vé trực tiếp trên giao diện ngay khi bấm quay cho mượt
+    if (titleWheel) {
+        titleWheel.innerHTML = `🎡 Vòng Quay Nhân Phẩm<br><span style="font-size: 0.5em; color: #ffd700; text-transform: none;">🎫 Vé hiện có: ${ticketData.remaining - 1}</span>`;
+    }
 
     // Reset giao diện text trước khi quay
     resultText.style.opacity = '0';
@@ -1179,18 +1219,10 @@ window.spinWheel = async function () {
         else targetSlice = 4;
         finalRewardStr = "Chúc may mắn lần sau";
     }
-    else if (rand < (cumulative += p.c100)) {
-        targetSlice = 1; finalRewardStr = "100 Coin";
-    }
-    else if (rand < (cumulative += p.c150)) {
-        targetSlice = 3; finalRewardStr = "150 Coin";
-    }
-    else if (rand < (cumulative += p.c500)) {
-        targetSlice = 5; finalRewardStr = "500 Coin";
-    }
-    else {
-        targetSlice = 6; finalRewardStr = "Quà bí ẩn";
-    }
+    else if (rand < (cumulative += p.c100)) { targetSlice = 1; finalRewardStr = "100 Coin"; }
+    else if (rand < (cumulative += p.c150)) { targetSlice = 3; finalRewardStr = "150 Coin"; }
+    else if (rand < (cumulative += p.c500)) { targetSlice = 5; finalRewardStr = "500 Coin"; }
+    else { targetSlice = 6; finalRewardStr = "Quà bí ẩn"; }
 
     const sliceAngle = 360 / 7;
     const centerOffset = (targetSlice * sliceAngle) + (sliceAngle / 2);
@@ -1214,37 +1246,22 @@ window.spinWheel = async function () {
         else if (finalRewardStr === "150 Coin") wonCoins = 150;
         else if (finalRewardStr === "500 Coin") wonCoins = 500;
         else if (finalRewardStr === "Quà bí ẩn") {
-            // Lấy danh sách các vật phẩm có tag "cổ tích"
-            const cotichItems = (typeof StoreConfig !== 'undefined')
-                ? StoreConfig.items.filter(i => i.tag && i.tag.toLowerCase() === 'cổ tích')
-                : [];
-
+            const cotichItems = (typeof StoreConfig !== 'undefined') ? StoreConfig.items.filter(i => i.tag && i.tag.toLowerCase() === 'cổ tích') : [];
             if (cotichItems.length > 0) {
-                // Chọn ngẫu nhiên 1 vật phẩm
                 const randomItem = cotichItems[Math.floor(Math.random() * cotichItems.length)];
-
-                // Kiểm tra xem học sinh đã sở hữu chưa (dựa vào mảng studentOwnedItems)
                 if (typeof studentOwnedItems !== 'undefined' && studentOwnedItems.includes(randomItem.id)) {
                     wonCoins = 600;
                     displayResult = `Trùng ${randomItem.name} (Bù 600 Coin)`;
                     actualRewardRecord = `Trùng ${randomItem.name} (+600 Coin)`;
                 } else {
-                    // Thêm vật phẩm vào túi đồ của học sinh
                     await db.ref(`student_inventory/${currentUser.username}/${randomItem.id}`).update({
-                        id: randomItem.id,
-                        purchaseTime: Date.now(),
-                        isTrial: null,
-                        trialExpiry: null,
-                        isEquipped: false
+                        id: randomItem.id, purchaseTime: Date.now(), isTrial: null, trialExpiry: null, isEquipped: false
                     });
                     displayResult = `Vật phẩm: ${randomItem.name}`;
                     actualRewardRecord = `Vật phẩm: ${randomItem.name}`;
                 }
             } else {
-                // Fallback nếu cửa hàng chưa có đồ tag cổ tích
-                wonCoins = 600;
-                displayResult = `600 Coin (Bí ẩn)`;
-                actualRewardRecord = `600 Coin (Bí ẩn)`;
+                wonCoins = 600; displayResult = `600 Coin (Bí ẩn)`; actualRewardRecord = `600 Coin (Bí ẩn)`;
             }
         }
 
@@ -1252,109 +1269,187 @@ window.spinWheel = async function () {
         resultText.style.transform = 'scale(1.2)';
         resultText.style.color = (wonCoins > 0 || finalRewardStr === "Quà bí ẩn") ? '#ffd700' : '#ff4757';
         resultText.innerText = `🎁 KẾT QUẢ: ${displayResult.toUpperCase()}!`;
-
-        setTimeout(() => {
-            resultText.style.transform = 'scale(1)';
-        }, 300);
+        setTimeout(() => { resultText.style.transform = 'scale(1)'; }, 300);
 
         isSpinning = false;
 
-        // Cập nhật số lượt đã quay
-        spinTracking.count = usedSpins + 1;
-        await db.ref('spin_counts/' + currentUser.username).set({ count: spinTracking.count });
+        // Cập nhật số lượt đã quay (Tăng thêm 1)
+        ticketData.spinTracking.count = ticketData.used + 1;
+        await db.ref('spin_counts/' + currentUser.username).set({ count: ticketData.spinTracking.count });
 
-        // Cập nhật lại giao diện số vé hiển thị trên tiêu đề
-        const titleWheel = document.querySelector('#luckyWheelModal h3');
+        // Cập nhật lại giao diện số vé để chắc chắn đồng bộ
         if (titleWheel) {
-            titleWheel.innerHTML = `🎡 Vòng Quay Nhân Phẩm<br><span style="font-size: 0.5em; color: #ffd700; text-transform: none;">🎫 Vé hiện có: ${remainingTickets - 1}</span>`;
+            titleWheel.innerHTML = `🎡 Vòng Quay Nhân Phẩm<br><span style="font-size: 0.5em; color: #ffd700; text-transform: none;">🎫 Vé hiện có: ${ticketData.remaining - 1}</span>`;
         }
 
-        // --- CỘNG TIỀN NẾU TRÚNG COIN ---
+        // Cộng Coin
         if (wonCoins > 0) {
             const coinRef = db.ref('student_coins/' + currentUser.username);
-            coinRef.transaction((currentCoins) => {
-                return (currentCoins || 0) + wonCoins;
-            });
+            coinRef.transaction((currentCoins) => { return (currentCoins || 0) + wonCoins; });
         }
-        // --------------------------------
 
+        // Lưu lịch sử
         const recordNow = new Date();
-        const currentTimestamp = recordNow.getTime();
-
-        // Push kết quả thực tế lên lịch sử (bao gồm cả vật phẩm hoặc coin bù)
         await pushDB('spin_history', {
-            studentName: currentUser.name,
-            username: currentUser.username,
-            reward: actualRewardRecord,
+            studentName: currentUser.name, username: currentUser.username, reward: actualRewardRecord,
             time: recordNow.toLocaleTimeString('vi-VN') + ' ' + recordNow.toLocaleDateString('vi-VN'),
-            timestamp: currentTimestamp
+            timestamp: recordNow.getTime()
         });
+
+        const quickSpinBtn = document.getElementById('quickSpinBtn');
+        if (quickSpinBtn) {
+            quickSpinBtn.style.display = (ticketData.remaining - 1) > 1 ? 'block' : 'none';
+        }
 
     }, 4050);
 };
 
-// ================= HỆ THỐNG VÒNG QUAY MAY MẮN =================
-let isSpinning = false;
+window.closeLuckyWheel = function () {
+    if (isSpinning) return;
+    document.getElementById('luckyWheelModal').classList.remove('active');
+    const wheel = document.getElementById('wheelContainer');
+    const resultText = document.getElementById('spinResultText');
+    if (wheel) { wheel.style.transition = 'none'; wheel.style.transform = `rotate(0deg)`; }
+    if (resultText) { resultText.style.opacity = '0'; resultText.style.transform = 'scale(0.8)'; }
+};
 
-window.openLuckyWheel = async function () {
-    // --- CHỐT CHẶN 1: TỪ CHỐI MỞ BẢNG NẾU GIÁO VIÊN TẮT ---
+// ================= HỆ THỐNG QUAY NHIỀU LẦN (GACHA x10, x50) =================
+window.spinMultipleWheel = async function () {
     if (window.isGameEnabled === false) {
         alert("🔒 Trò chơi hiện đang bị Giáo viên tạm khóa!");
         return;
     }
 
-    // --- LẤY SỐ VÉ HIỆN CÓ ĐỂ HIỂN THỊ ---
-    const submissions = await getDB('submissions');
-    const mySubs = submissions.filter(s => s.studentUsername === currentUser.username && s.grade !== null && s.grade !== undefined && s.grade !== '');
+    if (isSpinning) return;
 
-    let totalTickets = 0;
-    mySubs.forEach(sub => {
-        let score = parseFloat(sub.grade);
-        let subTickets = 0;
+    // Lấy số vé hiện có
+    const ticketData = await window.calculateTotalTickets();
 
-        // Tính vé cơ bản theo điểm
-        if (score === 10) subTickets = 3;
-        else if (score > 7) subTickets = 2;
-        else if (score > 5) subTickets = 1;
+    if (ticketData.remaining < 2) {
+        alert(`⚠️ Bạn cần ít nhất 2 vé để dùng tính năng Quay Nhanh! (Hiện có: ${ticketData.remaining} vé)`);
+        return;
+    }
 
-        // Trừ 1 vé nếu bài này từng bị bắt làm lại
-        if (sub.hasRedone && subTickets > 0) {
-            subTickets -= 1;
+    // Xác định số vé tối đa có thể quay (không vượt quá 50)
+    let maxSpins = Math.min(ticketData.remaining, 50);
+
+    // Hỏi học sinh muốn quay bao nhiêu lần
+    let inputStr = prompt(`⚡ NHẬP SỐ LẦN QUAY NHANH:\n(Bạn đang có ${ticketData.remaining} vé. Có thể quay nhanh tối đa ${maxSpins} lần)`, maxSpins);
+    
+    if (inputStr === null) return; // Nhấn Hủy
+    
+    let spinsToDo = parseInt(inputStr);
+    if (isNaN(spinsToDo) || spinsToDo < 2 || spinsToDo > maxSpins) {
+        alert(`❌ Số lượng không hợp lệ! Vui lòng nhập số từ 2 đến ${maxSpins}.`);
+        return;
+    }
+
+    isSpinning = true;
+
+    const resultText = document.getElementById('spinResultText');
+    const titleWheel = document.querySelector('#luckyWheelModal h3');
+
+    // Trừ vé trực quan ngay lập tức
+    if (titleWheel) {
+        titleWheel.innerHTML = `🎡 Vòng Quay Nhân Phẩm<br><span style="font-size: 0.5em; color: #ffd700; text-transform: none;">🎫 Vé hiện có: ${ticketData.remaining - spinsToDo}</span>`;
+    }
+
+    // Hiển thị trạng thái đang xử lý (bỏ qua hiệu ứng quay bánh xe)
+    resultText.style.opacity = '1';
+    resultText.style.color = '#fff';
+    resultText.style.transform = 'scale(1)';
+    resultText.innerText = `⚡ Đang xử lý quay ${spinsToDo} lần... 🌀`;
+
+    // Chạy ngầm thuật toán quay y hệt hàm spinWheel gốc
+    const cotichItems = (typeof StoreConfig !== 'undefined') ? StoreConfig.items.filter(i => i.tag && i.tag.toLowerCase() === 'cổ tích') : [];
+    let currentOwned = typeof studentOwnedItems !== 'undefined' ? [...studentOwnedItems] : [];
+    
+    let totalCoinsWon = 0;
+    let missCount = 0;
+    let newlyWonItems = []; 
+    let newlyWonItemNames = [];
+    let duplicateItemsCount = 0;
+
+    const p = window.wheelProbs || { miss: 50, c100: 20, c150: 25, c500: 4, gift: 1 };
+
+    for (let i = 0; i < spinsToDo; i++) {
+        const rand = Math.random() * 100;
+        let cumulative = 0;
+
+        if (rand < (cumulative += p.miss)) { missCount++; }
+        else if (rand < (cumulative += p.c100)) { totalCoinsWon += 100; }
+        else if (rand < (cumulative += p.c150)) { totalCoinsWon += 150; }
+        else if (rand < (cumulative += p.c500)) { totalCoinsWon += 500; }
+        else { 
+            // Trúng Quà bí ẩn
+            if (cotichItems.length > 0) {
+                const randomItem = cotichItems[Math.floor(Math.random() * cotichItems.length)];
+                if (currentOwned.includes(randomItem.id)) {
+                    totalCoinsWon += 600; // Đền bù 600 Coin
+                    duplicateItemsCount++;
+                } else {
+                    currentOwned.push(randomItem.id); 
+                    newlyWonItems.push(randomItem);
+                    newlyWonItemNames.push(randomItem.name);
+                }
+            } else {
+                totalCoinsWon += 600; 
+            }
         }
+    }
 
-        totalTickets += subTickets;
+    // Cập nhật Database
+    ticketData.spinTracking.count = ticketData.used + spinsToDo;
+    await db.ref('spin_counts/' + currentUser.username).set({ count: ticketData.spinTracking.count });
+
+    if (totalCoinsWon > 0) {
+        const coinRef = db.ref('student_coins/' + currentUser.username);
+        await coinRef.transaction((currentCoins) => { return (currentCoins || 0) + totalCoinsWon; });
+    }
+
+    if (newlyWonItems.length > 0) {
+        let updates = {};
+        newlyWonItems.forEach(item => {
+            updates[`student_inventory/${currentUser.username}/${item.id}`] = {
+                id: item.id, purchaseTime: Date.now(), isTrial: null, trialExpiry: null, isEquipped: false
+            };
+        });
+        await db.ref().update(updates);
+    }
+
+    let historyStr = `Quay nhanh ${spinsToDo} lần: Trượt ${missCount}, +${totalCoinsWon} Coin`;
+    if (duplicateItemsCount > 0) historyStr += ` (Bao gồm ${duplicateItemsCount} trùng lặp)`;
+    if (newlyWonItemNames.length > 0) historyStr += `. Nhận VP: ${newlyWonItemNames.join(', ')}`;
+
+    const recordNow = new Date();
+    await pushDB('spin_history', {
+        studentName: currentUser.name, username: currentUser.username, reward: historyStr,
+        time: recordNow.toLocaleTimeString('vi-VN') + ' ' + recordNow.toLocaleDateString('vi-VN'),
+        timestamp: recordNow.getTime()
     });
 
-    const countSnapshot = await db.ref('spin_counts/' + currentUser.username).once('value');
-    let spinTracking = countSnapshot.val() || { count: 0 };
-    // Lấy tổng số lần đã từng quay (dùng count)
-    let usedSpins = spinTracking.count || 0;
-    let remainingTickets = totalTickets - usedSpins;
+    // Hiển thị kết quả tổng hợp ra màn hình sau 1.5 giây
+    setTimeout(() => {
+        let displayStr = `🎁 TỔNG KẾT: +${totalCoinsWon.toLocaleString('vi-VN')} Coin`;
+        if (newlyWonItemNames.length > 0) displayStr += `\nTrúng VP: ${newlyWonItemNames.join(', ')}`;
+        if (missCount === spinsToDo) displayStr = `Đen quá! Trượt cả ${spinsToDo} lần 😢`;
 
-    // Hiển thị số vé lên tiêu đề vòng quay
-    const titleWheel = document.querySelector('#luckyWheelModal h3');
-    if (titleWheel) {
-        titleWheel.innerHTML = `🎡 Vòng Quay Nhân Phẩm<br><span style="font-size: 0.5em; color: #ffd700; text-transform: none;">🎫 Vé hiện có: ${remainingTickets}</span>`;
-    }
+        resultText.style.transform = 'scale(1.1)';
+        resultText.style.color = (totalCoinsWon > 0 || newlyWonItems.length > 0) ? '#ffd700' : '#ff4757';
+        resultText.innerText = displayStr;
+        
+        setTimeout(() => { resultText.style.transform = 'scale(1)'; }, 300);
+        isSpinning = false;
+        
+        if (typeof studentOwnedItems !== 'undefined' && newlyWonItems.length > 0) {
+            newlyWonItems.forEach(item => studentOwnedItems.push(item.id));
+        }
 
-    document.getElementById('luckyWheelModal').classList.add('active');
-};
-
-window.closeLuckyWheel = function () {
-    if (isSpinning) return; // Đang quay thì không cho đóng để tránh lỗi
-    document.getElementById('luckyWheelModal').classList.remove('active');
-
-    // Reset lại vòng quay và text khi đóng
-    const wheel = document.getElementById('wheelContainer');
-    const resultText = document.getElementById('spinResultText');
-    if (wheel) {
-        wheel.style.transition = 'none';
-        wheel.style.transform = `rotate(0deg)`;
-    }
-    if (resultText) {
-        resultText.style.opacity = '0';
-        resultText.style.transform = 'scale(0.8)';
-    }
+        const quickSpinBtn = document.getElementById('quickSpinBtn');
+        if (quickSpinBtn) {
+            quickSpinBtn.style.display = (ticketData.remaining - spinsToDo) > 1 ? 'block' : 'none';
+        }
+    }, 1500); 
 };
 
 // 2. Logic Kéo - Thả (Drag & Drop) Widget
@@ -2070,16 +2165,16 @@ window.executeConversion = async function () {
 
 // ================= HỆ THỐNG HỘP THƯ & NHẬN QUÀ (HỌC SINH) =================
 
-window.openStudentInbox = function() {
+window.openStudentInbox = function () {
     renderStudentInbox();
     document.getElementById('studentInboxModal').classList.add('active');
 };
 
-window.closeStudentInbox = function() {
+window.closeStudentInbox = function () {
     document.getElementById('studentInboxModal').classList.remove('active');
 };
 
-window.renderStudentInbox = function() {
+window.renderStudentInbox = function () {
     const container = document.getElementById('studentInboxBody');
     if (!window.myInboxMessages || window.myInboxMessages.length === 0) {
         container.innerHTML = '<div style="text-align:center; padding: 30px 10px; color: #666;"><span style="font-size:3em; display:block; margin-bottom:10px;">📭</span>Chưa có thư mới nào.</div>';
@@ -2095,6 +2190,7 @@ window.renderStudentInbox = function() {
             let giftDisplay = '';
             if (msg.giftType === 'coin') giftDisplay = `🪙 ${parseInt(msg.giftValue).toLocaleString('vi-VN')} Coin`;
             else if (msg.giftType === 'money') giftDisplay = `💵 ${parseInt(msg.giftValue).toLocaleString('vi-VN')} đ (Tiền Lộ trình)`;
+            else if (msg.giftType === 'ticket') giftDisplay = `🎫 ${parseInt(msg.giftValue).toLocaleString('vi-VN')} Vé quay may mắn`; // Dòng mới thêm
             else if (msg.giftType === 'item') {
                 const itemDef = StoreConfig.items.find(i => i.id === msg.giftValue);
                 giftDisplay = itemDef ? `📦 ${itemDef.name} (${itemDef.type})` : '📦 Vật phẩm bí ẩn';
@@ -2121,7 +2217,7 @@ window.renderStudentInbox = function() {
     container.innerHTML = html;
 };
 
-window.claimGift = async function(msgKey, giftType, giftValue) {
+window.claimGift = async function (msgKey, giftType, giftValue) {
     try {
         if (giftType === 'coin') {
             const coinRef = db.ref('student_coins/' + currentUser.username);
@@ -2136,7 +2232,12 @@ window.claimGift = async function(msgKey, giftType, giftValue) {
             await offsetRef.set((snap.val() || 0) + parseInt(giftValue));
             alert(`🎉 Bạn đã nhận được ${parseInt(giftValue).toLocaleString('vi-VN')} đ vào Tiền Lộ trình!`);
             if (typeof renderStudentRoadmap === 'function') renderStudentRoadmap(); // Cập nhật lại bảng lộ trình lập tức
-
+        } else if (giftType === 'ticket') {
+            // Dòng mới thêm: Lưu vé được tặng vào một node riêng trên Firebase
+            const ticketRef = db.ref('student_bonus_tickets/' + currentUser.username);
+            const snap = await ticketRef.once('value');
+            await ticketRef.set((snap.val() || 0) + parseInt(giftValue));
+            alert(`🎉 Bạn đã nhận được ${parseInt(giftValue)} Vé quay may mắn!`);
         } else if (giftType === 'item') {
             await db.ref(`student_inventory/${currentUser.username}/${giftValue}`).update({
                 id: giftValue,
@@ -2150,13 +2251,13 @@ window.claimGift = async function(msgKey, giftType, giftValue) {
 
         // Xóa thư sau khi nhận quà thành công
         await db.ref(`inbox_messages/${currentUser.username}/${msgKey}`).remove();
-        
+
     } catch (error) {
         console.error(error);
         alert("❌ Có lỗi xảy ra khi nhận quà. Vui lòng thử lại mạng!");
     }
 };
 
-window.deleteMessage = async function(msgKey) {
+window.deleteMessage = async function (msgKey) {
     await db.ref(`inbox_messages/${currentUser.username}/${msgKey}`).remove();
 };
