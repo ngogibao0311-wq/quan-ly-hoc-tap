@@ -509,6 +509,13 @@ async function loadAssignments() {
         }
     });
     if (hasAutoSubmitted) { list.innerHTML = '<div class="glass-alert danger"><p style="font-weight:bold; margin:0;">Hệ thống đang đồng bộ thu bài tự động...</p></div>'; }
+
+    if (window.MathJax) {
+        MathJax.typesetPromise([
+            document.getElementById('assignmentsList'),
+            document.getElementById('gradesList')
+        ]).catch((err) => console.log('MathJax error:', err));
+    }
 }
 
 // =====================================================================
@@ -573,6 +580,10 @@ window.viewAssignmentQuestions = async function (assignId) {
         </div>
     `;
     modal.style.display = 'flex';
+
+    if (window.MathJax) {
+        MathJax.typesetPromise([modal]).catch((err) => console.log('MathJax error:', err));
+    }
 };
 
 async function submitAssignment(assignId, isAuto = false, isCheat = false) {

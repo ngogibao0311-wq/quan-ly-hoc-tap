@@ -363,7 +363,7 @@ async function loadAssignedList() {
             });
         }
         let videoHTML = assign.videoLink ? getEmbedHTML(assign.videoLink) : '';
-        
+
         // Kiểm tra xem bài tập có phần trắc nghiệm hay không (bao gồm cả loại hình Thi có điểm TN > 0)
         let quizHTML = '';
         const hasMC = assign.assessmentType === 'trac_nghiem' || assign.assessmentType === 'ket_hop' || (assign.assessmentType === 'thi' && (assign.mcWeight || 0) > 0);
@@ -372,7 +372,7 @@ async function loadAssignedList() {
             assign.questions.forEach((q, idx) => { quizHTML += `<li>Câu ${idx + 1}: ${q.qText} <strong>(${q.correct})</strong></li>`; });
             quizHTML += '</ul></div>';
         }
-        
+
         // Kiểm tra xem bài tập có phần tự luận hay không (bao gồm cả loại hình Thi có điểm TL > 0)
         const hasEssay = assign.assessmentType === 'tu_luan' || assign.assessmentType === 'ket_hop' || !assign.assessmentType || (assign.assessmentType === 'thi' && (assign.essayWeight || 0) > 0);
         let tuLuanHTML = hasEssay ? `<p style="background: rgba(255,255,255,0.5); padding:15px; border-radius:12px; border-left:4px solid #667eea;"><strong>Yêu cầu Tự luận:</strong><br>${(assign.desc || '').replace(/\n/g, '<br>')}</p>` : '';
@@ -393,6 +393,10 @@ async function loadAssignedList() {
             </div>`;
         container.appendChild(div);
     });
+
+    if (window.MathJax) {
+        MathJax.typesetPromise([container]).catch((err) => console.log('MathJax error:', err));
+    }
 }
 
 // LOGIC XỬ LÝ ĐĂNG TẢI TÀI LIỆU
@@ -646,6 +650,10 @@ async function loadSubmissions() {
             </div>`;
         list.appendChild(div);
     });
+
+    if (window.MathJax) {
+        MathJax.typesetPromise([document.getElementById('submissionsList')]).catch((err) => console.log('MathJax error:', err));
+    }
 }
 
 async function gradeSubmission(subId) {
@@ -1164,7 +1172,7 @@ window.openEditAssignmentModal = async function (fbKey) {
             }
         }
 
-        if(assign.assessmentType === 'thi') window.updateEditExamFields();
+        if (assign.assessmentType === 'thi') window.updateEditExamFields();
 
         document.getElementById('editAssignmentModal').classList.add('active');
     } catch (err) {
