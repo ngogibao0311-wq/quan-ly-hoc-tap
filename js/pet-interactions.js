@@ -473,3 +473,18 @@ class PetInteractionManager {
 }
 
 document.addEventListener('DOMContentLoaded', () => { PetInteractionManager.init(); });
+
+// TỐI ƯU HIỆU SUẤT: Tạm dừng vòng lặp thú cưng khi người dùng chuyển sang Tab khác hoặc thu nhỏ web
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        // Nếu web bị ẩn -> Xóa vòng lặp để giải phóng RAM
+        if (PetInteractionManager.loopInterval) {
+            clearInterval(PetInteractionManager.loopInterval);
+        }
+    } else {
+        // Nếu quay lại web -> Khởi động lại vòng lặp (nếu tính năng đang bật)
+        if (PetInteractionManager.isEnabled) {
+            PetInteractionManager.startPetLoop();
+        }
+    }
+});

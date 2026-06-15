@@ -8,10 +8,11 @@ window.studentSubmitDTs = {};
 window.handleStudentFileAccumulate = function (input, assignId) {
     if (!window.studentSubmitDTs[assignId]) window.studentSubmitDTs[assignId] = new DataTransfer();
 
-    const existingNames = Array.from(window.studentSubmitDTs[assignId].files).map(f => f.name);
+    const existingFiles = Array.from(window.studentSubmitDTs[assignId].files).map(f => f.name + '_' + f.size);
 
     for (let i = 0; i < input.files.length; i++) {
-        if (!existingNames.includes(input.files[i].name)) {
+        const fileKey = input.files[i].name + '_' + input.files[i].size;
+        if (!existingFiles.includes(fileKey)) {
             window.studentSubmitDTs[assignId].items.add(input.files[i]);
         }
     }
@@ -20,14 +21,43 @@ window.handleStudentFileAccumulate = function (input, assignId) {
 // ==============================================================
 
 window.onload = async function () {
-    db.ref('profile_requests').on('value', async () => { await checkProfileRequests(); });
-    db.ref('users').on('value', async () => {
-        await syncUserData();
-        if (document.getElementById('settingName')) document.getElementById('settingName').value = currentUser.name;
+    // Kéo dữ liệu user thực tế từ DB để đối chiếu
+    let realUsers = await getDB('users');
+    let realUser = realUsers.find(u => u.username === currentUser.username);
+    if (!realUser || realUser.role !== 'student') {
+        alert("⛔ Phát hiện can thiệp dữ liệu! Buộc đăng xuất.");
+        localStorage.removeItem('currentUser');
+        window.location.href = 'index.html';
+        return;
+    }
+    // === TỐI ƯU HÓA HIỆU SUẤT (BỘ ĐỆM CACHE) ===
+    let cacheProfileSt = "", cacheUsersSt = "", cacheAssignmentsSt = "", cacheSubmissionsSt = "", cacheMaterialsSt = "";
+
+    db.ref('profile_requests').on('value', async (snapshot) => {
+        const hash = JSON.stringify(snapshot.val());
+        if (hash !== cacheProfileSt) { cacheProfileSt = hash; await checkProfileRequests(); }
     });
-    db.ref('assignments').on('value', async () => { await loadAssignments(); if (document.getElementById('studentRoadmapBody')) renderStudentRoadmap(); });
-    db.ref('submissions').on('value', async () => { await loadAssignments(); if (document.getElementById('studentRoadmapBody')) renderStudentRoadmap(); });
-    db.ref('materials').on('value', async () => { await loadMaterialsListStudent(); });
+    db.ref('users').on('value', async (snapshot) => {
+        const hash = JSON.stringify(snapshot.val());
+        if (hash !== cacheUsersSt) {
+            cacheUsersSt = hash;
+            await syncUserData();
+            if (document.getElementById('settingName')) document.getElementById('settingName').value = currentUser.name;
+        }
+    });
+    db.ref('assignments').on('value', async (snapshot) => {
+        const hash = JSON.stringify(snapshot.val());
+        if (hash !== cacheAssignmentsSt) { cacheAssignmentsSt = hash; await loadAssignments(); if (document.getElementById('studentRoadmapBody')) renderStudentRoadmap(); }
+    });
+    db.ref('submissions').on('value', async (snapshot) => {
+        const hash = JSON.stringify(snapshot.val());
+        if (hash !== cacheSubmissionsSt) { cacheSubmissionsSt = hash; await loadAssignments(); if (document.getElementById('studentRoadmapBody')) renderStudentRoadmap(); }
+    });
+    db.ref('materials').on('value', async (snapshot) => {
+        const hash = JSON.stringify(snapshot.val());
+        if (hash !== cacheMaterialsSt) { cacheMaterialsSt = hash; await loadMaterialsListStudent(); }
+    });
+    // ============================================
 
     // Đồng bộ điểm chuẩn từ xa do giáo viên cài đặt
     db.ref('roadmap_settings/passingGrade').on('value', (snapshot) => {
@@ -275,9 +305,9 @@ async function loadAssignments() {
             else if (assign.assessmentType === 'ket_hop') typeText = 'Kết hợp';
             else if (assign.assessmentType === 'thi') typeText = 'Thi (Nghiêm ngặt)';
             else typeText = 'Tự luận';
-            
+
             let statusText = `Đã hoàn thành (${typeText})`;
-            
+
             let violationHTML = '';
             if (mySub.isCheatFail) {
                 violationHTML = `<div style="background: rgba(225, 29, 72, 0.1); border-left: 4px solid #e11d48; padding: 15px; margin-top: 15px; border-radius: 8px;"><h4 style="color: #e11d48; margin: 0 0 5px 0;">🚨 BÀI THI VI PHẠM QUY CHẾ</h4><p style="margin: 0; color: #b91c1c;">Hệ thống ghi nhận bạn đã tự ý thoát khỏi chế độ Toàn màn hình trong quá trình làm bài. Bài thi đã bị thu tự động và đánh dấu vi phạm vi chế nghiêm trọng.</p></div>`;
@@ -338,10 +368,30 @@ async function loadAssignments() {
             }
             else if (isGracePeriod || (now > endTime && !isRedoing)) {
                 // Thu bài tự động ngầm dưới DB ngay lập tức
+                // Thu bài tự động ngầm dưới DB ngay lập tức
                 const autoFlagKey = `auto_sub_${assign.id}_${currentUser.username}`;
-                if (!mySub && !localStorage.getItem(autoFlagKey)) {
-                    localStorage.setItem(autoFlagKey, 'true'); hasAutoSubmitted = true;
-                    pushDB('submissions', { id: Date.now().toString() + Math.floor(Math.random() * 1000), assignmentId: assign.id, studentUsername: currentUser.username, studentName: currentUser.name, answer: "⚠️ [Hệ thống tự động nộp do đã quá hạn - Học sinh không làm bài kịp]", rawEssay: "", mcAnswers: {}, grade: null, submitTime: now.toLocaleTimeString('vi-VN') + ' ' + now.toLocaleDateString('vi-VN'), file: null, teacherFile: null, isAutoSubmitted: true, isRedoing: false, isLateFail: true });
+                // THÊM BIẾN window[`isSubmitting_${assign.id}`] ĐỂ KHÓA TAB KÉP
+                if (!mySub && !localStorage.getItem(autoFlagKey) && !window[`isSubmitting_${assign.id}`]) {
+                    window[`isSubmitting_${assign.id}`] = true; // Khóa lệnh
+                    localStorage.setItem(autoFlagKey, 'true');
+                    hasAutoSubmitted = true;
+
+                    pushDB('submissions', {
+                        id: Date.now().toString() + Math.floor(Math.random() * 1000),
+                        assignmentId: assign.id,
+                        studentUsername: currentUser.username,
+                        studentName: currentUser.name,
+                        answer: "⚠️ [Hệ thống tự động nộp do đã quá hạn - Học sinh không làm bài kịp]",
+                        rawEssay: "",
+                        mcAnswers: {},
+                        grade: null,
+                        submitTime: now.toLocaleTimeString('vi-VN') + ' ' + now.toLocaleDateString('vi-VN'),
+                        file: null,
+                        teacherFile: null,
+                        isAutoSubmitted: true,
+                        isRedoing: false,
+                        isLateFail: true
+                    });
                 }
 
                 // Nhưng vẫn hiển thị thẻ TRỄ ở danh sách bài tập cần làm trong 5 phút
@@ -386,7 +436,10 @@ async function loadAssignments() {
                     let noticeHTML = assign.assessmentType === 'ket_hop' ? `<div class="glass-alert" style="padding: 10px; margin-bottom: 15px; border-left-color: #764ba2;"><strong>⚖️ Thang điểm bài này:</strong> Trắc nghiệm (${assign.mcWeight || 5}đ) - Tự luận (${assign.essayWeight || 5}đ)</div>` : '';
                     quizHTML = noticeHTML + '<div style="background: rgba(255,255,255,0.6); padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid rgba(255,255,255,0.9);"><h4 style="color: #d35400; margin-bottom: 10px;">Phần Trắc Nghiệm</h4>';
 
-                    let savedMc = (mySub && mySub.mcAnswers) ? mySub.mcAnswers : {};
+                    // Đọc bản nháp Trắc nghiệm từ localStorage
+                    let draftKey = `draft_${currentUser.username}_${assign.id}`;
+                    let draft = JSON.parse(localStorage.getItem(draftKey)) || { mcAnswers: {}, essay: '' };
+                    let savedMc = (mySub && mySub.mcAnswers) ? mySub.mcAnswers : draft.mcAnswers;
 
                     assign.questions.forEach((q, idx) => {
                         let chkA = savedMc[idx] === 'A' ? 'checked' : '';
@@ -395,10 +448,10 @@ async function loadAssignments() {
                         let chkD = savedMc[idx] === 'D' ? 'checked' : '';
 
                         quizHTML += `<div style="margin-bottom: 15px; background: rgba(255,255,255,0.5); padding: 12px; border-radius: 8px;"><p style="font-weight: bold; color: #2c3e50; margin-bottom: 8px;">Câu ${idx + 1}: ${q.qText}</p><div style="display:flex; flex-direction:column; gap:8px;">
-                                    <label style="cursor: pointer; display: flex; align-items: center; gap: 8px;"><input type="radio" name="q-${assign.id}-${idx}" value="A" style="width:auto; margin:0;" ${chkA}> <span>A. ${q.A}</span></label>
-                                    <label style="cursor: pointer; display: flex; align-items: center; gap: 8px;"><input type="radio" name="q-${assign.id}-${idx}" value="B" style="width:auto; margin:0;" ${chkB}> <span>B. ${q.B}</span></label>
-                                    <label style="cursor: pointer; display: flex; align-items: center; gap: 8px;"><input type="radio" name="q-${assign.id}-${idx}" value="C" style="width:auto; margin:0;" ${chkC}> <span>C. ${q.C}</span></label>
-                                    <label style="cursor: pointer; display: flex; align-items: center; gap: 8px;"><input type="radio" name="q-${assign.id}-${idx}" value="D" style="width:auto; margin:0;" ${chkD}> <span>D. ${q.D}</span></label></div></div>`;
+                                    <label style="cursor: pointer; display: flex; align-items: center; gap: 8px;"><input type="radio" name="q-${assign.id}-${idx}" value="A" style="width:auto; margin:0;" ${chkA} onchange="saveDraft('${assign.id}', 'mc', ${idx}, 'A')"> <span>A. ${q.A}</span></label>
+                                    <label style="cursor: pointer; display: flex; align-items: center; gap: 8px;"><input type="radio" name="q-${assign.id}-${idx}" value="B" style="width:auto; margin:0;" ${chkB} onchange="saveDraft('${assign.id}', 'mc', ${idx}, 'B')"> <span>B. ${q.B}</span></label>
+                                    <label style="cursor: pointer; display: flex; align-items: center; gap: 8px;"><input type="radio" name="q-${assign.id}-${idx}" value="C" style="width:auto; margin:0;" ${chkC} onchange="saveDraft('${assign.id}', 'mc', ${idx}, 'C')"> <span>C. ${q.C}</span></label>
+                                    <label style="cursor: pointer; display: flex; align-items: center; gap: 8px;"><input type="radio" name="q-${assign.id}-${idx}" value="D" style="width:auto; margin:0;" ${chkD} onchange="saveDraft('${assign.id}', 'mc', ${idx}, 'D')"> <span>D. ${q.D}</span></label></div></div>`;
                     });
                     quizHTML += '</div>';
                 }
@@ -418,7 +471,11 @@ async function loadAssignments() {
                         });
                     }
 
-                    let savedEssay = mySub && mySub.rawEssay ? mySub.rawEssay : '';
+                    // Đọc bản nháp Tự luận từ localStorage
+                    let draftKey = `draft_${currentUser.username}_${assign.id}`;
+                    let draft = JSON.parse(localStorage.getItem(draftKey)) || { mcAnswers: {}, essay: '' };
+
+                    let savedEssay = mySub && mySub.rawEssay ? mySub.rawEssay : draft.essay;
                     if (!savedEssay && mySub && mySub.answer) savedEssay = mySub.answer.replace(/\[PHẦN TRẮC NGHIỆM\][\s\S]*?\[PHẦN TỰ LUẬN\]\n/, '');
 
                     let prevFileHTML = '';
@@ -431,7 +488,7 @@ async function loadAssignments() {
                     }
                     let essayTextAreaHTML = assign.hideEssayText
                         ? `<div class="glass-alert success" style="padding: 12px; margin-bottom: 12px; border-left-color: #38ef7d; background: rgba(56, 239, 125, 0.1);"><p style="margin:0; font-size:0.95em; font-weight:bold;">📁 Giáo viên yêu cầu nộp bài bằng tệp đính kèm (Không cần nhập nội dung văn bản).</p></div>`
-                        : `<textarea id="answer-${assign.id}" placeholder="Nhập câu trả lời..." rows="4">${savedEssay}</textarea>`;
+                        : `<textarea id="answer-${assign.id}" placeholder="Nhập câu trả lời..." rows="4" oninput="saveDraft('${assign.id}', 'essay', null, this.value)">${savedEssay}</textarea>`;
 
                     tuLuanInputHTML = `<hr style="border: 0; border-top: 1px dashed rgba(0,0,0,0.1); margin: 20px 0;">
                                        <h3 style="color: #2c3e50; margin-bottom: 10px;">Phần làm bài tự luận</h3>
@@ -714,6 +771,9 @@ async function submitAssignment(assignId, isAuto = false, isCheat = false) {
             payload.id = Date.now().toString() + Math.floor(Math.random() * 1000);
             await pushDB('submissions', payload);
         }
+
+        // Dọn dẹp bản nháp sau khi nộp bài thành công
+        localStorage.removeItem(`draft_${currentUser.username}_${assignId}`);
 
         // --- BỔ SUNG ĐOẠN NÀY ĐỂ THOÁT TOÀN MÀN HÌNH SAU KHI NỘP ---
         if (window.currentActiveExamId === assignId) {
@@ -2318,21 +2378,21 @@ window.deleteMessage = async function (msgKey) {
 window.currentActiveExamId = null;
 window.pendingExamId = null;
 
-window.showExamWarning = function(assignId) {
+window.showExamWarning = function (assignId) {
     window.pendingExamId = assignId;
     const modal = document.getElementById('examWarningModal');
-    if(modal) modal.classList.add('active');
+    if (modal) modal.classList.add('active');
 };
 
-window.closeExamWarning = function() {
+window.closeExamWarning = function () {
     window.pendingExamId = null;
     const modal = document.getElementById('examWarningModal');
-    if(modal) modal.classList.remove('active');
+    if (modal) modal.classList.remove('active');
 };
 
-window.startExamFullscreen = async function() {
+window.startExamFullscreen = async function () {
     if (!window.pendingExamId) return;
-    
+
     try {
         const elem = document.documentElement;
         if (elem.requestFullscreen) await elem.requestFullscreen();
@@ -2343,13 +2403,13 @@ window.startExamFullscreen = async function() {
         setTimeout(() => {
             const assignId = window.pendingExamId;
             window.currentActiveExamId = assignId;
-            
+
             const wrapper = document.getElementById(`exam-wrapper-${assignId}`);
             const content = document.getElementById(`exam-content-${assignId}`);
-            
-            if(wrapper) wrapper.style.display = 'none';
-            if(content) content.style.display = 'block';
-            
+
+            if (wrapper) wrapper.style.display = 'none';
+            if (content) content.style.display = 'block';
+
             closeExamWarning();
         }, 300);
 
@@ -2365,6 +2425,27 @@ document.addEventListener('fullscreenchange', () => {
         alert("⚠️ VI PHẠM BẢO MẬT: Bạn đã thoát chế độ toàn màn hình! Hệ thống tự động thu bài ngay lập tức.");
         // Gắn cờ true thứ nhất cho isAuto, true thứ hai cho isCheat
         submitAssignment(window.currentActiveExamId, true, true);
-        window.currentActiveExamId = null; 
+        window.currentActiveExamId = null;
+    }
+});
+
+// ================= HỆ THỐNG LƯU NHÁP TỰ ĐỘNG =================
+window.saveDraft = function (assignId, type, qIndex, value) {
+    const draftKey = `draft_${currentUser.username}_${assignId}`;
+    let draft = JSON.parse(localStorage.getItem(draftKey)) || { mcAnswers: {}, essay: '' };
+    if (type === 'mc') {
+        draft.mcAnswers[qIndex] = value;
+    } else if (type === 'essay') {
+        draft.essay = value;
+    }
+    localStorage.setItem(draftKey, JSON.stringify(draft));
+};
+
+// Bắt sự kiện chuyển Tab hoặc thu nhỏ trình duyệt
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden && window.currentActiveExamId) {
+        alert("⚠️ VI PHẠM BẢO MẬT: Bạn đã chuyển sang tab/cửa sổ khác! Hệ thống tự động thu bài ngay lập tức.");
+        // Thu bài tự động và đánh dấu gian lận
+        submitAssignment(window.currentActiveExamId, true, true);
     }
 });

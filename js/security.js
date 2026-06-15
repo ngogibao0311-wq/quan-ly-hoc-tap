@@ -30,6 +30,12 @@ document.addEventListener('keydown', function(e) {
 
 // 3. Phát hiện F12 mở theo dạng neo (Docked) làm thay đổi kích thước khung web
 function detectDevToolsSize() {
+    // THÊM DÒNG NÀY: Bỏ qua kiểm tra kích thước đối với thiết bị di động (Mobile/Tablet)
+    // để tránh bị văng web khi bàn phím ảo bật lên hoặc xoay màn hình.
+    if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+        return; 
+    }
+
     const threshold = 160; // Chênh lệch kích thước tối thiểu khi F12 mở
     const widthDiff = window.outerWidth - window.innerWidth > threshold;
     const heightDiff = window.outerHeight - window.innerHeight > threshold;

@@ -11,10 +11,12 @@ window.teacherGradeDTs = {}; // Dùng cho Chấm bài (nhiều học sinh)
 window.handleTeacherFileAccumulate = function (input, subId) {
     if (!window.teacherGradeDTs[subId]) window.teacherGradeDTs[subId] = new DataTransfer();
 
-    const existingNames = Array.from(window.teacherGradeDTs[subId].files).map(f => f.name);
+    // SỬA: Gộp name và size để kiểm tra
+    const existingFiles = Array.from(window.teacherGradeDTs[subId].files).map(f => f.name + '_' + f.size);
 
     for (let i = 0; i < input.files.length; i++) {
-        if (!existingNames.includes(input.files[i].name)) {
+        const fileKey = input.files[i].name + '_' + input.files[i].size;
+        if (!existingFiles.includes(fileKey)) {
             window.teacherGradeDTs[subId].items.add(input.files[i]);
         }
     }
@@ -22,15 +24,42 @@ window.handleTeacherFileAccumulate = function (input, subId) {
 };
 
 window.onload = async function () {
+    let realUsers = await getDB('users');
+    let realUser = realUsers.find(u => u.username === currentUser.username);
+    if (!realUser || realUser.role !== 'teacher') {
+        alert("⛔ Phát hiện can thiệp dữ liệu! Buộc đăng xuất.");
+        localStorage.removeItem('currentUser');
+        window.location.href = 'index.html';
+        return;
+    }
     if (document.getElementById('settingName')) document.getElementById('settingName').value = currentUser.name;
     initFileListener();
     initMaterialFileListener();
 
-    db.ref('profile_requests').on('value', async () => { await loadProfileRequests(); });
-    db.ref('submissions').on('value', async () => { await loadSubmissions(); if (document.getElementById('teacherRoadmapBody')) renderTeacherRoadmap(); });
-    db.ref('assignments').on('value', async () => { await loadAssignedList(); if (document.getElementById('teacherRoadmapBody')) renderTeacherRoadmap(); });
-    db.ref('materials').on('value', async () => { await loadMaterialsListTeacher(); });
-    db.ref('users').on('value', async () => { await loadStudentsList(); await populateStudentDropdown(); await populateRoadmapStudentDropdown(); });
+    // === TỐI ƯU HÓA HIỆU SUẤT (BỘ ĐỆM CACHE) ===
+    let cacheProfile = "", cacheSubmissions = "", cacheAssignments = "", cacheMaterials = "", cacheUsers = "";
+
+    db.ref('profile_requests').on('value', async (snapshot) => {
+        const hash = JSON.stringify(snapshot.val());
+        if (hash !== cacheProfile) { cacheProfile = hash; await loadProfileRequests(); }
+    });
+    db.ref('submissions').on('value', async (snapshot) => {
+        const hash = JSON.stringify(snapshot.val());
+        if (hash !== cacheSubmissions) { cacheSubmissions = hash; await loadSubmissions(); if (document.getElementById('teacherRoadmapBody')) renderTeacherRoadmap(); }
+    });
+    db.ref('assignments').on('value', async (snapshot) => {
+        const hash = JSON.stringify(snapshot.val());
+        if (hash !== cacheAssignments) { cacheAssignments = hash; await loadAssignedList(); if (document.getElementById('teacherRoadmapBody')) renderTeacherRoadmap(); }
+    });
+    db.ref('materials').on('value', async (snapshot) => {
+        const hash = JSON.stringify(snapshot.val());
+        if (hash !== cacheMaterials) { cacheMaterials = hash; await loadMaterialsListTeacher(); }
+    });
+    db.ref('users').on('value', async (snapshot) => {
+        const hash = JSON.stringify(snapshot.val());
+        if (hash !== cacheUsers) { cacheUsers = hash; await loadStudentsList(); await populateStudentDropdown(); await populateRoadmapStudentDropdown(); }
+    });
+    // ============================================
 
     // Lắng nghe cấu hình điểm đạt tối thiểu từ Firebase
     db.ref('roadmap_settings/passingGrade').on('value', (snapshot) => {
