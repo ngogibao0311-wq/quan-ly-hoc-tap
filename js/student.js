@@ -2289,3 +2289,59 @@ window.claimGift = async function (msgKey, giftType, giftValue) {
 window.deleteMessage = async function (msgKey) {
     await db.ref(`inbox_messages/${currentUser.username}/${msgKey}`).remove();
 };
+
+// ================= HỆ THỐNG THI TOÀN MÀN HÌNH =================
+window.currentActiveExamId = null;
+window.pendingExamId = null;
+
+window.showExamWarning = function(assignId) {
+    window.pendingExamId = assignId;
+    const modal = document.getElementById('examWarningModal');
+    if(modal) modal.classList.add('active');
+};
+
+window.closeExamWarning = function() {
+    window.pendingExamId = null;
+    const modal = document.getElementById('examWarningModal');
+    if(modal) modal.classList.remove('active');
+};
+
+window.startExamFullscreen = async function() {
+    if (!window.pendingExamId) return;
+    
+    try {
+        const elem = document.documentElement;
+        if (elem.requestFullscreen) await elem.requestFullscreen();
+        else if (elem.webkitRequestFullscreen) await elem.webkitRequestFullscreen(); // Safari
+        else if (elem.msRequestFullscreen) await elem.msRequestFullscreen(); // Edge cũ
+
+        // Chờ 1 chút để màn hình mở rộng ra rồi mới hiển thị bài thi
+        setTimeout(() => {
+            const assignId = window.pendingExamId;
+            window.currentActiveExamId = assignId;
+            
+            const wrapper = document.getElementById(`exam-wrapper-${assignId}`);
+            const content = document.getElementById(`exam-content-${assignId}`);
+            
+            if(wrapper) wrapper.style.display = 'none';
+            if(content) content.style.display = 'block';
+            
+            closeExamWarning();
+        }, 300);
+
+    } catch (err) {
+        alert(`Trình duyệt của bạn đang chặn chế độ toàn màn hình. Vui lòng cấp quyền để có thể làm bài!`);
+        closeExamWarning();
+    }
+};
+
+// Lắng nghe sự kiện học sinh "vượt rào" thoát toàn màn hình
+document.addEventListener('fullscreenchange', () => {
+    // Nếu màn hình không còn ở chế độ Fullscreen và bài thi vẫn đang đếm
+    if (!document.fullscreenElement && window.currentActiveExamId) {
+        alert("⚠️ VI PHẠM BẢO MẬT: Bạn đã thoát chế độ toàn màn hình! Hệ thống tự động thu bài ngay lập tức.");
+        // Gắn cờ true để Auto-submit
+        submitAssignment(window.currentActiveExamId, true);
+        window.currentActiveExamId = null; 
+    }
+});
