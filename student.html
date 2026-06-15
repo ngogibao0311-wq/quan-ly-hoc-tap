@@ -5,11 +5,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Trang Học Sinh</title>
-    <link rel="stylesheet" href="css/common.css?v=1.7">
-    <link rel="stylesheet" href="css/student.css?v=1.7">
-    <link rel="stylesheet" href="css/mobile.css?v=1.7">
-    <link rel="stylesheet" href="css/store-items.css?v=1.7">
-    <link rel="stylesheet" href="css/effects-pets.css?v=1.7">
+    <link rel="stylesheet" href="css/common.css?v=1.8">
+    <link rel="stylesheet" href="css/student.css?v=1.8">
+    <link rel="stylesheet" href="css/mobile.css?v=1.8">
+    <link rel="stylesheet" href="css/store-items.css?v=1.8">
+    <link rel="stylesheet" href="css/effects-pets.css?v=1.8">
 </head>
 
 <body>
@@ -519,18 +519,44 @@
         </div>
     </div>
 
-    <script src="js/common.js?v=1.7"></script>
-    <script src="js/theme-items.js?v=1.7"></script>
-    <script src="js/effect-items.js?v=1.7"></script>
-    <script src="js/pet-items.js?v=1.7"></script>
-    <script src="js/pet-interactions.js?v=1.7"></script>
-    <script src="js/store-manager.js?v=1.7"></script>
+    <div id="examWarningModal" class="modal-overlay" style="z-index: 999999;">
+        <div class="modal-content" style="max-width: 450px; text-align: center; border-top: 6px solid #e11d48;">
+            <h3 style="color: #e11d48; margin-bottom: 15px; font-size: 1.6em; text-transform: uppercase;">⚠️ Cảnh báo
+                bài thi</h3>
+            <div
+                style="background: rgba(225, 29, 72, 0.1); padding: 20px; border-radius: 12px; margin-bottom: 20px; text-align: left; border: 1px solid rgba(225, 29, 72, 0.2);">
+                <p style="font-size: 1.1em; color: #b91c1c; line-height: 1.6; margin: 0; font-weight: 700;">
+                    Bạn chuẩn bị bước vào chế độ THI NGHIÊM NGẶT.
+                    <br><br>
+                    - Hệ thống sẽ yêu cầu quyền Toàn màn hình.<br>
+                    - Nếu bạn tự ý thoát toàn màn hình (nhấn phím ESC, F11 hoặc chuyển tab khác), hệ thống sẽ <strong
+                        style="color: red;">TỰ ĐỘNG THU BÀI</strong> ngay lập tức.<br>
+                    - Vui lòng nhấn "Cho phép" nếu trình duyệt hỏi quyền.
+                </p>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="closeExamWarning()"
+                    style="flex: 1; background: rgba(0,0,0,0.1); color: #333; padding: 12px; font-weight: 800; border-radius: 12px; border: none; cursor: pointer;">Hủy
+                    bỏ</button>
+                <button onclick="startExamFullscreen()"
+                    style="flex: 2; background: linear-gradient(135deg, #e11d48 0%, #ff4d4d 100%); font-size: 1.1em; padding: 12px; font-weight: 800; border-radius: 12px; color: white; border: none; cursor: pointer; box-shadow: 0 4px 15px rgba(225, 29, 72, 0.3);">Đã
+                    hiểu & Bắt đầu</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/common.js?v=1.8"></script>
+    <script src="js/theme-items.js?v=1.8"></script>
+    <script src="js/effect-items.js?v=1.8"></script>
+    <script src="js/pet-items.js?v=1.8"></script>
+    <script src="js/pet-interactions.js?v=1.8"></script>
+    <script src="js/store-manager.js?v=1.8"></script>
 
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-database-compat.js"></script>
-    <script src="js/firebase-config.js?v=1.7"></script>
+    <script src="js/firebase-config.js?v=1.8"></script>
 
-    <script src="js/student.js?v=1.7"></script>
+    <script src="js/student.js?v=1.8"></script>
 </body>
 
 </html>
