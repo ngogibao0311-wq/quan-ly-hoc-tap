@@ -363,13 +363,19 @@ async function loadAssignedList() {
             });
         }
         let videoHTML = assign.videoLink ? getEmbedHTML(assign.videoLink) : '';
+        
+        // Kiểm tra xem bài tập có phần trắc nghiệm hay không (bao gồm cả loại hình Thi có điểm TN > 0)
         let quizHTML = '';
-        if ((assign.assessmentType === 'trac_nghiem' || assign.assessmentType === 'ket_hop') && assign.questions) {
+        const hasMC = assign.assessmentType === 'trac_nghiem' || assign.assessmentType === 'ket_hop' || (assign.assessmentType === 'thi' && (assign.mcWeight || 0) > 0);
+        if (hasMC && assign.questions) {
             quizHTML = `<div style="background: rgba(255,255,255,0.5); padding: 10px; border-radius: 8px; margin-top: 10px;"><strong>Trắc nghiệm:</strong><ul style="margin-left: 20px;">`;
             assign.questions.forEach((q, idx) => { quizHTML += `<li>Câu ${idx + 1}: ${q.qText} <strong>(${q.correct})</strong></li>`; });
             quizHTML += '</ul></div>';
         }
-        let tuLuanHTML = (assign.assessmentType === 'tu_luan' || assign.assessmentType === 'ket_hop' || !assign.assessmentType) ? `<p style="background: rgba(255,255,255,0.5); padding:15px; border-radius:12px; border-left:4px solid #667eea;"><strong>Yêu cầu Tự luận:</strong><br>${(assign.desc || '').replace(/\n/g, '<br>')}</p>` : '';
+        
+        // Kiểm tra xem bài tập có phần tự luận hay không (bao gồm cả loại hình Thi có điểm TL > 0)
+        const hasEssay = assign.assessmentType === 'tu_luan' || assign.assessmentType === 'ket_hop' || !assign.assessmentType || (assign.assessmentType === 'thi' && (assign.essayWeight || 0) > 0);
+        let tuLuanHTML = hasEssay ? `<p style="background: rgba(255,255,255,0.5); padding:15px; border-radius:12px; border-left:4px solid #667eea;"><strong>Yêu cầu Tự luận:</strong><br>${(assign.desc || '').replace(/\n/g, '<br>')}</p>` : '';
 
         const uniqueId = `teacher-assign-${assign.id}`;
         const div = document.createElement('div'); div.className = 'card accordion-card';
