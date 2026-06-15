@@ -111,6 +111,17 @@ window.onload = async function () {
     db.ref('store_items').on('value', async () => {
         if (typeof loadTeacherStoreItems === 'function') await loadTeacherStoreItems();
     });
+
+    // (Bổ sung) Lắng nghe giáo viên nhập điểm để tự ẩn/hiện phần câu hỏi
+    const mcInput = document.getElementById('mcWeight');
+    const essayInput = document.getElementById('essayWeight');
+    if (mcInput) mcInput.addEventListener('input', window.updateExamFields);
+    if (essayInput) essayInput.addEventListener('input', window.updateExamFields);
+
+    const editMcInput = document.getElementById('editMcWeight');
+    const editEssayInput = document.getElementById('editEssayWeight');
+    if (editMcInput) editMcInput.addEventListener('input', window.updateEditExamFields);
+    if (editEssayInput) editEssayInput.addEventListener('input', window.updateEditExamFields);
 };
 
 function getEmbedHTML(url) {
@@ -128,6 +139,48 @@ function getEmbedHTML(url) {
     return `<div class="video-wrapper"><iframe width="100%" height="315" src="${url}" frameborder="0" allowfullscreen></iframe></div>`;
 }
 
+// Hàm tự động ẩn/hiện giao diện tạo câu hỏi khi nhập điểm Thi
+window.updateExamFields = function () {
+    const type = document.getElementById('assessmentType').value;
+    if (type !== 'thi') return;
+
+    const mcWeight = parseFloat(document.getElementById('mcWeight').value) || 0;
+    const essayWeight = parseFloat(document.getElementById('essayWeight').value) || 0;
+
+    const tuLuan = document.getElementById('tuLuanFields');
+    const tracNghiem = document.getElementById('tracNghiemFields');
+
+    if (mcWeight > 0 && essayWeight === 0) {
+        if (tracNghiem) tracNghiem.style.display = 'block';
+        if (tuLuan) tuLuan.style.display = 'none';
+    } else if (essayWeight > 0 && mcWeight === 0) {
+        if (tracNghiem) tracNghiem.style.display = 'none';
+        if (tuLuan) tuLuan.style.display = 'block';
+    } else {
+        if (tracNghiem) tracNghiem.style.display = 'block';
+        if (tuLuan) tuLuan.style.display = 'block';
+    }
+};
+
+window.updateEditExamFields = function () {
+    const mcWeight = parseFloat(document.getElementById('editMcWeight').value) || 0;
+    const essayWeight = parseFloat(document.getElementById('editEssayWeight').value) || 0;
+
+    const tuLuan = document.getElementById('editTuLuanSection');
+    const tracNghiem = document.getElementById('editTracNghiemSection');
+
+    if (mcWeight > 0 && essayWeight === 0) {
+        if (tracNghiem) tracNghiem.style.display = 'block';
+        if (tuLuan) tuLuan.style.display = 'none';
+    } else if (essayWeight > 0 && mcWeight === 0) {
+        if (tracNghiem) tracNghiem.style.display = 'none';
+        if (tuLuan) tuLuan.style.display = 'block';
+    } else {
+        if (tracNghiem) tracNghiem.style.display = 'block';
+        if (tuLuan) tuLuan.style.display = 'block';
+    }
+};
+
 window.toggleAssessmentFields = function () {
     const type = document.getElementById('assessmentType').value;
     const tuLuan = document.getElementById('tuLuanFields');
@@ -144,8 +197,9 @@ window.toggleAssessmentFields = function () {
         tuLuan.style.display = 'block'; tracNghiem.style.display = 'block'; scoreDist.style.display = 'block';
         if (videoGroup) videoGroup.style.display = 'block';
     } else if (type === 'thi') {
-        tuLuan.style.display = 'block'; tracNghiem.style.display = 'block'; scoreDist.style.display = 'block';
+        scoreDist.style.display = 'block';
         if (videoGroup) videoGroup.style.display = 'none'; // Ẩn hoàn toàn mục video
+        window.updateExamFields(); // Kích hoạt ẩn/hiện động dựa trên số điểm
     }
 };
 
@@ -198,28 +252,43 @@ async function createAssignment() {
     const type = document.getElementById('assessmentType').value;
     let desc = '', videoLink = '', attachedFile = null, questions = [];
     let mcWeight = null, essayWeight = null;
-    let hideEssayText = false; // Thêm biến cờ trạng thái này
+    let hideEssayText = false;
 
-    if (type === 'tu_luan' || type === 'ket_hop' || type === 'thi') {
+    // BƯỚC 1: XỬ LÝ ĐIỂM SỐ TRƯỚC (Gỡ bỏ bắt buộc bằng 10 cho hệ thi)
+    if (type === 'ket_hop' || type === 'thi') {
+        mcWeight = parseFloat(document.getElementById('mcWeight').value) || 0;
+        essayWeight = parseFloat(document.getElementById('essayWeight').value) || 0;
+
+        if (type === 'ket_hop' && (mcWeight + essayWeight !== 10)) {
+            return alert("Tổng điểm Trắc nghiệm và Tự luận trong loại hình Kết hợp phải đúng bằng 10!");
+        }
+        if (type === 'thi' && mcWeight === 0 && essayWeight === 0) {
+            return alert("Vui lòng nhập điểm tối đa cho phần Trắc nghiệm hoặc Tự luận!");
+        }
+    }
+
+    // BƯỚC 2: XỬ LÝ DỮ LIỆU TỰ LUẬN
+    const hasEssay = type === 'tu_luan' || type === 'ket_hop' || (type === 'thi' && essayWeight > 0);
+    if (hasEssay) {
         desc = document.getElementById('desc').value;
         videoLink = (type === 'thi') ? '' : document.getElementById('videoLink').value.trim();
         hideEssayText = document.getElementById('hideEssayText').checked;
 
-        // Đọc toàn bộ file đính kèm ngay tại lúc bấm nút Phát hành
         const fInput = document.getElementById('fileInput');
         if (fInput && fInput.files.length > 0) {
             attachedFile = await readMultipleFiles(fInput.files);
-            // Thêm dòng này để chặn giao bài
             if (attachedFile.length === 0) return;
         } else {
             attachedFile = null;
         }
     }
-    if (type === 'trac_nghiem' || type === 'ket_hop' || type === 'thi') {
-        // Thay đoạn lấy dữ liệu cũ thành:
+
+    // BƯỚC 3: XỬ LÝ DỮ LIỆU TRẮC NGHIỆM
+    const hasMC = type === 'trac_nghiem' || type === 'ket_hop' || (type === 'thi' && mcWeight > 0);
+    if (hasMC) {
         document.querySelectorAll('.question-block').forEach((block) => {
             const correctRadio = block.querySelector('.q-correct-radio:checked');
-            const oldCorrectSelect = block.querySelector('.q-correct'); // Giữ lại dự phòng
+            const oldCorrectSelect = block.querySelector('.q-correct');
             const correctVal = correctRadio ? correctRadio.value : (oldCorrectSelect ? oldCorrectSelect.value : '');
 
             questions.push({
@@ -236,6 +305,7 @@ async function createAssignment() {
             if (!q.qText || !q.A || !q.B || !q.C || !q.D || !q.correct) return alert("Vui lòng điền đầy đủ và chọn đáp án trắc nghiệm!");
         }
     }
+
     if (!title || !startDate || !endDate) return alert("Vui lòng điền đủ Tiêu đề và Thời hạn!");
 
     if (type === 'ket_hop' || type === 'thi') {
@@ -269,8 +339,19 @@ async function loadAssignedList() {
     if (assignments.length === 0) { container.innerHTML = '<p style="color: #666; font-style: italic;">Chưa có bài tập nào.</p>'; return; }
 
     [...assignments].reverse().forEach(assign => {
-        let typeText = assign.assessmentType === 'trac_nghiem' ? 'Trắc nghiệm' : (assign.assessmentType === 'ket_hop' ? `Kết hợp (TN: ${assign.mcWeight || 5}đ - TL: ${assign.essayWeight || 5}đ)` : 'Tự luận');
-        if (assign.hideEssayText && assign.assessmentType !== 'trac_nghiem') {
+        let typeText = '';
+        if (assign.assessmentType === 'trac_nghiem') typeText = 'Trắc nghiệm';
+        else if (assign.assessmentType === 'ket_hop') typeText = `Kết hợp (TN: ${assign.mcWeight || 5}đ - TL: ${assign.essayWeight || 5}đ)`;
+        else if (assign.assessmentType === 'thi') {
+            const mc = assign.mcWeight || 0;
+            const tl = assign.essayWeight || 0;
+            if (mc > 0 && tl > 0) typeText = `Thi (TN: ${mc}đ - TL: ${tl}đ)`;
+            else if (mc > 0) typeText = `Thi Trắc nghiệm (${mc}đ)`;
+            else if (tl > 0) typeText = `Thi Tự luận (${tl}đ)`;
+            else typeText = 'Thi';
+        } else typeText = 'Tự luận';
+
+        if (assign.hideEssayText && assign.assessmentType !== 'trac_nghiem' && !(assign.assessmentType === 'thi' && (assign.essayWeight || 0) === 0)) {
             typeText += ' 📁 [Chỉ nhận Tệp]';
         }
         let fileHTML = '';
@@ -1039,7 +1120,8 @@ window.openEditAssignmentModal = async function (fbKey) {
         if (weightSec) weightSec.style.display = 'none';
 
         // 2. Xử lý phần Tự Luận
-        if (assign.assessmentType === 'tu_luan' || assign.assessmentType === 'ket_hop' || !assign.assessmentType) {
+        const hasEssay = assign.assessmentType === 'tu_luan' || assign.assessmentType === 'ket_hop' || !assign.assessmentType || (assign.assessmentType === 'thi' && assign.essayWeight > 0);
+        if (hasEssay) {
             if (tuLuanSec) tuLuanSec.style.display = 'block';
             if (document.getElementById('editDesc')) document.getElementById('editDesc').value = assign.desc || '';
             if (document.getElementById('editVideoLink')) document.getElementById('editVideoLink').value = assign.videoLink || '';
@@ -1048,15 +1130,16 @@ window.openEditAssignmentModal = async function (fbKey) {
             }
         }
 
-        // 3. Xử lý phần Điểm số (Bài kết hợp)
-        if (assign.assessmentType === 'ket_hop') {
+        // 3. Xử lý phần Điểm số
+        if (assign.assessmentType === 'ket_hop' || assign.assessmentType === 'thi') {
             if (weightSec) weightSec.style.display = 'block';
-            if (document.getElementById('editMcWeight')) document.getElementById('editMcWeight').value = assign.mcWeight || 4;
-            if (document.getElementById('editEssayWeight')) document.getElementById('editEssayWeight').value = assign.essayWeight || 6;
+            if (document.getElementById('editMcWeight')) document.getElementById('editMcWeight').value = assign.mcWeight || '';
+            if (document.getElementById('editEssayWeight')) document.getElementById('editEssayWeight').value = assign.essayWeight || '';
         }
 
-        // 4. Xử lý phần Trắc Nghiệm (Load câu hỏi cũ)
-        if (assign.assessmentType === 'trac_nghiem' || assign.assessmentType === 'ket_hop') {
+        // 4. Xử lý phần Trắc Nghiệm
+        const hasMC = assign.assessmentType === 'trac_nghiem' || assign.assessmentType === 'ket_hop' || (assign.assessmentType === 'thi' && assign.mcWeight > 0);
+        if (hasMC) {
             if (tracNghiemSec) tracNghiemSec.style.display = 'block';
             const qContainer = document.getElementById('editQuestionsContainer');
             if (qContainer) {
@@ -1068,6 +1151,8 @@ window.openEditAssignmentModal = async function (fbKey) {
                 }
             }
         }
+
+        if(assign.assessmentType === 'thi') window.updateEditExamFields();
 
         document.getElementById('editAssignmentModal').classList.add('active');
     } catch (err) {
@@ -1169,21 +1254,35 @@ window.saveAssignmentEdit = async function () {
     }
 
     // Thu thập dữ liệu Điểm số
-    if (assign.assessmentType === 'ket_hop') {
-        const mcWeight = parseFloat(document.getElementById('editMcWeight').value);
-        const essayWeight = parseFloat(document.getElementById('editEssayWeight').value);
+    if (assign.assessmentType === 'ket_hop' || assign.assessmentType === 'thi') {
+        const mcWeight = parseFloat(document.getElementById('editMcWeight').value) || 0;
+        const essayWeight = parseFloat(document.getElementById('editEssayWeight').value) || 0;
 
-        if (isNaN(mcWeight) || isNaN(essayWeight) || (mcWeight + essayWeight !== 10)) {
+        if (assign.assessmentType === 'ket_hop' && (mcWeight + essayWeight !== 10)) {
             return alert("Tổng điểm tối đa của Trắc nghiệm và Tự luận phải bằng 10!");
+        }
+        if (assign.assessmentType === 'thi' && mcWeight === 0 && essayWeight === 0) {
+            return alert("Vui lòng nhập điểm cho ít nhất Trắc nghiệm hoặc Tự luận!");
         }
         updateObj.mcWeight = mcWeight;
         updateObj.essayWeight = essayWeight;
     }
 
+    // Thu thập dữ liệu Tự Luận
+    const hasEssay = assign.assessmentType === 'tu_luan' || assign.assessmentType === 'ket_hop' || (assign.assessmentType === 'thi' && updateObj.essayWeight > 0);
+    if (hasEssay) {
+        updateObj.desc = document.getElementById('editDesc').value;
+        updateObj.videoLink = document.getElementById('editVideoLink').value.trim();
+        updateObj.hideEssayText = document.getElementById('editHideEssayText') ? document.getElementById('editHideEssayText').checked : false;
+    } else if (assign.assessmentType === 'thi') {
+        updateObj.desc = '';
+        updateObj.hideEssayText = false;
+    }
+
     // Thu thập dữ liệu Trắc Nghiệm
-    if (assign.assessmentType === 'trac_nghiem' || assign.assessmentType === 'ket_hop') {
+    const hasMC = assign.assessmentType === 'trac_nghiem' || assign.assessmentType === 'ket_hop' || (assign.assessmentType === 'thi' && updateObj.mcWeight > 0);
+    if (hasMC) {
         const editedQuestions = [];
-        // Thay đổi phần lấy dữ liệu trong hàm lưu (saveAssignmentEdit):
         document.querySelectorAll('.edit-question-block').forEach((block) => {
             const correctRadio = block.querySelector('.eq-correct-radio:checked');
             const oldCorrectSelect = block.querySelector('.eq-correct');
@@ -1206,6 +1305,8 @@ window.saveAssignmentEdit = async function () {
             }
         }
         updateObj.questions = editedQuestions;
+    } else if (assign.assessmentType === 'thi') {
+        updateObj.questions = [];
     }
 
     // Đẩy lên Firebase
