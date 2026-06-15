@@ -163,9 +163,11 @@ function getEmbedHTML(url) {
 
     if (videoId) {
         let embedUrl = `https://www.youtube.com/embed/${videoId}`;
-        return `<div class="video-wrapper"><iframe width="100%" height="315" src="${embedUrl}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div>`;
+        // Thêm loading="lazy" vào thẻ iframe
+        return `<div class="video-wrapper"><iframe width="100%" height="315" src="${embedUrl}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy"></iframe></div>`;
     }
-    return `<div class="video-wrapper"><iframe width="100%" height="315" src="${url}" frameborder="0" allowfullscreen></iframe></div>`;
+    // Thêm loading="lazy" vào thẻ iframe dự phòng
+    return `<div class="video-wrapper"><iframe width="100%" height="315" src="${url}" frameborder="0" allowfullscreen loading="lazy"></iframe></div>`;
 }
 
 // Hàm tự động ẩn/hiện giao diện tạo câu hỏi khi nhập điểm Thi
