@@ -270,7 +270,20 @@ async function loadAssignments() {
 
         // NẾU ĐÃ NỘP VÀ KHÔNG TRONG TRẠNG THÁI LÀM LẠI VÀ KHÔNG NẰM TRONG 5 PHÚT HIỂN THỊ TRỄ -> Bảng điểm
         if (mySub && !isRedoing && !isGracePeriod) {
-            let typeText = assign.assessmentType === 'trac_nghiem' ? 'Trắc nghiệm' : (assign.assessmentType === 'ket_hop' ? 'Kết hợp' : 'Tự luận');
+            let typeText = '';
+            if (assign.assessmentType === 'trac_nghiem') typeText = 'Trắc nghiệm';
+            else if (assign.assessmentType === 'ket_hop') typeText = 'Kết hợp';
+            else if (assign.assessmentType === 'thi') typeText = 'Thi (Nghiêm ngặt)';
+            else typeText = 'Tự luận';
+            
+            let statusText = `Đã hoàn thành (${typeText})`;
+            
+            let violationHTML = '';
+            if (mySub.isCheatFail) {
+                violationHTML = `<div style="background: rgba(225, 29, 72, 0.1); border-left: 4px solid #e11d48; padding: 15px; margin-top: 15px; border-radius: 8px;"><h4 style="color: #e11d48; margin: 0 0 5px 0;">🚨 BÀI THI VI PHẠM QUY CHẾ</h4><p style="margin: 0; color: #b91c1c;">Hệ thống ghi nhận bạn đã tự ý thoát khỏi chế độ Toàn màn hình trong quá trình làm bài. Bài thi đã bị thu tự động và đánh dấu vi phạm vi chế nghiêm trọng.</p></div>`;
+                statusText = `<span style="color: #e11d48; font-weight: bold;">❌ Vi phạm quy chế thi</span>`;
+            }
+
             let teacherFileHTML = '';
             if (assign.file && assign.assessmentType !== 'trac_nghiem') {
                 let aFiles = Array.isArray(assign.file) ? assign.file : [assign.file];
@@ -300,8 +313,6 @@ async function loadAssignments() {
             let teacherCommentHTML = mySub.teacherComment ? `<div style="background: rgba(253, 203, 110, 0.15); border-left: 4px solid #fdcb6e; padding: 15px; border-radius: 12px; margin-top: 15px;"><p style="margin: 0; color: #d35400;"><strong>💬 Lời nhận xét của Giáo viên:</strong></p><p style="margin-top: 5px; color: #444; white-space: pre-wrap;">${mySub.teacherComment}</p></div>` : '';
 
             let gradeDisplay = 'Chưa chấm';
-            let statusText = `Đã hoàn thành (${typeText})`;
-
             if (mySub.isRegrading) {
                 gradeDisplay = `<span style="color: #e11d48; font-weight: bold;">⚠️ Đang chấm lại (Đã thu hồi)</span>`;
                 statusText = `<span style="color: #e11d48; font-weight: bold;">🔄 Đang được chấm lại...</span>`;
@@ -314,7 +325,7 @@ async function loadAssignments() {
             const uniqueId = `student-done-${assign.id}`;
             const div = document.createElement('div'); div.className = 'card accordion-card';
             div.innerHTML = `<div class="accordion-header" onclick="toggleAccordion('${uniqueId}', this)"><div class="accordion-title"><h4>${assign.title}</h4><span>${statusText}</span></div><div class="accordion-meta"><span>Điểm: <strong style="${(mySub.grade !== null && mySub.grade !== undefined && mySub.grade !== '' && !mySub.isRegrading) ? 'color:#059669;' : 'color:#d35400;'}">${gradeDisplay}</strong></span><span class="toggle-icon">▼</span></div></div>
-                <div id="${uniqueId}" class="accordion-content"><div class="assignment-meta"><p>🕒 <strong>Bạn đã nộp lúc:</strong> ${mySub.submitTime || 'Không rõ'}</p></div>${videoHTML}<div style="background: rgba(255,255,255,0.5); padding: 15px; border-radius: 12px; margin-top: 15px;"><strong>Nội dung bài làm của bạn:</strong><br><p style="margin-top: 5px; color: ${mySub.isAutoSubmitted ? '#e74c3c' : '#444'}; white-space: pre-wrap;">${mySub.answer || '<i>(Không có)</i>'}</p>${myFileHTML}</div>${teacherFileHTML}${gradedFileHTML}${teacherCommentHTML}${viewQuestionsBtnHTML}</div>`;
+                <div id="${uniqueId}" class="accordion-content"><div class="assignment-meta"><p>🕒 <strong>Bạn đã nộp lúc:</strong> ${mySub.submitTime || 'Không rõ'}</p></div>${violationHTML}${videoHTML}<div style="background: rgba(255,255,255,0.5); padding: 15px; border-radius: 12px; margin-top: 15px;"><strong>Nội dung bài làm của bạn:</strong><br><p style="margin-top: 5px; color: ${mySub.isAutoSubmitted ? '#e74c3c' : '#444'}; white-space: pre-wrap;">${mySub.answer || '<i>(Không có)</i>'}</p>${myFileHTML}</div>${teacherFileHTML}${gradedFileHTML}${teacherCommentHTML}${viewQuestionsBtnHTML}</div>`;
             grades.appendChild(div);
         }
         // NẾU CHƯA NỘP HOẶC ĐANG LÀM LẠI HOẶC ĐANG TRONG 5 PHÚT TRỄ
@@ -564,7 +575,7 @@ window.viewAssignmentQuestions = async function (assignId) {
     modal.style.display = 'flex';
 };
 
-async function submitAssignment(assignId, isAuto = false) {
+async function submitAssignment(assignId, isAuto = false, isCheat = false) {
     if (currentUser.isLocked && !isAuto) return alert("🔒 LỖI: Tài khoản đang bị khóa tạm thời!");
 
     const assignments = await getDB('assignments');
@@ -655,7 +666,8 @@ async function submitAssignment(assignId, isAuto = false) {
     }
 
     let finalAnswerText = "";
-    if (isAuto) finalAnswerText += "⚠️ [HỆ THỐNG TỰ ĐỘNG THU BÀI DO HẾT GIỜ LÀM]\n\n";
+    if (isCheat) finalAnswerText += "🚨 [HỆ THỐNG TỰ ĐỘNG THU BÀI DO VI PHẠM QUY CHẾ - TỰ Ý THOÁT TOÀN MÀN HÌNH]\n\n";
+    else if (isAuto) finalAnswerText += "⚠️ [HỆ THỐNG TỰ ĐỘNG THU BÀI DO HẾT GIỜ LÀM]\n\n";
     if (mcText) finalAnswerText += `[PHẦN TRẮC NGHIỆM]\n${mcText}\n\n`;
     if (answer) finalAnswerText += `[PHẦN TỰ LUẬN]\n${answer}`;
 
@@ -676,7 +688,8 @@ async function submitAssignment(assignId, isAuto = false) {
             submitTime: submitNow.toLocaleTimeString('vi-VN') + ' ' + submitNow.toLocaleDateString('vi-VN'),
             file: finalFile,
             teacherFile: null,
-            isAutoSubmitted: isAuto,
+            isAutoSubmitted: isAuto || isCheat, // Vẫn giữ cờ auto để khóa các thao tác khác
+            isCheatFail: isCheat, // Đẩy cờ vi phạm lên Database
             isRedoing: false
         };
 
@@ -2337,11 +2350,10 @@ window.startExamFullscreen = async function() {
 
 // Lắng nghe sự kiện học sinh "vượt rào" thoát toàn màn hình
 document.addEventListener('fullscreenchange', () => {
-    // Nếu màn hình không còn ở chế độ Fullscreen và bài thi vẫn đang đếm
     if (!document.fullscreenElement && window.currentActiveExamId) {
         alert("⚠️ VI PHẠM BẢO MẬT: Bạn đã thoát chế độ toàn màn hình! Hệ thống tự động thu bài ngay lập tức.");
-        // Gắn cờ true để Auto-submit
-        submitAssignment(window.currentActiveExamId, true);
+        // Gắn cờ true thứ nhất cho isAuto, true thứ hai cho isCheat
+        submitAssignment(window.currentActiveExamId, true, true);
         window.currentActiveExamId = null; 
     }
 });

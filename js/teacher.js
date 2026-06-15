@@ -606,13 +606,18 @@ async function loadSubmissions() {
             actionHTML += pardonHTML; // Thêm nút tha lỗi
         }
 
+        let violationHTML = '';
+        if (sub.isCheatFail) {
+            violationHTML = `<div style="background: rgba(225, 29, 72, 0.1); border-left: 4px solid #e11d48; padding: 10px; margin-top: 10px; margin-bottom: 10px; border-radius: 8px;"><strong style="color: #e11d48;">🚨 HỌC SINH VI PHẠM QUY CHẾ THI:</strong><br><span style="color:#b91c1c; font-size:0.9em;">Hệ thống phát hiện học sinh này đã tự ý thoát khỏi chế độ Toàn màn hình trong lúc thi.</span></div>`;
+        }
+
         const uniqueId = `teacher-sub-${sub.id}`;
         const div = document.createElement('div'); div.className = 'card accordion-card';
         div.innerHTML = `<div class="accordion-header" onclick="toggleAccordion('${uniqueId}', this)">
                 <div class="accordion-title"><h4>${assign.title}</h4><span>HS: <strong>${sub.studentName}</strong></span></div>
                 <div class="accordion-meta"><span>${gradeStatus}</span><span class="toggle-icon">▼</span></div>
             </div>
-            <div id="${uniqueId}" class="accordion-content"><span style="color: #888; font-size: 0.85em; display: block; margin-bottom: 10px;">🕒 Lần nộp cuối: ${sub.submitTime || 'Chưa rõ'}</span>${videoHTML}
+            <div id="${uniqueId}" class="accordion-content">${violationHTML}<span style="color: #888; font-size: 0.85em; display: block; margin-bottom: 10px;">🕒 Lần nộp cuối: ${sub.submitTime || 'Chưa rõ'}</span>${videoHTML}
                 <div style="background: rgba(255,255,255,0.4); padding: 15px; border-radius: 12px; margin-bottom: 15px;">
                     <p style="margin: 0; font-weight: bold;">Bài nộp:</p>
                     <p style="white-space: pre-wrap; word-break: break-word; margin-top:5px;">${sub.answer || '<i>(Trống)</i>'}</p>
@@ -789,13 +794,14 @@ window.requestRedo = async function (subKey) {
     }
 }
 
-// ================= HÀM THA LỖI NỘP TRỄ =================
+// ================= HÀM THA LỖI NỘP TRỄ / VI PHẠM =================
 window.pardonSubmission = async function (subKey) {
-    if (confirm("Bạn có chắc chắn muốn tha lỗi nộp trễ cho bài này?\n\nHệ thống sẽ gỡ bỏ án phạt, bài làm sẽ được tính điểm và cộng tiền Lộ trình như bình thường.")) {
-        // Ghi đè 2 cờ phạt thành false
+    if (confirm("Bạn có chắc chắn muốn tha lỗi cho bài này?\n\nHệ thống sẽ gỡ bỏ án phạt, bài làm sẽ được tính điểm và cộng tiền Lộ trình như bình thường.")) {
+        // Ghi đè các cờ phạt thành false
         await updateDB('submissions', subKey, {
             isLateFail: false,
-            isAutoSubmitted: false
+            isAutoSubmitted: false,
+            isCheatFail: false
         });
         alert("✨ Đã tha lỗi thành công! Lộ trình của học sinh đã được cập nhật lại theo điểm số thực tế.");
     }
@@ -993,14 +999,14 @@ async function renderTeacherRoadmap() {
                     studentScore = (sub.grade !== null && sub.grade !== undefined && sub.grade !== '') ? parseFloat(sub.grade) : '0';
                     pardonBtnHTML = `<br><button onclick="pardonRoadmap('${sub._fbKey}', 'unpardon')" style="margin-top:6px; padding:3px 8px; font-size:0.8em; background:#6b7280; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; width:100%;">Hủy Tha</button>`;
                 }
-                // TRƯỜNG HỢP 2: BỊ HỆ THỐNG TỰ THU HOẶC GHIM CỜ NỘP TRỄ
-                else if (sub.isAutoSubmitted || sub.isLateFail) {
-                    statusText = 'Loại';
+                // TRƯỜNG HỢP 2: BỊ HỆ THỐNG TỰ THU, NỘP TRỄ HOẶC VI PHẠM
+                else if (sub.isAutoSubmitted || sub.isLateFail || sub.isCheatFail) {
+                    statusText = sub.isCheatFail ? 'Loại (Vi phạm)' : 'Loại';
                     statusClass = 'status-pending';
                     cellBgStyle = 'background: rgba(225, 29, 72, 0.2) !important; color: #b91c1c; font-weight: bold; border-radius: 8px;';
                     studentScore = (sub.grade !== null && sub.grade !== undefined && sub.grade !== '') ? parseFloat(sub.grade) : '0';
-                    moneyInputHTML = `<strong style="color: #e11d48; font-size: 1.1em;">0 đ</strong> <span style="font-size:0.75em; color:#666; display:block;">(Nộp trễ)</span>`;
-                    pardonBtnHTML = `<br><button onclick="pardonRoadmap('${sub._fbKey}', 'late')" style="margin-top:6px; padding:3px 8px; font-size:0.8em; background:#10b981; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; width:100%;">✨ Tha trễ</button>`;
+                    moneyInputHTML = `<strong style="color: #e11d48; font-size: 1.1em;">0 đ</strong> <span style="font-size:0.75em; color:#666; display:block;">(Bị loại)</span>`;
+                    pardonBtnHTML = `<br><button onclick="pardonRoadmap('${sub._fbKey}', 'late')" style="margin-top:6px; padding:3px 8px; font-size:0.8em; background:#10b981; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; width:100%;">✨ Tha lỗi</button>`;
                 }
                 else if (sub.isRegrading) {
                     statusText = 'Chấm lại';
@@ -1073,9 +1079,9 @@ window.updateAssignmentRoadmap = async function (fbKey, field, value) {
 // ================= HÀM THA LỖI TRÊN GIAO DIỆN LỘ TRÌNH =================
 window.pardonRoadmap = async function (subKey, mode) {
     if (mode === 'late') {
-        if (confirm("Xác nhận tha lỗi nộp trễ cho học sinh?\n\nHệ thống sẽ gỡ bỏ án phạt quá hạn, bài làm sẽ quay về tính trạng thái theo điểm số thực tế.")) {
-            await updateDB('submissions', subKey, { isLateFail: false, isAutoSubmitted: false });
-            alert("✨ Đã tha lỗi nộp trễ thành công!");
+        if (confirm("Xác nhận tha lỗi nộp trễ / vi phạm cho học sinh?\n\nHệ thống sẽ gỡ bỏ án phạt, bài làm sẽ quay về tính trạng thái theo điểm số thực tế.")) {
+            await updateDB('submissions', subKey, { isLateFail: false, isAutoSubmitted: false, isCheatFail: false });
+            alert("✨ Đã tha lỗi thành công!");
         }
     }
     else if (mode === 'score') {
