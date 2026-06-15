@@ -132,14 +132,20 @@ window.toggleAssessmentFields = function () {
     const type = document.getElementById('assessmentType').value;
     const tuLuan = document.getElementById('tuLuanFields');
     const tracNghiem = document.getElementById('tracNghiemFields');
-    const scoreDist = document.getElementById('scoreDistributionFields'); // Thêm dòng này
+    const scoreDist = document.getElementById('scoreDistributionFields');
+    const videoGroup = document.getElementById('videoLinkGroup'); // Gọi div chứa video
 
     if (type === 'tu_luan') {
         tuLuan.style.display = 'block'; tracNghiem.style.display = 'none'; scoreDist.style.display = 'none';
+        if (videoGroup) videoGroup.style.display = 'block';
     } else if (type === 'trac_nghiem') {
         tuLuan.style.display = 'none'; tracNghiem.style.display = 'block'; scoreDist.style.display = 'none';
-    } else {
-        tuLuan.style.display = 'block'; tracNghiem.style.display = 'block'; scoreDist.style.display = 'block'; // Hiện chia điểm
+    } else if (type === 'ket_hop') {
+        tuLuan.style.display = 'block'; tracNghiem.style.display = 'block'; scoreDist.style.display = 'block';
+        if (videoGroup) videoGroup.style.display = 'block';
+    } else if (type === 'thi') {
+        tuLuan.style.display = 'block'; tracNghiem.style.display = 'block'; scoreDist.style.display = 'block';
+        if (videoGroup) videoGroup.style.display = 'none'; // Ẩn hoàn toàn mục video
     }
 };
 
@@ -194,9 +200,9 @@ async function createAssignment() {
     let mcWeight = null, essayWeight = null;
     let hideEssayText = false; // Thêm biến cờ trạng thái này
 
-    if (type === 'tu_luan' || type === 'ket_hop') {
+    if (type === 'tu_luan' || type === 'ket_hop' || type === 'thi') {
         desc = document.getElementById('desc').value;
-        videoLink = document.getElementById('videoLink').value.trim();
+        videoLink = (type === 'thi') ? '' : document.getElementById('videoLink').value.trim();
         hideEssayText = document.getElementById('hideEssayText').checked;
 
         // Đọc toàn bộ file đính kèm ngay tại lúc bấm nút Phát hành
@@ -209,7 +215,7 @@ async function createAssignment() {
             attachedFile = null;
         }
     }
-    if (type === 'trac_nghiem' || type === 'ket_hop') {
+    if (type === 'trac_nghiem' || type === 'ket_hop' || type === 'thi') {
         // Thay đoạn lấy dữ liệu cũ thành:
         document.querySelectorAll('.question-block').forEach((block) => {
             const correctRadio = block.querySelector('.q-correct-radio:checked');
@@ -232,7 +238,7 @@ async function createAssignment() {
     }
     if (!title || !startDate || !endDate) return alert("Vui lòng điền đủ Tiêu đề và Thời hạn!");
 
-    if (type === 'ket_hop') {
+    if (type === 'ket_hop' || type === 'thi') {
         mcWeight = parseFloat(document.getElementById('mcWeight').value);
         essayWeight = parseFloat(document.getElementById('essayWeight').value);
         if (mcWeight + essayWeight !== 10) return alert("Tổng điểm Trắc nghiệm và Tự luận phải đúng bằng 10!");
@@ -2270,13 +2276,13 @@ window.addSurveyQuestion = function (type) {
 window.removeSurveyQuestion = function (btnElement) {
     // Xóa khối câu hỏi hiện tại trên giao diện
     btnElement.closest('.survey-q-block').remove();
-    
+
     // Tìm tất cả các câu hỏi còn lại trên màn hình
     const remaining = document.querySelectorAll('.survey-q-block');
-    
+
     // Cập nhật lại biến đếm tổng
     surveyQCount = remaining.length;
-    
+
     // Chạy vòng lặp để đổi lại tên "Câu 1, Câu 2..." cho đúng thứ tự
     remaining.forEach((block, index) => {
         const label = block.querySelector('strong');
@@ -2493,7 +2499,7 @@ window.toggleGiftInput = function () {
     } else {
         area.style.display = 'block';
         // Thêm 'ticket' vào điều kiện này
-        if (type === 'coin' || type === 'money' || type === 'ticket') { 
+        if (type === 'coin' || type === 'money' || type === 'ticket') {
             numInput.style.display = 'block';
             itemInput.style.display = 'none';
         } else if (type === 'item') {

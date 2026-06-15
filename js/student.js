@@ -371,7 +371,7 @@ async function loadAssignments() {
                 }
 
                 let quizHTML = '';
-                if ((assign.assessmentType === 'trac_nghiem' || assign.assessmentType === 'ket_hop') && assign.questions) {
+                if ((assign.assessmentType === 'trac_nghiem' || assign.assessmentType === 'ket_hop' || assign.assessmentType === 'thi') && assign.questions) {
                     let noticeHTML = assign.assessmentType === 'ket_hop' ? `<div class="glass-alert" style="padding: 10px; margin-bottom: 15px; border-left-color: #764ba2;"><strong>⚖️ Thang điểm bài này:</strong> Trắc nghiệm (${assign.mcWeight || 5}đ) - Tự luận (${assign.essayWeight || 5}đ)</div>` : '';
                     quizHTML = noticeHTML + '<div style="background: rgba(255,255,255,0.6); padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid rgba(255,255,255,0.9);"><h4 style="color: #d35400; margin-bottom: 10px;">Phần Trắc Nghiệm</h4>';
 
@@ -397,7 +397,7 @@ async function loadAssignments() {
                 let teacherFileHTML = '';
                 let tuLuanInputHTML = '';
 
-                if (assign.assessmentType === 'tu_luan' || assign.assessmentType === 'ket_hop' || !assign.assessmentType) {
+                if (assign.assessmentType === 'tu_luan' || assign.assessmentType === 'ket_hop' || assign.assessmentType === 'thi' || !assign.assessmentType) {
                     videoHTML = assign.videoLink ? getEmbedHTML(assign.videoLink) : '';
                     descHTML = assign.desc ? `<div class="assignment-desc"><strong>Yêu cầu bài tập:</strong> <br>${(assign.desc || '').replace(/\n/g, '<br>')}</div>` : '';
                     if (assign.file) {
@@ -436,18 +436,37 @@ async function loadAssignments() {
 
                 const uniqueId = `student-todo-${assign.id}`;
                 const div = document.createElement('div'); div.className = 'card submit-box accordion-card';
+
+                // --- BẮT ĐẦU CẬP NHẬT GIAO DIỆN BÀI THI ---
+                let assignmentContentRaw = `
+                    ${videoHTML}
+                    ${quizHTML}
+                    ${descHTML}
+                    ${teacherFileHTML}
+                    ${tuLuanInputHTML}
+                    ${submitBtnHTML}
+                `;
+
+                if (assign.assessmentType === 'thi') {
+                    assignmentContentRaw = `
+                        <div id="exam-wrapper-${assign.id}" style="text-align: center; padding: 30px;">
+                            <button class="btn-approve" style="background: linear-gradient(135deg, #e11d48 0%, #ff4d4d 100%); color: white; font-size: 1.2em; padding: 15px 30px; border-radius: 50px; border: none; cursor: pointer; box-shadow: 0 5px 15px rgba(225, 29, 72, 0.4);" onclick="showExamWarning('${assign.id}')">🚀 Bắt đầu bài thi</button>
+                        </div>
+                        <div id="exam-content-${assign.id}" style="display: none;">
+                            ${assignmentContentRaw}
+                        </div>
+                    `;
+                }
+
                 div.innerHTML = `<div class="accordion-header" onclick="toggleAccordion('${uniqueId}', this)"><div class="accordion-title"><h4>${assign.title}</h4></div><div class="accordion-meta"><span>Hạn nộp: <strong style="color: #d35400;">${assign.endDate}</strong></span><span class="toggle-icon">▼</span></div></div>
                     <div id="${uniqueId}" class="accordion-content">
                         ${redoNotice}
                         <div class="assignment-meta"><p>📅 <strong>Từ:</strong> ${assign.startDate} <strong>đến</strong> ${assign.endDate}</p>${countdownHTML}</div>
-                        ${videoHTML}
-                        ${quizHTML}
-                        ${descHTML}
-                        ${teacherFileHTML}
-                        ${tuLuanInputHTML}
-                        ${submitBtnHTML}
+                        ${assignmentContentRaw}
                     </div>`;
+
                 list.appendChild(div);
+                // --- KẾT THÚC CẬP NHẬT GIAO DIỆN BÀI THI ---
 
                 if (!isRedoing || (isRedoing && now <= endTime)) {
                     const timer = setInterval(() => {
@@ -671,6 +690,15 @@ async function submitAssignment(assignId, isAuto = false) {
             payload.id = Date.now().toString() + Math.floor(Math.random() * 1000);
             await pushDB('submissions', payload);
         }
+
+        // --- BỔ SUNG ĐOẠN NÀY ĐỂ THOÁT TOÀN MÀN HÌNH SAU KHI NỘP ---
+        if (window.currentActiveExamId === assignId) {
+            window.currentActiveExamId = null;
+            if (document.fullscreenElement) {
+                document.exitFullscreen().catch(err => console.log(err));
+            }
+        }
+        // -----------------------------------------------------------
 
         if (!isAuto) alert("Nộp bài tập thành công!");
     };
@@ -1106,7 +1134,7 @@ async function readMultipleFiles(files) {
 let isSpinning = false;
 
 // HÀM DÙNG CHUNG: Tính vé chính xác (Vé từ điểm + Vé quà tặng - Số lần đã quay)
-window.calculateTotalTickets = async function() {
+window.calculateTotalTickets = async function () {
     const submissions = await getDB('submissions');
     const mySubs = submissions.filter(s => s.studentUsername === currentUser.username && s.grade !== null && s.grade !== undefined && s.grade !== '');
 
@@ -1335,9 +1363,9 @@ window.spinMultipleWheel = async function () {
 
     // Hỏi học sinh muốn quay bao nhiêu lần
     let inputStr = prompt(`⚡ NHẬP SỐ LẦN QUAY NHANH:\n(Bạn đang có ${ticketData.remaining} vé. Có thể quay nhanh tối đa ${maxSpins} lần)`, maxSpins);
-    
+
     if (inputStr === null) return; // Nhấn Hủy
-    
+
     let spinsToDo = parseInt(inputStr);
     if (isNaN(spinsToDo) || spinsToDo < 2 || spinsToDo > maxSpins) {
         alert(`❌ Số lượng không hợp lệ! Vui lòng nhập số từ 2 đến ${maxSpins}.`);
@@ -1363,10 +1391,10 @@ window.spinMultipleWheel = async function () {
     // Chạy ngầm thuật toán quay y hệt hàm spinWheel gốc
     const cotichItems = (typeof StoreConfig !== 'undefined') ? StoreConfig.items.filter(i => i.tag && i.tag.toLowerCase() === 'cổ tích') : [];
     let currentOwned = typeof studentOwnedItems !== 'undefined' ? [...studentOwnedItems] : [];
-    
+
     let totalCoinsWon = 0;
     let missCount = 0;
-    let newlyWonItems = []; 
+    let newlyWonItems = [];
     let newlyWonItemNames = [];
     let duplicateItemsCount = 0;
 
@@ -1380,7 +1408,7 @@ window.spinMultipleWheel = async function () {
         else if (rand < (cumulative += p.c100)) { totalCoinsWon += 100; }
         else if (rand < (cumulative += p.c150)) { totalCoinsWon += 150; }
         else if (rand < (cumulative += p.c500)) { totalCoinsWon += 500; }
-        else { 
+        else {
             // Trúng Quà bí ẩn
             if (cotichItems.length > 0) {
                 const randomItem = cotichItems[Math.floor(Math.random() * cotichItems.length)];
@@ -1388,12 +1416,12 @@ window.spinMultipleWheel = async function () {
                     totalCoinsWon += 600; // Đền bù 600 Coin
                     duplicateItemsCount++;
                 } else {
-                    currentOwned.push(randomItem.id); 
+                    currentOwned.push(randomItem.id);
                     newlyWonItems.push(randomItem);
                     newlyWonItemNames.push(randomItem.name);
                 }
             } else {
-                totalCoinsWon += 600; 
+                totalCoinsWon += 600;
             }
         }
     }
@@ -1437,10 +1465,10 @@ window.spinMultipleWheel = async function () {
         resultText.style.transform = 'scale(1.1)';
         resultText.style.color = (totalCoinsWon > 0 || newlyWonItems.length > 0) ? '#ffd700' : '#ff4757';
         resultText.innerText = displayStr;
-        
+
         setTimeout(() => { resultText.style.transform = 'scale(1)'; }, 300);
         isSpinning = false;
-        
+
         if (typeof studentOwnedItems !== 'undefined' && newlyWonItems.length > 0) {
             newlyWonItems.forEach(item => studentOwnedItems.push(item.id));
         }
@@ -1449,7 +1477,7 @@ window.spinMultipleWheel = async function () {
         if (quickSpinBtn) {
             quickSpinBtn.style.display = (ticketData.remaining - spinsToDo) > 1 ? 'block' : 'none';
         }
-    }, 1500); 
+    }, 1500);
 };
 
 // 2. Logic Kéo - Thả (Drag & Drop) Widget
