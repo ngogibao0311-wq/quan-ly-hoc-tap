@@ -32,6 +32,9 @@ class EffectManager {
             case 'effect_banngay_bautroi':
                 this.createSummerSkyEffect();
                 break;
+            case 'effect_cotich_tinhlinh':
+                this.createFairyRainEffect();
+                break;
         }
         localStorage.setItem('active_effect', effectId);
     }
@@ -219,5 +222,33 @@ class EffectManager {
             }
 
         }, 1000); // Mỗi giây quét 1 lần
+    }
+
+    static createFairyRainEffect() {
+        this.currentInterval = setInterval(() => {
+            const particle = document.createElement('div');
+            // Gọi đúng class CSS đã có trong file store-items.css
+            particle.classList.add('effect-cotich-tinhlinh');
+
+            // Random vị trí xuất phát theo chiều ngang
+            particle.style.left = Math.random() * 100 + 'vw';
+
+            // Random kích thước hạt (từ 4px đến 8px) để tạo chiều sâu 3D
+            let size = Math.random() * 4 + 4;
+            particle.style.width = `${size}px`;
+            particle.style.height = `${size}px`;
+
+            // Random tốc độ rơi (từ 5s đến 8s) để rơi tự nhiên, dập dềnh
+            let duration = Math.random() * 3 + 5;
+            particle.style.animationDuration = duration + 's';
+
+            this.container.appendChild(particle);
+
+            // Xóa hạt sau khi rơi xong để không làm nặng web
+            setTimeout(() => {
+                particle.remove();
+            }, duration * 1000);
+
+        }, 200); // Tốc độ sinh hạt: 0.2s tạo ra 1 hạt
     }
 }
