@@ -20,6 +20,12 @@ class PetInteractionManager {
             name: '🐕 Cún Shiba', 
             desc: 'Nhấn 1 lần: Vuốt ve. Nhấn đúp: Ném xương. Lưu ý: Cần cho cún ăn để có sức chạy nhảy!', 
             price: 250 
+        },
+        { 
+            id: 'pet_doisong_bandem', 
+            name: '🌌 Mèo Đêm Đầy Sao', 
+            desc: 'Nhấn 1 lần: Vuốt ve. Nhấn đúp: Cho ăn cá. Tốc độ di chuyển lẹ làng và ngủ nướng gấp 3 lần!', 
+            price: 350 
         }
     ];
 
@@ -133,10 +139,18 @@ class PetInteractionManager {
             } else {
                 if (this.isSleeping) {
                     this.sleepTime++;
-                    if (this.sleepTime >= 5) {
+                    
+                    // --- BẮT ĐẦU ĐOẠN MỚI THÊM CHO MÈO ---
+                    // Lấy ID pet hiện tại để xét thời gian ngủ
+                    const activePetId = localStorage.getItem('active_pet');
+                    const maxSleepTime = (activePetId === 'pet_doisong_bandem') ? 15 : 5; // Mèo ngủ 15s (gấp 3), pet khác ngủ 5s
+
+                    if (this.sleepTime >= maxSleepTime) {
                         this.setSleepState(false);
                         this.roam();
                     }
+                    // --- KẾT THÚC ĐOẠN MỚI THÊM ---
+                    
                 } else {
                     if (this.idleTime >= 10) {
                         this.setSleepState(true);
@@ -163,8 +177,16 @@ class PetInteractionManager {
             container.style.right = 'auto';
         }
 
-        const moveX = (Math.random() * 60) - 30; 
-        const moveY = (Math.random() * 40) - 20;
+        // Kiểm tra xem có phải là Mèo Đêm Đầy Sao không
+        const activePetId = localStorage.getItem('active_pet');
+        const isCat = activePetId === 'pet_doisong_bandem';
+
+        // Mèo nhảy quãng đường xa hơn một chút
+        const rangeX = isCat ? 100 : 60;
+        const rangeY = isCat ? 60 : 40;
+        
+        const moveX = (Math.random() * rangeX) - (rangeX / 2); 
+        const moveY = (Math.random() * rangeY) - (rangeY / 2);
 
         let newX = rect.left + moveX;
         let newY = rect.top + moveY;
@@ -176,13 +198,15 @@ class PetInteractionManager {
 
         petImg.style.transform = (moveX < 0) ? 'scaleX(-1)' : 'scaleX(1)';
 
-        container.style.transition = 'left 0.8s ease-in-out, top 0.8s ease-in-out';
+        // Tốc độ di chuyển: Mèo chạy mất 0.4s (nhanh gấp đôi), pet thường 0.8s
+        const speed = isCat ? '0.4s' : '0.8s';
+        container.style.transition = `left ${speed} ease-in-out, top ${speed} ease-in-out`;
         container.style.left = `${newX}px`;
         container.style.top = `${newY}px`;
 
         setTimeout(() => {
             if (!this.isPetDragging) container.style.transition = 'none';
-        }, 800);
+        }, isCat ? 400 : 800);
     }
 
     static setSleepState(isSleeping) {
@@ -190,22 +214,38 @@ class PetInteractionManager {
         this.isSleeping = isSleeping;
         const petImg = document.getElementById('virtual-pet-img');
         const container = document.getElementById('virtual-pet-container');
+        const activePetId = localStorage.getItem('active_pet');
         
         if (isSleeping) {
             this.sleepTime = 0;
             if (petImg) petImg.classList.add('pet-sleeping');
-            if (!document.getElementById('pet-zzz')) {
-                const zzz = document.createElement('div');
-                zzz.id = 'pet-zzz';
-                zzz.className = 'pet-zzz-particle';
-                zzz.innerText = 'Zzz';
-                container.appendChild(zzz);
+            
+            if (activePetId === 'pet_doisong_bandem') {
+                // Hiệu ứng tinh tú cho Mèo Đêm Đầy Sao
+                if (!document.getElementById('pet-sleep-stars')) {
+                    const stars = document.createElement('div');
+                    stars.id = 'pet-sleep-stars';
+                    stars.className = 'pet-sleep-stars-particle';
+                    stars.innerHTML = '✨🌟✨';
+                    container.appendChild(stars);
+                }
+            } else {
+                // Hiệu ứng Zzz mặc định cho các pet khác
+                if (!document.getElementById('pet-zzz')) {
+                    const zzz = document.createElement('div');
+                    zzz.id = 'pet-zzz';
+                    zzz.className = 'pet-zzz-particle';
+                    zzz.innerText = 'Zzz';
+                    container.appendChild(zzz);
+                }
             }
         } else {
             this.idleTime = 0;
             if (petImg) petImg.classList.remove('pet-sleeping');
             const zzz = document.getElementById('pet-zzz');
             if (zzz) zzz.remove();
+            const stars = document.getElementById('pet-sleep-stars');
+            if (stars) stars.remove();
         }
     }
 
@@ -393,7 +433,8 @@ class PetInteractionManager {
         const containerRect = container.getBoundingClientRect();
 
         const food = document.createElement('div');
-        food.innerText = '🦴';
+        const isCat = petData.id === 'pet_doisong_bandem';
+        food.innerText = isCat ? '🐟' : '🦴';
         food.className = 'pet-food-item';
         food.style.left = `${containerRect.left + (containerRect.width/2) - 15}px`;
         food.style.top = `${containerRect.top - 60}px`;

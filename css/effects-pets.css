@@ -786,3 +786,32 @@ input:checked + .slider:before {
             drop-shadow(0 15px 25px rgba(0,0,0,0.5)); 
     }
 }
+/* Ký hiệu Tinh Tú bay lên khi Mèo Đêm Đầy Sao ngủ */
+.pet-sleep-stars-particle {
+    position: absolute;
+    top: -15px;
+    right: -25px;
+    font-size: 16px;
+    letter-spacing: 2px;
+    pointer-events: none;
+    z-index: 10001;
+    animation: floatSleepStars 3s infinite ease-in-out;
+}
+
+@keyframes floatSleepStars {
+    0% { 
+        transform: translate(0, 0) scale(0.6) rotate(-10deg); 
+        opacity: 0; 
+        filter: drop-shadow(0 0 2px #fff); 
+    }
+    50% { 
+        opacity: 1; 
+        transform: translate(15px, -20px) scale(1.1) rotate(5deg); 
+        filter: drop-shadow(0 0 10px #f1c40f) drop-shadow(0 0 5px #fff); 
+    }
+    100% { 
+        transform: translate(30px, -40px) scale(0.8) rotate(15deg); 
+        opacity: 0; 
+        filter: drop-shadow(0 0 2px #fff); 
+    }
+}
