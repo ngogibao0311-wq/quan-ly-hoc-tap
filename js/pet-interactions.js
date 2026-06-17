@@ -2,7 +2,7 @@
 
 class PetInteractionManager {
     static isEnabled = localStorage.getItem('petInteractionsEnabled') !== 'false';
-    static unlockedInteractions = []; 
+    static unlockedInteractions = [];
 
     // --- CÁC CHỈ SỐ SINH TỒN ---
     static hunger = 100;
@@ -10,22 +10,22 @@ class PetInteractionManager {
     static idleTime = 0;
     static sleepTime = 0;
     static isSleeping = false;
-    static isBusy = false; 
-    static isPetDragging = false; 
+    static isBusy = false;
+    static isPetDragging = false;
     static loopInterval = null;
 
     static interactivePets = [
-        { 
-            id: 'pet_shiba', 
-            name: '🐕 Cún Shiba', 
-            desc: 'Nhấn 1 lần: Vuốt ve. Nhấn đúp: Ném xương. Lưu ý: Cần cho cún ăn để có sức chạy nhảy!', 
-            price: 250 
+        {
+            id: 'pet_shiba',
+            name: '🐕 Cún Shiba',
+            desc: 'Nhấn 1 lần: Vuốt ve. Nhấn đúp: Ném xương. Lưu ý: Cần cho cún ăn để có sức chạy nhảy!',
+            price: 250
         },
-        { 
-            id: 'pet_doisong_bandem', 
-            name: '🌌 Mèo Đêm Đầy Sao', 
-            desc: 'Nhấn 1 lần: Vuốt ve. Nhấn đúp: Cho ăn cá. Tốc độ di chuyển lẹ làng và ngủ nướng gấp 3 lần!', 
-            price: 350 
+        {
+            id: 'pet_doisong_bandem',
+            name: '🌌 Mèo Đêm Đầy Sao',
+            desc: 'Nhấn 1 lần: Vuốt ve. Nhấn đúp: Cho ăn cá. Tốc độ di chuyển lẹ làng và ngủ nướng gấp 3 lần!',
+            price: 350
         }
     ];
 
@@ -37,7 +37,7 @@ class PetInteractionManager {
         if (user && user.username && typeof db !== 'undefined') {
             db.ref(`student_pet_interactions/${user.username}`).on('value', (snapshot) => {
                 this.unlockedInteractions = snapshot.exists() ? Object.keys(snapshot.val()) : [];
-                
+
                 const modal = document.getElementById('petInteractionInfoModal');
                 if (modal && modal.classList.contains('active')) this.showInfo();
 
@@ -62,12 +62,16 @@ class PetInteractionManager {
             barContainer.style.cssText = 'position: absolute; top: -35px; left: 50%; transform: translateX(-50%); width: 70px; height: 12px; background: rgba(0,0,0,0.7); border-radius: 10px; cursor: pointer; border: 2px solid #fff; z-index: 999999; box-shadow: 0 4px 8px rgba(0,0,0,0.4); padding: 1px; display: flex; align-items: center;';
             barContainer.title = "Độ đói của Cún (Nhấn vào để mua đồ ăn)";
             barContainer.onclick = () => this.openFoodShop();
-            
+
+            if (!this.isEnabled) {
+                barContainer.style.display = 'none';
+            }
+
             const fill = document.createElement('div');
             fill.id = 'pet-hunger-fill';
             fill.style.cssText = 'width: 100%; height: 100%; background: #2ecc71; border-radius: 8px; transition: width 0.4s, background 0.4s;';
             barContainer.appendChild(fill);
-            
+
             container.appendChild(barContainer);
         }
 
@@ -78,7 +82,7 @@ class PetInteractionManager {
             if (data) {
                 this.hunger = data.hunger !== undefined ? data.hunger : 100;
                 this.lastHungerUpdate = data.lastUpdate || now;
-                
+
                 const hoursPassed = Math.floor((now - this.lastHungerUpdate) / 3600000);
                 if (hoursPassed > 0) {
                     this.hunger = Math.max(0, this.hunger - (10 * hoursPassed));
@@ -86,10 +90,10 @@ class PetInteractionManager {
                     this.saveHungerToDB();
                 }
             } else {
-                this.saveHungerToDB(); 
+                this.saveHungerToDB();
             }
             this.updateHungerUI();
-            this.startPetLoop(); 
+            this.startPetLoop();
         });
     }
 
@@ -107,10 +111,10 @@ class PetInteractionManager {
         const fill = document.getElementById('pet-hunger-fill');
         if (!fill) return;
         fill.style.width = `${this.hunger}%`;
-        
-        if (this.hunger > 50) fill.style.background = '#2ecc71'; 
-        else if (this.hunger > 20) fill.style.background = '#f39c12'; 
-        else fill.style.background = '#e74c3c'; 
+
+        if (this.hunger > 50) fill.style.background = '#2ecc71';
+        else if (this.hunger > 20) fill.style.background = '#f39c12';
+        else fill.style.background = '#e74c3c';
 
         const shopText = document.getElementById('shopHungerText');
         if (shopText) shopText.innerText = Math.round(this.hunger);
@@ -118,7 +122,7 @@ class PetInteractionManager {
 
     static startPetLoop() {
         if (this.loopInterval) clearInterval(this.loopInterval);
-        
+
         this.loopInterval = setInterval(() => {
             if (!this.isEnabled || document.getElementById('virtual-pet-container').style.display === 'none') return;
 
@@ -139,7 +143,7 @@ class PetInteractionManager {
             } else {
                 if (this.isSleeping) {
                     this.sleepTime++;
-                    
+
                     // --- BẮT ĐẦU ĐOẠN MỚI THÊM CHO MÈO ---
                     // Lấy ID pet hiện tại để xét thời gian ngủ
                     const activePetId = localStorage.getItem('active_pet');
@@ -150,11 +154,11 @@ class PetInteractionManager {
                         this.roam();
                     }
                     // --- KẾT THÚC ĐOẠN MỚI THÊM ---
-                    
+
                 } else {
                     if (this.idleTime >= 10) {
                         this.setSleepState(true);
-                    } 
+                    }
                     else if (this.idleTime % 2 === 0 && this.hunger >= 50) {
                         this.roam();
                     }
@@ -169,7 +173,7 @@ class PetInteractionManager {
         if (!container || !petImg) return;
 
         const rect = container.getBoundingClientRect();
-        
+
         if (container.style.left === '') {
             container.style.left = rect.left + 'px';
             container.style.top = rect.top + 'px';
@@ -184,8 +188,8 @@ class PetInteractionManager {
         // Mèo nhảy quãng đường xa hơn một chút
         const rangeX = isCat ? 100 : 60;
         const rangeY = isCat ? 60 : 40;
-        
-        const moveX = (Math.random() * rangeX) - (rangeX / 2); 
+
+        const moveX = (Math.random() * rangeX) - (rangeX / 2);
         const moveY = (Math.random() * rangeY) - (rangeY / 2);
 
         let newX = rect.left + moveX;
@@ -210,24 +214,30 @@ class PetInteractionManager {
     }
 
     static setSleepState(isSleeping) {
-        if (this.isSleeping === isSleeping) return; 
+        if (this.isSleeping === isSleeping) return;
         this.isSleeping = isSleeping;
         const petImg = document.getElementById('virtual-pet-img');
         const container = document.getElementById('virtual-pet-container');
         const activePetId = localStorage.getItem('active_pet');
-        
+
         if (isSleeping) {
             this.sleepTime = 0;
             if (petImg) petImg.classList.add('pet-sleeping');
-            
+
             if (activePetId === 'pet_doisong_bandem') {
-                // Hiệu ứng tinh tú cho Mèo Đêm Đầy Sao
-                if (!document.getElementById('pet-sleep-stars')) {
-                    const stars = document.createElement('div');
-                    stars.id = 'pet-sleep-stars';
-                    stars.className = 'pet-sleep-stars-particle';
-                    stars.innerHTML = '✨🌟✨';
-                    container.appendChild(stars);
+                // --- HIỆU ỨNG TINH TÚ PURE CSS CHO MÈO ĐÊM ĐẦY SAO ---
+                if (!document.getElementById('pet-sleep-stars-container')) {
+                    const starsContainer = document.createElement('div');
+                    starsContainer.id = 'pet-sleep-stars-container';
+                    starsContainer.className = 'cat-sleep-stars-wrap';
+
+                    // Tạo cấu trúc 3 ngôi sao CSS riêng biệt để làm hiệu ứng sâu, nhiều chi tiết
+                    starsContainer.innerHTML = `
+                        <div class="css-star star-primary"></div>
+                        <div class="css-star star-secondary"></div>
+                        <div class="css-star star-tertiary"></div>
+                    `;
+                    container.appendChild(starsContainer);
                 }
             } else {
                 // Hiệu ứng Zzz mặc định cho các pet khác
@@ -242,10 +252,13 @@ class PetInteractionManager {
         } else {
             this.idleTime = 0;
             if (petImg) petImg.classList.remove('pet-sleeping');
+
+            // Dọn dẹp cả hai loại hiệu ứng khi thức dậy
             const zzz = document.getElementById('pet-zzz');
             if (zzz) zzz.remove();
-            const stars = document.getElementById('pet-sleep-stars');
-            if (stars) stars.remove();
+
+            const starsContainer = document.getElementById('pet-sleep-stars-container');
+            if (starsContainer) starsContainer.remove();
         }
     }
 
@@ -296,13 +309,13 @@ class PetInteractionManager {
         if (currentCoins < price) return alert(`❌ Không đủ Coin! Bạn còn thiếu ${price - currentCoins} 🪙.`);
 
         if (confirm(`Thanh toán ${price} Coin để mua món này cho cún?`)) {
-            await coinRef.set(currentCoins - price); 
-            this.hunger = Math.min(100, this.hunger + hungerGain); 
+            await coinRef.set(currentCoins - price);
+            this.hunger = Math.min(100, this.hunger + hungerGain);
             this.saveHungerToDB();
             this.updateHungerUI();
-            this.resetIdle(); 
+            this.resetIdle();
             alert(`Ăn ngon quá! Cún đã hồi phục năng lượng.`);
-            
+
             if (this.hunger > 50) {
                 const container = document.getElementById('virtual-pet-container');
                 if (container) this.spawnParticles(container, '💖');
@@ -313,7 +326,44 @@ class PetInteractionManager {
     static toggle(state) {
         this.isEnabled = state;
         localStorage.setItem('petInteractionsEnabled', state);
-        if (!state) clearInterval(this.loopInterval);
+
+        const hungerBar = document.getElementById('pet-hunger-bar');
+
+        if (!state) {
+            // 1. Dừng vòng lặp tụt đói và hoạt động
+            if (this.loopInterval) {
+                clearInterval(this.loopInterval);
+                this.loopInterval = null;
+            }
+
+            // 2. Ẩn thanh đói ngay lập tức
+            if (hungerBar) {
+                hungerBar.style.display = 'none';
+            }
+
+            // 3. Xóa đồ ăn đang rớt trên màn hình (nếu có)
+            const foodItem = document.querySelector('.pet-food-item');
+            if (foodItem) foodItem.remove();
+
+            // 4. Đánh thức pet dậy nếu đang ngủ dở
+            this.setSleepState(false);
+
+        } else {
+            // 1. Khởi động lại vòng lặp
+            this.startPetLoop();
+
+            // 2. Hiện lại thanh đói nếu pet đang dùng có hỗ trợ thanh đói
+            const activePetId = localStorage.getItem('active_pet');
+            if (activePetId && this.unlockedInteractions.includes(activePetId)) {
+                if (hungerBar) {
+                    hungerBar.style.display = 'flex'; // Hiển thị lại thanh đói
+                } else {
+                    // Nếu chưa được tạo bao giờ thì khởi tạo lại
+                    const user = JSON.parse(localStorage.getItem('currentUser'));
+                    if (user) this.initHungerSystem(user.username);
+                }
+            }
+        }
     }
 
     static showInfo() {
@@ -324,8 +374,8 @@ class PetInteractionManager {
         list.innerHTML = '';
         this.interactivePets.forEach(pet => {
             const isUnlocked = this.unlockedInteractions.includes(pet.id);
-            let actionHTML = isUnlocked 
-                ? `<button style="background: rgba(16, 185, 129, 0.15); color: #059669; border: 2px dashed #10b981; padding: 10px; border-radius: 12px; font-weight: bold; width: 100%; cursor: default; font-size: 0.95em;">✅ Đã mở khóa tương tác</button>` 
+            let actionHTML = isUnlocked
+                ? `<button style="background: rgba(16, 185, 129, 0.15); color: #059669; border: 2px dashed #10b981; padding: 10px; border-radius: 12px; font-weight: bold; width: 100%; cursor: default; font-size: 0.95em;">✅ Đã mở khóa tương tác</button>`
                 : `<button onclick="PetInteractionManager.buyInteraction('${pet.id}', ${pet.price})" style="background: linear-gradient(135deg, #f6d365 0%, #fda085 100%); color: white; border: none; padding: 10px; border-radius: 12px; font-weight: bold; width: 100%; cursor: pointer; box-shadow: 0 4px 15px rgba(246, 211, 101, 0.4); font-size: 1em;">🛒 Mua tương tác (${pet.price} 🪙)</button>`;
 
             list.innerHTML += `<div style="background: rgba(255,255,255,0.8); padding: 18px; border-radius: 16px; margin-bottom: 15px; text-align: left; border-left: 5px solid #f6d365; box-shadow: 0 5px 15px rgba(0,0,0,0.05);"><strong style="color: #2c3e50; font-size: 1.2em;">${pet.name}</strong><p style="margin: 8px 0 15px 0; color: #555; font-size: 0.9em;">${pet.desc}</p>${actionHTML}</div>`;
@@ -340,8 +390,8 @@ class PetInteractionManager {
         let currentCoins = snap.val() || 0;
         if (currentCoins < price) return alert(`❌ Bạn không đủ Coin! Cần thêm ${price - currentCoins} Coin nữa.`);
         if (confirm(`Xác nhận dùng ${price} Coin để mở khóa vĩnh viễn tương tác?`)) {
-            await coinRef.set(currentCoins - price); 
-            await db.ref(`student_pet_interactions/${user.username}/${petId}`).set(true); 
+            await coinRef.set(currentCoins - price);
+            await db.ref(`student_pet_interactions/${user.username}/${petId}`).set(true);
             alert('🎉 Tuyệt vời! Bạn đã có thể tương tác với thú cưng này.');
         }
     }
@@ -365,35 +415,35 @@ class PetInteractionManager {
         let clickTimer = null;
         let lastTap = 0;
 
-        container.addEventListener('mousedown', () => { 
-            this.isPetDragging = true; 
-            container.style.transition = 'none'; 
-            this.setSleepState(false); 
+        container.addEventListener('mousedown', () => {
+            this.isPetDragging = true;
+            container.style.transition = 'none';
+            this.setSleepState(false);
         });
-        document.addEventListener('mouseup', () => { 
+        document.addEventListener('mouseup', () => {
             if (this.isPetDragging) {
-                this.isPetDragging = false; 
-                this.resetIdle(); 
+                this.isPetDragging = false;
+                this.resetIdle();
             }
         });
 
-        container.addEventListener('touchstart', () => { 
-            this.isPetDragging = true; 
+        container.addEventListener('touchstart', () => {
+            this.isPetDragging = true;
             container.style.transition = 'none';
-            this.setSleepState(false); 
-        }, {passive: true});
-        document.addEventListener('touchend', () => { 
+            this.setSleepState(false);
+        }, { passive: true });
+        document.addEventListener('touchend', () => {
             if (this.isPetDragging) {
-                this.isPetDragging = false; 
-                this.resetIdle(); 
+                this.isPetDragging = false;
+                this.resetIdle();
             }
         });
 
         const handleInteraction = (type) => {
             if (!this.isEnabled || !this.isSupported(petData.id)) return;
-            if (!this.unlockedInteractions.includes(petData.id)) return; 
-            
-            this.resetIdle(); 
+            if (!this.unlockedInteractions.includes(petData.id)) return;
+
+            this.resetIdle();
 
             if (type === 'double') this.feedPet(activePet, petData);
             else this.petTheAnimal(activePet);
@@ -401,7 +451,7 @@ class PetInteractionManager {
 
         activePet.addEventListener('click', (e) => {
             if (clickTimer) {
-                clearTimeout(clickTimer); clickTimer = null; handleInteraction('double'); 
+                clearTimeout(clickTimer); clickTimer = null; handleInteraction('double');
             } else {
                 clickTimer = setTimeout(() => { clickTimer = null; handleInteraction('single'); }, 250);
             }
@@ -410,7 +460,7 @@ class PetInteractionManager {
         activePet.addEventListener('touchend', (e) => {
             const tapLength = new Date().getTime() - lastTap;
             if (tapLength < 300 && tapLength > 0) {
-                handleInteraction('double'); if(e.cancelable) e.preventDefault(); 
+                handleInteraction('double'); if (e.cancelable) e.preventDefault();
             } else { handleInteraction('single'); }
             lastTap = new Date().getTime();
         });
@@ -427,7 +477,7 @@ class PetInteractionManager {
 
     static feedPet(petElement, petData) {
         if (document.querySelector('.pet-food-item')) return;
-        this.isBusy = true; 
+        this.isBusy = true;
 
         const container = petElement.parentNode;
         const containerRect = container.getBoundingClientRect();
@@ -436,7 +486,7 @@ class PetInteractionManager {
         const isCat = petData.id === 'pet_doisong_bandem';
         food.innerText = isCat ? '🐟' : '🦴';
         food.className = 'pet-food-item';
-        food.style.left = `${containerRect.left + (containerRect.width/2) - 15}px`;
+        food.style.left = `${containerRect.left + (containerRect.width / 2) - 15}px`;
         food.style.top = `${containerRect.top - 60}px`;
         document.body.appendChild(food);
 
@@ -476,9 +526,9 @@ class PetInteractionManager {
             const foodRect = food.getBoundingClientRect();
             const startRect = container.getBoundingClientRect();
             const targetLeft = foodRect.left - (startRect.width / 2) + 15;
-            const targetTop = foodRect.top - startRect.height + 40; 
+            const targetTop = foodRect.top - startRect.height + 40;
             const flipStyle = (targetLeft < startRect.left) ? 'scaleX(-1)' : 'scaleX(1)';
-            petElement.style.transform = flipStyle; 
+            petElement.style.transform = flipStyle;
 
             container.style.transition = 'left 0.5s ease-out, top 0.5s ease-out';
             container.style.bottom = 'auto'; container.style.right = 'auto';
@@ -487,17 +537,17 @@ class PetInteractionManager {
             setTimeout(() => {
                 petElement.style.transition = 'transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
                 petElement.style.transform = `${flipStyle} translateY(-30px) scale(1.15)`;
-                this.spawnParticles(container, '✨'); 
+                this.spawnParticles(container, '✨');
 
                 setTimeout(() => {
-                    if(food.parentNode) food.remove();
+                    if (food.parentNode) food.remove();
                     petElement.style.transform = `${flipStyle} translateY(0) scale(1)`;
-                    setTimeout(() => { 
-                        container.style.transition = 'none'; 
-                        this.isBusy = false; 
+                    setTimeout(() => {
+                        container.style.transition = 'none';
+                        this.isBusy = false;
                     }, 200);
                 }, 250);
-            }, 500); 
+            }, 500);
         };
 
         setTimeout(() => { if (document.body.contains(food) && !isDragging) runToBoneAndEat(); }, 1500);
@@ -509,7 +559,7 @@ class PetInteractionManager {
         particle.className = 'pet-particle';
         particle.style.setProperty('--move-x', `${(Math.random() * 40) - 20}px`);
         container.appendChild(particle);
-        setTimeout(() => { if(particle.parentNode) particle.remove(); }, 1000);
+        setTimeout(() => { if (particle.parentNode) particle.remove(); }, 1000);
     }
 }
 

@@ -786,32 +786,82 @@ input:checked + .slider:before {
             drop-shadow(0 15px 25px rgba(0,0,0,0.5)); 
     }
 }
-/* Ký hiệu Tinh Tú bay lên khi Mèo Đêm Đầy Sao ngủ */
-.pet-sleep-stars-particle {
+/* =========================================================
+   HỆ THỐNG TINH TÚ PURE CSS (CHO MÈO ĐÊM ĐẦY SAO ĐI NGỦ)
+========================================================= */
+
+/* Khung bọc cụm sao phía trên đầu mèo */
+.cat-sleep-stars-wrap {
     position: absolute;
-    top: -15px;
-    right: -25px;
-    font-size: 16px;
-    letter-spacing: 2px;
+    top: -25px;
+    right: -20px;
+    width: 60px;
+    height: 60px;
     pointer-events: none;
     z-index: 10001;
-    animation: floatSleepStars 3s infinite ease-in-out;
 }
 
-@keyframes floatSleepStars {
-    0% { 
-        transform: translate(0, 0) scale(0.6) rotate(-10deg); 
-        opacity: 0; 
-        filter: drop-shadow(0 0 2px #fff); 
+/* Định dạng chung cho ngôi sao Pure CSS 4 cánh */
+.css-star {
+    position: absolute;
+    /* Thuật toán tạo hình ngôi sao lấp lánh 4 cánh nhọn đỉnh */
+    clip-path: polygon(50% 0%, 63% 37%, 100% 50%, 63% 63%, 50% 100%, 37% 63%, 0% 50%, 37% 37%);
+    opacity: 0;
+    transform: scale(0);
+}
+
+/* Ngôi sao chính: To nhất, màu Vàng Kim pha Trắng tinh khôi */
+.star-primary {
+    width: 16px;
+    height: 16px;
+    top: 15px;
+    left: 20px;
+    background: linear-gradient(135deg, #ffffff 30%, #f1c40f 100%);
+    filter: drop-shadow(0 0 8px rgba(241, 196, 15, 0.9));
+    animation: cinematicStarFloat 2.5s infinite ease-in-out;
+}
+
+/* Ngôi sao thứ hai: Vừa, màu Xanh Thiên Thanh lãng mạn, lệch góc và trễ nhịp */
+.star-secondary {
+    width: 11px;
+    height: 11px;
+    top: 0px;
+    left: 40px;
+    background: linear-gradient(135deg, #ffffff 20%, #00cec9 100%);
+    filter: drop-shadow(0 0 6px rgba(0, 206, 201, 0.8));
+    animation: cinematicStarFloat 2.5s infinite ease-in-out;
+    animation-delay: 0.6s; /* Xuất hiện sau ngôi sao 1 */
+}
+
+/* Ngôi sao thứ ba: Nhỏ xinh, màu Tím Huyền Bí pha Hồng Tinh Tú */
+.star-tertiary {
+    width: 8px;
+    height: 8px;
+    top: 30px;
+    left: 5px;
+    background: linear-gradient(135deg, #ffffff 10%, #e84393 100%);
+    filter: drop-shadow(0 0 5px rgba(232, 67, 147, 0.7));
+    animation: cinematicStarFloat 2.5s infinite ease-in-out;
+    animation-delay: 1.2s; /* Xuất hiện sau cùng tạo vòng lặp liên tục */
+}
+
+/* Keyframe di chuyển: Phát sáng -> To dần -> Bay lên uốn lượn -> Nhạt nhòa và ẩn đi */
+@keyframes cinematicStarFloat {
+    0% {
+        transform: translateY(15px) translateX(0) scale(0) rotate(0deg);
+        opacity: 0;
     }
-    50% { 
-        opacity: 1; 
-        transform: translate(15px, -20px) scale(1.1) rotate(5deg); 
-        filter: drop-shadow(0 0 10px #f1c40f) drop-shadow(0 0 5px #fff); 
+    30% {
+        opacity: 1;
+        transform: translateY(0px) translateX(5px) scale(1.2) rotate(45deg);
     }
-    100% { 
-        transform: translate(30px, -40px) scale(0.8) rotate(15deg); 
-        opacity: 0; 
-        filter: drop-shadow(0 0 2px #fff); 
+    70% {
+        opacity: 0.8;
+        transform: translateY(-20px) translateX(-5px) scale(0.9) rotate(90deg);
+    }
+    100% {
+        transform: translateY(-35px) translateX(2px) scale(0.4) rotate(135deg);
+        opacity: 0;
+        filter: drop-shadow(0 0 2px #fff);
     }
 }
