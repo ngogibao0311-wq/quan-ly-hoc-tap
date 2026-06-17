@@ -364,12 +364,58 @@ async function createAssignment() {
 
 async function loadAssignedList() {
     const assignments = await getDB('assignments');
+    const submissions = await getDB('submissions'); // Lấy thêm submissions để phục vụ điều kiện Đang chấm/Làm lại
     const container = document.getElementById('assignedListContainer');
+    
     if (!container) return;
     container.innerHTML = '';
-    if (assignments.length === 0) { container.innerHTML = '<p style="color: #666; font-style: italic;">Chưa có bài tập nào.</p>'; return; }
+    
+    if (assignments.length === 0) { 
+        container.innerHTML = '<p style="color: #666; font-style: italic;">Chưa có bài tập nào.</p>'; 
+        return; 
+    }
 
-    [...assignments].reverse().forEach(assign => {
+    // --- BẮT ĐẦU LOGIC SẮP XẾP ---
+    const nowSort = new Date();
+    assignments.sort((a, b) => {
+        const getSortVals = (assign) => {
+            const end = assign.endDate ? new Date(assign.endDate.replace(" ", "T")) : new Date("2100-01-01");
+            const relatedSubs = submissions.filter(s => s.assignmentId === assign.id);
+            
+            let rank = 2; // Nhóm 2: Các bài đã ổn định, xong xuôi
+            let isActive = nowSort <= end;
+            
+            // Nhóm 1: Ưu tiên cao
+            if (isActive) rank = 1; // Mới giao, Đang diễn ra
+            
+            let isRedoing = relatedSubs.some(s => s.isRedoing);
+            let needsGrading = relatedSubs.some(s => !s.isRedoing && !s.isAutoSubmitted && !s.isLateFail && (s.grade === null || s.grade === undefined || s.grade === ''));
+            
+            if (isRedoing || needsGrading) rank = 1; // Có HS đang làm lại hoặc chờ chấm bài
+            
+            // Xử lý lấy số "Bài N" (Nếu không có số, mặc định là 0 để đẩy lên trước các Bài N)
+            let lessonNum = 0; 
+            const match = (assign.title || '').match(/bài\s*(\d+)/i);
+            if (match) lessonNum = parseInt(match[1]);
+            
+            return { rank, lessonNum };
+        };
+        
+        const valsA = getSortVals(a);
+        const valsB = getSortVals(b);
+        
+        // 1. So sánh Nhóm ưu tiên (Rank 1 đứng trên Rank 2)
+        if (valsA.rank !== valsB.rank) return valsA.rank - valsB.rank;
+        // 2. So sánh thứ tự số Bài (0 đứng trước 1, 2, 3...)
+        if (valsA.lessonNum !== valsB.lessonNum) return valsA.lessonNum - valsB.lessonNum;
+        // 3. Dựa theo Tên chữ cái
+        return (a.title || '').localeCompare(b.title || '', 'vi-VN');
+    });
+    // --- KẾT THÚC LOGIC SẮP XẾP ---
+
+    // Chú ý: Đổi từ vòng lặp có [...assignments].reverse().forEach thành .forEach trực tiếp 
+    // do thuật toán sort ở trên đã xử lý thứ tự hoàn chỉnh rồi
+    assignments.forEach(assign => {
         let typeText = '';
         if (assign.assessmentType === 'trac_nghiem') typeText = 'Trắc nghiệm';
         else if (assign.assessmentType === 'ket_hop') typeText = `Kết hợp (TN: ${assign.mcWeight || 5}đ - TL: ${assign.essayWeight || 5}đ)`;
@@ -387,7 +433,6 @@ async function loadAssignedList() {
         }
         let fileHTML = '';
         if (assign.file) {
-            // Hỗ trợ cả bài tập cũ (1 file) và mới (nhiều file)
             let files = Array.isArray(assign.file) ? assign.file : [assign.file];
             files.forEach(f => {
                 fileHTML += `<p style="margin-top:10px;"><strong>📎 File đính kèm:</strong> <a href="${f.base64}" download="${f.name}" class="file-download-link">${f.name}</a></p>`;
@@ -395,7 +440,6 @@ async function loadAssignedList() {
         }
         let videoHTML = assign.videoLink ? getEmbedHTML(assign.videoLink) : '';
 
-        // Kiểm tra xem bài tập có phần trắc nghiệm hay không (bao gồm cả loại hình Thi có điểm TN > 0)
         let quizHTML = '';
         const hasMC = assign.assessmentType === 'trac_nghiem' || assign.assessmentType === 'ket_hop' || (assign.assessmentType === 'thi' && (assign.mcWeight || 0) > 0);
         if (hasMC && assign.questions) {
@@ -404,7 +448,6 @@ async function loadAssignedList() {
             quizHTML += '</ul></div>';
         }
 
-        // Kiểm tra xem bài tập có phần tự luận hay không (bao gồm cả loại hình Thi có điểm TL > 0)
         const hasEssay = assign.assessmentType === 'tu_luan' || assign.assessmentType === 'ket_hop' || !assign.assessmentType || (assign.assessmentType === 'thi' && (assign.essayWeight || 0) > 0);
         let tuLuanHTML = hasEssay ? `<p style="background: rgba(255,255,255,0.5); padding:15px; border-radius:12px; border-left:4px solid #667eea;"><strong>Yêu cầu Tự luận:</strong><br>${(assign.desc || '').replace(/\n/g, '<br>')}</p>` : '';
 
@@ -586,7 +629,45 @@ async function loadSubmissions() {
     });
     const submissions = Object.values(uniqueSubmissions);
 
-    [...submissions].reverse().forEach(sub => {
+    // --- BẮT ĐẦU LOGIC SẮP XẾP BÀI NỘP ---
+    submissions.sort((a, b) => {
+        const assignA = assignments.find(x => x.id === a.assignmentId) || {};
+        const assignB = assignments.find(x => x.id === b.assignmentId) || {};
+
+        const getSortVals = (sub, assign) => {
+            let rank = 2; // Nhóm 2: Bài đã chấm điểm xong, hoàn tất
+            
+            const hasGrade = sub.grade !== null && sub.grade !== undefined && sub.grade !== '';
+            
+            // Nhóm 1: Ưu tiên lên đầu (Chưa chấm, Đang làm lại, Đang chấm lại)
+            if (sub.isRedoing || sub.isRegrading || !hasGrade) {
+                rank = 1; 
+            }
+            
+            // Xử lý lấy số "Bài N" (Nếu không có số, mặc định là 0 để đẩy lên trước)
+            let lessonNum = 0; 
+            const match = (assign.title || '').match(/bài\s*(\d+)/i);
+            if (match) lessonNum = parseInt(match[1]);
+            
+            return { rank, lessonNum, title: assign.title || '' };
+        };
+        
+        const valsA = getSortVals(a, assignA);
+        const valsB = getSortVals(b, assignB);
+        
+        // 1. So sánh Rank (Rank 1 đứng trên Rank 2)
+        if (valsA.rank !== valsB.rank) return valsA.rank - valsB.rank;
+        // 2. So sánh thứ tự số Bài (0 đứng trước 1, 2, 3...)
+        if (valsA.lessonNum !== valsB.lessonNum) return valsA.lessonNum - valsB.lessonNum;
+        // 3. So sánh tên bài tập nếu trùng số
+        if (valsA.title !== valsB.title) return valsA.title.localeCompare(valsB.title, 'vi-VN');
+        // 4. Nếu cùng một bài, ưu tiên bài nộp mới nhất lên trên
+        return (b.id || '').localeCompare(a.id || '');
+    });
+    // --- KẾT THÚC LOGIC SẮP XẾP ---
+
+    // Đã thay thế logic đảo ngược cũ bằng forEach trực tiếp trên mảng đã sort
+    submissions.forEach(sub => {
         const assign = assignments.find(a => a.id === sub.assignmentId);
         if (!assign) return;
 
