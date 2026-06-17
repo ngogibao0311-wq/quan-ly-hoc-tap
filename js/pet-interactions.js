@@ -6,7 +6,7 @@ class PetInteractionManager {
 
     static serverOffset = 0;
     static getNow() {
-        return this.getNow() + this.serverOffset;
+        return Date.now() + this.serverOffset;
     }
 
     // --- CÁC CHỈ SỐ SINH TỒN ---
@@ -369,12 +369,12 @@ class PetInteractionManager {
             this.setSleepState(false);
 
         } else {
-            // 1. Khởi động lại vòng lặp
-            this.startPetLoop();
-
-            // 2. Hiện lại thanh đói nếu pet đang dùng có hỗ trợ thanh đói
+            // Đã xóa lệnh startPetLoop() gọi bừa bãi ở đây
+            
+            // Hiện lại thanh đói và khởi động nếu pet đang dùng có hỗ trợ VÀ ĐÃ ĐƯỢC MUA
             const activePetId = localStorage.getItem('active_pet');
             if (activePetId && this.unlockedInteractions.includes(activePetId)) {
+                this.startPetLoop(); // <--- CHỈ KHỞI ĐỘNG KHI VƯỢT QUA BÀI KIỂM TRA NÀY
                 if (hungerBar) {
                     hungerBar.style.display = 'flex'; // Hiển thị lại thanh đói
                 } else {
@@ -604,9 +604,12 @@ document.addEventListener('visibilitychange', () => {
             clearInterval(PetInteractionManager.loopInterval);
         }
     } else {
-        // Nếu quay lại web -> Khởi động lại vòng lặp (nếu tính năng đang bật)
+        // Nếu quay lại web -> PHẢI KIỂM TRA ĐÃ MUA TƯƠNG TÁC CHƯA MỚI ĐƯỢC CHẠY LẠI
         if (PetInteractionManager.isEnabled) {
-            PetInteractionManager.startPetLoop();
+            const activePetId = localStorage.getItem('active_pet');
+            if (activePetId && PetInteractionManager.unlockedInteractions.includes(activePetId)) {
+                PetInteractionManager.startPetLoop();
+            }
         }
     }
 });

@@ -48,7 +48,42 @@ Object.defineProperty(devtoolsDetector, 'id', {
         kickUser();
     }
 });
+//setInterval(() => {
+//    console.log('%c', devtoolsDetector);
+//    console.clear(); // Xóa log ngay lập tức để không bị lộ
+//}, 500);
+
+// =========================================================================
+// 3. BẪY DEVTOOLS NÂNG CAO (CHẶN MENU TRÌNH DUYỆT & MỞ SẴN)
+// =========================================================================
+
 setInterval(() => {
-    console.log('%c', devtoolsDetector);
-    console.clear(); // Xóa log ngay lập tức để không bị lộ
-}, 500);
+    // 1. Ngoại lệ: Nếu là Giáo viên thì bỏ qua, không kích hoạt bẫy
+    try {
+        const userStr = localStorage.getItem('currentUser');
+        if (userStr) {
+            const user = JSON.parse(userStr);
+            if (user && user.role === 'teacher') return;
+        }
+    } catch (e) {}
+
+    // 2. Bẫy đo kích thước màn hình
+    // Nếu DevTools gắn ở mép màn hình, kích thước hiển thị (inner) sẽ nhỏ hơn nhiều so với cửa sổ (outer)
+    const widthDiff = window.outerWidth - window.innerWidth > 160;
+    const heightDiff = window.outerHeight - window.innerHeight > 160;
+    
+    if (widthDiff || heightDiff) {
+        kickUser();
+    }
+
+    // 3. Bẫy thời gian ngưng đọng (Lệnh Debugger thần thánh)
+    // Nếu DevTools đang mở, lệnh 'debugger' sẽ làm trình duyệt khựng lại vài mili-giây
+    const startTime = Date.now();
+    
+    // Hàm eval để ẩn giấu chữ debugger tránh bị một số extension chặn
+    eval('debugger'); 
+    
+    if (Date.now() - startTime > 100) {
+        kickUser();
+    }
+}, 1000); // Quét liên tục mỗi 1 giây
