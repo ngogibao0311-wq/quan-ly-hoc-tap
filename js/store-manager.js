@@ -203,6 +203,12 @@ class StoreManager {
 
         switch (item.type) {
             case 'theme':
+                // FIX KẸT GIAO DIỆN: Xóa toàn bộ class giao diện cũ trong StoreConfig khỏi thẻ <body> trước khi đổi
+                StoreConfig.items.forEach(i => {
+                    if (i.type === 'theme' && i.value) {
+                        document.body.classList.remove(i.value);
+                    }
+                });
                 ThemeManager.applyTheme(item.id);
                 break;
             case 'effect':

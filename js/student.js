@@ -1950,11 +1950,22 @@ StoreManager.unapplyItem = async function (itemId) {
     if (!item) return;
 
     // 1. Tắt giao diện lập tức (Trả về mặc định)
-    if (item.type === 'theme') ThemeManager.applyTheme('default');
+    if (item.type === 'theme') {
+        // FIX KẸT GIAO DIỆN: Ép xóa đích danh class CSS của theme đang tháo
+        if (item.value) document.body.classList.remove(item.value);
+        ThemeManager.applyTheme('default');
+    }
     if (item.type === 'effect') EffectManager.clearEffects();
     if (item.type === 'pet') {
         const petContainer = document.getElementById('virtual-pet-container');
         if (petContainer) petContainer.style.display = 'none';
+        
+        // Dọn dẹp vòng lặp thú cưng để tránh lỗi "ké" tương tác khi tháo
+        if (typeof PetInteractionManager !== 'undefined' && PetInteractionManager.loopInterval) {
+            clearInterval(PetInteractionManager.loopInterval);
+            PetInteractionManager.loopInterval = null;
+            PetInteractionManager.setSleepState(false);
+        }
     }
 
     // 2. Lưu trạng thái "Đã tháo" lên Firebase

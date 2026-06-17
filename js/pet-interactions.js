@@ -415,8 +415,19 @@ class PetInteractionManager {
         const user = JSON.parse(localStorage.getItem('currentUser'));
         if (user) {
             setTimeout(() => {
-                if (this.unlockedInteractions.includes(petData.id)) {
+                // KIỂM TRA: Nếu là pet tương tác thì bật hệ thống
+                if (this.isSupported(petData.id) && this.unlockedInteractions.includes(petData.id)) {
                     this.initHungerSystem(user.username);
+                } else {
+                    // SỬA LỖI Ở ĐÂY: Nếu đổi sang pet thường, PHẢI tắt vòng lặp chạy nhảy/ngủ ngầm đi
+                    if (this.loopInterval) {
+                        clearInterval(this.loopInterval);
+                        this.loopInterval = null;
+                    }
+                    // Tắt luôn thanh độ đói và xóa trạng thái ngủ
+                    const hungerBar = document.getElementById('pet-hunger-bar');
+                    if (hungerBar) hungerBar.style.display = 'none';
+                    this.setSleepState(false);
                 }
             }, 500); // Đợi 0.5s để đảm bảo hàm spawnPet của bạn đã dọn dẹp xong
         }
