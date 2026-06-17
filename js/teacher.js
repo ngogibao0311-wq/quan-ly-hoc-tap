@@ -10,17 +10,27 @@ window.teacherGradeDTs = {}; // Dùng cho Chấm bài (nhiều học sinh)
 
 window.handleTeacherFileAccumulate = function (input, subId) {
     if (!window.teacherGradeDTs[subId]) window.teacherGradeDTs[subId] = new DataTransfer();
-
-    // SỬA: Gộp name và size để kiểm tra
     const existingFiles = Array.from(window.teacherGradeDTs[subId].files).map(f => f.name + '_' + f.size);
+    const MAX_SIZE_BYTES = 5 * 1024 * 1024; // Giới hạn 5MB
 
+    let hasOversize = false;
     for (let i = 0; i < input.files.length; i++) {
+        // Chặn file quá nặng ngay từ lúc chọn
+        if (input.files[i].size > MAX_SIZE_BYTES) {
+            alert(`⚠️ File "${input.files[i].name}" quá lớn (${(input.files[i].size / (1024 * 1024)).toFixed(2)}MB). Hệ thống chỉ cho phép tối đa 5MB/file và đã tự động loại bỏ file này!`);
+            hasOversize = true;
+            continue;
+        }
         const fileKey = input.files[i].name + '_' + input.files[i].size;
         if (!existingFiles.includes(fileKey)) {
             window.teacherGradeDTs[subId].items.add(input.files[i]);
         }
     }
     input.files = window.teacherGradeDTs[subId].files;
+
+    if (hasOversize && window.teacherGradeDTs[subId].files.length === 0) {
+        input.value = '';
+    }
 };
 
 window.onload = async function () {
@@ -339,10 +349,14 @@ async function createAssignment() {
 
     if (!title || !startDate || !endDate) return alert("Vui lòng điền đủ Tiêu đề và Thời hạn!");
 
-    if (type === 'ket_hop' || type === 'thi') {
+    if (type === 'ket_hop') {
         mcWeight = parseFloat(document.getElementById('mcWeight').value);
         essayWeight = parseFloat(document.getElementById('essayWeight').value);
-        if (mcWeight + essayWeight !== 10) return alert("Tổng điểm Trắc nghiệm và Tự luận phải đúng bằng 10!");
+        if (mcWeight + essayWeight !== 10) return alert("Tổng điểm Trắc nghiệm và Tự luận trong loại hình Kết hợp phải đúng bằng 10!");
+    } else if (type === 'thi') {
+        // Hệ thi sẽ bỏ qua bắt buộc tổng bằng 10, chỉ lưu lại giá trị điểm
+        mcWeight = parseFloat(document.getElementById('mcWeight').value) || 0;
+        essayWeight = parseFloat(document.getElementById('essayWeight').value) || 0;
     }
 
     await pushDB('assignments', {
@@ -782,6 +796,10 @@ async function gradeSubmission(subId) {
             if (fileDataArray) updateObj.teacherFile = fileDataArray;
             await updateDB('submissions', sub._fbKey, updateObj);
             alert("Đã chấm điểm và lưu nhận xét thành công!");
+            
+            // THÊM 2 DÒNG NÀY
+            await loadSubmissions();
+            if (typeof renderTeacherRoadmap === 'function') renderTeacherRoadmap();
         }
     };
 
@@ -796,9 +814,10 @@ async function gradeSubmission(subId) {
 }
 
 window.requestRegrade = async function (subKey) {
-    if (confirm("Bạn có chắc chắn muốn tiến hành chấm lại bài này? Kết quả và điểm số hiện tại của học sinh sẽ bị thu hồi tạm thời.")) {
+    if (confirm("Bạn có chắc chắn muốn tiến hành chấm lại bài này?...")) {
         await updateDB('submissions', subKey, { grade: null, isRegrading: true });
         alert("Đã kích hoạt trạng thái chấm lại! Hệ thống đã ẩn kết quả phía giao diện học sinh.");
+        await loadSubmissions(); // THÊM DÒNG NÀY
     }
 }
 
@@ -907,36 +926,38 @@ function switchTab(tabId, btnElement) {
         contentArea.scrollTo({ top: 0, behavior: 'smooth' });
     }
 }
+
 window.requestRedo = async function (subKey) {
-    if (confirm("Cấp quyền cho học sinh làm lại bài? Hệ thống sẽ thu hồi điểm/vé cũ (nếu có) và giữ nguyên đáp án để học sinh sửa.")) {
-        // Đặt grade = null để thu hồi vé ngay lập tức
-        // Bật cờ hasRedone = true để đánh dấu bài này sẽ bị trừ 1 vé khi chấm lại
+    if (confirm("Cấp quyền cho học sinh làm lại bài?...")) {
         await updateDB('submissions', subKey, {
             isRedoing: true,
             grade: null,
             hasRedone: true
         });
         alert("Đã cấp quyền làm lại bài và thu hồi kết quả cũ!");
+        await loadSubmissions(); // THÊM DÒNG NÀY
     }
 }
 
 // ================= HÀM THA LỖI NỘP TRỄ / VI PHẠM =================
 window.pardonSubmission = async function (subKey) {
-    if (confirm("Bạn có chắc chắn muốn tha lỗi cho bài này?\n\nHệ thống sẽ gỡ bỏ án phạt, bài làm sẽ được tính điểm và cộng tiền Lộ trình như bình thường.")) {
-        // Ghi đè các cờ phạt thành false
+    if (confirm("Bạn có chắc chắn muốn tha lỗi cho bài này?...")) {
         await updateDB('submissions', subKey, {
             isLateFail: false,
             isAutoSubmitted: false,
             isCheatFail: false
         });
         alert("✨ Đã tha lỗi thành công! Lộ trình của học sinh đã được cập nhật lại theo điểm số thực tế.");
+        await loadSubmissions(); // THÊM DÒNG NÀY
+        if (typeof renderTeacherRoadmap === 'function') renderTeacherRoadmap(); // THÊM DÒNG NÀY
     }
 };
 
 window.forceSubmitRedo = async function (subKey) {
-    if (confirm("Bạn muốn khóa bài ngay lập tức? Học sinh sẽ mất quyền làm tiếp và bài sẽ được thu ngay.")) {
+    if (confirm("Bạn muốn khóa bài ngay lập tức?...")) {
         await updateDB('submissions', subKey, { isRedoing: false });
         alert("Đã khóa bài làm lại!");
+        await loadSubmissions(); // THÊM DÒNG NÀY
     }
 }
 
@@ -2314,58 +2335,11 @@ window.toggleLockStoreItem = async function (itemId, isCurrentlyLocked) {
     }
 };
 
-// Hàm cập nhật cấu hình hàng hóa khi giáo viên ấn nút "Lưu thay đổi"
-function updateStoreItem() {
-    const selectEl = document.getElementById('editStoreItemId');
-    const priceInput = document.getElementById('editStoreItemPrice');
-    const startInput = document.getElementById('editStoreItemStart');
-    const endInput = document.getElementById('editStoreItemEnd');
-
-    if (!selectEl || !selectEl.value) {
-        alert('⚠️ Vui lòng chọn một mặt hàng cụ thể cần chỉnh sửa từ danh sách.');
-        return;
-    }
-
-    const itemId = selectEl.value;
-    const newPrice = parseInt(priceInput.value);
-
-    if (isNaN(newPrice) || newPrice < 0) {
-        alert('❌ Giá bán (Coin) phải là một con số hợp lệ và lớn hơn hoặc bằng 0.');
-        return;
-    }
-
-    // Tìm và cập nhật trực tiếp vào mảng StoreConfig cục bộ
-    const itemIndex = StoreConfig.items.findIndex(i => i.id === itemId);
-    if (itemIndex !== -1) {
-        StoreConfig.items[itemIndex].price = newPrice;
-        StoreConfig.items[itemIndex].startDate = startInput.value;
-        StoreConfig.items[itemIndex].endDate = endInput.value;
-
-        alert(`✅ Đã cập nhật thành công thiết lập cho vật phẩm [ ${StoreConfig.items[itemIndex].name} ]`);
-
-        // Đồng bộ làm mới lại bảng điều khiển giáo viên
-        initTeacherStoreManagement();
-
-        // Xóa thông tin trống biểu mẫu sau khi lưu thành công
-        selectEl.value = '';
-        loadStoreItemDetails();
-
-        // TODO: Lưu cấu hình đồng bộ này lên Firebase Database để học sinh nhận được giá mới ngay lập tức
-        // firebase.database().ref('store_settings/' + itemId).update({ price: newPrice, startDate: startInput.value, endDate: endInput.value });
-    }
-}
-
 // Khởi chạy đồng bộ khi giáo viên vào tab quản lý trò chơi / cửa hàng
 // Bạn có thể lồng hàm này vào hàm switchTab() có sẵn của bạn khi chuyển qua tab 'tab-game-manage'
 document.addEventListener('DOMContentLoaded', () => {
     initTeacherStoreManagement();
 });
-
-// ===== SỬA LỖI XUNG ĐỘT GIAO DIỆN CỬA HÀNG (GIÁO VIÊN) =====
-// Ghi đè hàm cũ: Ngăn Firebase xóa giao diện khi database trống, ép dùng dữ liệu từ StoreManager
-window.loadTeacherStoreItems = function () {
-    initTeacherStoreManagement();
-};
 
 // Hàm điều khiển ẩn/hiện khu vực nhập thông báo
 window.toggleNotificationArea = function (isOpen) {

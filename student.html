@@ -239,6 +239,26 @@
 
                     <div id="requestNotifications" style="margin-top: 25px;"></div>
                 </div>
+                <div class="glass-alert"
+                    style="margin-top: 30px; border-left-color: #3b82f6; background: rgba(59, 130, 246, 0.05);">
+                    <h3
+                        style="color: #2c3e50; margin-bottom: 10px; border-bottom: 1px dashed rgba(0,0,0,0.1); padding-bottom: 5px;">
+                        🔍 Trình Quét Lỗi Hệ Thống</h3>
+                    <p style="font-size: 0.9em; color: #555; margin-bottom: 15px;">Công cụ này sẽ rà soát toàn bộ tệp
+                        tin, hình ảnh, biến môi trường và luồng dữ liệu hiện tại để phát hiện các nguy cơ tiềm ẩn gây
+                        sập web hoặc lỗi chức năng.</p>
+                    <button onclick="runSystemDiagnostics()"
+                        style="width: 100%; padding: 12px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);">🚀
+                        Bắt đầu quét hệ thống</button>
+
+                    <div id="diagnosticResults"
+                        style="display: none; margin-top: 15px; padding: 15px; background: rgba(255,255,255,0.8); border-radius: 8px; max-height: 300px; overflow-y: auto; border: 1px solid rgba(0,0,0,0.1);">
+                        <p style="text-align: center; color: #666;" id="diagnosticStatus">Đang chờ quét...</p>
+                        <ul id="diagnosticList"
+                            style="list-style-type: none; padding: 0; margin: 0; font-size: 0.9em; line-height: 1.6;">
+                        </ul>
+                    </div>
+                </div>
             </div>
             <div id="tab-store" class="tab-content">
                 <h2>Cửa hàng Vật phẩm</h2>

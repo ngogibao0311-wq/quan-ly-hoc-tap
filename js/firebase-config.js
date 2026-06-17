@@ -14,7 +14,7 @@ const firebaseConfig = {
 // ---- DỰ ÁN NHÁP
 //const firebaseConfig = {
 //  apiKey: "AIzaSyDb4pnn0E16MY-aJ1UXD8p59X5vXkcRT_w",
-////  authDomain: "web-chan-doan-test.firebaseapp.com",
+//  authDomain: "web-chan-doan-test.firebaseapp.com",
 //  databaseURL: "https://web-chan-doan-test-default-rtdb.asia-southeast1.firebasedatabase.app",
 //  projectId: "web-chan-doan-test",
 //  storageBucket: "web-chan-doan-test.firebasestorage.app",

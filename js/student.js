@@ -5,18 +5,31 @@ document.getElementById('studentName').innerText = currentUser.name;
 updateAvatarDisplay(currentUser.avatar); // Tự động hiển thị ảnh đại diện ở góc phải
 
 window.studentSubmitDTs = {};
+
 window.handleStudentFileAccumulate = function (input, assignId) {
     if (!window.studentSubmitDTs[assignId]) window.studentSubmitDTs[assignId] = new DataTransfer();
-
     const existingFiles = Array.from(window.studentSubmitDTs[assignId].files).map(f => f.name + '_' + f.size);
+    const MAX_SIZE_BYTES = 5 * 1024 * 1024; // Giới hạn 5MB
 
+    let hasOversize = false;
     for (let i = 0; i < input.files.length; i++) {
+        // Chặn ngay file quá nặng, không cho vào DataTransfer
+        if (input.files[i].size > MAX_SIZE_BYTES) {
+            alert(`⚠️ File "${input.files[i].name}" quá lớn (${(input.files[i].size / (1024 * 1024)).toFixed(2)}MB). Hệ thống chỉ cho phép tối đa 5MB/file và đã tự động loại bỏ file này!`);
+            hasOversize = true;
+            continue;
+        }
         const fileKey = input.files[i].name + '_' + input.files[i].size;
         if (!existingFiles.includes(fileKey)) {
             window.studentSubmitDTs[assignId].items.add(input.files[i]);
         }
     }
     input.files = window.studentSubmitDTs[assignId].files;
+
+    // Reset rỗng input nếu tất cả file chọn vào đều lỗi để HS có thể chọn lại
+    if (hasOversize && window.studentSubmitDTs[assignId].files.length === 0) {
+        input.value = '';
+    }
 };
 // ==============================================================
 
@@ -293,31 +306,31 @@ async function loadAssignments() {
         const getSortVals = (assign) => {
             const mySub = submissions.find(s => s.assignmentId === assign.id && s.studentUsername === currentUser.username);
             const end = assign.endDate ? new Date(assign.endDate.replace(" ", "T")) : new Date("2100-01-01");
-            
+
             let rank = 2; // Nhóm 2: Bài đã chốt (Đã chấm / Xong)
             let isActive = nowSort <= end;
             let isGrace = (nowSort > end && nowSort <= new Date(end.getTime() + 5 * 60000));
-            
+
             // Nhóm 1: Ưu tiên cao
             if (isActive || isGrace) rank = 1; // Mới giao, Đang thi
-            
+
             if (mySub) {
                 if (mySub.isRedoing) rank = 1; // Đang làm lại
                 else if (mySub.grade === null || mySub.grade === undefined || mySub.grade === '') rank = 1; // Đang chấm
                 else rank = 2; // Đã chấm điểm
             }
-            
+
             // Xử lý lấy số "Bài N" (Nếu không có số, mặc định là 0 để nổi lên trên)
-            let lessonNum = 0; 
+            let lessonNum = 0;
             const match = (assign.title || '').match(/bài\s*(\d+)/i);
             if (match) lessonNum = parseInt(match[1]);
-            
+
             return { rank, lessonNum };
         };
-        
+
         const valsA = getSortVals(a);
         const valsB = getSortVals(b);
-        
+
         // 1. So sánh Nhóm ưu tiên (Rank 1 đứng trên Rank 2)
         if (valsA.rank !== valsB.rank) return valsA.rank - valsB.rank;
         // 2. So sánh thứ tự số Bài (0 đứng trước 1, 2, 3...)
@@ -430,6 +443,9 @@ async function loadAssignments() {
                         isAutoSubmitted: true,
                         isRedoing: false,
                         isLateFail: true
+                    }).then(() => {
+                        window[`isSubmitting_${assign.id}`] = false;
+                        loadAssignments(); // THÊM DÒNG NÀY: Ép giao diện tự động load lại bài lên danh sách đã nộp
                     });
                 }
 
@@ -574,7 +590,10 @@ async function loadAssignments() {
                         const c = new Date();
                         const timeLeft = endTime - c;
 
-                        if (!isRedoing && timeLeft <= 15000 && timeLeft > 0) {
+                        // TUYỆT ĐỐI BỎ QUA KHÓA 15 GIÂY NẾU ĐANG LÀM LẠI
+                        const currentlyRedoing = mySub ? !!mySub.isRedoing : false;
+
+                        if (currentlyRedoing === false && timeLeft <= 15000 && timeLeft > 0) {
                             const btnSubmit = document.getElementById(`btn-submit-${assign.id}`);
                             if (btnSubmit && !btnSubmit.disabled) {
                                 btnSubmit.disabled = true;
@@ -586,7 +605,7 @@ async function loadAssignments() {
 
                         if (c > endTime) {
                             clearInterval(timer);
-                            if (!isRedoing) loadAssignments(); 
+                            if (!isRedoing) loadAssignments();
                         } else {
                             const el = document.getElementById(`cd-end-${assign.id}`);
                             if (el) el.innerText = formatCountdown(timeLeft);
@@ -597,7 +616,12 @@ async function loadAssignments() {
             }
         }
     });
-    if (hasAutoSubmitted) { list.innerHTML = '<div class="glass-alert danger"><p style="font-weight:bold; margin:0;">Hệ thống đang đồng bộ thu bài tự động...</p></div>'; }
+    if (hasAutoSubmitted) {
+        const syncAlert = document.createElement('div');
+        syncAlert.className = 'glass-alert danger';
+        syncAlert.innerHTML = '<p style="font-weight:bold; margin:0;">Hệ thống đang đồng bộ thu bài tự động...</p>';
+        list.prepend(syncAlert);
+    }
 
     if (window.MathJax) {
         MathJax.typesetPromise([
@@ -692,10 +716,14 @@ async function submitAssignment(assignId, isAuto = false, isCheat = false) {
 
     if (now < startTime) return alert("⚠️ Lỗi: Chưa đến thời gian làm bài!");
 
+    // Ép kiểu boolean tuyệt đối để tránh xung đột
+    const isCurrentlyRedoing = mySub ? !!mySub.isRedoing : false;
+
     // --- KHÓA CHẶN 15 GIÂY TRƯỚC HẠN CHÓT ---
     const timeRemaining = endTime.getTime() - now.getTime();
 
-    if (!isAuto && !isRedoing) {
+    // CHỈ ÁP DỤNG KHÓA 15 GIÂY VÀ KHÓA QUÁ HẠN NẾU KHÔNG PHẢI LÀM LẠI
+    if (!isAuto && isCurrentlyRedoing === false) {
         if (timeRemaining <= 15000 && timeRemaining > 0) {
             alert("⚠️ Lỗi: Chỉ còn dưới 15 giây là hết hạn! Hệ thống đã khóa tính năng nộp bài để chuẩn bị đồng bộ dữ liệu tự động.");
             loadAssignments(); // Tải lại để ép ẩn đi nút nộp
@@ -817,6 +845,9 @@ async function submitAssignment(assignId, isAuto = false, isCheat = false) {
         // -----------------------------------------------------------
 
         if (!isAuto) alert("Nộp bài tập thành công!");
+
+        await loadAssignments();
+        if (typeof renderStudentRoadmap === 'function') renderStudentRoadmap();
     };
 
     await processSubmission(filesArray);
@@ -980,93 +1011,6 @@ function switchTab(tabId, btnElement) {
     if (contentArea) {
         contentArea.scrollTo({ top: 0, behavior: 'smooth' });
     }
-}
-
-// Render lộ trình cá nhân của học sinh đang đăng nhập
-async function renderStudentRoadmap() {
-    const body = document.getElementById('studentRoadmapBody');
-    if (!body) return;
-    body.innerHTML = '';
-
-    const assignments = await getDB('assignments');
-    const submissions = await getDB('submissions');
-
-    // Lọc bài học được giao cho "Tất cả" hoặc giao riêng cho chính học sinh này
-    const myAssignments = assignments.filter(assign => assign.targetStudent === 'all' || assign.targetStudent === currentUser.username);
-    // Sắp xếp bài tập thông minh theo số đếm trong Tiêu đề (VD: Bài 1 -> Bài 2 -> Bài 10)
-    const sortedAssignments = [...myAssignments].sort((a, b) => (a.title || '').localeCompare(b.title || '', 'vi-VN', { numeric: true, sensitivity: 'base' }));
-
-    if (sortedAssignments.length === 0) {
-        body.innerHTML = `<tr><td colspan="6" style="padding:15px; text-align:center; color:#666; font-style:italic;">Chưa có dữ liệu lộ trình học tập.</td></tr>`;
-        return;
-    }
-
-    sortedAssignments.forEach(assign => {
-        // THÊM DÒNG NÀY: Lấy điểm chuẩn riêng của từng bài do Giáo viên đã thiết lập
-        const passingGrade = assign.passingGrade || 7;
-
-        const sub = submissions.find(s => s.assignmentId === assign.id && s.studentUsername === currentUser.username);
-
-        let studentScore = '-';
-        let statusText = 'Chưa nộp';
-        let statusClass = 'status-pending';
-        let cellBgStyle = '';
-
-        // Đưa việc khai báo tiền lên trước để có thể ghi đè nếu học sinh bị loại do nộp trễ
-        let moneyVal = assign.roadmapMoney ? parseInt(assign.roadmapMoney).toLocaleString('vi-VN') + ' đ' : '-';
-
-        if (sub) {
-            // KIỂM TRA XEM CÓ ĐƯỢC GIÁO VIÊN THA ĐIỂM THẤP/NỘP TRỄ KHÔNG
-            if (sub.forcePass) {
-                statusText = 'Đạt';
-                statusClass = 'status-done';
-                cellBgStyle = 'background: rgba(16, 185, 129, 0.25) !important; color: #047857; font-weight: bold; border-radius: 8px;';
-                studentScore = (sub.grade !== null && sub.grade !== undefined && sub.grade !== '') ? parseFloat(sub.grade) : '0';
-            }
-            // ƯU TIÊN KIỂM TRA NỘP TRỄ TRƯỚC
-            else if (sub.isAutoSubmitted || sub.isLateFail) {
-                statusText = 'Loại';
-                statusClass = 'status-pending';
-                cellBgStyle = 'background: rgba(225, 29, 72, 0.2) !important; color: #b91c1c; font-weight: bold; border-radius: 8px;';
-                studentScore = (sub.grade !== null && sub.grade !== undefined && sub.grade !== '') ? parseFloat(sub.grade) : '0';
-                moneyVal = '0 đ'; // Ép tiền thưởng về 0 đ
-            }
-            else if (sub.isRegrading) {
-                statusText = 'Chấm lại';
-                statusClass = 'status-pending';
-                studentScore = '🔄';
-            } else if (sub.grade !== null && sub.grade !== undefined && sub.grade !== '') {
-                studentScore = parseFloat(sub.grade);
-
-                // So sánh với điểm chuẩn riêng của bài
-                if (studentScore >= passingGrade) {
-                    statusText = 'Đạt';
-                    statusClass = 'status-done';
-                    cellBgStyle = 'background: rgba(16, 185, 129, 0.25) !important; color: #047857; font-weight: bold; border-radius: 8px;';
-                } else {
-                    statusText = 'Loại';
-                    statusClass = 'status-pending';
-                    cellBgStyle = 'background: rgba(225, 29, 72, 0.2) !important; color: #b91c1c; font-weight: bold; border-radius: 8px;';
-                }
-            } else {
-                statusText = 'Chưa chấm';
-            }
-        }
-
-        const conditionVal = assign.roadmapCondition || '-';
-
-        const tr = document.createElement('tr');
-        tr.style.borderBottom = '1px solid rgba(0,0,0,0.05)';
-        tr.innerHTML = `
-            <td style="padding:12px;"><strong>${assign.title}</strong></td>
-            <td style="padding:12px; text-align: center;"><strong>${studentScore}</strong></td>
-            <td style="padding:12px; text-align: center;"><span class="${statusClass}">${statusText}</span></td>
-            <td style="padding:12px; text-align: center; ${cellBgStyle}"><strong>${moneyVal}</strong></td>
-            <td style="padding:12px; font-size:0.85em; color:#555; white-space: nowrap;">${assign.endDate}</td>
-            <td style="padding:12px; color:#2c3e50; font-weight: 600;">${conditionVal}</td>
-        `;
-        body.appendChild(tr);
-    });
 }
 
 window.openStudentInfoModal = function () {
@@ -1959,7 +1903,7 @@ StoreManager.unapplyItem = async function (itemId) {
     if (item.type === 'pet') {
         const petContainer = document.getElementById('virtual-pet-container');
         if (petContainer) petContainer.style.display = 'none';
-        
+
         // Dọn dẹp vòng lặp thú cưng để tránh lỗi "ké" tương tác khi tháo
         if (typeof PetInteractionManager !== 'undefined' && PetInteractionManager.loopInterval) {
             clearInterval(PetInteractionManager.loopInterval);
