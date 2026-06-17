@@ -53,13 +53,23 @@ window.onload = async function () {
         const hash = JSON.stringify(snapshot.val());
         if (hash !== cacheProfile) { cacheProfile = hash; await loadProfileRequests(); }
     });
-    db.ref('submissions').on('value', async (snapshot) => {
-        const hash = JSON.stringify(snapshot.val());
-        if (hash !== cacheSubmissions) { cacheSubmissions = hash; await loadSubmissions(); if (document.getElementById('teacherRoadmapBody')) renderTeacherRoadmap(); }
-    });
     db.ref('assignments').on('value', async (snapshot) => {
         const hash = JSON.stringify(snapshot.val());
-        if (hash !== cacheAssignments) { cacheAssignments = hash; await loadAssignedList(); if (document.getElementById('teacherRoadmapBody')) renderTeacherRoadmap(); }
+        if (hash !== cacheAssignmentsSt) { 
+            cacheAssignmentsSt = hash; 
+            window.cachedAssignments = snapshot.val() ? Object.values(snapshot.val()) : []; // Lưu cache
+            await loadAssignments(); 
+            if (document.getElementById('studentRoadmapBody')) renderStudentRoadmap(); 
+        }
+    });
+    db.ref('submissions').on('value', async (snapshot) => {
+        const hash = JSON.stringify(snapshot.val());
+        if (hash !== cacheSubmissionsSt) { 
+            cacheSubmissionsSt = hash; 
+            window.cachedSubmissions = snapshot.val() ? Object.values(snapshot.val()) : []; // Lưu cache
+            await loadAssignments(); 
+            if (document.getElementById('studentRoadmapBody')) renderStudentRoadmap(); 
+        }
     });
     db.ref('materials').on('value', async (snapshot) => {
         const hash = JSON.stringify(snapshot.val());
@@ -149,10 +159,6 @@ window.onload = async function () {
                 initTeacherStoreManagement();
             }
         }
-    });
-
-    db.ref('store_items').on('value', async () => {
-        if (typeof loadTeacherStoreItems === 'function') await loadTeacherStoreItems();
     });
 
     // (Bổ sung) Lắng nghe giáo viên nhập điểm để tự ẩn/hiện phần câu hỏi
@@ -1722,31 +1728,46 @@ window.saveMaterialEdit = async function () {
     alert("Đã đổi tên tài liệu thành công!");
 };
 
-// Hàm hỗ trợ đọc nhiều file sang Base64
+// PHIÊN BẢN MỚI: TẢI FILE LÊN FIREBASE STORAGE THAY VÌ LƯU BASE64
 async function readMultipleFiles(files) {
-    const MAX_SIZE_MB = 5; // Giới hạn 5MB mỗi file
+    // 1. Kiểm tra xem file index.html đã thêm thư viện Firebase Storage chưa
+    if (typeof firebase === 'undefined' || !firebase.storage) {
+        alert("⚠️ HỆ THỐNG: Bạn cần thêm thư viện Firebase Storage vào file HTML (index.html, student.html, teacher.html) để tải file lên!");
+        return [];
+    }
+
+    const MAX_SIZE_MB = 5; 
     const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
+    const results = [];
 
-    const promises = Array.from(files).map(file => {
-        return new Promise((resolve) => {
-            // Kiểm tra dung lượng file trước khi đọc
-            if (file.size > MAX_SIZE_BYTES) {
-                alert(`⚠️ File "${file.name}" quá lớn (${(file.size / (1024 * 1024)).toFixed(2)}MB).\nCơ sở dữ liệu chỉ cho phép tối đa ${MAX_SIZE_MB}MB/file. Vui lòng nén file lại!`);
-                resolve(null); // Trả về null để bỏ qua file này
-                return;
-            }
+    for (let i = 0; i < files.length; i++) {
+        const file = files[i];
 
-            const reader = new FileReader();
-            reader.onload = (e) => resolve({ name: file.name, type: file.type, base64: e.target.result });
-            reader.readAsDataURL(file);
-        });
-    });
+        // 2. Chặn file quá nặng
+        if (file.size > MAX_SIZE_BYTES) {
+            alert(`⚠️ File "${file.name}" quá lớn (${(file.size / (1024 * 1024)).toFixed(2)}MB).\nHệ thống chỉ cho phép tối đa ${MAX_SIZE_MB}MB/file. Vui lòng nén file lại!`);
+            continue; 
+        }
 
-    // Đợi tất cả file đọc xong
-    const results = await Promise.all(promises);
+        try {
+            // 3. Upload thẳng lên Firebase Storage (Thư mục uploads/)
+            const storageRef = firebase.storage().ref(`uploads/${Date.now()}_${file.name}`);
+            const snapshot = await storageRef.put(file);
+            
+            // 4. Lấy link tải xuống trực tiếp
+            const downloadURL = await snapshot.ref.getDownloadURL();
 
-    // Lọc bỏ những file bị lỗi (dung lượng quá lớn trả về null ở trên)
-    return results.filter(item => item !== null);
+            // MẸO (TRICK): Vẫn gán URL vào thuộc tính tên là "base64"
+            // Việc này giúp toàn bộ giao diện HTML cũ của bạn vẫn tự động nhận diện và tải file bình thường!
+            results.push({ name: file.name, type: file.type, base64: downloadURL });
+            
+        } catch (error) {
+            console.error("Lỗi upload file:", error);
+            alert(`❌ Lỗi mạng khi tải file "${file.name}" lên máy chủ.`);
+        }
+    }
+
+    return results;
 }
 
 // DÁN VÀO DÒNG CUỐI CÙNG CỦA FILE TEACHER.JS
@@ -1903,76 +1924,6 @@ window.addStoreItem = async function () {
     document.getElementById('newItemName').value = '';
     document.getElementById('newItemValue').value = '';
     alert("Thêm vật phẩm vào cửa hàng thành công!");
-};
-
-// Biến toàn cục để lưu tạm danh sách cửa hàng, giúp lấy dữ liệu nhanh khi chọn dropdown
-let currentStoreItems = [];
-
-// 1. Hàm load danh sách hàng hóa (Cập nhật để đổ dữ liệu vào thẻ <select>)
-window.loadTeacherStoreItems = async function () {
-    const items = await getDB('store_items');
-    currentStoreItems = items; // Lưu lại
-
-    const container = document.getElementById('teacherStoreItemsList');
-    const selectBox = document.getElementById('editStoreItemId');
-
-    // Đổ danh sách vào Dropdown chọn Tên hàng hóa
-    if (selectBox) {
-        const currentSelected = selectBox.value; // Giữ nguyên lựa chọn hiện tại nếu có
-        selectBox.innerHTML = '<option value="">-- Chọn hàng hóa cần sửa --</option>';
-        items.forEach(item => {
-            const opt = document.createElement('option');
-            opt.value = item._fbKey;
-            opt.innerText = item.name;
-            selectBox.appendChild(opt);
-        });
-        if (currentSelected) selectBox.value = currentSelected;
-    }
-
-    // Hiển thị danh sách bên dưới
-    if (!container) return;
-    container.innerHTML = '';
-
-    if (items.length === 0) {
-        container.innerHTML = '<p style="color:#666; font-style:italic;">Chưa có vật phẩm nào.</p>';
-        return;
-    }
-
-    items.forEach(item => {
-        const div = document.createElement('div');
-        div.style.cssText = 'background: white; padding: 15px; border-radius: 8px; margin-bottom: 10px; border: 1px solid rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center;';
-        div.innerHTML = `
-            <div>
-                <strong style="color: #764ba2;">${item.name}</strong> - <span style="color: #d35400; font-weight: bold;">${item.price} Coin</span><br>
-                <span style="font-size: 0.85em; color: #666;">Bán từ: ${item.startDate} đến ${item.endDate}</span><br>
-                <span style="font-size: 0.85em; background: #eee; padding: 2px 6px; border-radius: 4px;">Phân loại: ${item.type}</span>
-            </div>
-            <button onclick="deleteStoreItem('${item._fbKey}')" class="btn-reject" style="padding: 5px 15px;">Xóa</button>
-        `;
-        container.appendChild(div);
-    });
-};
-
-// 2. Hàm tự động điền Giá và Ngày tháng cũ khi Giáo viên chọn Tên hàng hóa
-window.loadStoreItemDetails = function () {
-    const selectedKey = document.getElementById('editStoreItemId').value;
-
-    // Nếu chọn quay về mặc định thì xóa trắng ô
-    if (!selectedKey) {
-        document.getElementById('editStoreItemPrice').value = '';
-        document.getElementById('editStoreItemStart').value = '';
-        document.getElementById('editStoreItemEnd').value = '';
-        return;
-    }
-
-    // Tìm item đang được chọn và điền vào Input
-    const item = currentStoreItems.find(i => i._fbKey === selectedKey);
-    if (item) {
-        document.getElementById('editStoreItemPrice').value = item.price;
-        // Chuyển đổi định dạng ngày " " thành "T" để hiển thị đúng trong ô datetime-local
-        document.getElementById('editStoreItemStart').value = item.startDate ? item.startDate.replace(" ", "T") : '';
-        document.getElementById('editStoreItemEnd').value = item.endDate ? item.endDate.replace(" ", "T") : '';
-    }
 };
 
 // 3. Hàm lưu dữ liệu chỉnh sửa lên Firebase

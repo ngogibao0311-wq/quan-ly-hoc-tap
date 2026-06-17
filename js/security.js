@@ -4,6 +4,18 @@
 
 // Hàm xử lý khi phát hiện vi phạm: Xóa trắng và ép văng khỏi web
 function kickUser() {
+    // NGOẠI LỆ: Cho phép Giáo viên mở F12 để kiểm tra và chẩn đoán hệ thống
+    try {
+        const userStr = localStorage.getItem('currentUser');
+        if (userStr) {
+            const user = JSON.parse(userStr);
+            if (user && user.role === 'teacher') return; // Hủy lệnh kick nếu là Giáo viên
+        }
+    } catch (e) {
+        // Bỏ qua lỗi parse
+    }
+
+    // Các tài khoản khác sẽ bị phạt
     document.head.innerHTML = ""; 
     document.body.innerHTML = ""; 
     window.location.replace("about:blank"); 
@@ -27,25 +39,6 @@ document.addEventListener('keydown', function(e) {
         return false;
     }
 });
-
-// 3. Phát hiện F12 mở theo dạng neo (Docked) làm thay đổi kích thước khung web
-function detectDevToolsSize() {
-    // THÊM DÒNG NÀY: Bỏ qua kiểm tra kích thước đối với thiết bị di động (Mobile/Tablet)
-    // để tránh bị văng web khi bàn phím ảo bật lên hoặc xoay màn hình.
-    if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-        return; 
-    }
-
-    const threshold = 160; // Chênh lệch kích thước tối thiểu khi F12 mở
-    const widthDiff = window.outerWidth - window.innerWidth > threshold;
-    const heightDiff = window.outerHeight - window.innerHeight > threshold;
-    
-    if (widthDiff || heightDiff) {
-        kickUser();
-    }
-}
-window.addEventListener('resize', detectDevToolsSize);
-setInterval(detectDevToolsSize, 500);
 
 // 4. Phát hiện Console (Dành cho ai mở F12 dạng cửa sổ rời - Undocked)
 // Đẩy một hình ảnh ảo vào Console, nếu Console đang mở nó sẽ cố đọc hình ảnh này và sập bẫy.

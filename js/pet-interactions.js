@@ -4,9 +4,14 @@ class PetInteractionManager {
     static isEnabled = localStorage.getItem('petInteractionsEnabled') !== 'false';
     static unlockedInteractions = [];
 
+    static serverOffset = 0;
+    static getNow() {
+        return this.getNow() + this.serverOffset;
+    }
+
     // --- CÁC CHỈ SỐ SINH TỒN ---
     static hunger = 100;
-    static lastHungerUpdate = Date.now();
+    static lastHungerUpdate = this.getNow();
     static idleTime = 0;
     static sleepTime = 0;
     static isSleeping = false;
@@ -32,6 +37,12 @@ class PetInteractionManager {
     static init() {
         const toggle = document.getElementById('togglePetInteractions');
         if (toggle) toggle.checked = this.isEnabled;
+
+        if (typeof db !== 'undefined') {
+            db.ref('.info/serverTimeOffset').on('value', (snap) => {
+                this.serverOffset = snap.val() || 0;
+            });
+        }
 
         const user = JSON.parse(localStorage.getItem('currentUser'));
         if (user && user.username && typeof db !== 'undefined') {
@@ -78,7 +89,7 @@ class PetInteractionManager {
         // Tải dữ liệu Firebase
         db.ref(`student_pet_status/${username}`).once('value', (snap) => {
             const data = snap.val();
-            const now = Date.now();
+            const now = this.getNow();
             if (data) {
                 this.hunger = data.hunger !== undefined ? data.hunger : 100;
                 this.lastHungerUpdate = data.lastUpdate || now;
@@ -126,7 +137,7 @@ class PetInteractionManager {
         this.loopInterval = setInterval(() => {
             if (!this.isEnabled || document.getElementById('virtual-pet-container').style.display === 'none') return;
 
-            const now = Date.now();
+            const now = this.getNow();
             if (now - this.lastHungerUpdate >= 3600000) {
                 this.hunger = Math.max(0, this.hunger - 10);
                 this.lastHungerUpdate = now;

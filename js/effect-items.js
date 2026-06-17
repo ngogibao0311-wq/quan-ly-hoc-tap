@@ -5,8 +5,22 @@ class EffectManager {
     static currentInterval = null;
 
     static clearEffects() {
+        // Dừng các bộ đếm sinh hạt
         if (this.currentInterval) clearInterval(this.currentInterval);
-        if (this.container) this.container.innerHTML = '';
+        
+        if (this.container) {
+            // Thay vì xóa ngay (innerHTML = ''), đợi các hoạt ảnh cuối cùng kết thúc
+            const children = Array.from(this.container.children);
+            children.forEach(child => {
+                // Tắt animation và ép mờ đi trong 0.3s
+                child.style.animation = 'none';
+                child.style.transition = 'opacity 0.3s';
+                child.style.opacity = '0';
+                setTimeout(() => {
+                    if (child.parentNode) child.remove();
+                }, 300);
+            });
+        }
     }
 
     static applyEffect(effectId) {

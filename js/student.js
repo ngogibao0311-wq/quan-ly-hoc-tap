@@ -60,11 +60,21 @@ window.onload = async function () {
     });
     db.ref('assignments').on('value', async (snapshot) => {
         const hash = JSON.stringify(snapshot.val());
-        if (hash !== cacheAssignmentsSt) { cacheAssignmentsSt = hash; await loadAssignments(); if (document.getElementById('studentRoadmapBody')) renderStudentRoadmap(); }
+        if (hash !== cacheAssignmentsSt) { 
+            cacheAssignmentsSt = hash; 
+            window.cachedAssignments = snapshot.val() ? Object.values(snapshot.val()) : []; // Lưu cache
+            await loadAssignments(); 
+            if (document.getElementById('studentRoadmapBody')) renderStudentRoadmap(); 
+        }
     });
     db.ref('submissions').on('value', async (snapshot) => {
         const hash = JSON.stringify(snapshot.val());
-        if (hash !== cacheSubmissionsSt) { cacheSubmissionsSt = hash; await loadAssignments(); if (document.getElementById('studentRoadmapBody')) renderStudentRoadmap(); }
+        if (hash !== cacheSubmissionsSt) { 
+            cacheSubmissionsSt = hash; 
+            window.cachedSubmissions = snapshot.val() ? Object.values(snapshot.val()) : []; // Lưu cache
+            await loadAssignments(); 
+            if (document.getElementById('studentRoadmapBody')) renderStudentRoadmap(); 
+        }
     });
     db.ref('materials').on('value', async (snapshot) => {
         const hash = JSON.stringify(snapshot.val());
@@ -167,61 +177,55 @@ window.onload = async function () {
         if (typeof applyEquippedItems === 'function') applyEquippedItems();
     });
 
-    // Lắng nghe và kiểm tra thông báo toàn trường
+    // LẮNG NGHE THÔNG BÁO TOÀN TRƯỜNG
     db.ref('global_notifications').on('value', (snapshot) => {
         const notifications = [];
-        snapshot.forEach(child => {
-            notifications.push({ ...child.val(), _fbKey: child.key });
-        });
+        snapshot.forEach(child => notifications.push({ ...child.val(), _fbKey: child.key }));
 
         if (notifications.length > 0) {
-            // Sắp xếp để lấy thông báo mới nhất
             const sorted = notifications.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
             const latestNoti = sorted[0];
-
-            // Kiểm tra xem học sinh này đã xác nhận chưa
             const receivers = latestNoti.receivers || {};
+
             if (!receivers[currentUser.username]) {
-                // Nếu chưa nhận -> Ép hiển thị Modal Pop-up
+                // CHẶN BẬT POPUP NẾU ĐANG THI TOÀN MÀN HÌNH
+                if (window.currentActiveExamId) {
+                    console.log("Đã hoãn thông báo do đang trong chế độ thi cử.");
+                    return;
+                }
+
                 document.getElementById('studentNotificationMessage').innerText = latestNoti.message;
                 document.getElementById('studentNotificationModal').classList.add('active');
 
-                // Xử lý sự kiện nút "Đã nhận"
                 const btn = document.getElementById('btnAcknowledgeNotification');
                 btn.onclick = async function () {
-                    btn.disabled = true;
-                    btn.innerText = "⏳ Đang ghi nhận...";
-                    // Đẩy tên đăng nhập của học sinh lên Firebase để điểm danh
+                    btn.disabled = true; btn.innerText = "⏳ Đang ghi nhận...";
                     await db.ref(`global_notifications/${latestNoti._fbKey}/receivers/${currentUser.username}`).set(true);
-
                     document.getElementById('studentNotificationModal').classList.remove('active');
-                    btn.disabled = false;
-                    btn.innerText = "✅ Đã nhận và đọc hiểu";
+                    btn.disabled = false; btn.innerText = "✅ Đã nhận và đọc hiểu";
                 };
             } else {
-                // Đảm bảo không bị kẹt Pop-up nếu đã đọc
                 document.getElementById('studentNotificationModal').classList.remove('active');
             }
         }
     });
 
-    // Lắng nghe và hiển thị Khảo sát bắt buộc
+    // LẮNG NGHE KHẢO SÁT BẮT BUỘC
     db.ref('global_surveys').on('value', (snapshot) => {
         const surveys = [];
-        snapshot.forEach(child => {
-            surveys.push({ ...child.val(), _fbKey: child.key });
-        });
+        snapshot.forEach(child => surveys.push({ ...child.val(), _fbKey: child.key }));
 
         if (surveys.length > 0) {
-            // Lọc ra khảo sát mới nhất mà học sinh này CHƯA làm
             const sorted = surveys.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-
             for (let sv of sorted) {
                 const answersObj = sv.answers || {};
                 if (!answersObj[currentUser.username]) {
-                    window.currentActiveSurvey = sv; // Lưu biến toàn cục để submit
+                    // CHẶN BẬT POPUP NẾU ĐANG THI TOÀN MÀN HÌNH
+                    if (window.currentActiveExamId) return;
+
+                    window.currentActiveSurvey = sv;
                     renderStudentSurvey(sv);
-                    break; // Chỉ ép làm 1 khảo sát mới nhất, làm xong mới quét tiếp
+                    break;
                 }
             }
         }
@@ -287,8 +291,8 @@ function formatCountdown(ms) {
 }
 
 async function loadAssignments() {
-    const assignments = await getDB('assignments');
-    const submissions = await getDB('submissions');
+    const assignments = (window.cachedAssignments && window.cachedAssignments.length > 0) ? window.cachedAssignments : await getDB('assignments');
+    const submissions = (window.cachedSubmissions && window.cachedSubmissions.length > 0) ? window.cachedSubmissions : await getDB('submissions');
     const list = document.getElementById('assignmentsList');
     const grades = document.getElementById('gradesList');
 
@@ -802,7 +806,9 @@ async function submitAssignment(assignId, isAuto = false, isCheat = false) {
         const submitNow = new Date();
 
         let finalFile = fileData;
-        if (!fileData && mySub && mySub.file) finalFile = mySub.file;
+        if (!fileData && mySub && mySub.file && !isCurrentlyRedoing) {
+            finalFile = mySub.file;
+        }
 
         const payload = {
             assignmentId: assignId,
@@ -1162,30 +1168,46 @@ window.loadScheduleStudent = async function () {
     });
 };
 
+// PHIÊN BẢN MỚI: TẢI FILE LÊN FIREBASE STORAGE THAY VÌ LƯU BASE64
 async function readMultipleFiles(files) {
-    const MAX_SIZE_MB = 5; // Giới hạn 5MB mỗi file
+    // 1. Kiểm tra xem file index.html đã thêm thư viện Firebase Storage chưa
+    if (typeof firebase === 'undefined' || !firebase.storage) {
+        alert("⚠️ HỆ THỐNG: Bạn cần thêm thư viện Firebase Storage vào file HTML (index.html, student.html, teacher.html) để tải file lên!");
+        return [];
+    }
+
+    const MAX_SIZE_MB = 5; 
     const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
+    const results = [];
 
-    const promises = Array.from(files).map(file => {
-        return new Promise((resolve) => {
-            // Kiểm tra dung lượng file trước khi đọc
-            if (file.size > MAX_SIZE_BYTES) {
-                alert(`⚠️ File "${file.name}" quá lớn (${(file.size / (1024 * 1024)).toFixed(2)}MB).\nCơ sở dữ liệu chỉ cho phép tối đa ${MAX_SIZE_MB}MB/file. Vui lòng nén file lại!`);
-                resolve(null); // Trả về null để bỏ qua file này
-                return;
-            }
+    for (let i = 0; i < files.length; i++) {
+        const file = files[i];
 
-            const reader = new FileReader();
-            reader.onload = (e) => resolve({ name: file.name, type: file.type, base64: e.target.result });
-            reader.readAsDataURL(file);
-        });
-    });
+        // 2. Chặn file quá nặng
+        if (file.size > MAX_SIZE_BYTES) {
+            alert(`⚠️ File "${file.name}" quá lớn (${(file.size / (1024 * 1024)).toFixed(2)}MB).\nHệ thống chỉ cho phép tối đa ${MAX_SIZE_MB}MB/file. Vui lòng nén file lại!`);
+            continue; 
+        }
 
-    // Đợi tất cả file đọc xong
-    const results = await Promise.all(promises);
+        try {
+            // 3. Upload thẳng lên Firebase Storage (Thư mục uploads/)
+            const storageRef = firebase.storage().ref(`uploads/${Date.now()}_${file.name}`);
+            const snapshot = await storageRef.put(file);
+            
+            // 4. Lấy link tải xuống trực tiếp
+            const downloadURL = await snapshot.ref.getDownloadURL();
 
-    // Lọc bỏ những file bị lỗi (dung lượng quá lớn trả về null ở trên)
-    return results.filter(item => item !== null);
+            // MẸO (TRICK): Vẫn gán URL vào thuộc tính tên là "base64"
+            // Việc này giúp toàn bộ giao diện HTML cũ của bạn vẫn tự động nhận diện và tải file bình thường!
+            results.push({ name: file.name, type: file.type, base64: downloadURL });
+            
+        } catch (error) {
+            console.error("Lỗi upload file:", error);
+            alert(`❌ Lỗi mạng khi tải file "${file.name}" lên máy chủ.`);
+        }
+    }
+
+    return results;
 }
 
 // THAY THẾ TOÀN BỘ HÀM spinWheel CŨ Ở CUỐI FILE STUDENT.JS BẰNG ĐOẠN NÀY
@@ -1335,8 +1357,15 @@ window.spinWheel = async function () {
         else if (finalRewardStr === "Quà bí ẩn") {
             const cotichItems = (typeof StoreConfig !== 'undefined') ? StoreConfig.items.filter(i => i.tag && i.tag.toLowerCase() === 'cổ tích') : [];
             if (cotichItems.length > 0) {
+                
+                // TẢI TRỰC TIẾP KHO ĐỒ TỪ DB ĐỂ TRÁNH LỖI ASYNC
+                const invSnap = await db.ref(`student_inventory/${currentUser.username}`).once('value');
+                const exactInventory = invSnap.val() ? Object.values(invSnap.val()).map(i => i.id) : [];
+
                 const randomItem = cotichItems[Math.floor(Math.random() * cotichItems.length)];
-                if (typeof studentOwnedItems !== 'undefined' && studentOwnedItems.includes(randomItem.id)) {
+                
+                // KIỂM TRA TRÊN DANH SÁCH CHUẨN XÁC VỪA TẢI
+                if (exactInventory.includes(randomItem.id)) {
                     wonCoins = 600;
                     displayResult = `Trùng ${randomItem.name} (Bù 600 Coin)`;
                     actualRewardRecord = `Trùng ${randomItem.name} (+600 Coin)`;
@@ -1362,7 +1391,10 @@ window.spinWheel = async function () {
 
         // Cập nhật số lượt đã quay (Tăng thêm 1)
         ticketData.spinTracking.count = ticketData.used + 1;
-        await db.ref('spin_counts/' + currentUser.username).set({ count: ticketData.spinTracking.count });
+        await db.ref('spin_counts/' + currentUser.username).transaction((currentData) => {
+            let count = (currentData && currentData.count) ? currentData.count : 0;
+            return { count: count + 1 };
+        });
 
         // Cập nhật lại giao diện số vé để chắc chắn đồng bộ
         if (titleWheel) {
@@ -1449,7 +1481,10 @@ window.spinMultipleWheel = async function () {
 
     // Chạy ngầm thuật toán quay y hệt hàm spinWheel gốc
     const cotichItems = (typeof StoreConfig !== 'undefined') ? StoreConfig.items.filter(i => i.tag && i.tag.toLowerCase() === 'cổ tích') : [];
-    let currentOwned = typeof studentOwnedItems !== 'undefined' ? [...studentOwnedItems] : [];
+    
+    // TẢI TRỰC TIẾP KHO ĐỒ TỪ DB TRƯỚC KHI BẮT ĐẦU VÒNG LẶP QUAY NHIỀU LẦN
+    const invSnap = await db.ref(`student_inventory/${currentUser.username}`).once('value');
+    let currentOwned = invSnap.val() ? Object.values(invSnap.val()).map(i => i.id) : [];
 
     let totalCoinsWon = 0;
     let missCount = 0;
@@ -1487,7 +1522,10 @@ window.spinMultipleWheel = async function () {
 
     // Cập nhật Database
     ticketData.spinTracking.count = ticketData.used + spinsToDo;
-    await db.ref('spin_counts/' + currentUser.username).set({ count: ticketData.spinTracking.count });
+    await db.ref('spin_counts/' + currentUser.username).transaction((currentData) => {
+        let count = (currentData && currentData.count) ? currentData.count : 0;
+        return { count: count + spinsToDo };
+    });
 
     if (totalCoinsWon > 0) {
         const coinRef = db.ref('student_coins/' + currentUser.username);
