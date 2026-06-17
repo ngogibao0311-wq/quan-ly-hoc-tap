@@ -225,14 +225,23 @@ class PetInteractionManager {
             if (petImg) petImg.classList.add('pet-sleeping');
 
             if (activePetId === 'pet_doisong_bandem') {
-                // --- HIỆU ỨNG TINH TÚ PURE CSS CHO MÈO ĐÊM ĐẦY SAO ---
+                // --- HIỆU ỨNG CẢNH MỘNG MỊ PURE CSS CHO MÈO ĐÊM ĐẦY SAO ---
                 if (!document.getElementById('pet-sleep-stars-container')) {
                     const starsContainer = document.createElement('div');
                     starsContainer.id = 'pet-sleep-stars-container';
                     starsContainer.className = 'cat-sleep-stars-wrap';
 
-                    // Tạo cấu trúc 3 ngôi sao CSS riêng biệt để làm hiệu ứng sâu, nhiều chi tiết
+                    // Thêm Mây, Cành Cây, Chim và 3 Ngôi Sao vào cảnh mộng mị
                     starsContainer.innerHTML = `
+                        <div class="css-night-cloud"></div>
+                        
+                        <div class="css-dream-branch">
+                            <div class="css-leaf leaf-1"></div>
+                            <div class="css-leaf leaf-2"></div>
+                        </div>
+
+                        <div class="css-dream-bird"></div>
+
                         <div class="css-star star-primary"></div>
                         <div class="css-star star-secondary"></div>
                         <div class="css-star star-tertiary"></div>
