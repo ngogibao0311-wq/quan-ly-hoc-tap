@@ -1,6 +1,9 @@
 const currentUser = JSON.parse(localStorage.getItem('currentUser'));
 if (!currentUser || currentUser.role !== 'student') window.location.href = 'index.html';
 
+let cacheAssignmentsSt = "";
+let cacheSubmissionsSt = "";
+
 document.getElementById('studentName').innerText = currentUser.name;
 updateAvatarDisplay(currentUser.avatar); // Tự động hiển thị ảnh đại diện ở góc phải
 

@@ -1,6 +1,9 @@
 const currentUser = JSON.parse(localStorage.getItem('currentUser'));
 if (!currentUser || currentUser.role !== 'teacher') window.location.href = 'index.html';
 
+let cacheAssignmentsSt = "";
+let cacheSubmissionsSt = "";
+
 let attachedFileData = null;
 let attachedMaterialFileData = null;
 
@@ -57,17 +60,20 @@ window.onload = async function () {
         const hash = JSON.stringify(snapshot.val());
         if (hash !== cacheAssignmentsSt) { 
             cacheAssignmentsSt = hash; 
-            window.cachedAssignments = snapshot.val() ? Object.values(snapshot.val()) : []; // Lưu cache
-            await loadAssignments(); 
+            window.cachedAssignments = snapshot.val() ? Object.values(snapshot.val()) : []; 
+            // Sửa tại đây: Gọi đúng hàm loadAssignedList() thay vì loadAssignments()
+            await loadAssignedList(); 
             if (document.getElementById('studentRoadmapBody')) renderStudentRoadmap(); 
         }
     });
+
     db.ref('submissions').on('value', async (snapshot) => {
         const hash = JSON.stringify(snapshot.val());
         if (hash !== cacheSubmissionsSt) { 
             cacheSubmissionsSt = hash; 
-            window.cachedSubmissions = snapshot.val() ? Object.values(snapshot.val()) : []; // Lưu cache
-            await loadAssignments(); 
+            window.cachedSubmissions = snapshot.val() ? Object.values(snapshot.val()) : []; 
+            // Sửa tại đây: Gọi đúng hàm loadSubmissions() thay vì loadAssignments()
+            await loadSubmissions(); 
             if (document.getElementById('studentRoadmapBody')) renderStudentRoadmap(); 
         }
     });
