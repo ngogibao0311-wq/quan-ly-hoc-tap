@@ -87,6 +87,10 @@ window.onload = async function () {
     // DÁN ĐOẠN THỜI GIAN THỰC ĐỒNG BỘ NÀY VÀO ĐÂY
     db.ref('game_settings').on('value', (snapshot) => {
         const settings = snapshot.val() || { isOpen: true, lockMessage: '' };
+        
+        // Khai báo biến toàn cục để hệ thống chẩn đoán nhận diện được
+        window.isGameEnabled = settings.isOpen; 
+
         const toggleInput = document.getElementById('gameToggle');
         const msgArea = document.getElementById('gameLockMessageArea');
         const msgInput = document.getElementById('gameLockMessage');

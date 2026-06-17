@@ -320,10 +320,26 @@ window.runSystemDiagnostics = async function() {
         }
 
         await sleep(500); // ----------------------------------------------------
-        // 6. KIỂM TRA CÁC BIẾN TOÀN CỤC HOẠT ĐỘNG
-        if (typeof window.wheelProbs === 'undefined') warnings.push("Cấu hình tỉ lệ vòng quay đang trống, game sẽ dùng mặc định cứng.");
-        if (typeof window.isGameEnabled === 'undefined') warnings.push("Trạng thái khóa/mở trò chơi chưa được đồng bộ với Firebase.");
+// 6. KIỂM TRA CÁC BIẾN TOÀN CỤC HOẠT ĐỘNG (ĐỒNG BỘ TRÒ CHƠI)
+        if (typeof window.wheelProbs === 'undefined') {
+            warnings.push("Cấu hình tỉ lệ vòng quay đang trống, game sẽ dùng mặc định cứng.");
+        }
+        
+        // Tiến hành kiểm tra động: Nếu chưa có biến, thử đợi Firebase phản hồi trong 1 giây trước khi báo lỗi
+        if (typeof window.isGameEnabled === 'undefined') {
+            let retryCount = 0;
+            while (retryCount < 5 && typeof window.isGameEnabled === 'undefined') {
+                await sleep(200); // Đợi thêm 200ms mỗi lần để Firebase kịp kéo data
+                retryCount++;
+            }
+        }
 
+        // Sau khi đã đợi mà vẫn không có dữ liệu thì mới xác nhận là mất đồng bộ dữ liệu hoặc lỗi kết nối
+        if (typeof window.isGameEnabled === 'undefined') {
+            warnings.push("Hệ thống chưa nhận được trạng thái Trò chơi (isGameEnabled undefined). Vui lòng kiểm tra lại cấu hình node 'game_settings' trên Firebase.");
+        } else {
+            passes++;
+        }
         // === KẾT LUẬN VÀ IN BÁO CÁO ===
         statusText.innerHTML = `<span style="color: #2c3e50; font-weight: bold;">Hoàn tất quét hệ thống!</span>`;
         

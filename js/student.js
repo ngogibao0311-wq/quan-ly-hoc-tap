@@ -83,28 +83,27 @@ window.onload = async function () {
     });
 
     db.ref('game_settings').on('value', (snapshot) => {
-        if (snapshot.exists()) {
-            const settings = snapshot.val();
+        // Cấp giá trị mặc định nếu Firebase chưa có dữ liệu
+        const settings = snapshot.val() || { isOpen: true, lockMessage: '' };
 
-            // 1. Đồng bộ đúng tên biến isOpen từ Firebase do teacher.js đẩy lên
-            window.isGameEnabled = settings.isOpen;
+        // 1. Đồng bộ đúng tên biến isOpen từ Firebase
+        window.isGameEnabled = settings.isOpen;
 
-            // 2. Lấy các vùng giao diện Trò chơi bên thẻ student.html
-            const gameActiveView = document.getElementById('gameActiveView');
-            const gameLockedView = document.getElementById('gameLockedView');
-            const messageText = document.getElementById('gameLockedMessageText');
+        // 2. Lấy các vùng giao diện Trò chơi bên thẻ student.html
+        const gameActiveView = document.getElementById('gameActiveView');
+        const gameLockedView = document.getElementById('gameLockedView');
+        const messageText = document.getElementById('gameLockedMessageText');
 
-            // 3. Xử lý logic Ẩn/Hiện và hiển thị Lời nhắn của giáo viên
-            if (window.isGameEnabled === false) {
-                // Khóa mục trò chơi
-                if (gameActiveView) gameActiveView.style.display = 'none';
-                if (gameLockedView) gameLockedView.style.display = 'block';
-                if (messageText) messageText.innerText = settings.lockMessage || "Giáo viên đã tạm khóa khu vực trò chơi.";
-            } else {
-                // Mở mục trò chơi
-                if (gameActiveView) gameActiveView.style.display = 'block';
-                if (gameLockedView) gameLockedView.style.display = 'none';
-            }
+        // 3. Xử lý logic Ẩn/Hiện và hiển thị Lời nhắn của giáo viên
+        if (window.isGameEnabled === false) {
+            // Khóa mục trò chơi
+            if (gameActiveView) gameActiveView.style.display = 'none';
+            if (gameLockedView) gameLockedView.style.display = 'block';
+            if (messageText) messageText.innerText = settings.lockMessage || "Giáo viên đã tạm khóa khu vực trò chơi.";
+        } else {
+            // Mở mục trò chơi
+            if (gameActiveView) gameActiveView.style.display = 'block';
+            if (gameLockedView) gameLockedView.style.display = 'none';
         }
     });
     window.wheelProbs = { miss: 50, c100: 20, c150: 25, c500: 4, gift: 1 };
