@@ -63,20 +63,20 @@ window.onload = async function () {
     });
     db.ref('assignments').on('value', async (snapshot) => {
         const hash = JSON.stringify(snapshot.val());
-        if (hash !== cacheAssignmentsSt) { 
-            cacheAssignmentsSt = hash; 
+        if (hash !== cacheAssignmentsSt) {
+            cacheAssignmentsSt = hash;
             window.cachedAssignments = snapshot.val() ? Object.values(snapshot.val()) : []; // Lưu cache
-            await loadAssignments(); 
-            if (document.getElementById('studentRoadmapBody')) renderStudentRoadmap(); 
+            await loadAssignments();
+            if (document.getElementById('studentRoadmapBody')) renderStudentRoadmap();
         }
     });
     db.ref('submissions').on('value', async (snapshot) => {
         const hash = JSON.stringify(snapshot.val());
-        if (hash !== cacheSubmissionsSt) { 
-            cacheSubmissionsSt = hash; 
+        if (hash !== cacheSubmissionsSt) {
+            cacheSubmissionsSt = hash;
             window.cachedSubmissions = snapshot.val() ? Object.values(snapshot.val()) : []; // Lưu cache
-            await loadAssignments(); 
-            if (document.getElementById('studentRoadmapBody')) renderStudentRoadmap(); 
+            await loadAssignments();
+            if (document.getElementById('studentRoadmapBody')) renderStudentRoadmap();
         }
     });
     db.ref('materials').on('value', async (snapshot) => {
@@ -414,8 +414,14 @@ async function loadAssignments() {
             let viewQuestionsBtnHTML = `<button class="btn-approve" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; margin-top: 15px; padding: 12px 15px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; display: block; width: 100%; transition: 0.3s;" onclick="viewAssignmentQuestions('${assign.id}')">👁️ Xem lại tất cả câu hỏi</button>`;
 
             const uniqueId = `student-done-${assign.id}`;
+            let isLockedByExam = window.currentActiveExamId && window.currentActiveExamId !== assign.id;
+            let clickHandler = isLockedByExam ? `alert('⚠️ Bạn đang làm bài thi! Không thể xem các bài tập khác.')` : `toggleAccordion('${uniqueId}', this)`;
+            let glassLockHTML = isLockedByExam ? `<div style="position: absolute; inset: 0; background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(4px); z-index: 10; border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: not-allowed;"><span style="background: rgba(225, 29, 72, 0.9); color: white; padding: 6px 14px; border-radius: 20px; font-weight: bold; box-shadow: 0 4px 15px rgba(225, 29, 72, 0.4);">🔒 Tạm khóa khi thi</span></div>` : '';
+
             const div = document.createElement('div'); div.className = 'card accordion-card';
-            div.innerHTML = `<div class="accordion-header" onclick="toggleAccordion('${uniqueId}', this)"><div class="accordion-title"><h4>${assign.title}</h4><span>${statusText}</span></div><div class="accordion-meta"><span>Điểm: <strong style="${(mySub.grade !== null && mySub.grade !== undefined && mySub.grade !== '' && !mySub.isRegrading) ? 'color:#059669;' : 'color:#d35400;'}">${gradeDisplay}</strong></span><span class="toggle-icon">▼</span></div></div>
+            div.style.position = 'relative'; // Bắt buộc để lớp phủ kính (glassmorphism) định vị chính xác
+
+            div.innerHTML = `${glassLockHTML}<div class="accordion-header" onclick="${clickHandler}"><div class="accordion-title"><h4>${assign.title}</h4><span>${statusText}</span></div><div class="accordion-meta"><span>Điểm: <strong style="${(mySub.grade !== null && mySub.grade !== undefined && mySub.grade !== '' && !mySub.isRegrading) ? 'color:#059669;' : 'color:#d35400;'}">${gradeDisplay}</strong></span><span class="toggle-icon">▼</span></div></div>
                 <div id="${uniqueId}" class="accordion-content"><div class="assignment-meta"><p>🕒 <strong>Bạn đã nộp lúc:</strong> ${mySub.submitTime || 'Không rõ'}</p></div>${violationHTML}${videoHTML}<div style="background: rgba(255,255,255,0.5); padding: 15px; border-radius: 12px; margin-top: 15px;"><strong>Nội dung bài làm của bạn:</strong><br><p style="margin-top: 5px; color: ${mySub.isAutoSubmitted ? '#e74c3c' : '#444'}; white-space: pre-wrap;">${mySub.answer || '<i>(Không có)</i>'}</p>${myFileHTML}</div>${teacherFileHTML}${gradedFileHTML}${teacherCommentHTML}${viewQuestionsBtnHTML}</div>`;
             grades.appendChild(div);
         }
@@ -561,6 +567,7 @@ async function loadAssignments() {
 
                 const uniqueId = `student-todo-${assign.id}`;
                 const div = document.createElement('div'); div.className = 'card submit-box accordion-card';
+                div.style.position = 'relative'; // Bắt buộc để lớp phủ kính định vị chính xác
 
                 let assignmentContentRaw = `
                     ${videoHTML}
@@ -582,7 +589,12 @@ async function loadAssignments() {
                     `;
                 }
 
-                div.innerHTML = `<div class="accordion-header" onclick="toggleAccordion('${uniqueId}', this)"><div class="accordion-title"><h4>${assign.title}</h4></div><div class="accordion-meta"><span>Hạn nộp: <strong style="color: #d35400;">${assign.endDate}</strong></span><span class="toggle-icon">▼</span></div></div>
+                // --- BỔ SUNG: LOGIC LỚP PHỦ KÍNH MỜ KHÓA BÀI ---
+                let isLockedByExam = window.currentActiveExamId && window.currentActiveExamId !== assign.id;
+                let clickHandler = isLockedByExam ? `alert('⚠️ Đang trong chế độ thi! Vui lòng tập trung hoàn thành bài thi.')` : `toggleAccordion('${uniqueId}', this)`;
+                let glassLockHTML = isLockedByExam ? `<div style="position: absolute; inset: 0; background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(4px); z-index: 10; border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: not-allowed;"><span style="background: rgba(225, 29, 72, 0.9); color: white; padding: 6px 14px; border-radius: 20px; font-weight: bold; box-shadow: 0 4px 15px rgba(225, 29, 72, 0.4);">🔒 Tạm khóa khi thi</span></div>` : '';
+
+                div.innerHTML = `${glassLockHTML}<div class="accordion-header" onclick="${clickHandler}"><div class="accordion-title"><h4>${assign.title}</h4></div><div class="accordion-meta"><span>Hạn nộp: <strong style="color: #d35400;">${assign.endDate}</strong></span><span class="toggle-icon">▼</span></div></div>
                     <div id="${uniqueId}" class="accordion-content">
                         ${redoNotice}
                         <div class="assignment-meta"><p>📅 <strong>Từ:</strong> ${assign.startDate} <strong>đến</strong> ${assign.endDate}</p>${countdownHTML}</div>
@@ -843,13 +855,21 @@ async function submitAssignment(assignId, isAuto = false, isCheat = false) {
         // Dọn dẹp bản nháp sau khi nộp bài thành công
         localStorage.removeItem(`draft_${currentUser.username}_${assignId}`);
 
-        // --- BỔ SUNG ĐOẠN NÀY ĐỂ THOÁT TOÀN MÀN HÌNH SAU KHI NỘP ---
+
+        // --- ĐOẠN NÀY ĐỂ THOÁT TOÀN MÀN HÌNH VÀ MỞ KHÓA GIAO DIỆN SAU KHI NỘP ---
         if (window.currentActiveExamId === assignId) {
             window.currentActiveExamId = null;
             if (document.fullscreenElement) {
                 document.exitFullscreen().catch(err => console.log(err));
             }
+
+            // Mở khóa toàn bộ menu bên trái (Sidebar)
+            document.querySelectorAll('.nav-item').forEach(btn => {
+                btn.style.opacity = '1';
+                btn.style.pointerEvents = 'auto'; // Trả lại khả năng click
+            });
         }
+        // -----------------------------------------------------------
         // -----------------------------------------------------------
 
         if (!isAuto) alert("Nộp bài tập thành công!");
@@ -1002,7 +1022,15 @@ window.toggleOldRequests = function () {
         }
     }
 };
+
 function switchTab(tabId, btnElement) {
+    // --- BỔ SUNG: CHẶN CHUYỂN TAB KHI ĐANG THI ---
+    if (window.currentActiveExamId) {
+        window.showExamLockWarning("⚠️ Hệ thống đã khóa menu để đảm bảo tính minh bạch!");
+        return;
+    }
+    // ---------------------------------------------
+
     // 1. Reset trạng thái active của các tab
     document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
@@ -1022,13 +1050,13 @@ function switchTab(tabId, btnElement) {
 }
 
 window.openStudentInfoModal = function () {
-    // --- Bổ sung dòng này ---
-    // Hiển thị ảnh hiện tại lên Modal, nếu chưa có thì dùng ảnh mặc định (Base64 của emoji 👤)
+    if (window.currentActiveExamId) {
+        window.showExamLockWarning("⚠️ Hồ sơ cá nhân tạm khóa khi thi!");
+        return;
+    }
     const currentAvatar = currentUser.avatar || 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
     document.getElementById('modalAvatarPreview').src = currentAvatar;
-    // Tự động ẩn nút lưu nếu mở Modal lần đầu
     document.getElementById('saveAvatarBtn').style.display = 'none';
-    // --- Kết thúc bổ sung ---
 
     document.getElementById('infoModalName').innerText = currentUser.name || 'Chưa cập nhật';
     document.getElementById('infoModalClass').innerText = 'Lớp: ' + (currentUser.classInfo || 'Chưa cập nhật');
@@ -1182,7 +1210,7 @@ async function readMultipleFiles(files) {
         // Chặn file quá lớn
         if (file.size > MAX_SIZE_BYTES) {
             alert(`⚠️ File "${file.name}" quá lớn. Chế độ tải không thẻ chỉ cho phép tối đa ${MAX_SIZE_MB}MB/file!`);
-            continue; 
+            continue;
         }
 
         // Băm file thành chuỗi Base64
@@ -1345,13 +1373,13 @@ window.spinWheel = async function () {
         else if (finalRewardStr === "Quà bí ẩn") {
             const cotichItems = (typeof StoreConfig !== 'undefined') ? StoreConfig.items.filter(i => i.tag && i.tag.toLowerCase() === 'cổ tích') : [];
             if (cotichItems.length > 0) {
-                
+
                 // TẢI TRỰC TIẾP KHO ĐỒ TỪ DB ĐỂ TRÁNH LỖI ASYNC
                 const invSnap = await db.ref(`student_inventory/${currentUser.username}`).once('value');
                 const exactInventory = invSnap.val() ? Object.values(invSnap.val()).map(i => i.id) : [];
 
                 const randomItem = cotichItems[Math.floor(Math.random() * cotichItems.length)];
-                
+
                 // KIỂM TRA TRÊN DANH SÁCH CHUẨN XÁC VỪA TẢI
                 if (exactInventory.includes(randomItem.id)) {
                     wonCoins = 600;
@@ -1469,7 +1497,7 @@ window.spinMultipleWheel = async function () {
 
     // Chạy ngầm thuật toán quay y hệt hàm spinWheel gốc
     const cotichItems = (typeof StoreConfig !== 'undefined') ? StoreConfig.items.filter(i => i.tag && i.tag.toLowerCase() === 'cổ tích') : [];
-    
+
     // TẢI TRỰC TIẾP KHO ĐỒ TỪ DB TRƯỚC KHI BẮT ĐẦU VÒNG LẶP QUAY NHIỀU LẦN
     const invSnap = await db.ref(`student_inventory/${currentUser.username}`).once('value');
     let currentOwned = invSnap.val() ? Object.values(invSnap.val()).map(i => i.id) : [];
@@ -2184,6 +2212,10 @@ async function renderStudentRoadmap() {
 window.currentConvertDir = 'M2C'; // Mặc định là Tiền đổi sang Coin
 
 window.openCoinConversionModal = function () {
+    if (window.currentActiveExamId) {
+        window.showExamLockWarning("⚠️ Bảng quy đổi Coin tạm khóa khi thi!");
+        return;
+    }
     document.getElementById('convertAmount').value = '';
     document.getElementById('convertResult').value = '';
     setConvertDir('M2C'); // Reset về mặc định
@@ -2290,6 +2322,10 @@ window.executeConversion = async function () {
 // ================= HỆ THỐNG HỘP THƯ & NHẬN QUÀ (HỌC SINH) =================
 
 window.openStudentInbox = function () {
+    if (window.currentActiveExamId) {
+        window.showExamLockWarning("⚠️ Hộp thư tạm khóa khi đang thi!");
+        return;
+    }
     renderStudentInbox();
     document.getElementById('studentInboxModal').classList.add('active');
 };
@@ -2423,6 +2459,44 @@ window.startExamFullscreen = async function () {
             if (content) content.style.display = 'block';
 
             closeExamWarning();
+
+            // === KHÓA UI ĐỘNG (KHÔNG GỌI loadAssignments ĐỂ TRÁNH RESET BÀI) ===
+
+            // 1. Phủ kính mờ khóa tất cả các bài tập khác (trừ bài đang thi)
+            const allCards = document.querySelectorAll('.accordion-card');
+            allCards.forEach(card => {
+                const contentDiv = card.querySelector('.accordion-content');
+                if (contentDiv && !contentDiv.id.includes(assignId)) {
+                    card.style.position = 'relative';
+                    let overlay = document.createElement('div');
+                    overlay.className = 'exam-lock-overlay';
+                    overlay.style.cssText = 'position: absolute; inset: 0; background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(4px); z-index: 10; border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: not-allowed;';
+                    overlay.innerHTML = '<span style="background: rgba(225, 29, 72, 0.9); color: white; padding: 6px 14px; border-radius: 20px; font-weight: bold; box-shadow: 0 4px 15px rgba(225, 29, 72, 0.4);">🔒 Tạm khóa khi thi</span>';
+
+                    // Cụp bài xuống nếu đang vô tình mở
+                    if (contentDiv.style.maxHeight) {
+                        contentDiv.style.maxHeight = null;
+                    }
+                    card.appendChild(overlay);
+
+                    // Gắn đè sự kiện click
+                    const header = card.querySelector('.accordion-header');
+                    if (header) {
+                        header.dataset.oldOnclick = header.getAttribute('onclick');
+                        header.setAttribute('onclick', "window.showExamLockWarning('⚠️ Hãy tập trung làm bài thi và không mở mục khác!')");
+                    }
+                }
+            });
+
+            // 2. Làm mờ & vô hiệu hóa các Tab ở Sidebar (Trừ tab hiện tại)
+            document.querySelectorAll('.nav-item').forEach(btn => {
+                if (!btn.classList.contains('active')) {
+                    btn.style.opacity = '0.4';
+                    btn.style.pointerEvents = 'none'; // Khóa click triệt để bằng CSS
+                }
+            });
+            // ====================================================
+
         }, 300);
 
     } catch (err) {
@@ -2461,3 +2535,20 @@ document.addEventListener('visibilitychange', () => {
         submitAssignment(window.currentActiveExamId, true, true);
     }
 });
+
+// --- BỘ TẠO THÔNG BÁO NỔI KHÔNG LÀM MẤT FULLSCREEN ---
+window.showExamLockWarning = function(msg) {
+    let toast = document.getElementById('exam-lock-toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'exam-lock-toast';
+        toast.style.cssText = 'position: fixed; top: 30px; left: 50%; transform: translateX(-50%); background: #e11d48; color: white; padding: 12px 25px; border-radius: 50px; z-index: 9999999; font-weight: bold; box-shadow: 0 4px 15px rgba(225, 29, 72, 0.4); pointer-events: none; opacity: 0; transition: opacity 0.3s ease; text-align: center; white-space: nowrap;';
+        document.body.appendChild(toast);
+    }
+    toast.innerText = msg || '⚠️ Đang trong chế độ thi! Tính năng này tạm khóa.';
+    toast.style.opacity = '1';
+    
+    clearTimeout(window.examToastTimeout);
+    window.examToastTimeout = setTimeout(() => { toast.style.opacity = '0'; }, 3000);
+};
+// ---------------------------------------------------
