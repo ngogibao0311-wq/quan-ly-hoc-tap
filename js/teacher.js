@@ -1735,7 +1735,7 @@ window.saveMaterialEdit = async function () {
 };
 
 async function readMultipleFiles(files) {
-    const MAX_SIZE_MB = 1.5; // Giảm xuống 1.5MB để tránh làm đầy cục bộ Realtime Database
+    const MAX_SIZE_MB = 5; // Tăng giới hạn lên 5MB
     const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
     const results = [];
 
@@ -1744,7 +1744,7 @@ async function readMultipleFiles(files) {
 
         // Chặn file quá lớn
         if (file.size > MAX_SIZE_BYTES) {
-            alert(`⚠️ File "${file.name}" quá lớn. Chế độ tải không thẻ chỉ cho phép tối đa ${MAX_SIZE_MB}MB/file!`);
+            alert(`⚠️ File "${file.name}" quá lớn. Hệ thống chỉ cho phép tối đa ${MAX_SIZE_MB}MB/file!`);
             continue; 
         }
 
