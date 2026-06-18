@@ -180,56 +180,91 @@ window.onload = async function () {
         if (typeof applyEquippedItems === 'function') applyEquippedItems();
     });
 
-    // LẮNG NGHE THÔNG BÁO TOÀN TRƯỜNG
+    // LẮNG NGHE THÔNG BÁO TOÀN TRƯỜNG (ĐÃ FIX LOGIC)
     db.ref('global_notifications').on('value', (snapshot) => {
         const notifications = [];
-        snapshot.forEach(child => notifications.push({ ...child.val(), _fbKey: child.key }));
+        snapshot.forEach(child => {
+            if (child.val()) notifications.push({ ...child.val(), _fbKey: child.key });
+        });
 
         if (notifications.length > 0) {
+            // Sắp xếp: Mới nhất lên đầu
             const sorted = notifications.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-            const latestNoti = sorted[0];
-            const receivers = latestNoti.receivers || {};
-
-            if (!receivers[currentUser.username]) {
-                // CHẶN BẬT POPUP NẾU ĐANG THI TOÀN MÀN HÌNH
-                if (window.currentActiveExamId) {
-                    console.log("Đã hoãn thông báo do đang trong chế độ thi cử.");
-                    return;
+            
+            // Quét tìm thông báo MỚI NHẤT mà học sinh CHƯA ĐỌC
+            let unreadNoti = null;
+            for (let noti of sorted) {
+                const receivers = noti.receivers || {};
+                if (!receivers[currentUser.username]) {
+                    unreadNoti = noti;
+                    break;
                 }
+            }
 
-                document.getElementById('studentNotificationMessage').innerText = latestNoti.message;
-                document.getElementById('studentNotificationModal').classList.add('active');
+            const modal = document.getElementById('studentNotificationModal');
+            if (unreadNoti) {
+                // Tạm hoãn nếu học sinh đang trong chế độ thi
+                if (window.currentActiveExamId) return;
 
+                const msgEl = document.getElementById('studentNotificationMessage');
                 const btn = document.getElementById('btnAcknowledgeNotification');
-                btn.onclick = async function () {
-                    btn.disabled = true; btn.innerText = "⏳ Đang ghi nhận...";
-                    await db.ref(`global_notifications/${latestNoti._fbKey}/receivers/${currentUser.username}`).set(true);
-                    document.getElementById('studentNotificationModal').classList.remove('active');
-                    btn.disabled = false; btn.innerText = "✅ Đã nhận và đọc hiểu";
-                };
+
+                if (msgEl && modal && btn) {
+                    msgEl.innerText = unreadNoti.message;
+                    modal.classList.add('active');
+
+                    // Gắn đè sự kiện xác nhận
+                    btn.onclick = async function () {
+                        btn.disabled = true; 
+                        btn.innerText = "⏳ Đang ghi nhận...";
+                        try {
+                            await db.ref(`global_notifications/${unreadNoti._fbKey}/receivers/${currentUser.username}`).set(true);
+                            modal.classList.remove('active');
+                        } catch (e) {
+                            console.error("Lỗi khi xác nhận thông báo: ", e);
+                        } finally {
+                            btn.disabled = false; 
+                            btn.innerText = "✅ Đã nhận và đọc hiểu";
+                        }
+                    };
+                }
             } else {
-                document.getElementById('studentNotificationModal').classList.remove('active');
+                if (modal) modal.classList.remove('active');
             }
         }
     });
 
-    // LẮNG NGHE KHẢO SÁT BẮT BUỘC
+    // LẮNG NGHE KHẢO SÁT BẮT BUỘC (ĐÃ FIX LOGIC)
     db.ref('global_surveys').on('value', (snapshot) => {
         const surveys = [];
-        snapshot.forEach(child => surveys.push({ ...child.val(), _fbKey: child.key }));
+        snapshot.forEach(child => {
+            if (child.val()) surveys.push({ ...child.val(), _fbKey: child.key });
+        });
 
         if (surveys.length > 0) {
+            // Sắp xếp: Mới nhất lên đầu
             const sorted = surveys.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+            
+            // Quét tìm Khảo sát MỚI NHẤT mà học sinh CHƯA LÀM
+            let unreadSurvey = null;
             for (let sv of sorted) {
                 const answersObj = sv.answers || {};
                 if (!answersObj[currentUser.username]) {
-                    // CHẶN BẬT POPUP NẾU ĐANG THI TOÀN MÀN HÌNH
-                    if (window.currentActiveExamId) return;
-
-                    window.currentActiveSurvey = sv;
-                    renderStudentSurvey(sv);
+                    unreadSurvey = sv;
                     break;
                 }
+            }
+
+            const modal = document.getElementById('studentSurveyModal');
+            if (unreadSurvey) {
+                if (window.currentActiveExamId) return;
+
+                window.currentActiveSurvey = unreadSurvey;
+                if (typeof renderStudentSurvey === 'function') {
+                    renderStudentSurvey(unreadSurvey);
+                }
+            } else {
+                if (modal) modal.classList.remove('active');
             }
         }
     });
@@ -2000,13 +2035,13 @@ window.applyEquippedItems = function () {
     }
 };
 
-// ================= HỆ THỐNG KHẢO SÁT =================
 window.renderStudentSurvey = function (surveyData) {
-    document.getElementById('studentSurveyTitle').innerText = surveyData.title;
+    document.getElementById('studentSurveyTitle').innerText = surveyData.title || 'Khảo sát';
     const body = document.getElementById('studentSurveyBody');
     body.innerHTML = '';
 
-    surveyData.questions.forEach((q, idx) => {
+    const questions = surveyData.questions || [];
+    questions.forEach((q, idx) => {
         const div = document.createElement('div');
         div.className = 'survey-answer-block';
         div.dataset.qid = q.id;
@@ -2015,8 +2050,8 @@ window.renderStudentSurvey = function (surveyData) {
         let html = `<p style="margin: 0 0 10px 0; font-weight: bold; color: #2c3e50;">Câu ${idx + 1}: ${q.text}</p>`;
 
         if (q.type === 'mc') {
-            q.options.forEach(opt => {
-                // Thêm sự kiện onchange để tự động kiểm tra tiến độ
+            const opts = q.options || [];
+            opts.forEach(opt => {
                 html += `
                 <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; cursor: pointer; background: white; padding: 8px 12px; border-radius: 8px;">
                     <input type="radio" name="ans_${q.id}" value="${opt}" onchange="checkSurveyCompletion()" style="width: auto; margin: 0;"> 
@@ -2024,14 +2059,12 @@ window.renderStudentSurvey = function (surveyData) {
                 </label>`;
             });
         } else {
-            // Thêm sự kiện onkeyup để tự động kiểm tra tiến độ
             html += `<textarea id="ans_${q.id}" placeholder="Nhập câu trả lời của bạn..." rows="3" onkeyup="checkSurveyCompletion()" style="width: 100%; padding: 10px; background: white; border-radius: 8px; border: 1px solid rgba(0,0,0,0.1);"></textarea>`;
         }
         div.innerHTML = html;
         body.appendChild(div);
     });
 
-    // Ẩn nút gửi và mở Modal
     document.getElementById('btnSubmitSurvey').style.display = 'none';
     document.getElementById('surveyAlertMsg').style.display = 'block';
     document.getElementById('studentSurveyModal').classList.add('active');
@@ -2042,13 +2075,15 @@ window.checkSurveyCompletion = function () {
     if (!window.currentActiveSurvey) return;
 
     let isComplete = true;
-    window.currentActiveSurvey.questions.forEach(q => {
+    const questions = window.currentActiveSurvey.questions || [];
+    
+    questions.forEach(q => {
         if (q.type === 'mc') {
             const checked = document.querySelector(`input[name="ans_${q.id}"]:checked`);
             if (!checked) isComplete = false;
         } else {
-            const txt = document.getElementById(`ans_${q.id}`).value.trim();
-            if (!txt) isComplete = false;
+            const txtEl = document.getElementById(`ans_${q.id}`);
+            if (!txtEl || !txtEl.value.trim()) isComplete = false;
         }
     });
 
@@ -2056,8 +2091,8 @@ window.checkSurveyCompletion = function () {
     const alertMsg = document.getElementById('surveyAlertMsg');
 
     if (isComplete) {
-        btn.style.display = 'block'; // Hiện nút X
-        alertMsg.style.display = 'none'; // Tắt dòng cảnh báo đỏ
+        btn.style.display = 'block';
+        alertMsg.style.display = 'none';
     } else {
         btn.style.display = 'none';
         alertMsg.style.display = 'block';
