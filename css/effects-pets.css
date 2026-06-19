@@ -973,3 +973,271 @@ input:checked + .slider:before {
     60% { transform: translate(-50px, -25px) rotate(45deg) scaleX(0.4); opacity: 0; }
     100% { opacity: 0; }
 }
+/* =========================================================================
+   HIỆU ỨNG KỲ LÂN TINH TÚ (LÀM MỚI 100% - CHUẨN TRUYỀN THUYẾT)
+   ========================================================================= */
+
+/* 1. LỖ HỔNG VŨ TRỤ (WORMHOLE PORTAL) - Đứng dọc phía sau lưng Pet */
+#virtual-pet-container:has(.galaxy-legend-magic)::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 220px;
+    height: 220px;
+    margin-top: -110px;
+    margin-left: -110px;
+    border-radius: 50%;
+    
+    /* Tạo vòng xoáy không gian bằng conic-gradient */
+    background: conic-gradient(
+        from 0deg,
+        transparent 0%,
+        rgba(138, 43, 226, 0.4) 15%,
+        rgba(0, 210, 211, 0.8) 30%,
+        transparent 50%,
+        rgba(255, 107, 107, 0.4) 65%,
+        rgba(95, 39, 205, 0.8) 80%,
+        transparent 100%
+    );
+    
+    /* Dùng mask đục lỗ ở giữa tạo hình Hố đen (Blackhole) */
+    -webkit-mask-image: radial-gradient(circle, transparent 45%, black 60%);
+    mask-image: radial-gradient(circle, transparent 45%, black 60%);
+    
+    filter: drop-shadow(0 0 15px rgba(138, 43, 226, 0.8));
+    animation: wormholeSpin 5s linear infinite;
+    z-index: -1;
+    pointer-events: none;
+}
+
+/* 2. VÀNH ĐAI HÀNH TINH (PLANETARY RING) - Nghiêng 3D quét quanh Pet */
+#virtual-pet-container:has(.galaxy-legend-magic)::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 260px;
+    height: 260px;
+    margin-top: -130px;
+    margin-left: -130px;
+    border-radius: 50%;
+    
+    /* Chỉ hiển thị viền trên/dưới để tạo dải quỹ đạo */
+    border: 2px solid transparent;
+    border-top: 4px solid #00d2d1;
+    border-bottom: 4px solid #ff9f43;
+    
+    /* Bóp dẹp và nghiêng chéo ôm lấy thú cưng */
+    transform: rotateX(75deg) rotateY(15deg) rotateZ(0deg);
+    filter: drop-shadow(0 0 10px #00d2d1) drop-shadow(0 0 15px #ff9f43);
+    animation: orbitalRingSpin 4s linear infinite;
+    z-index: 2;
+    pointer-events: none;
+}
+
+/* 3. BẢN THÂN VẬT PHẨM (Đổ bóng quang phổ vũ trụ) */
+#virtual-pet-img.galaxy-legend-magic {
+    filter: drop-shadow(-10px 0 20px rgba(0, 210, 211, 0.5)) 
+            drop-shadow(10px 0 20px rgba(138, 43, 226, 0.5));
+    transition: filter 0.3s ease;
+}
+
+/* 4. CHUYỂN ĐỘNG KHÔNG TRỌNG LỰC (ZERO-GRAVITY) */
+.pet-idle #virtual-pet-img.galaxy-legend-magic {
+    /* Lơ lửng, trôi dạt và nghiêng ngả tứ phía */
+    animation: zeroGravityFloat 6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+/* --- CÁC KEYFRAMES ĐỘC QUYỀN --- */
+
+@keyframes wormholeSpin {
+    0% { transform: rotate(0deg) scale(0.9); }
+    50% { 
+        transform: rotate(180deg) scale(1.15); 
+        filter: drop-shadow(0 0 35px rgba(0, 210, 211, 0.9)) hue-rotate(45deg); 
+    }
+    100% { transform: rotate(360deg) scale(0.9); }
+}
+
+@keyframes orbitalRingSpin {
+    0% { 
+        transform: rotateX(75deg) rotateY(15deg) rotateZ(0deg); 
+        border-top-color: #00d2d1; border-bottom-color: #ff9f43;
+    }
+    50% { 
+        transform: rotateX(75deg) rotateY(15deg) rotateZ(180deg); 
+        /* Đổi màu vành đai khi xoay */
+        border-top-color: #8a2be2; border-bottom-color: #ff6b6b;
+    }
+    100% { 
+        transform: rotateX(75deg) rotateY(15deg) rotateZ(360deg); 
+        border-top-color: #00d2d1; border-bottom-color: #ff9f43;
+    }
+}
+
+@keyframes zeroGravityFloat {
+    0%, 100% { transform: translate(0, 0) rotate(0deg) scale(1); }
+    25% { transform: translate(-10px, -15px) rotate(5deg) scale(1.03); }
+    50% { 
+        transform: translate(5px, -28px) rotate(-2deg) scale(1.06); 
+        /* Tỏa sáng rực rỡ nhất khi trôi lên đỉnh */
+        filter: drop-shadow(-20px 10px 30px rgba(0, 210, 211, 0.9)) drop-shadow(20px -10px 30px rgba(138, 43, 226, 0.9)); 
+    }
+    75% { transform: translate(12px, -10px) rotate(-5deg) scale(1.02); }
+}
+/* =========================================================================
+   HIỆU ỨNG MÈO SAO THỦY (VŨ TRỤ - PHONG CÁCH SAO THỦY THƯỢNG CỔ)
+   - HIỆU ỨNG CHI TIẾT HƠN: QUỸ ĐẠO ĐA TẦNG, VỆT KIM LOẠI LỎNG & BỤI SAO -
+   ========================================================================= */
+
+/* Label Tag "Sao thủy" với hiệu ứng lấp lánh nhẹ (Tag Shimmer) */
+.tag-sao-thuy {
+    background: linear-gradient(135deg, #141e30, #243b55, #0a0e1a);
+    color: #00f2fe;
+    border-bottom: 2px solid #00f2fe;
+    box-shadow: 0 4px 15px rgba(0, 242, 254, 0.4), inset 0 0 10px rgba(189, 195, 199, 0.2);
+    font-weight: 800;
+    letter-spacing: 1px;
+    animation: mercuryTagShimmer 3s ease infinite;
+}
+
+/* 1. QUỸ ĐẠO ĐA TẦNG (3 Vòng chéo lồng nhau xoay 3D) */
+#virtual-pet-container:has(.mercury-magic)::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    /* Tăng size lên một chút để vòng bao quát và bề thế hơn khi nằm ở phía sau */
+    width: 180px; 
+    height: 180px;
+    margin-top: -90px;
+    margin-left: -90px;
+    border-radius: 50%;
+    
+    border: none;
+    box-shadow: 
+        0 0 0 1px #00f2fe,          
+        inset 0 0 0 1px #00f2fe,
+        0 0 0 3px transparent,      
+        0 0 0 4px #4facfe,          
+        inset 0 0 0 4px #4facfe,
+        0 0 0 6px transparent,      
+        0 0 0 7px #e0c3fc,          
+        inset 0 0 0 7px #e0c3fc;
+
+    transform: rotateX(65deg) rotateY(20deg);
+    filter: drop-shadow(0 0 15px rgba(0, 242, 254, 0.8));
+    animation: mercuryAncientRings 8s linear infinite; 
+    
+    /* FIX LỖI Ở ĐÂY: Đổi z-index từ 2 thành -2 để vòng quỹ đạo nằm dưới lưng pet */
+    z-index: -2; 
+    pointer-events: none;
+    opacity: 0.9;
+}
+
+/* 2. DÒNG THỦY NGÂN CHẢY & HẠT BỤI SAO (Mercury Flow & Particle Dust) */
+#virtual-pet-container:has(.mercury-magic)::after {
+    content: '';
+    position: absolute;
+    bottom: -25px; /* Thấp hơn */
+    left: 50%;
+    width: 130px;
+    height: 50px;
+    margin-left: -65px;
+    /* Hiệu ứng vệt thủy ngân chảy: dùng repeating gradient nhỏ và animation */
+    background: repeating-linear-gradient(to top, rgba(189, 195, 199, 0.1) 0px, transparent 1px),
+                radial-gradient(ellipse, rgba(189, 195, 199, 0.5) 0%, transparent 70%);
+    box-shadow: 0 0 30px rgba(189, 195, 199, 0.5), inset 0 0 20px #00f2fe, inset 0 0 10px #ffffff;
+    border-radius: 50%;
+    opacity: 0; /* Hiện khi animation chạy */
+    animation: mercuryLiquidAndParticles 4s ease-in-out infinite alternate;
+    z-index: -1;
+    pointer-events: none;
+}
+
+/* 3. BẢN THÂN VẬT PHẨM (Nâng cấp filter đa lớp) */
+#virtual-pet-img.mercury-magic {
+    /* Đổ bóng kim loại lấp lánh (Bạc + Xanh Neon + Trắng) */
+    filter: drop-shadow(0 0 10px rgba(189, 195, 199, 0.8)) 
+            drop-shadow(0 0 20px rgba(0, 242, 254, 0.6))
+            drop-shadow(0 15px 30px rgba(0,0,0,0.7));
+    transition: filter 0.3s ease;
+}
+
+/* 4. KHI PET ĐỨNG YÊN (Trôi nổi sâu không trọng lực) */
+.pet-idle #virtual-pet-img.mercury-magic {
+    animation: mercuryCosmicFloatEnhanced 5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/* --- KEYFRAMES ĐỘC QUYỀN HỆ THỦY SAO THỦY CHI TIẾT --- */
+
+/* Lấp lánh nhẹ cho Tag */
+@keyframes mercuryTagShimmer {
+    0% { border-bottom-color: #00f2fe; color: #00f2fe; }
+    50% { border-bottom-color: #ffffff; color: #ffffff; text-shadow: 0 0 5px #00f2fe; }
+    100% { border-bottom-color: #00f2fe; color: #00f2fe; }
+}
+
+/* Xoay 3 vòng quỹ đạo chậm rãi và thay đổi màu sắc tinh tế */
+@keyframes mercuryAncientRings {
+    0% { 
+        transform: rotateX(65deg) rotateY(20deg) rotateZ(0deg); 
+        opacity: 0.8;
+    }
+    50% { 
+        opacity: 1; 
+        box-shadow: 
+            0 0 0 1.5px #00f2fe,
+            inset 0 0 0 1.5px #00f2fe,
+            0 0 0 3px transparent,
+            0 0 0 5px #4facfe,
+            inset 0 0 0 5px #4facfe,
+            0 0 0 6px transparent,
+            0 0 0 8px #ffffff, 
+            inset 0 0 0 8px #ffffff;
+    }
+    100% { 
+        transform: rotateX(65deg) rotateY(20deg) rotateZ(360deg); 
+        opacity: 0.8;
+    }
+}
+
+/* Hiệu ứng vệt lỏng dưới chân & mưa hạt bụi sao bay lên */
+@keyframes mercuryLiquidAndParticles {
+    0% { 
+        transform: scale(0.9) translateY(0); 
+        opacity: 0.6; 
+        filter: hue-rotate(0deg); 
+        background-position: 0 0;
+    }
+    50% { 
+        transform: scale(1.2) translateY(-5px); /* Vệt lỏng dâng lên nhẹ */
+        opacity: 1; 
+        filter: hue-rotate(30deg); /* Biến ảo màu nước lấp lánh */
+        box-shadow: 0 0 40px rgba(0, 242, 254, 0.8), inset 0 0 20px #ffffff, inset 0 0 10px #00f2fe; 
+        /* Animation cho hạt bụi sao chảy lên */
+        background-position: 0 -100px; /* Hạt trôi lên */
+    }
+    100% { 
+        transform: scale(0.9) translateY(0); 
+        opacity: 0.6; 
+        filter: hue-rotate(0deg); 
+        background-position: 0 0;
+    }
+}
+
+/* Bay lơ lửng và phóng to nhẹ */
+@keyframes mercuryCosmicFloatEnhanced {
+    0%, 100% { 
+        transform: translateY(0) scale(1); 
+    }
+    50% { 
+        transform: translateY(-15px) scale(1.05); /* Bay cao hơn, phóng to hơn */
+        /* Tỏa sáng đa tầng cực gắt khi lên cao */
+        filter: drop-shadow(0 0 20px rgba(189, 195, 199, 1)) 
+                drop-shadow(0 0 40px rgba(0, 242, 254, 0.9))
+                drop-shadow(0 0 60px rgba(255,255,255,0.4))
+                drop-shadow(0 20px 40px rgba(0,0,0,0.5)); 
+    }
+}

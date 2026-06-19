@@ -184,6 +184,67 @@ const StoreConfig = {
             value: 'theme-crystal-palace', // Tên class CSS kích hoạt giao diện
             customIcon: '🔮'
         },
+        {
+            id: 'pet_truyenthuyet_1',
+            name: 'Kỳ Lân Tinh Tú',
+            type: 'pet',
+            price: 0,             // Không bán bằng Coin
+            isNonCoin: true,      // Nhận từ sự kiện Royal Ball
+            tag: 'Truyền thuyết',
+            value: 'assets/pet/truyền thuyết/truyền thuyết 1.png',
+            isIcon: false,
+            petEffect: 'galaxy-legend-magic' // Kích hoạt hiệu ứng Điện Ảnh Vũ Trụ
+        },
+        {
+            id: 'effect_truyenthuyet_vutru',
+            name: 'Tinh Trần Vũ Trụ',
+            type: 'effect',
+            price: 0,             // Nhận từ sự kiện
+            isNonCoin: true,      // Không bán bằng Coin
+            tag: 'Truyền thuyết', // Gắn tag Truyền thuyết
+            value: 'effect_truyenthuyet_vutru',
+            customIcon: '🌘'
+        },
+        {
+            id: 'theme_truyenthuyet_vutru',
+            name: 'Thần Hệ Tinh Vân',
+            type: 'theme',
+            price: 0,               // Không bán bằng Coin
+            isNonCoin: false,        // Vật phẩm sự kiện đặc biệt
+            tag: 'Truyền thuyết',   // Gắn tag Truyền thuyết
+            value: 'theme-cosmic-godhood', // Class CSS định danh của giao diện
+            customIcon: '🌗'
+        },
+        {
+            id: 'pet_vutru_saothuy',
+            name: 'Mèo Sao Thủy',
+            type: 'pet',
+            price: 290,
+            isNonCoin: false,
+            tag: 'Sao thủy', // Sửa ở đây
+            value: 'assets/pet/sao thủy.png',
+            isIcon: false,
+            petEffect: 'mercury-magic'
+        },
+        {
+            id: 'effect_vutru_saothuy',
+            name: 'Mưa Tinh Thể',
+            type: 'effect',
+            price: 300,
+            isNonCoin: false,
+            tag: 'Sao thủy', // Sửa ở đây
+            value: '☄️' 
+        },
+        {
+            id: 'theme_vutru_saothuy',
+            name: 'Trạm Không Gian Sao Thủy',
+            type: 'theme',
+            price: 300,
+            isNonCoin: false,
+            tag: 'Sao thủy',
+            value: 'theme-mercury-station', // Class CSS kích hoạt
+            customIcon: '🛸'
+        }
     ]
 };
 
@@ -221,7 +282,7 @@ class StoreManager {
     }
 
     static renderStoreItem(item, isOwned = false, isEquipped = false, isTrial = false, isUpcoming = false) {
-        let tagClass = item.tag === 'Tứ kị sĩ' ? 'tag-tu-ki-si' : (item.tag === 'Cổ tích' ? 'tag-co-tich' : (item.tag === 'Đời sống' ? 'tag-doi-song' : (item.tag === 'Ban đêm' ? 'tag-ban-dem' : (item.tag === 'Ban ngày' ? 'tag-ban-ngay' : 'tag-normal'))));
+        let tagClass = item.tag === 'Truyền thuyết' ? 'tag-truyen-thuyet' : (item.tag === 'Sao thủy' ? 'tag-sao-thuy' : (item.tag === 'Tứ kị sĩ' ? 'tag-tu-ki-si' : (item.tag === 'Cổ tích' ? 'tag-co-tich' : (item.tag === 'Đời sống' ? 'tag-doi-song' : (item.tag === 'Ban đêm' ? 'tag-ban-dem' : (item.tag === 'Ban ngày' ? 'tag-ban-ngay' : 'tag-normal'))))));
         let actionButton = '';
         let trialButton = '';
 

@@ -190,7 +190,7 @@ window.onload = async function () {
         if (notifications.length > 0) {
             // Sắp xếp: Mới nhất lên đầu
             const sorted = notifications.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-            
+
             // Quét tìm thông báo MỚI NHẤT mà học sinh CHƯA ĐỌC
             let unreadNoti = null;
             for (let noti of sorted) {
@@ -215,7 +215,7 @@ window.onload = async function () {
 
                     // Gắn đè sự kiện xác nhận
                     btn.onclick = async function () {
-                        btn.disabled = true; 
+                        btn.disabled = true;
                         btn.innerText = "⏳ Đang ghi nhận...";
                         try {
                             await db.ref(`global_notifications/${unreadNoti._fbKey}/receivers/${currentUser.username}`).set(true);
@@ -223,7 +223,7 @@ window.onload = async function () {
                         } catch (e) {
                             console.error("Lỗi khi xác nhận thông báo: ", e);
                         } finally {
-                            btn.disabled = false; 
+                            btn.disabled = false;
                             btn.innerText = "✅ Đã nhận và đọc hiểu";
                         }
                     };
@@ -244,7 +244,7 @@ window.onload = async function () {
         if (surveys.length > 0) {
             // Sắp xếp: Mới nhất lên đầu
             const sorted = surveys.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-            
+
             // Quét tìm Khảo sát MỚI NHẤT mà học sinh CHƯA LÀM
             let unreadSurvey = null;
             for (let sv of sorted) {
@@ -413,8 +413,24 @@ async function loadAssignments() {
             let teacherFileHTML = '';
             if (assign.file && assign.assessmentType !== 'trac_nghiem') {
                 let aFiles = Array.isArray(assign.file) ? assign.file : [assign.file];
-                aFiles.forEach(f => {
-                    teacherFileHTML += `<div class="assignment-file"><p><strong>📎 Tài liệu đính kèm:</strong> <a href="${f.base64}" download="${f.name}" class="file-download-link" target="_blank">${f.name} (Tải xuống)</a></p></div>`;
+                aFiles.forEach((f, index) => {
+                    let isImg = (f.type && f.type.startsWith('image/')) || (f.base64 && f.base64.startsWith('data:image/'));
+                    if (isImg) {
+                        let uniqueId = 'img_nop_' + Date.now() + '_' + index + '_' + Math.floor(Math.random() * 1000);
+                        teacherFileHTML += `
+                        <div class="assignment-file" style="margin-top: 10px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.02); padding: 6px 10px; border-radius: 6px;">
+                                <span style="font-size: 0.9em;"><strong>📎 Ảnh đính kèm:</strong> <span style="color: #666;">${f.name}</span></span>
+                                <button onclick="let content = document.getElementById('${uniqueId}'); if(content.style.display==='none'){content.style.display='block'; this.innerHTML='🔼 Thu gọn';}else{content.style.display='none'; this.innerHTML='🔽 Xem ảnh';}" style="background: white; border: 1px solid #ccc; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.8em; font-weight: bold; box-shadow: 0 1px 2px rgba(0,0,0,0.1); transition: 0.2s;">🔽 Xem ảnh</button>
+                            </div>
+                            <div id="${uniqueId}" style="display: none; margin-top: 8px; text-align: center; background: rgba(0,0,0,0.03); padding: 10px; border-radius: 8px; border: 1px dashed rgba(0,0,0,0.1);">
+                                <img src="${f.base64}" alt="${f.name}" style="max-width: 100%; max-height: 300px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: block; margin: 0 auto 10px auto; cursor: pointer;" onclick="window.open('${f.base64}', '_blank')" title="Bấm để xem ảnh gốc">
+                                <a href="${f.base64}" download="${f.name}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 0.85em; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">📥 Tải ảnh xuống</a>
+                            </div>
+                        </div>`;
+                    } else {
+                        teacherFileHTML += `<div class="assignment-file" style="margin-top: 10px;"><p style="font-size: 0.9em;"><strong>📎 Tài liệu đính kèm:</strong> <a href="${f.base64}" download="${f.name}" class="file-download-link" target="_blank">${f.name}</a></p></div>`;
+                    }
                 });
             }
 
@@ -457,7 +473,7 @@ async function loadAssignments() {
             div.style.position = 'relative'; // Bắt buộc để lớp phủ kính (glassmorphism) định vị chính xác
 
             div.innerHTML = `${glassLockHTML}<div class="accordion-header" onclick="${clickHandler}"><div class="accordion-title"><h4>${assign.title}</h4><span>${statusText}</span></div><div class="accordion-meta"><span>Điểm: <strong style="${(mySub.grade !== null && mySub.grade !== undefined && mySub.grade !== '' && !mySub.isRegrading) ? 'color:#059669;' : 'color:#d35400;'}">${gradeDisplay}</strong></span><span class="toggle-icon">▼</span></div></div>
-                <div id="${uniqueId}" class="accordion-content"><div class="assignment-meta"><p>🕒 <strong>Bạn đã nộp lúc:</strong> ${mySub.submitTime || 'Không rõ'}</p></div>${violationHTML}${videoHTML}<div style="background: rgba(255,255,255,0.5); padding: 15px; border-radius: 12px; margin-top: 15px;"><strong>Nội dung bài làm của bạn:</strong><br><p style="margin-top: 5px; color: ${mySub.isAutoSubmitted ? '#e74c3c' : '#444'}; white-space: pre-wrap;">${mySub.answer || '<i>(Không có)</i>'}</p>${myFileHTML}</div>${teacherFileHTML}${gradedFileHTML}${teacherCommentHTML}${viewQuestionsBtnHTML}</div>`;
+                <div id="${uniqueId}" class="accordion-content"><div class="assignment-meta"><p>🕒 <strong>Bạn đã nộp lúc:</strong> ${mySub.submitTime || 'Không rõ'}</p></div>${violationHTML}${videoHTML}<div style="background: rgba(255,255,255,0.5); padding: 15px; border-radius: 12px; margin-top: 15px;"><strong>Nội dung bài làm của bạn:</strong><br><p style="margin-top: 5px; color: ${mySub.isAutoSubmitted ? '#e74c3c' : '#444'}; white-space: pre-wrap;">${mySub.answer ? mySub.answer.replace(/</g, "&lt;").replace(/>/g, "&gt;") : '<i>(Không có)</i>'}</p>${myFileHTML}</div>${teacherFileHTML}${gradedFileHTML}${teacherCommentHTML}${viewQuestionsBtnHTML}</div>`;
             grades.appendChild(div);
         }
         // NẾU CHƯA NỘP HOẶC ĐANG LÀM LẠI HOẶC ĐANG TRONG 5 PHÚT TRỄ
@@ -475,25 +491,122 @@ async function loadAssignments() {
                     localStorage.setItem(autoFlagKey, 'true');
                     hasAutoSubmitted = true;
 
-                    pushDB('submissions', {
-                        id: Date.now().toString() + Math.floor(Math.random() * 1000),
-                        assignmentId: assign.id,
-                        studentUsername: currentUser.username,
-                        studentName: currentUser.name,
-                        answer: "⚠️ [Hệ thống tự động nộp do đã quá hạn - Học sinh không làm bài kịp]",
-                        rawEssay: "",
-                        mcAnswers: {},
-                        grade: null,
-                        submitTime: now.toLocaleTimeString('vi-VN') + ' ' + now.toLocaleDateString('vi-VN'),
-                        file: null,
-                        teacherFile: null,
-                        isAutoSubmitted: true,
-                        isRedoing: false,
-                        isLateFail: true
-                    }).then(() => {
-                        window[`isSubmitting_${assign.id}`] = false;
-                        loadAssignments(); // THÊM DÒNG NÀY: Ép giao diện tự động load lại bài lên danh sách đã nộp
-                    });
+                    // === BẮT ĐẦU FIX LOGIC: THU BÀI ĐANG LÀM DỞ TỪ BẢN NHÁP (HỖ TRỢ LẤY CẢ FILE ĐÍNH KÈM) ===
+                    (async () => {
+                        let draftKey = `draft_${currentUser.username}_${assign.id}`;
+                        let draft;
+try {
+    draft = JSON.parse(localStorage.getItem(draftKey));
+    if (typeof draft !== 'object' || draft === null) draft = { mcAnswers: {}, essay: '' };
+} catch (e) {
+    draft = { mcAnswers: {}, essay: '' };
+}
+
+                        let mcAnswersObj = draft.mcAnswers || {};
+                        let rawEssay = draft.essay || "";
+                        let mcText = '';
+                        let autoScore = 0;
+                        let finalCalculatedGrade = null;
+
+                        // 1. Quét nháp trắc nghiệm và chấm điểm tự động
+                        if (assign.assessmentType === 'trac_nghiem' || assign.assessmentType === 'ket_hop' || assign.assessmentType === 'thi') {
+                            if (assign.questions) {
+                                assign.questions.forEach((q, idx) => {
+                                    let selectedVal = mcAnswersObj[idx];
+                                    if (selectedVal) {
+                                        const isCorrect = selectedVal === q.correct;
+                                        if (isCorrect) autoScore++;
+                                        mcText += `Câu ${idx + 1}: Chọn ${selectedVal} ${isCorrect ? '✅' : '❌ (Đúng là ' + q.correct + ')'}\n`;
+                                    } else {
+                                        mcText += `Câu ${idx + 1}: Chưa chọn (Đúng là ${q.correct})\n`;
+                                    }
+                                });
+
+                                let scale10 = Math.round(((autoScore / assign.questions.length) * 10) * 10) / 10;
+                                if (assign.assessmentType === 'trac_nghiem') {
+                                    mcText += `\n=> 🎯 CHẤM ĐIỂM TỰ ĐỘNG: ${autoScore} / ${assign.questions.length} (Đạt ${scale10} / 10 điểm)`;
+                                    finalCalculatedGrade = scale10;
+                                } else if (assign.assessmentType === 'ket_hop' || assign.assessmentType === 'thi') {
+                                    let weight = assign.mcWeight || 5;
+                                    let weightedScore = Math.round(((autoScore / assign.questions.length) * weight) * 100) / 100;
+                                    mcText += `\n=> 🎯 CHẤM TỰ ĐỘNG PHẦN TRẮC NGHIỆM: ${autoScore} / ${assign.questions.length} (Đạt ${weightedScore} / ${weight} điểm)`;
+                                    if (assign.assessmentType === 'thi' && (assign.essayWeight || 0) === 0) {
+                                        finalCalculatedGrade = scale10;
+                                    }
+                                }
+                            }
+                        }
+
+                        // 2. Ráp nội dung chữ
+                        let finalAnswerText = "⚠️ [Hệ thống tự động thu bài do hết giờ - Đã lưu lại bản nháp làm dở của học sinh]\n\n";
+                        if (mcText) finalAnswerText += `[PHẦN TRẮC NGHIỆM]\n${mcText}\n\n`;
+                        if (rawEssay) finalAnswerText += `[PHẦN TỰ LUẬN]\n${rawEssay}`;
+
+                        if (!mcText && !rawEssay) {
+                            finalAnswerText = "⚠️ [Hệ thống tự động thu bài do hết giờ - Học sinh chưa làm nội dung nào]";
+                        }
+
+                        // === BƯỚC MỚI: CỨU TÀI LIỆU/ẢNH MÀ HỌC SINH ĐÃ CHỌN VÀO TRÌNH DUYỆT ===
+                        let rescuedFiles = null;
+
+                        // Quét file lưu trong bộ nhớ tạm của hệ thống
+                        if (window.studentSubmitDTs && window.studentSubmitDTs[assign.id] && window.studentSubmitDTs[assign.id].files.length > 0) {
+                            rescuedFiles = await readMultipleFiles(window.studentSubmitDTs[assign.id].files);
+                        } else {
+                            // Quét trực tiếp ô input trên màn hình phòng hờ bộ nhớ tạm bị lỗi
+                            const fileInput = document.getElementById(`studentFile-${assign.id}`);
+                            if (fileInput && fileInput.files.length > 0) {
+                                rescuedFiles = await readMultipleFiles(fileInput.files);
+                            }
+                        }
+
+                        // Nếu tìm thấy file, đổi lại nội dung thông báo cho phù hợp
+                        if (rescuedFiles && rescuedFiles.length > 0) {
+                            if (finalAnswerText.includes("Học sinh chưa làm nội dung nào")) {
+                                finalAnswerText = "⚠️ [Hệ thống tự động thu bài do hết giờ - Đã lưu lại FILE ĐÍNH KÈM của học sinh]";
+                            } else {
+                                finalAnswerText = finalAnswerText.replace("bản nháp làm dở", "bản nháp và FILE ĐÍNH KÈM làm dở");
+                            }
+                        }
+
+                        // 3. Đẩy lên Firebase
+                        pushDB('submissions', {
+                            id: Date.now().toString() + Math.floor(Math.random() * 1000),
+                            assignmentId: assign.id,
+                            studentUsername: currentUser.username,
+                            studentName: currentUser.name,
+                            answer: finalAnswerText,
+                            rawEssay: rawEssay,
+                            mcAnswers: mcAnswersObj,
+                            grade: finalCalculatedGrade,
+                            submitTime: now.toLocaleTimeString('vi-VN') + ' ' + now.toLocaleDateString('vi-VN'),
+                            file: rescuedFiles, // Gắn mảng File vừa cứu được vào đây
+                            teacherFile: null,
+                            isAutoSubmitted: true,
+                            isRedoing: false,
+                            isLateFail: true
+                        }).then(() => {
+                            window[`isSubmitting_${assign.id}`] = false;
+
+                            // Xóa nháp
+                            localStorage.removeItem(draftKey);
+
+                            // Kích hoạt thoát toàn màn hình và mở khóa menu an toàn
+                            if (window.currentActiveExamId === assign.id) {
+                                window.currentActiveExamId = null;
+                                if (document.fullscreenElement) {
+                                    document.exitFullscreen().catch(err => console.log(err));
+                                }
+                                document.querySelectorAll('.nav-item').forEach(btn => {
+                                    btn.style.opacity = '1';
+                                    btn.style.pointerEvents = 'auto';
+                                });
+                            }
+
+                            loadAssignments();
+                        });
+                    })();
+                    // === KẾT THÚC FIX LOGIC THU NHÁP CÓ FILE ===
                 }
 
                 if (isGracePeriod) {
@@ -537,7 +650,13 @@ async function loadAssignments() {
                     quizHTML = noticeHTML + '<div style="background: rgba(255,255,255,0.6); padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid rgba(255,255,255,0.9);"><h4 style="color: #d35400; margin-bottom: 10px;">Phần Trắc Nghiệm</h4>';
 
                     let draftKey = `draft_${currentUser.username}_${assign.id}`;
-                    let draft = JSON.parse(localStorage.getItem(draftKey)) || { mcAnswers: {}, essay: '' };
+                    let draft;
+try {
+    draft = JSON.parse(localStorage.getItem(draftKey));
+    if (typeof draft !== 'object' || draft === null) draft = { mcAnswers: {}, essay: '' };
+} catch (e) {
+    draft = { mcAnswers: {}, essay: '' };
+}
                     let savedMc = (mySub && mySub.mcAnswers) ? mySub.mcAnswers : draft.mcAnswers;
 
                     assign.questions.forEach((q, idx) => {
@@ -565,13 +684,35 @@ async function loadAssignments() {
                     descHTML = assign.desc ? `<div class="assignment-desc"><strong>Yêu cầu bài tập:</strong> <br>${(assign.desc || '').replace(/\n/g, '<br>')}</div>` : '';
                     if (assign.file) {
                         let aFiles = Array.isArray(assign.file) ? assign.file : [assign.file];
-                        aFiles.forEach(f => {
-                            teacherFileHTML += `<div class="assignment-file" style="margin-top: 15px;"><p><strong>📎 Tài liệu đính kèm:</strong> <a href="${f.base64}" download="${f.name}" class="file-download-link" target="_blank">${f.name}</a></p></div>`;
+                        aFiles.forEach((f, index) => {
+                            let isImg = (f.type && f.type.startsWith('image/')) || (f.base64 && f.base64.startsWith('data:image/'));
+                            if (isImg) {
+                                let uniqueId = 'img_lam_' + Date.now() + '_' + index + '_' + Math.floor(Math.random() * 1000);
+                                teacherFileHTML += `
+                                <div class="assignment-file" style="margin-top: 10px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.02); padding: 6px 10px; border-radius: 6px;">
+                                        <span style="font-size: 0.9em;"><strong>📎 Ảnh đính kèm:</strong> <span style="color: #666;">${f.name}</span></span>
+                                        <button onclick="let content = document.getElementById('${uniqueId}'); if(content.style.display==='none'){content.style.display='block'; this.innerHTML='🔼 Thu gọn';}else{content.style.display='none'; this.innerHTML='🔽 Xem ảnh';}" style="background: white; border: 1px solid #ccc; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.8em; font-weight: bold; box-shadow: 0 1px 2px rgba(0,0,0,0.1); transition: 0.2s;">🔽 Xem ảnh</button>
+                                    </div>
+                                    <div id="${uniqueId}" style="display: none; margin-top: 8px; text-align: center; background: rgba(0,0,0,0.03); padding: 10px; border-radius: 8px; border: 1px dashed rgba(0,0,0,0.1);">
+                                        <img src="${f.base64}" alt="${f.name}" style="max-width: 100%; max-height: 300px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: block; margin: 0 auto 10px auto; cursor: pointer;" onclick="window.open('${f.base64}', '_blank')" title="Bấm để xem ảnh gốc">
+                                        <a href="${f.base64}" download="${f.name}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 0.85em; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">📥 Tải ảnh xuống</a>
+                                    </div>
+                                </div>`;
+                            } else {
+                                teacherFileHTML += `<div class="assignment-file" style="margin-top: 10px;"><p style="font-size: 0.9em;"><strong>📎 Tài liệu đính kèm:</strong> <a href="${f.base64}" download="${f.name}" class="file-download-link" target="_blank">${f.name}</a></p></div>`;
+                            }
                         });
                     }
 
                     let draftKey = `draft_${currentUser.username}_${assign.id}`;
-                    let draft = JSON.parse(localStorage.getItem(draftKey)) || { mcAnswers: {}, essay: '' };
+                    let draft;
+try {
+    draft = JSON.parse(localStorage.getItem(draftKey));
+    if (typeof draft !== 'object' || draft === null) draft = { mcAnswers: {}, essay: '' };
+} catch (e) {
+    draft = { mcAnswers: {}, essay: '' };
+}
 
                     let savedEssay = mySub && mySub.rawEssay ? mySub.rawEssay : draft.essay;
                     if (!savedEssay && mySub && mySub.answer) savedEssay = mySub.answer.replace(/\[PHẦN TRẮC NGHIỆM\][\s\S]*?\[PHẦN TỰ LUẬN\]\n/, '');
@@ -586,14 +727,14 @@ async function loadAssignments() {
                     }
                     let essayTextAreaHTML = assign.hideEssayText
                         ? `<div class="glass-alert success" style="padding: 12px; margin-bottom: 12px; border-left-color: #38ef7d; background: rgba(56, 239, 125, 0.1);"><p style="margin:0; font-size:0.95em; font-weight:bold;">📁 Giáo viên yêu cầu nộp bài bằng tệp đính kèm (Không cần nhập nội dung văn bản).</p></div>`
-                        : `<textarea id="answer-${assign.id}" placeholder="Nhập câu trả lời..." rows="4" oninput="saveDraft('${assign.id}', 'essay', null, this.value)">${savedEssay}</textarea>`;
+                        : `<textarea id="answer-${assign.id}" placeholder="Nhập câu trả lời..." rows="4" oninput="saveDraft('${assign.id}', 'essay', null, this.value)">${savedEssay ? savedEssay.replace(/</g, "&lt;").replace(/>/g, "&gt;") : ''}</textarea>`;
 
                     tuLuanInputHTML = `<hr style="border: 0; border-top: 1px dashed rgba(0,0,0,0.1); margin: 20px 0;">
                                        <h3 style="color: #2c3e50; margin-bottom: 10px;">Phần làm bài tự luận</h3>
                                        ${essayTextAreaHTML}
                                        <label style="display: block; margin: 10px 0 8px 0;"><strong>📎 Đính kèm file bài làm:</strong></label>
                                        ${prevFileHTML}
-                                       <input type="file" id="studentFile-${assign.id}" accept=".docx, .pdf, image/*" multiple onchange="handleStudentFileAccumulate(this, '${assign.id}')" style="margin-bottom: 15px; background: rgba(255,255,255,0.5);">`;
+                                       <input type="file" id="studentFile-${assign.id}" accept=".docx, .pdf, image/*" multiple onclick="window.isSelectingFile = true;" onchange="handleStudentFileAccumulate(this, '${assign.id}')" style="margin-bottom: 15px; background: rgba(255,255,255,0.5);">`;
                 }
 
                 let submitBtnHTML = currentUser.isLocked
@@ -654,6 +795,13 @@ async function loadAssignments() {
                                 btnSubmit.style.cursor = 'not-allowed';
                                 btnSubmit.innerText = '🔒 Đã khóa (Hệ thống chuẩn bị thu bài)';
                             }
+                            // BỔ SUNG: Khóa luôn ô tải file để học sinh không tải lên vô ích
+                            const fileInput = document.getElementById(`studentFile-${assign.id}`);
+                            if (fileInput && !fileInput.disabled) {
+                                fileInput.disabled = true;
+                                fileInput.style.cursor = 'not-allowed';
+                                fileInput.style.opacity = '0.5';
+                            }
                         }
 
                         if (c > endTime) {
@@ -677,10 +825,15 @@ async function loadAssignments() {
     }
 
     if (window.MathJax) {
-        MathJax.typesetPromise([
-            document.getElementById('assignmentsList'),
-            document.getElementById('gradesList')
-        ]).catch((err) => console.log('MathJax error:', err));
+        const listEl = document.getElementById('assignmentsList');
+        const gradesEl = document.getElementById('gradesList');
+        const mathJaxTargets = [];
+        if (listEl) mathJaxTargets.push(listEl);
+        if (gradesEl) mathJaxTargets.push(gradesEl);
+
+        if (mathJaxTargets.length > 0) {
+            MathJax.typesetPromise(mathJaxTargets).catch((err) => console.log('MathJax error:', err));
+        }
     }
 }
 
@@ -930,8 +1083,23 @@ async function loadMaterialsListStudent() {
             // Nút bấm dành cho link URL (Mở trực tiếp trên web)
             fileHTML = `<div class="assignment-file" style="margin-top: 15px; background: rgba(56, 239, 125, 0.05); border-left: 4px solid #38ef7d;"><p><strong>📚 Link bài học:</strong> <a href="${mat.docLink}" class="file-download-link" target="_blank" rel="noopener">Nhấn vào đây để xem trực tiếp</a></p></div>`;
         } else if (mat.file) {
-            // Fallback tải xuống cho file cũ
-            fileHTML = `<div class="assignment-file" style="margin-top: 15px; background: rgba(56, 239, 125, 0.05); border-left: 4px solid #38ef7d;"><p><strong>📚 Tải file bài học:</strong> <a href="${mat.file.base64}" download="${mat.file.name}" class="file-download-link" target="_blank">${mat.file.name}</a></p></div>`;
+            let isImg = (mat.file.type && mat.file.type.startsWith('image/')) || (mat.file.base64 && mat.file.base64.startsWith('data:image/'));
+            if (isImg) {
+                let uniqueId = 'img_mat_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+                fileHTML = `
+                <div class="assignment-file" style="margin-top: 10px; background: rgba(56, 239, 125, 0.05); border-left: 4px solid #38ef7d; padding: 8px 10px; border-radius: 0 8px 8px 0;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 0.9em;"><strong>📚 Ảnh bài học:</strong> <span style="color: #666;">${mat.file.name}</span></span>
+                        <button onclick="let content = document.getElementById('${uniqueId}'); if(content.style.display==='none'){content.style.display='block'; this.innerHTML='🔼 Thu gọn';}else{content.style.display='none'; this.innerHTML='🔽 Xem ảnh';}" style="background: white; border: 1px solid #38ef7d; color: #059669; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.8em; font-weight: bold; box-shadow: 0 1px 2px rgba(0,0,0,0.1); transition: 0.2s;">🔽 Xem ảnh</button>
+                    </div>
+                    <div id="${uniqueId}" style="display: none; margin-top: 10px; text-align: center; background: white; padding: 10px; border-radius: 8px; border: 1px dashed rgba(56, 239, 125, 0.3);">
+                        <img src="${mat.file.base64}" alt="${mat.file.name}" style="max-width: 100%; max-height: 300px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: block; margin: 0 auto 10px auto; cursor: pointer;" onclick="window.open('${mat.file.base64}', '_blank')" title="Bấm để xem ảnh gốc">
+                        <a href="${mat.file.base64}" download="${mat.file.name}" style="display: inline-block; background: #059669; color: white; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 0.85em; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">📥 Tải ảnh xuống</a>
+                    </div>
+                </div>`;
+            } else {
+                fileHTML = `<div class="assignment-file" style="margin-top: 10px; background: rgba(56, 239, 125, 0.05); border-left: 4px solid #38ef7d;"><p style="font-size: 0.9em;"><strong>📚 Tải file bài học:</strong> <a href="${mat.file.base64}" download="${mat.file.name}" class="file-download-link" target="_blank">${mat.file.name}</a></p></div>`;
+            }
         }
 
         let videoHTML = mat.videoLink ? getEmbedHTML(mat.videoLink) : '';
@@ -1245,7 +1413,7 @@ async function readMultipleFiles(files) {
         // Chặn file quá lớn
         if (file.size > MAX_SIZE_BYTES) {
             alert(`⚠️ File "${file.name}" quá lớn. Hệ thống chỉ cho phép tối đa ${MAX_SIZE_MB}MB/file!`);
-            continue; 
+            continue;
         }
 
         // Băm file thành chuỗi Base64
@@ -1639,10 +1807,22 @@ document.addEventListener('DOMContentLoaded', () => {
     // Khôi phục vị trí lưu trước đó (nếu có)
     const savedPos = JSON.parse(localStorage.getItem('coinWidgetPos'));
     if (savedPos) {
+        let savedLeft = parseInt(savedPos.left);
+        let savedTop = parseInt(savedPos.top);
+
+        // Giới hạn lại tọa độ không cho lọt ra ngoài màn hình
+        const maxX = window.innerWidth - coinWidget.offsetWidth;
+        const maxY = window.innerHeight - coinWidget.offsetHeight;
+
+        if (savedLeft < 0) savedLeft = 0;
+        if (savedTop < 0) savedTop = 0;
+        if (savedLeft > maxX) savedLeft = Math.max(0, maxX);
+        if (savedTop > maxY) savedTop = Math.max(0, maxY);
+
         coinWidget.style.bottom = 'auto';
         coinWidget.style.right = 'auto';
-        coinWidget.style.left = savedPos.left;
-        coinWidget.style.top = savedPos.top;
+        coinWidget.style.left = savedLeft + 'px';
+        coinWidget.style.top = savedTop + 'px';
     }
 
     function handleDragStart(e) {
@@ -2076,7 +2256,7 @@ window.checkSurveyCompletion = function () {
 
     let isComplete = true;
     const questions = window.currentActiveSurvey.questions || [];
-    
+
     questions.forEach(q => {
         if (q.type === 'mc') {
             const checked = document.querySelector(`input[name="ans_${q.id}"]:checked`);
@@ -2417,16 +2597,21 @@ window.claimGift = async function (msgKey, giftType, giftValue) {
         if (giftType === 'coin') {
             const coinRef = db.ref('student_coins/' + currentUser.username);
             const snap = await coinRef.once('value');
-            await coinRef.set((snap.val() || 0) + parseInt(giftValue));
-            alert(`🎉 Bạn đã nhận được ${parseInt(giftValue).toLocaleString('vi-VN')} Coin!`);
+            const addValue = parseInt(giftValue);
+            if (!isNaN(addValue) && addValue > 0) {
+                await coinRef.set((snap.val() || 0) + addValue);
+                alert(`🎉 Bạn đã nhận được ${addValue.toLocaleString('vi-VN')} Coin!`);
+            }
 
         } else if (giftType === 'money') {
-            // Cộng tiền vào Offset để Lộ trình tự động cộng dồn
             const offsetRef = db.ref('student_money_offset/' + currentUser.username);
             const snap = await offsetRef.once('value');
-            await offsetRef.set((snap.val() || 0) + parseInt(giftValue));
-            alert(`🎉 Bạn đã nhận được ${parseInt(giftValue).toLocaleString('vi-VN')} đ vào Tiền Lộ trình!`);
-            if (typeof renderStudentRoadmap === 'function') renderStudentRoadmap(); // Cập nhật lại bảng lộ trình lập tức
+            const addValue = parseInt(giftValue);
+            if (!isNaN(addValue) && addValue > 0) {
+                await offsetRef.set((snap.val() || 0) + addValue);
+                alert(`🎉 Bạn đã nhận được ${addValue.toLocaleString('vi-VN')} đ vào Tiền Lộ trình!`);
+                if (typeof renderStudentRoadmap === 'function') renderStudentRoadmap();
+            }
         } else if (giftType === 'ticket') {
             // Dòng mới thêm: Lưu vé được tặng vào một node riêng trên Firebase
             const ticketRef = db.ref('student_bonus_tickets/' + currentUser.username);
@@ -2540,10 +2725,62 @@ window.startExamFullscreen = async function () {
     }
 };
 
+// === BỔ SUNG: BIẾN CỜ HIỆU CHỐNG BẮT LỖI OAN KHI MỞ FILE ===
+window.isSelectingFile = false;
+window.addEventListener('focus', () => {
+    if (window.isSelectingFile) {
+
+        // BỔ SUNG: Bắt buộc học sinh click để bật lại Toàn màn hình hợp lệ
+        if (window.currentActiveExamId && !document.fullscreenElement) {
+
+            // Tạo một lớp phủ (overlay) chặn màn hình lại
+            let resumeOverlay = document.getElementById('resumeExamOverlay');
+            if (!resumeOverlay) {
+                resumeOverlay = document.createElement('div');
+                resumeOverlay.id = 'resumeExamOverlay';
+                resumeOverlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.9); z-index: 9999999; display: flex; flex-direction: column; justify-content: center; align-items: center;';
+
+                const resumeBtn = document.createElement('button');
+                resumeBtn.innerText = "🚀 Tải file xong! Bấm vào đây để tiếp tục thi";
+                resumeBtn.style.cssText = 'background: linear-gradient(135deg, #e11d48 0%, #ff4d4d 100%); color: white; font-size: 1.5em; padding: 20px 40px; border-radius: 50px; border: none; cursor: pointer; box-shadow: 0 5px 25px rgba(225, 29, 72, 0.6); font-weight: bold; text-transform: uppercase; animation: pulse 1.5s infinite;';
+
+                // Khi học sinh bấm nút, kích hoạt lại Fullscreen
+                resumeBtn.onclick = async () => {
+                    try {
+                        const elem = document.documentElement;
+                        if (elem.requestFullscreen) await elem.requestFullscreen();
+                        else if (elem.webkitRequestFullscreen) await elem.webkitRequestFullscreen(); // Safari
+                        else if (elem.msRequestFullscreen) await elem.msRequestFullscreen(); // Edge cũ
+                    } catch (err) {
+                        console.log("Lỗi bật Fullscreen:", err);
+                    }
+
+                    resumeOverlay.style.display = 'none'; // Ẩn màn hình chờ
+
+                    // Chờ 0.5s để Fullscreen bung ra hoàn toàn rồi mới gỡ cờ bảo vệ
+                    setTimeout(() => { window.isSelectingFile = false; }, 500);
+                };
+
+                resumeOverlay.appendChild(resumeBtn);
+                document.body.appendChild(resumeOverlay);
+            }
+
+            // Hiện lớp phủ lên yêu cầu học sinh click
+            resumeOverlay.style.display = 'flex';
+
+        } else {
+            // Nếu không ở chế độ thi hoặc màn hình vốn vẫn đang Fullscreen thì gỡ cờ bảo vệ ngay
+            setTimeout(() => { window.isSelectingFile = false; }, 1000);
+        }
+    }
+});
+
 // Lắng nghe sự kiện học sinh "vượt rào" thoát toàn màn hình
 document.addEventListener('fullscreenchange', () => {
+    if (window.isSelectingFile) return; // BỎ QUA BẮT LỖI NẾU ĐANG MỞ HỘP THOẠI FILE
+
     if (!document.fullscreenElement && window.currentActiveExamId) {
-        alert("⚠️ VI PHẠM BẢO MẬT: Bạn đã thoát chế độ toàn màn hình! Hệ thống tự động thu bài ngay lập tức.");
+        alert("⚠️ VI PHẠM BẢO MẬT: Bạn đã tự ý thoát chế độ toàn màn hình! Hệ thống tự động thu bài ngay lập tức.");
         // Gắn cờ true thứ nhất cho isAuto, true thứ hai cho isCheat
         submitAssignment(window.currentActiveExamId, true, true);
         window.currentActiveExamId = null;
@@ -2553,7 +2790,13 @@ document.addEventListener('fullscreenchange', () => {
 // ================= HỆ THỐNG LƯU NHÁP TỰ ĐỘNG =================
 window.saveDraft = function (assignId, type, qIndex, value) {
     const draftKey = `draft_${currentUser.username}_${assignId}`;
-    let draft = JSON.parse(localStorage.getItem(draftKey)) || { mcAnswers: {}, essay: '' };
+    let draft;
+try {
+    draft = JSON.parse(localStorage.getItem(draftKey));
+    if (typeof draft !== 'object' || draft === null) draft = { mcAnswers: {}, essay: '' };
+} catch (e) {
+    draft = { mcAnswers: {}, essay: '' };
+}
     if (type === 'mc') {
         draft.mcAnswers[qIndex] = value;
     } else if (type === 'essay') {
@@ -2564,6 +2807,8 @@ window.saveDraft = function (assignId, type, qIndex, value) {
 
 // Bắt sự kiện chuyển Tab hoặc thu nhỏ trình duyệt
 document.addEventListener('visibilitychange', () => {
+    if (window.isSelectingFile) return; // BỎ QUA BẮT LỖI NẾU ĐANG MỞ HỘP THOẠI FILE
+
     if (document.hidden && window.currentActiveExamId) {
         alert("⚠️ VI PHẠM BẢO MẬT: Bạn đã chuyển sang tab/cửa sổ khác! Hệ thống tự động thu bài ngay lập tức.");
         // Thu bài tự động và đánh dấu gian lận
@@ -2572,7 +2817,7 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // --- BỘ TẠO THÔNG BÁO NỔI KHÔNG LÀM MẤT FULLSCREEN ---
-window.showExamLockWarning = function(msg) {
+window.showExamLockWarning = function (msg) {
     let toast = document.getElementById('exam-lock-toast');
     if (!toast) {
         toast = document.createElement('div');
@@ -2582,8 +2827,70 @@ window.showExamLockWarning = function(msg) {
     }
     toast.innerText = msg || '⚠️ Đang trong chế độ thi! Tính năng này tạm khóa.';
     toast.style.opacity = '1';
-    
+
     clearTimeout(window.examToastTimeout);
     window.examToastTimeout = setTimeout(() => { toast.style.opacity = '0'; }, 3000);
 };
 // ---------------------------------------------------
+
+// ================= HỆ THỐNG XEM TRƯỚC PHẦN THƯỞNG DẠ HỘI =================
+window.showRoyalBallRewards = function () {
+    const listContainer = document.getElementById('royalRewardsList');
+    if (!listContainer) return;
+
+    let html = '';
+
+    // 1. Giao diện phần thưởng Coin (Mặc định)
+    html += `
+    <div style="background: rgba(246, 211, 101, 0.2); border: 1px dashed #f39c12; padding: 12px; border-radius: 12px; margin-bottom: 15px; display: flex; align-items: center; gap: 15px;">
+        <div style="font-size: 2.5em; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));">💰</div>
+        <div>
+            <strong style="color: #d35400; font-size: 1.1em;">Phần thưởng Coin</strong>
+            <p style="margin: 5px 0 0 0; color: #555; font-size: 0.9em; line-height: 1.4;">Nhận ngẫu nhiên lượng lớn <strong>Coin</strong> nếu bạn không rơi ra vật phẩm.</p>
+        </div>
+    </div>`;
+
+    // 2. Tự động quét và lọc các vật phẩm Truyền Thuyết từ StoreConfig
+    if (typeof StoreConfig !== 'undefined' && StoreConfig.items) {
+        // Lọc tất cả vật phẩm có chứa tag "Truyền thuyết" (Không phân biệt hoa/thường)
+        const legendaryItems = StoreConfig.items.filter(i => i.tag && i.tag.toLowerCase().includes('truyền thuyết'));
+
+        if (legendaryItems.length > 0) {
+            html += `<h4 style="color: #c0392b; margin: 20px 0 10px 0; display: flex; align-items: center; gap: 8px;">🔥 Tủ đồ Truyền Thuyết:</h4>`;
+
+            legendaryItems.forEach(item => {
+                let typeIcon = '📦';
+                let typeName = 'Vật phẩm';
+
+                if (item.type === 'theme') { typeIcon = '🎨'; typeName = 'Giao diện'; }
+                else if (item.type === 'effect') { typeIcon = '✨'; typeName = 'Hiệu ứng'; }
+                else if (item.type === 'pet') { typeIcon = '🐾'; typeName = 'Thú cưng'; }
+
+                // FIX LỖI: Kiểm tra xem vật phẩm dùng ảnh hay icon để hiển thị chính xác
+                let displayVisual = '';
+                if (item.isIcon === false && item.value) {
+                    displayVisual = `<img src="${item.value}" style="width: 50px; height: 50px; object-fit: contain;">`;
+                } else {
+                    displayVisual = item.customIcon || item.icon || typeIcon;
+                }
+
+                html += `
+                <div style="background: rgba(192, 57, 43, 0.05); border: 1px solid rgba(192, 57, 43, 0.15); padding: 12px; border-radius: 12px; margin-bottom: 12px; display: flex; align-items: center; gap: 15px; transition: 0.3s;" onmouseover="this.style.background='rgba(192, 57, 43, 0.1)'" onmouseout="this.style.background='rgba(192, 57, 43, 0.05)'">
+                    <div style="font-size: 2.2em; background: rgba(255,255,255,0.8); width: 60px; height: 60px; border-radius: 12px; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">${displayVisual}</div>
+                    <div>
+                        <strong style="color: #c0392b; font-size: 1.1em; display: block; margin-bottom: 4px;">${item.name}</strong>
+                        <p style="margin: 0 0 6px 0; color: #666; font-size: 0.85em;">Loại: <span style="font-weight: bold; color: #444;">${typeName}</span></p>
+                        <span style="display: inline-block; background: linear-gradient(135deg, #ff0844 0%, #ffb199 100%); color: white; padding: 3px 10px; border-radius: 20px; font-size: 0.75em; font-weight: 800; letter-spacing: 0.5px; box-shadow: 0 2px 5px rgba(255,8,68,0.3); text-transform: uppercase;">Truyền Thuyết</span>
+                    </div>
+                </div>`;
+            });
+        } else {
+            html += `<div style="background: rgba(0,0,0,0.05); padding: 15px; border-radius: 12px; text-align: center;">
+                <p style="color: #666; font-style: italic; margin: 0;">Hiện tại chưa có vật phẩm Truyền Thuyết nào được mở bán trên hệ thống.</p>
+            </div>`;
+        }
+    }
+
+    listContainer.innerHTML = html;
+    document.getElementById('royalRewardsModal').classList.add('active');
+};

@@ -58,23 +58,23 @@ window.onload = async function () {
     });
     db.ref('assignments').on('value', async (snapshot) => {
         const hash = JSON.stringify(snapshot.val());
-        if (hash !== cacheAssignmentsSt) { 
-            cacheAssignmentsSt = hash; 
-            window.cachedAssignments = snapshot.val() ? Object.values(snapshot.val()) : []; 
+        if (hash !== cacheAssignmentsSt) {
+            cacheAssignmentsSt = hash;
+            window.cachedAssignments = snapshot.val() ? Object.values(snapshot.val()) : [];
             // Sửa tại đây: Gọi đúng hàm loadAssignedList() thay vì loadAssignments()
-            await loadAssignedList(); 
-            if (document.getElementById('studentRoadmapBody')) renderStudentRoadmap(); 
+            await loadAssignedList();
+            if (document.getElementById('studentRoadmapBody')) renderStudentRoadmap();
         }
     });
 
     db.ref('submissions').on('value', async (snapshot) => {
         const hash = JSON.stringify(snapshot.val());
-        if (hash !== cacheSubmissionsSt) { 
-            cacheSubmissionsSt = hash; 
-            window.cachedSubmissions = snapshot.val() ? Object.values(snapshot.val()) : []; 
+        if (hash !== cacheSubmissionsSt) {
+            cacheSubmissionsSt = hash;
+            window.cachedSubmissions = snapshot.val() ? Object.values(snapshot.val()) : [];
             // Sửa tại đây: Gọi đúng hàm loadSubmissions() thay vì loadAssignments()
-            await loadSubmissions(); 
-            if (document.getElementById('studentRoadmapBody')) renderStudentRoadmap(); 
+            await loadSubmissions();
+            if (document.getElementById('studentRoadmapBody')) renderStudentRoadmap();
         }
     });
     db.ref('materials').on('value', async (snapshot) => {
@@ -103,9 +103,9 @@ window.onload = async function () {
     // DÁN ĐOẠN THỜI GIAN THỰC ĐỒNG BỘ NÀY VÀO ĐÂY
     db.ref('game_settings').on('value', (snapshot) => {
         const settings = snapshot.val() || { isOpen: true, lockMessage: '' };
-        
+
         // Khai báo biến toàn cục để hệ thống chẩn đoán nhận diện được
-        window.isGameEnabled = settings.isOpen; 
+        window.isGameEnabled = settings.isOpen;
 
         const toggleInput = document.getElementById('gameToggle');
         const msgArea = document.getElementById('gameLockMessageArea');
@@ -395,14 +395,19 @@ async function createAssignment() {
 async function loadAssignedList() {
     const assignments = await getDB('assignments');
     const submissions = await getDB('submissions'); // Lấy thêm submissions để phục vụ điều kiện Đang chấm/Làm lại
+
+    // BỔ SUNG: Lấy danh sách user để kiểm tra xem có học sinh nào chưa nộp không
+    const users = await getDB('users');
+    const students = users.filter(u => u.role === 'student');
+
     const container = document.getElementById('assignedListContainer');
-    
+
     if (!container) return;
     container.innerHTML = '';
-    
-    if (assignments.length === 0) { 
-        container.innerHTML = '<p style="color: #666; font-style: italic;">Chưa có bài tập nào.</p>'; 
-        return; 
+
+    if (assignments.length === 0) {
+        container.innerHTML = '<p style="color: #666; font-style: italic;">Chưa có bài tập nào.</p>';
+        return;
     }
 
     // --- BẮT ĐẦU LOGIC SẮP XẾP ---
@@ -411,29 +416,29 @@ async function loadAssignedList() {
         const getSortVals = (assign) => {
             const end = assign.endDate ? new Date(assign.endDate.replace(" ", "T")) : new Date("2100-01-01");
             const relatedSubs = submissions.filter(s => s.assignmentId === assign.id);
-            
+
             let rank = 2; // Nhóm 2: Các bài đã ổn định, xong xuôi
             let isActive = nowSort <= end;
-            
+
             // Nhóm 1: Ưu tiên cao
             if (isActive) rank = 1; // Mới giao, Đang diễn ra
-            
+
             let isRedoing = relatedSubs.some(s => s.isRedoing);
             let needsGrading = relatedSubs.some(s => !s.isRedoing && !s.isAutoSubmitted && !s.isLateFail && (s.grade === null || s.grade === undefined || s.grade === ''));
-            
+
             if (isRedoing || needsGrading) rank = 1; // Có HS đang làm lại hoặc chờ chấm bài
-            
+
             // Xử lý lấy số "Bài N" (Nếu không có số, mặc định là 0 để đẩy lên trước các Bài N)
-            let lessonNum = 0; 
+            let lessonNum = 0;
             const match = (assign.title || '').match(/bài\s*(\d+)/i);
             if (match) lessonNum = parseInt(match[1]);
-            
+
             return { rank, lessonNum };
         };
-        
+
         const valsA = getSortVals(a);
         const valsB = getSortVals(b);
-        
+
         // 1. So sánh Nhóm ưu tiên (Rank 1 đứng trên Rank 2)
         if (valsA.rank !== valsB.rank) return valsA.rank - valsB.rank;
         // 2. So sánh thứ tự số Bài (0 đứng trước 1, 2, 3...)
@@ -443,8 +448,6 @@ async function loadAssignedList() {
     });
     // --- KẾT THÚC LOGIC SẮP XẾP ---
 
-    // Chú ý: Đổi từ vòng lặp có [...assignments].reverse().forEach thành .forEach trực tiếp 
-    // do thuật toán sort ở trên đã xử lý thứ tự hoàn chỉnh rồi
     assignments.forEach(assign => {
         let typeText = '';
         if (assign.assessmentType === 'trac_nghiem') typeText = 'Trắc nghiệm';
@@ -461,6 +464,27 @@ async function loadAssignedList() {
         if (assign.hideEssayText && assign.assessmentType !== 'trac_nghiem' && !(assign.assessmentType === 'thi' && (assign.essayWeight || 0) === 0)) {
             typeText += ' 📁 [Chỉ nhận Tệp]';
         }
+
+        // --- LOGIC MỚI: TẠO NHÃN CHƯA NỘP / CHƯA ĐẾN GIỜ ---
+        const now = new Date();
+        const startTime = assign.startDate ? new Date(assign.startDate.replace(" ", "T")) : new Date(0);
+        let statusBadge = '';
+
+        if (now < startTime) {
+            statusBadge = `<span style="background: rgba(245, 158, 11, 0.15); color: #d97706; padding: 4px 10px; border-radius: 20px; font-size: 0.75em; margin-left: 10px; vertical-align: middle; white-space: nowrap; font-weight: bold; border: 1px solid rgba(245, 158, 11, 0.3);">⏳ Chưa đến giờ</span>`;
+        } else {
+            // Lọc ra các học sinh được giao bài này
+            const targetStudents = students.filter(u => assign.targetStudent === 'all' || assign.targetStudent === u.username);
+
+            // Kiểm tra xem có học sinh nào trong danh sách mục tiêu CHƯA có bài nộp không
+            const hasMissing = targetStudents.some(st => !submissions.some(s => s.assignmentId === assign.id && s.studentUsername === st.username));
+
+            if (hasMissing) {
+                statusBadge = `<span style="background: rgba(225, 29, 72, 0.15); color: #e11d48; padding: 4px 10px; border-radius: 20px; font-size: 0.75em; margin-left: 10px; vertical-align: middle; white-space: nowrap; font-weight: bold; border: 1px solid rgba(225, 29, 72, 0.3);">⚠️ Chưa nộp</span>`;
+            }
+        }
+        // ---------------------------------------------------
+
         let fileHTML = '';
         if (assign.file) {
             let files = Array.isArray(assign.file) ? assign.file : [assign.file];
@@ -483,7 +507,15 @@ async function loadAssignedList() {
 
         const uniqueId = `teacher-assign-${assign.id}`;
         const div = document.createElement('div'); div.className = 'card accordion-card';
-        div.innerHTML = `<div class="accordion-header" onclick="toggleAccordion('${uniqueId}', this)"><div class="accordion-title"><h4>${assign.title}</h4><span>Loại: ${typeText}</span></div><div class="accordion-meta"><span>Hạn: <strong>${assign.endDate}</strong></span><span class="toggle-icon">▼</span></div></div>
+
+        // Cập nhật lại HTML phần tiêu đề: Đưa Title và statusBadge vào một Flex box
+        div.innerHTML = `<div class="accordion-header" onclick="toggleAccordion('${uniqueId}', this)">
+            <div class="accordion-title">
+                <h4 style="display: flex; align-items: center; gap: 5px; margin: 0;">${assign.title} ${statusBadge}</h4>
+                <span style="display: block; margin-top: 5px;">Loại: ${typeText}</span>
+            </div>
+            <div class="accordion-meta"><span>Hạn: <strong>${assign.endDate}</strong></span><span class="toggle-icon">▼</span></div>
+        </div>
             <div id="${uniqueId}" class="accordion-content">
                 <div style="text-align: right; margin-bottom: 15px; display: flex; gap: 10px; justify-content: flex-end;">
                     <button class="btn-approve" style="padding: 6px 15px; font-size: 0.9em; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white;" onclick="openAssignmentStatusModal('${assign.id}')">📊 Trạng thái</button>
@@ -666,25 +698,25 @@ async function loadSubmissions() {
 
         const getSortVals = (sub, assign) => {
             let rank = 2; // Nhóm 2: Bài đã chấm điểm xong, hoàn tất
-            
+
             const hasGrade = sub.grade !== null && sub.grade !== undefined && sub.grade !== '';
-            
+
             // Nhóm 1: Ưu tiên lên đầu (Chưa chấm, Đang làm lại, Đang chấm lại)
             if (sub.isRedoing || sub.isRegrading || !hasGrade) {
-                rank = 1; 
+                rank = 1;
             }
-            
+
             // Xử lý lấy số "Bài N" (Nếu không có số, mặc định là 0 để đẩy lên trước)
-            let lessonNum = 0; 
+            let lessonNum = 0;
             const match = (assign.title || '').match(/bài\s*(\d+)/i);
             if (match) lessonNum = parseInt(match[1]);
-            
+
             return { rank, lessonNum, title: assign.title || '' };
         };
-        
+
         const valsA = getSortVals(a, assignA);
         const valsB = getSortVals(b, assignB);
-        
+
         // 1. So sánh Rank (Rank 1 đứng trên Rank 2)
         if (valsA.rank !== valsB.rank) return valsA.rank - valsB.rank;
         // 2. So sánh thứ tự số Bài (0 đứng trước 1, 2, 3...)
@@ -772,7 +804,9 @@ async function loadSubmissions() {
             <div id="${uniqueId}" class="accordion-content">${violationHTML}<span style="color: #888; font-size: 0.85em; display: block; margin-bottom: 10px;">🕒 Lần nộp cuối: ${sub.submitTime || 'Chưa rõ'}</span>${videoHTML}
                 <div style="background: rgba(255,255,255,0.4); padding: 15px; border-radius: 12px; margin-bottom: 15px;">
                     <p style="margin: 0; font-weight: bold;">Bài nộp:</p>
-                    <p style="white-space: pre-wrap; word-break: break-word; margin-top:5px;">${sub.answer || '<i>(Trống)</i>'}</p>
+                    <p style="white-space: pre-wrap; word-break: break-word; margin-top:5px;">
+    ${sub.answer ? sub.answer.replace(/</g, "&lt;").replace(/>/g, "&gt;") : '<i>(Trống)</i>'}
+</p>
                     ${studentFileHTML}
                 </div>
                 <div style="background: rgba(255,255,255,0.6); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.9);">
@@ -812,7 +846,7 @@ async function gradeSubmission(subId) {
             if (fileDataArray) updateObj.teacherFile = fileDataArray;
             await updateDB('submissions', sub._fbKey, updateObj);
             alert("Đã chấm điểm và lưu nhận xét thành công!");
-            
+
             // THÊM 2 DÒNG NÀY
             await loadSubmissions();
             if (typeof renderTeacherRoadmap === 'function') renderTeacherRoadmap();
@@ -1745,7 +1779,7 @@ async function readMultipleFiles(files) {
         // Chặn file quá lớn
         if (file.size > MAX_SIZE_BYTES) {
             alert(`⚠️ File "${file.name}" quá lớn. Hệ thống chỉ cho phép tối đa ${MAX_SIZE_MB}MB/file!`);
-            continue; 
+            continue;
         }
 
         // Băm file thành chuỗi Base64

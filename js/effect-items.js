@@ -3,6 +3,7 @@
 class EffectManager {
     static container = document.getElementById('global-effect-container');
     static currentInterval = null;
+    static shootingStarInterval = null;
 
     static clearEffects() {
         // Dừng các bộ đếm sinh hạt
@@ -48,6 +49,12 @@ class EffectManager {
                 break;
             case 'effect_cotich_tinhlinh':
                 this.createFairyRainEffect();
+                break;
+            case 'effect_truyenthuyet_vutru': 
+                this.createGalaxyLegendEffect();
+                break;
+            case 'effect_vutru_saothuy':
+                this.createMercuryRainEffect();
                 break;
         }
         localStorage.setItem('active_effect', effectId);
@@ -264,5 +271,75 @@ class EffectManager {
             }, duration * 1000);
 
         }, 200); // Tốc độ sinh hạt: 0.2s tạo ra 1 hạt
+    }
+
+    static createGalaxyLegendEffect() {
+        if (!this.container) return;
+        
+        // Tạo bộ khung cấu trúc vật thể tinh hệ - 100% hình ảnh điều khiển bởi CSS bên dưới
+        this.container.innerHTML = `
+            <div class="cosmic-nebula-core"></div>
+            <div class="cosmic-celestial-engine">
+                <div class="cosmic-orbit-ring ring-primary"></div>
+                <div class="cosmic-orbit-ring ring-secondary"></div>
+
+                <div class="mythic-constellation constellation-alpha">
+                    <div class="const-star c-star-1"></div>
+                    <div class="const-star c-star-2"></div>
+                    <div class="const-star c-star-3"></div>
+                </div>
+                <div class="mythic-constellation constellation-beta">
+                    <div class="const-star c-star-1"></div>
+                    <div class="const-star c-star-2"></div>
+                </div>
+
+                <div class="cosmic-glowing-planet planet-galaxy-purple">
+                    <div class="planet-sphere"></div>
+                    <div class="planet-planetary-ring"></div>
+                </div>
+
+                <div class="cosmic-glowing-planet planet-galaxy-cyan">
+                    <div class="planet-sphere"></div>
+                    <div class="planet-planetary-ring"></div>
+                </div>
+
+                <div class="cinematic-comet comet-v1"></div>
+                <div class="cinematic-comet comet-v2"></div>
+                <div class="cinematic-comet comet-v3"></div>
+
+                <div class="pure-css-cosmic-dust">
+                    <span></span><span></span><span></span><span></span><span></span>
+                    <span></span><span></span><span></span><span></span><span></span>
+                </div>
+            </div>
+        `;
+    }
+
+    static createMercuryRainEffect() {
+        this.currentInterval = setInterval(() => {
+            const crystal = document.createElement('div');
+            crystal.classList.add('effect-mercury-crystal');
+
+            // Xuất phát ngẫu nhiên ở mép trên màn hình
+            crystal.style.left = Math.random() * 120 + 'vw'; 
+
+            // Kích thước ngẫu nhiên để tạo cảm giác vệt dài vệt ngắn
+            let width = Math.random() * 2 + 2; 
+            let height = Math.random() * 15 + 15; 
+            crystal.style.width = `${width}px`;
+            crystal.style.height = `${height}px`;
+
+            // Tốc độ rơi từ 3s đến 6s
+            let duration = Math.random() * 3 + 3;
+            crystal.style.animationDuration = duration + 's';
+
+            this.container.appendChild(crystal);
+
+            // Dọn dẹp sau khi hạt rơi xong
+            setTimeout(() => {
+                crystal.remove();
+            }, duration * 1000);
+
+        }, 150); // Mỗi 0.15s sinh ra 1 vệt tinh thể
     }
 }
