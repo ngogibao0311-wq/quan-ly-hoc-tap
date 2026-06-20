@@ -979,13 +979,22 @@ async function submitAssignment(assignId, isAuto = false, isCheat = false) {
     let answer = '';
     let filesArray = null;
 
-    if (assign.assessmentType === 'tu_luan' || assign.assessmentType === 'ket_hop' || !assign.assessmentType) {
+    // --- BẮT ĐẦU ĐOẠN ĐÃ FIX LỖI ---
+    // 1. Thêm assign.assessmentType === 'thi' vào điều kiện để chịu đọc file khi thi
+    if (assign.assessmentType === 'tu_luan' || assign.assessmentType === 'ket_hop' || assign.assessmentType === 'thi' || !assign.assessmentType) {
         const answerEl = document.getElementById(`answer-${assignId}`); if (answerEl) answer = answerEl.value;
-        const fileInput = document.getElementById(`studentFile-${assignId}`);
-        if (fileInput && fileInput.files.length > 0) {
-            filesArray = await readMultipleFiles(fileInput.files);
-            // Thêm dòng này để chặn nộp bài nếu file bị từ chối do quá dung lượng
+        
+        // 2. Ưu tiên đọc từ biến cộng dồn file (studentSubmitDTs) để chắc chắn lấy đủ 2-3 file
+        if (window.studentSubmitDTs && window.studentSubmitDTs[assignId] && window.studentSubmitDTs[assignId].files.length > 0) {
+            filesArray = await readMultipleFiles(window.studentSubmitDTs[assignId].files);
             if (filesArray.length === 0) return;
+        } else {
+            // Fallback dự phòng: Quét trực tiếp ô input trên màn hình
+            const fileInput = document.getElementById(`studentFile-${assignId}`);
+            if (fileInput && fileInput.files.length > 0) {
+                filesArray = await readMultipleFiles(fileInput.files);
+                if (filesArray.length === 0) return;
+            }
         }
 
         let hasOldFile = mySub && mySub.file;
@@ -995,7 +1004,8 @@ async function submitAssignment(assignId, isAuto = false, isCheat = false) {
                 return alert("Bài tự luận này yêu cầu bạn bắt buộc phải đính kèm tệp bài làm!");
             }
         } else {
-            if (!answer && !filesArray && !hasOldFile && assign.assessmentType !== 'ket_hop' && !isAuto) return alert("Cần nhập nội dung hoặc đính kèm file!");
+            // 3. Thêm ngoại lệ 'thi' vào đây để tránh bị chặn hàm cảnh báo sai
+            if (!answer && !filesArray && !hasOldFile && assign.assessmentType !== 'ket_hop' && assign.assessmentType !== 'thi' && !isAuto) return alert("Cần nhập nội dung hoặc đính kèm file!");
         }
     }
 

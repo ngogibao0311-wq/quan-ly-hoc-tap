@@ -210,7 +210,7 @@ const StoreConfig = {
             name: 'Thần Hệ Tinh Vân',
             type: 'theme',
             price: 0,               // Không bán bằng Coin
-            isNonCoin: true,        // Vật phẩm sự kiện đặc biệt
+            isNonCoin: false,        // Vật phẩm sự kiện đặc biệt
             tag: 'Truyền thuyết',   // Gắn tag Truyền thuyết
             value: 'theme-cosmic-godhood', // Class CSS định danh của giao diện
             customIcon: '🌗'
