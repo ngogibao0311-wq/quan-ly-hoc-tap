@@ -543,7 +543,7 @@ async function loadAssignedList() {
         let tuLuanHTML = hasEssay ? `<p style="background: rgba(255,255,255,0.5); padding:15px; border-radius:12px; border-left:4px solid #667eea;"><strong>Yêu cầu Tự luận:</strong><br>${(assign.desc || '').replace(/\n/g, '<br>')}</p>` : '';
 
         const uniqueId = `teacher-assign-${assign.id}`;
-        const div = document.createElement('div'); 
+        const div = document.createElement('div');
         div.className = 'card accordion-card';
         div.setAttribute('data-target', assign.targetStudent || 'all');
 
@@ -599,7 +599,7 @@ async function createMaterial() {
 
     const now = new Date();
     await pushDB('materials', {
-        id: Date.now().toString(), title, videoLink, docLink, 
+        id: Date.now().toString(), title, videoLink, docLink,
         targetStudent, // MỚI THÊM: Đẩy dữ liệu đích danh lên Firebase
         uploadTime: now.toLocaleTimeString('vi-VN') + ' ' + now.toLocaleDateString('vi-VN')
     });
@@ -707,26 +707,26 @@ function initFileListener() {
     });
 }
 
-async function populateStudentDropdown() { 
-    const users = await getDB('users'); 
-    const select = document.getElementById('targetStudent'); 
-    const matSelect = document.getElementById('materialTargetStudent'); 
+async function populateStudentDropdown() {
+    const users = await getDB('users');
+    const select = document.getElementById('targetStudent');
+    const matSelect = document.getElementById('materialTargetStudent');
     const editMatSelect = document.getElementById('editMaterialTargetStudent'); // THÊM DÒNG NÀY
-    
-    if (select) select.innerHTML = '<option value="all">Tất cả học sinh</option>'; 
-    if (matSelect) matSelect.innerHTML = '<option value="all">Tất cả học sinh</option>'; 
+
+    if (select) select.innerHTML = '<option value="all">Tất cả học sinh</option>';
+    if (matSelect) matSelect.innerHTML = '<option value="all">Tất cả học sinh</option>';
     if (editMatSelect) editMatSelect.innerHTML = '<option value="all">Tất cả học sinh</option>'; // THÊM DÒNG NÀY
-    
-    users.forEach(u => { 
-        if (u.role === 'student') { 
-            const opt = document.createElement('option'); 
-            opt.value = u.username; 
-            opt.innerText = u.name; 
-            if (select) select.appendChild(opt.cloneNode(true)); 
-            if (matSelect) matSelect.appendChild(opt.cloneNode(true)); 
+
+    users.forEach(u => {
+        if (u.role === 'student') {
+            const opt = document.createElement('option');
+            opt.value = u.username;
+            opt.innerText = u.name;
+            if (select) select.appendChild(opt.cloneNode(true));
+            if (matSelect) matSelect.appendChild(opt.cloneNode(true));
             if (editMatSelect) editMatSelect.appendChild(opt.cloneNode(true)); // THÊM DÒNG NÀY
-        } 
-    }); 
+        }
+    });
 }
 
 async function loadSubmissions() {
@@ -1240,6 +1240,14 @@ async function renderTeacherRoadmap() {
     }
 
     sortedAssignments.forEach(assign => {
+        // ---> BẮT ĐẦU THÊM ĐOẠN LỌC NÀY <---
+        // Kiểm tra: Nếu giáo viên đã chọn 1 học sinh cụ thể, 
+        // thì bỏ qua (không in ra bảng) những bài tập giao riêng cho học sinh khác.
+        if (selectedStudent && selectedStudent !== "") {
+            if (assign.targetStudent && assign.targetStudent !== 'all' && assign.targetStudent !== selectedStudent) {
+                return; // Lệnh return này giúp bỏ qua bài tập, chuyển sang bài tiếp theo
+            }
+        }
         // THÊM DÒNG NÀY: Lấy điều kiện điểm chuẩn của RIÊNG bài tập này (Mặc định là 7 nếu chưa cài)
         const passingGrade = assign.passingGrade || 7;
 
@@ -1839,7 +1847,7 @@ window.openEditMaterialModal = async function (fbKey) {
     document.getElementById('editMaterialTitle').value = mat.title || '';
     document.getElementById('editMaterialVideoLink').value = mat.videoLink || '';
     document.getElementById('editMaterialLinkInput').value = mat.docLink || '';
-    
+
     if (document.getElementById('editMaterialTargetStudent')) {
         document.getElementById('editMaterialTargetStudent').value = mat.targetStudent || 'all';
     }
@@ -1855,13 +1863,28 @@ window.saveMaterialEdit = async function () {
     const fbKey = document.getElementById('editMaterialKey').value;
     const newTitle = document.getElementById('editMaterialTitle').value.trim();
 
+    // Lấy thêm các thông tin mới từ popup
+    const newVideoLink = document.getElementById('editMaterialVideoLink') ? document.getElementById('editMaterialVideoLink').value.trim() : '';
+    const newDocLink = document.getElementById('editMaterialLinkInput') ? document.getElementById('editMaterialLinkInput').value.trim() : '';
+    const newTargetStudent = document.getElementById('editMaterialTargetStudent') ? document.getElementById('editMaterialTargetStudent').value : 'all';
+
     if (!newTitle) return alert("Vui lòng nhập tên tài liệu mới!");
 
-    // Cập nhật lên Firebase
-    await updateDB('materials', fbKey, { title: newTitle });
+    // Cập nhật TOÀN BỘ thông tin lên Firebase thay vì chỉ mỗi title
+    await updateDB('materials', fbKey, {
+        title: newTitle,
+        videoLink: newVideoLink,
+        docLink: newDocLink,
+        targetStudent: newTargetStudent
+    });
 
     closeEditMaterialModal();
-    alert("Đã đổi tên tài liệu thành công!");
+    alert("Đã cập nhật thông tin tài liệu thành công!");
+
+    // Yêu cầu tải lại danh sách tài liệu
+    if (typeof loadMaterialsListTeacher === 'function') {
+        loadMaterialsListTeacher();
+    }
 };
 
 async function readMultipleFiles(files) {
@@ -3158,7 +3181,7 @@ function renderStudentFilterButtons(studentsArray) {
     const assignedContainer = document.getElementById('assignedStudentFilterContainer');
     const submittedContainer = document.getElementById('submittedStudentFilterContainer');
     const materialsContainer = document.getElementById('materialsStudentFilterContainer'); // MỚI THÊM
-    
+
     let htmlAssigned = `<button class="btn-student-filter active" data-id="all" onclick="setStudentFilter('all', this, 'assigned')">Tất cả</button>`;
     let htmlSubmitted = `<button class="btn-student-filter active" data-id="all" onclick="setStudentFilter('all', this, 'submitted')">Tất cả</button>`;
     let htmlMaterials = `<button class="btn-student-filter active" data-id="all" onclick="setStudentFilter('all', this, 'materials')">Tất cả</button>`; // MỚI THÊM
@@ -3167,7 +3190,7 @@ function renderStudentFilterButtons(studentsArray) {
         let btnA = `<button class="btn-student-filter" data-id="${student.username}" onclick="setStudentFilter('${student.username}', this, 'assigned')">${student.name}</button>`;
         let btnS = `<button class="btn-student-filter" data-id="${student.username}" onclick="setStudentFilter('${student.username}', this, 'submitted')">${student.name}</button>`;
         let btnM = `<button class="btn-student-filter" data-id="${student.username}" onclick="setStudentFilter('${student.username}', this, 'materials')">${student.name}</button>`; // MỚI THÊM
-        
+
         htmlAssigned += btnA;
         htmlSubmitted += btnS;
         htmlMaterials += btnM; // MỚI THÊM
@@ -3179,7 +3202,7 @@ function renderStudentFilterButtons(studentsArray) {
 }
 
 // ================= HÀM LỌC BÀI TẬP VÀ BÀI NỘP THEO HỌC SINH =================
-window.setStudentFilter = function(studentId, btnElement, type) {
+window.setStudentFilter = function (studentId, btnElement, type) {
     const container = btnElement.parentElement;
     container.querySelectorAll('.btn-student-filter').forEach(btn => btn.classList.remove('active'));
     btnElement.classList.add('active');
@@ -3197,61 +3220,61 @@ window.setStudentFilter = function(studentId, btnElement, type) {
 };
 
 // HÀM LỌC TÀI LIỆU HỌC TẬP ĐỘNG
-window.applyMaterialFilters = function() {
+window.applyMaterialFilters = function () {
     let searchInput = document.getElementById('searchMaterials');
     let searchText = searchInput ? searchInput.value.toLowerCase() : '';
-    let items = document.querySelectorAll('#teacherMaterialsContainer > .card'); 
+    let items = document.querySelectorAll('#teacherMaterialsContainer > .card');
 
     items.forEach(item => {
-        let targetStudent = item.getAttribute('data-target') || 'all'; 
+        let targetStudent = item.getAttribute('data-target') || 'all';
         let text = item.innerText.toLowerCase();
 
-        let matchFilter = (activeMaterialStudentFilter === 'all') || 
-                          (targetStudent === 'all') || 
-                          (targetStudent === activeMaterialStudentFilter);
-                          
+        let matchFilter = (activeMaterialStudentFilter === 'all') ||
+            (targetStudent === 'all') ||
+            (targetStudent === activeMaterialStudentFilter);
+
         let matchSearch = text.includes(searchText);
 
         item.style.display = (matchFilter && matchSearch) ? '' : 'none';
     });
 };
 
-window.applyAssignedFilters = function() {
+window.applyAssignedFilters = function () {
     let searchInput = document.getElementById('searchAssigned');
     let searchText = searchInput ? searchInput.value.toLowerCase() : '';
     // Quét tất cả các thẻ div đóng vai trò là card bài tập
-    let items = document.querySelectorAll('#assignedListContainer > .card'); 
+    let items = document.querySelectorAll('#assignedListContainer > .card');
 
     items.forEach(item => {
-        let targetStudent = item.getAttribute('data-target') || 'all'; 
+        let targetStudent = item.getAttribute('data-target') || 'all';
         let text = item.innerText.toLowerCase();
 
         // Nút 'Tất cả' -> Hiện bài của All và bài giao riêng
         // Nút 'HS A' -> Hiện bài của All và bài giao riêng cho HS A
-        let matchFilter = (activeAssignedStudentFilter === 'all') || 
-                          (targetStudent === 'all') || 
-                          (targetStudent === activeAssignedStudentFilter);
-                          
+        let matchFilter = (activeAssignedStudentFilter === 'all') ||
+            (targetStudent === 'all') ||
+            (targetStudent === activeAssignedStudentFilter);
+
         let matchSearch = text.includes(searchText);
 
         item.style.display = (matchFilter && matchSearch) ? '' : 'none';
     });
 };
 
-window.applySubmissionFilters = function() {
+window.applySubmissionFilters = function () {
     let searchInput = document.getElementById('searchSubmissions');
     let searchText = searchInput ? searchInput.value.toLowerCase() : '';
     // Quét tất cả các thẻ div đóng vai trò là card bài nộp
     let items = document.querySelectorAll('#submissionsList > .card');
 
     items.forEach(item => {
-        let studentId = item.getAttribute('data-student') || ''; 
+        let studentId = item.getAttribute('data-student') || '';
         let text = item.innerText.toLowerCase();
 
         // Ở danh sách bài nộp, nút của ai thì chỉ hiện bài của người đó
-        let matchFilter = (activeSubmissionStudentFilter === 'all') || 
-                          (studentId === activeSubmissionStudentFilter);
-                          
+        let matchFilter = (activeSubmissionStudentFilter === 'all') ||
+            (studentId === activeSubmissionStudentFilter);
+
         let matchSearch = text.includes(searchText);
 
         item.style.display = (matchFilter && matchSearch) ? '' : 'none';
