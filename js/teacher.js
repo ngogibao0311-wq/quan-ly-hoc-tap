@@ -708,29 +708,29 @@ function initFileListener() {
     });
 }
 
-async function populateStudentDropdown() { 
-    const users = await getDB('users'); 
-    const select = document.getElementById('targetStudent'); 
-    const matSelect = document.getElementById('materialTargetStudent'); 
+async function populateStudentDropdown() {
+    const users = await getDB('users');
+    const select = document.getElementById('targetStudent');
+    const matSelect = document.getElementById('materialTargetStudent');
     const editMatSelect = document.getElementById('editMaterialTargetStudent');
     const schSelect = document.getElementById('scheduleTargetStudent'); // THÊM DÒNG NÀY
-    
-    if (select) select.innerHTML = '<option value="all">Tất cả học sinh</option>'; 
-    if (matSelect) matSelect.innerHTML = '<option value="all">Tất cả học sinh</option>'; 
-    if (editMatSelect) editMatSelect.innerHTML = '<option value="all">Tất cả học sinh</option>'; 
+
+    if (select) select.innerHTML = '<option value="all">Tất cả học sinh</option>';
+    if (matSelect) matSelect.innerHTML = '<option value="all">Tất cả học sinh</option>';
+    if (editMatSelect) editMatSelect.innerHTML = '<option value="all">Tất cả học sinh</option>';
     if (schSelect) schSelect.innerHTML = '<option value="all">Tất cả học sinh</option>'; // THÊM DÒNG NÀY
-    
-    users.forEach(u => { 
-        if (u.role === 'student') { 
-            const opt = document.createElement('option'); 
-            opt.value = u.username; 
-            opt.innerText = u.name; 
-            if (select) select.appendChild(opt.cloneNode(true)); 
-            if (matSelect) matSelect.appendChild(opt.cloneNode(true)); 
-            if (editMatSelect) editMatSelect.appendChild(opt.cloneNode(true)); 
+
+    users.forEach(u => {
+        if (u.role === 'student') {
+            const opt = document.createElement('option');
+            opt.value = u.username;
+            opt.innerText = u.name;
+            if (select) select.appendChild(opt.cloneNode(true));
+            if (matSelect) matSelect.appendChild(opt.cloneNode(true));
+            if (editMatSelect) editMatSelect.appendChild(opt.cloneNode(true));
             if (schSelect) schSelect.appendChild(opt.cloneNode(true)); // THÊM DÒNG NÀY
-        } 
-    }); 
+        }
+    });
 }
 
 async function loadSubmissions() {
@@ -861,7 +861,10 @@ async function loadSubmissions() {
         }
 
         const uniqueId = `teacher-sub-${sub.id}`;
-        const div = document.createElement('div'); div.className = 'card accordion-card';
+        const div = document.createElement('div');
+        div.className = 'card accordion-card';
+        div.setAttribute('data-student', sub.studentUsername); // <--- THÊM ĐÚNG 1 DÒNG NÀY ĐỂ DÁN NHÃN
+
         div.innerHTML = `<div class="accordion-header" onclick="toggleAccordion('${uniqueId}', this)">
                 <div class="accordion-title"><h4>${assign.title}</h4><span>HS: <strong>${sub.studentName}</strong></span></div>
                 <div class="accordion-meta"><span>${gradeStatus}</span><span class="toggle-icon">▼</span></div>
@@ -1776,12 +1779,12 @@ window.openScheduleModal = function (fbKey = '', day = '', time = '', subject = 
     document.getElementById('scheduleTime').value = time;
     document.getElementById('scheduleSubject').value = subject;
     document.getElementById('scheduleNote').value = note;
-    
+
     // Gán giá trị đích danh
     if (document.getElementById('scheduleTargetStudent')) {
         document.getElementById('scheduleTargetStudent').value = targetStudent;
     }
-    
+
     document.getElementById('scheduleModal').classList.add('active');
 };
 
@@ -3197,29 +3200,29 @@ window.handleTeacherProcessCash = async function (reqFbKey, action) {
 function renderStudentFilterButtons(studentsArray) {
     const assignedContainer = document.getElementById('assignedStudentFilterContainer');
     const submittedContainer = document.getElementById('submittedStudentFilterContainer');
-    const materialsContainer = document.getElementById('materialsStudentFilterContainer'); 
+    const materialsContainer = document.getElementById('materialsStudentFilterContainer');
     const scheduleContainer = document.getElementById('scheduleStudentFilterContainer'); // THÊM DÒNG NÀY
-    
+
     let htmlAssigned = `<button class="btn-student-filter active" data-id="all" onclick="setStudentFilter('all', this, 'assigned')">Tất cả</button>`;
     let htmlSubmitted = `<button class="btn-student-filter active" data-id="all" onclick="setStudentFilter('all', this, 'submitted')">Tất cả</button>`;
-    let htmlMaterials = `<button class="btn-student-filter active" data-id="all" onclick="setStudentFilter('all', this, 'materials')">Tất cả</button>`; 
+    let htmlMaterials = `<button class="btn-student-filter active" data-id="all" onclick="setStudentFilter('all', this, 'materials')">Tất cả</button>`;
     let htmlSchedule = `<button class="btn-student-filter active" data-id="all" onclick="setStudentFilter('all', this, 'schedule')">Tất cả</button>`; // THÊM DÒNG NÀY
 
     studentsArray.forEach(student => {
         let btnA = `<button class="btn-student-filter" data-id="${student.username}" onclick="setStudentFilter('${student.username}', this, 'assigned')">${student.name}</button>`;
         let btnS = `<button class="btn-student-filter" data-id="${student.username}" onclick="setStudentFilter('${student.username}', this, 'submitted')">${student.name}</button>`;
-        let btnM = `<button class="btn-student-filter" data-id="${student.username}" onclick="setStudentFilter('${student.username}', this, 'materials')">${student.name}</button>`; 
+        let btnM = `<button class="btn-student-filter" data-id="${student.username}" onclick="setStudentFilter('${student.username}', this, 'materials')">${student.name}</button>`;
         let btnSch = `<button class="btn-student-filter" data-id="${student.username}" onclick="setStudentFilter('${student.username}', this, 'schedule')">${student.name}</button>`; // THÊM DÒNG NÀY
-        
+
         htmlAssigned += btnA;
         htmlSubmitted += btnS;
-        htmlMaterials += btnM; 
+        htmlMaterials += btnM;
         htmlSchedule += btnSch; // THÊM DÒNG NÀY
     });
 
     if (assignedContainer) assignedContainer.innerHTML = htmlAssigned;
     if (submittedContainer) submittedContainer.innerHTML = htmlSubmitted;
-    if (materialsContainer) materialsContainer.innerHTML = htmlMaterials; 
+    if (materialsContainer) materialsContainer.innerHTML = htmlMaterials;
     if (scheduleContainer) scheduleContainer.innerHTML = htmlSchedule; // THÊM DÒNG NÀY
 }
 
