@@ -10,6 +10,7 @@ let attachedMaterialFileData = null;
 let activeAssignedStudentFilter = 'all';
 let activeSubmissionStudentFilter = 'all';
 let activeMaterialStudentFilter = 'all';
+let activeScheduleStudentFilter = 'all';
 
 // Biến lưu trữ file cộng dồn
 const dtTeacherAssign = new DataTransfer(); // Dùng cho Giao bài
@@ -707,26 +708,29 @@ function initFileListener() {
     });
 }
 
-async function populateStudentDropdown() {
-    const users = await getDB('users');
-    const select = document.getElementById('targetStudent');
-    const matSelect = document.getElementById('materialTargetStudent');
-    const editMatSelect = document.getElementById('editMaterialTargetStudent'); // THÊM DÒNG NÀY
-
-    if (select) select.innerHTML = '<option value="all">Tất cả học sinh</option>';
-    if (matSelect) matSelect.innerHTML = '<option value="all">Tất cả học sinh</option>';
-    if (editMatSelect) editMatSelect.innerHTML = '<option value="all">Tất cả học sinh</option>'; // THÊM DÒNG NÀY
-
-    users.forEach(u => {
-        if (u.role === 'student') {
-            const opt = document.createElement('option');
-            opt.value = u.username;
-            opt.innerText = u.name;
-            if (select) select.appendChild(opt.cloneNode(true));
-            if (matSelect) matSelect.appendChild(opt.cloneNode(true));
-            if (editMatSelect) editMatSelect.appendChild(opt.cloneNode(true)); // THÊM DÒNG NÀY
-        }
-    });
+async function populateStudentDropdown() { 
+    const users = await getDB('users'); 
+    const select = document.getElementById('targetStudent'); 
+    const matSelect = document.getElementById('materialTargetStudent'); 
+    const editMatSelect = document.getElementById('editMaterialTargetStudent');
+    const schSelect = document.getElementById('scheduleTargetStudent'); // THÊM DÒNG NÀY
+    
+    if (select) select.innerHTML = '<option value="all">Tất cả học sinh</option>'; 
+    if (matSelect) matSelect.innerHTML = '<option value="all">Tất cả học sinh</option>'; 
+    if (editMatSelect) editMatSelect.innerHTML = '<option value="all">Tất cả học sinh</option>'; 
+    if (schSelect) schSelect.innerHTML = '<option value="all">Tất cả học sinh</option>'; // THÊM DÒNG NÀY
+    
+    users.forEach(u => { 
+        if (u.role === 'student') { 
+            const opt = document.createElement('option'); 
+            opt.value = u.username; 
+            opt.innerText = u.name; 
+            if (select) select.appendChild(opt.cloneNode(true)); 
+            if (matSelect) matSelect.appendChild(opt.cloneNode(true)); 
+            if (editMatSelect) editMatSelect.appendChild(opt.cloneNode(true)); 
+            if (schSelect) schSelect.appendChild(opt.cloneNode(true)); // THÊM DÒNG NÀY
+        } 
+    }); 
 }
 
 async function loadSubmissions() {
@@ -1766,12 +1770,18 @@ window.toggleRoadmapView = function (view) {
     }
 };
 
-window.openScheduleModal = function (fbKey = '', day = '', time = '', subject = '', note = '') {
+window.openScheduleModal = function (fbKey = '', day = '', time = '', subject = '', note = '', targetStudent = 'all') {
     document.getElementById('editScheduleKey').value = fbKey;
     document.getElementById('scheduleDay').value = day;
     document.getElementById('scheduleTime').value = time;
     document.getElementById('scheduleSubject').value = subject;
     document.getElementById('scheduleNote').value = note;
+    
+    // Gán giá trị đích danh
+    if (document.getElementById('scheduleTargetStudent')) {
+        document.getElementById('scheduleTargetStudent').value = targetStudent;
+    }
+    
     document.getElementById('scheduleModal').classList.add('active');
 };
 
@@ -1785,10 +1795,11 @@ window.saveSchedule = async function () {
     const time = document.getElementById('scheduleTime').value.trim();
     const subject = document.getElementById('scheduleSubject').value.trim();
     const note = document.getElementById('scheduleNote').value.trim();
+    const targetStudent = document.getElementById('scheduleTargetStudent') ? document.getElementById('scheduleTargetStudent').value : 'all'; // Đọc thông tin học sinh
 
     if (!day || !time || !subject) return alert('Vui lòng nhập đầy đủ: Thứ, Thời gian và Nội dung!');
 
-    const payload = { day, time, subject, note };
+    const payload = { day, time, subject, note, targetStudent }; // Đẩy kèm thông tin đích danh lên Database
 
     if (fbKey) {
         await updateDB('schedule', fbKey, payload);
@@ -1822,13 +1833,19 @@ window.loadScheduleTeacher = async function () {
     schedules.forEach(s => {
         const tr = document.createElement('tr');
         tr.style.borderBottom = '1px solid rgba(0,0,0,0.05)';
+        tr.setAttribute('data-target', s.targetStudent || 'all'); // Gắn nhãn để thanh bộ lọc hoạt động
+
+        // Nhãn để giáo viên dễ nhìn xem lịch này là lịch chung hay lịch riêng
+        let targetLabel = (s.targetStudent && s.targetStudent !== 'all') ? `<br><span style="font-size: 0.8em; color: #059669; font-weight: normal;">(Giao riêng HS)</span>` : '';
+
+        // Sửa nút bấm gọi thêm biến s.targetStudent
         tr.innerHTML = `
-            <td style="padding:12px; font-weight:bold; color:#764ba2;">${s.day}</td>
+            <td style="padding:12px; font-weight:bold; color:#764ba2;">${s.day} ${targetLabel}</td>
             <td style="padding:12px; color:#d35400; font-weight:bold;">${s.time}</td>
             <td style="padding:12px; color:#2c3e50;">${s.subject}</td>
             <td style="padding:12px; color:#555;">${s.note || ''}</td>
             <td style="padding:12px; text-align:center;">
-                <button class="btn-approve" style="padding:5px 12px; font-size:0.85em; background: #3b82f6; color: white;" onclick="openScheduleModal('${s._fbKey}', '${s.day}', '${s.time}', '${s.subject}', '${s.note}')">Sửa</button>
+                <button class="btn-approve" style="padding:5px 12px; font-size:0.85em; background: #3b82f6; color: white;" onclick="openScheduleModal('${s._fbKey}', '${s.day}', '${s.time}', '${s.subject}', '${s.note}', '${s.targetStudent || 'all'}')">Sửa</button>
                 <button class="btn-reject" style="padding:5px 12px; font-size:0.85em;" onclick="deleteSchedule('${s._fbKey}')">Xóa</button>
             </td>
         `;
@@ -3180,25 +3197,30 @@ window.handleTeacherProcessCash = async function (reqFbKey, action) {
 function renderStudentFilterButtons(studentsArray) {
     const assignedContainer = document.getElementById('assignedStudentFilterContainer');
     const submittedContainer = document.getElementById('submittedStudentFilterContainer');
-    const materialsContainer = document.getElementById('materialsStudentFilterContainer'); // MỚI THÊM
-
+    const materialsContainer = document.getElementById('materialsStudentFilterContainer'); 
+    const scheduleContainer = document.getElementById('scheduleStudentFilterContainer'); // THÊM DÒNG NÀY
+    
     let htmlAssigned = `<button class="btn-student-filter active" data-id="all" onclick="setStudentFilter('all', this, 'assigned')">Tất cả</button>`;
     let htmlSubmitted = `<button class="btn-student-filter active" data-id="all" onclick="setStudentFilter('all', this, 'submitted')">Tất cả</button>`;
-    let htmlMaterials = `<button class="btn-student-filter active" data-id="all" onclick="setStudentFilter('all', this, 'materials')">Tất cả</button>`; // MỚI THÊM
+    let htmlMaterials = `<button class="btn-student-filter active" data-id="all" onclick="setStudentFilter('all', this, 'materials')">Tất cả</button>`; 
+    let htmlSchedule = `<button class="btn-student-filter active" data-id="all" onclick="setStudentFilter('all', this, 'schedule')">Tất cả</button>`; // THÊM DÒNG NÀY
 
     studentsArray.forEach(student => {
         let btnA = `<button class="btn-student-filter" data-id="${student.username}" onclick="setStudentFilter('${student.username}', this, 'assigned')">${student.name}</button>`;
         let btnS = `<button class="btn-student-filter" data-id="${student.username}" onclick="setStudentFilter('${student.username}', this, 'submitted')">${student.name}</button>`;
-        let btnM = `<button class="btn-student-filter" data-id="${student.username}" onclick="setStudentFilter('${student.username}', this, 'materials')">${student.name}</button>`; // MỚI THÊM
-
+        let btnM = `<button class="btn-student-filter" data-id="${student.username}" onclick="setStudentFilter('${student.username}', this, 'materials')">${student.name}</button>`; 
+        let btnSch = `<button class="btn-student-filter" data-id="${student.username}" onclick="setStudentFilter('${student.username}', this, 'schedule')">${student.name}</button>`; // THÊM DÒNG NÀY
+        
         htmlAssigned += btnA;
         htmlSubmitted += btnS;
-        htmlMaterials += btnM; // MỚI THÊM
+        htmlMaterials += btnM; 
+        htmlSchedule += btnSch; // THÊM DÒNG NÀY
     });
 
     if (assignedContainer) assignedContainer.innerHTML = htmlAssigned;
     if (submittedContainer) submittedContainer.innerHTML = htmlSubmitted;
-    if (materialsContainer) materialsContainer.innerHTML = htmlMaterials; // MỚI THÊM
+    if (materialsContainer) materialsContainer.innerHTML = htmlMaterials; 
+    if (scheduleContainer) scheduleContainer.innerHTML = htmlSchedule; // THÊM DÒNG NÀY
 }
 
 // ================= HÀM LỌC BÀI TẬP VÀ BÀI NỘP THEO HỌC SINH =================
@@ -3213,10 +3235,27 @@ window.setStudentFilter = function (studentId, btnElement, type) {
     } else if (type === 'submitted') {
         activeSubmissionStudentFilter = studentId;
         applySubmissionFilters();
-    } else if (type === 'materials') { // MỚI THÊM
+    } else if (type === 'materials') {
         activeMaterialStudentFilter = studentId;
         applyMaterialFilters();
+    } else if (type === 'schedule') { // BỔ SUNG LỌC CHO LỊCH HỌC
+        activeScheduleStudentFilter = studentId;
+        applyScheduleFilters();
     }
+};
+
+window.applyScheduleFilters = function () {
+    let items = document.querySelectorAll('#teacherScheduleBody > tr');
+
+    items.forEach(item => {
+        let targetStudent = item.getAttribute('data-target') || 'all';
+
+        let matchFilter = (activeScheduleStudentFilter === 'all') ||
+            (targetStudent === 'all') ||
+            (targetStudent === activeScheduleStudentFilter);
+
+        item.style.display = matchFilter ? '' : 'none';
+    });
 };
 
 // HÀM LỌC TÀI LIỆU HỌC TẬP ĐỘNG

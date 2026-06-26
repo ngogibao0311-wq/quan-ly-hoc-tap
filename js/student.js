@@ -1156,6 +1156,13 @@ async function loadMaterialsListStudent() {
     if (materials.length === 0) { list.innerHTML = '<p style="color: #666; font-style: italic;">Chưa có tài liệu học tập nào từ Giáo viên.</p>'; return; }
 
     [...materials].reverse().forEach(mat => {
+        // ---> BẮT ĐẦU THÊM ĐOẠN LỌC NÀY <---
+        // Kiểm tra: Nếu tài liệu có gắn tên học sinh, không phải 'all' và không trùng với username của người đang đăng nhập -> Ẩn đi
+        if (mat.targetStudent && mat.targetStudent !== 'all' && mat.targetStudent !== currentUser.username) {
+            return; // Lệnh return giúp bỏ qua vòng lặp, không in tài liệu này ra màn hình
+        }
+        // ---> KẾT THÚC ĐOẠN LỌC <---
+
         let fileHTML = '';
         if (mat.docLink) {
             // Nút bấm dành cho link URL (Mở trực tiếp trên web)
@@ -1470,16 +1477,23 @@ window.loadScheduleStudent = async function () {
     if (!tbody) return;
     tbody.innerHTML = '';
 
-    if (schedules.length === 0) {
+    // LỌC CHẶT CHẼ: Chỉ lấy những lịch học dành cho Tất cả hoặc dành riêng cho mình
+    const mySchedules = schedules.filter(s => !s.targetStudent || s.targetStudent === 'all' || s.targetStudent === currentUser.username);
+
+    if (mySchedules.length === 0) {
         tbody.innerHTML = `<tr><td colspan="4" style="padding:15px; text-align:center; color:#666; font-style:italic;">Chưa có lịch học nào được sắp xếp.</td></tr>`;
         return;
     }
 
-    schedules.forEach(s => {
+    mySchedules.forEach(s => {
         const tr = document.createElement('tr');
         tr.style.borderBottom = '1px solid rgba(0,0,0,0.05)';
+        
+        // Thêm một mác nhỏ để học sinh biết đây là lịch học cá nhân (tuỳ chọn)
+        let personalLabel = (s.targetStudent && s.targetStudent !== 'all') ? `<br><span style="font-size: 0.8em; color: #059669;">(Lịch học Riêng)</span>` : '';
+        
         tr.innerHTML = `
-            <td style="padding:12px; font-weight:bold; color:#764ba2;">${s.day}</td>
+            <td style="padding:12px; font-weight:bold; color:#764ba2;">${s.day} ${personalLabel}</td>
             <td style="padding:12px; color:#d35400; font-weight:bold;">${s.time}</td>
             <td style="padding:12px; color:#2c3e50;">${s.subject}</td>
             <td style="padding:12px; color:#555;">${s.note || ''}</td>

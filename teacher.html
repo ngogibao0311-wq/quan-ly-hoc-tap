@@ -262,6 +262,13 @@
                                 style="width: auto; padding: 10px 20px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); margin: 0;">➕
                                 Thêm lịch học</button>
                         </div>
+
+                        <div id="scheduleStudentFilterContainer"
+                            style="display: flex; gap: 10px; margin-bottom: 15px; overflow-x: auto; padding-bottom: 5px;">
+                            <button class="btn-student-filter active" data-id="all"
+                                onclick="setStudentFilter('all', this, 'schedule')">Tất cả</button>
+                        </div>
+
                         <div style="overflow-x: auto;">
                             <table style="width:100%; border-collapse: collapse; text-align: left;">
                                 <thead>
@@ -854,6 +861,12 @@
 
                     <label><strong>Ghi chú thêm:</strong></label>
                     <input type="text" id="scheduleNote" placeholder="VD: Nhớ mang theo máy tính bỏ túi...">
+
+                    <label style="margin-top: 15px; display: block;"><strong>Áp dụng cho học sinh:</strong></label>
+                    <select id="scheduleTargetStudent"
+                        style="margin-bottom: 15px; width: 100%; padding: 10px; border-radius: 8px;">
+                        <option value="all">Tất cả học sinh</option>
+                    </select>
 
                     <button onclick="saveSchedule()"
                         style="margin-top: 20px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">Lưu
