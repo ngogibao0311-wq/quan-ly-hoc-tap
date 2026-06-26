@@ -219,29 +219,39 @@ class DailyLoginManager {
         document.body.insertAdjacentHTML('beforeend', modalHtml);
     }
 
-    static async openTeacherModal(weekId = null) {
+    static async openTeacherModal(weekId = null, isRefresh = false) {
         let config = {};
+        const dateInput = document.getElementById('dl-week-start-date');
         
         if (weekId) {
+            // Mở từ danh sách đã lưu (Chế độ Edit)
             const snap = await db.ref(`game_settings/daily_login_weeks/${weekId}`).once('value');
             config = snap.val() || {};
-            document.getElementById('dl-week-start-date').value = weekId;
-            document.getElementById('dl-week-start-date').disabled = true; // Khóa ngày không cho đổi qua tuần khác
+            dateInput.value = weekId;
+            dateInput.disabled = true; // Khóa ngày không cho đổi qua tuần khác
         } else {
-            document.getElementById('dl-week-start-date').value = this.getLocalDateString(new Date());
-            document.getElementById('dl-week-start-date').disabled = false;
+            // FIX LỖI: Không ghi đè lại ngày hôm nay nếu người dùng đang tự chọn ngày mới
+            if (!isRefresh) {
+                dateInput.value = this.getLocalDateString(new Date());
+            }
+            dateInput.disabled = false;
+            
+            // Tự động tải dữ liệu của tuần vừa chọn (nếu có trên Firebase)
+            const targetWeekId = this.getWeekId(new Date(dateInput.value));
+            const snap = await db.ref(`game_settings/daily_login_weeks/${targetWeekId}`).once('value');
+            config = snap.val() || {};
         }
 
         document.getElementById('dlTestModeToggle').checked = !!config.isTestMode;
 
         // Logic Khóa các ngày đã qua
         const currentWeekId = this.getWeekId();
-        const selectedWeekId = weekId || this.getWeekId(new Date(document.getElementById('dl-week-start-date').value));
+        const selectedWeekId = weekId || this.getWeekId(new Date(dateInput.value));
         const todayInfo = this.getTodayInfo();
 
         // Gắn sự kiện thay đổi ngày để load lại logic khóa nếu giáo viên đổi lịch
-        document.getElementById('dl-week-start-date').onchange = () => {
-            this.openTeacherModal(null); // Gọi lại để refresh UI khóa
+        dateInput.onchange = () => {
+            this.openTeacherModal(null, true); // Gọi lại với cờ isRefresh = true để không bị reset ngày
         };
 
         this.daysOfWeek.forEach(day => {
