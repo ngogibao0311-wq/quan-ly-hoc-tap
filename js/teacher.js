@@ -7,6 +7,10 @@ let cacheSubmissionsSt = "";
 let attachedFileData = null;
 let attachedMaterialFileData = null;
 
+let activeAssignedStudentFilter = 'all';
+let activeSubmissionStudentFilter = 'all';
+let activeMaterialStudentFilter = 'all';
+
 // Biến lưu trữ file cộng dồn
 const dtTeacherAssign = new DataTransfer(); // Dùng cho Giao bài
 window.teacherGradeDTs = {}; // Dùng cho Chấm bài (nhiều học sinh)
@@ -177,6 +181,39 @@ window.onload = async function () {
     const editEssayInput = document.getElementById('editEssayWeight');
     if (editMcInput) editMcInput.addEventListener('input', window.updateEditExamFields);
     if (editEssayInput) editEssayInput.addEventListener('input', window.updateEditExamFields);
+
+    // Đồng bộ nút Bật/Tắt Bảng quy đổi từ Giáo viên
+    db.ref('system_settings/conversionTableEnabled').on('value', (snapshot) => {
+        const isEnabled = snapshot.val() !== false;
+
+        // 1. Lưu trạng thái vào biến toàn cục để sử dụng cho popup nổi
+        window.isConversionEnabled = isEnabled;
+
+        // [BỔ SUNG] Đồng bộ hiển thị trạng thái của nút gạt sau khi tải lại trang
+        const toggleBtn = document.getElementById('toggleConversionTable');
+        if (toggleBtn) toggleBtn.checked = isEnabled;
+
+        // 2. Ẩn/Hiện khu vực Rút tiền ở tab Lộ trình
+        const conversionSection = document.getElementById('conversionTableSection');
+        if (conversionSection) {
+            conversionSection.style.display = isEnabled ? 'block' : 'none';
+        }
+
+        // 3. Tự động đóng Popup quy đổi Coin nếu giáo viên vừa tắt
+        const coinModal = document.getElementById('coinConversionModal');
+        if (!isEnabled && coinModal && coinModal.classList.contains('active')) {
+            closeCoinConversionModal();
+        }
+    });
+
+    // =================================================================
+    // ĐỒNG BỘ YÊU CẦU RÚT TIỀN CỦA HỌC SINH VỀ GIÁO VIÊN THỜI GIAN THỰC
+    // =================================================================
+    db.ref('cash_requests').on('value', async () => {
+        if (typeof loadTeacherCashRequests === 'function' && document.getElementById('teacherCashRequestsListContainer')) {
+            await loadTeacherCashRequests();
+        }
+    });
 };
 
 function getEmbedHTML(url) {
@@ -506,7 +543,9 @@ async function loadAssignedList() {
         let tuLuanHTML = hasEssay ? `<p style="background: rgba(255,255,255,0.5); padding:15px; border-radius:12px; border-left:4px solid #667eea;"><strong>Yêu cầu Tự luận:</strong><br>${(assign.desc || '').replace(/\n/g, '<br>')}</p>` : '';
 
         const uniqueId = `teacher-assign-${assign.id}`;
-        const div = document.createElement('div'); div.className = 'card accordion-card';
+        const div = document.createElement('div'); 
+        div.className = 'card accordion-card';
+        div.setAttribute('data-target', assign.targetStudent || 'all');
 
         // Cập nhật lại HTML phần tiêu đề: Đưa Title và statusBadge vào một Flex box
         div.innerHTML = `<div class="accordion-header" onclick="toggleAccordion('${uniqueId}', this)">
@@ -553,24 +592,24 @@ async function createMaterial() {
     const title = document.getElementById('materialTitle').value.trim();
     const videoLink = document.getElementById('materialVideoLink').value.trim();
     const docLink = document.getElementById('materialLinkInput').value.trim();
+    const targetStudent = document.getElementById('materialTargetStudent').value; // MỚI THÊM
 
     if (!title) return alert("Vui lòng nhập tiêu đề tài liệu!");
     if (!videoLink && !docLink) return alert("Vui lòng đính kèm ít nhất video bài giảng hoặc link tài liệu!");
 
     const now = new Date();
     await pushDB('materials', {
-        id: Date.now().toString(), title, videoLink, docLink,
+        id: Date.now().toString(), title, videoLink, docLink, 
+        targetStudent, // MỚI THÊM: Đẩy dữ liệu đích danh lên Firebase
         uploadTime: now.toLocaleTimeString('vi-VN') + ' ' + now.toLocaleDateString('vi-VN')
     });
 
-    // Reset lại form trống
     document.getElementById('materialTitle').value = '';
     document.getElementById('materialVideoLink').value = '';
     document.getElementById('materialLinkInput').value = '';
+    if (document.getElementById('materialTargetStudent')) document.getElementById('materialTargetStudent').value = 'all'; // Reset ô chọn
 
-    // Tự động đóng Popup
     closeMaterialModal();
-
     alert("Đăng tải tài liệu học tập thành công!");
 }
 
@@ -595,6 +634,8 @@ async function loadMaterialsListTeacher() {
 
         const uniqueId = `teacher-mat-${mat.id}`;
         const div = document.createElement('div'); div.className = 'card accordion-card';
+        div.className = 'card accordion-card';
+        div.setAttribute('data-target', mat.targetStudent || 'all');
         div.innerHTML = `
             <div class="accordion-header" onclick="toggleAccordion('${uniqueId}', this)">
                 <div class="accordion-title"><h4>${mat.title}</h4><span>🕒 Đăng lúc: ${mat.uploadTime || 'Chưa rõ'}</span></div>
@@ -602,7 +643,7 @@ async function loadMaterialsListTeacher() {
             </div>
             <div id="${uniqueId}" class="accordion-content">
                 <div style="text-align: right; margin-bottom:15px; display: flex; gap: 10px; justify-content: flex-end;">
-    <button class="btn-approve" style="padding: 6px 15px; font-size: 0.9em; background: linear-gradient(135deg, #f6d365 0%, #fda085 100%); color: white;" onclick="openEditMaterialModal('${mat._fbKey}')">✏️ Đổi tên</button>
+    <button class="btn-approve" style="padding: 6px 15px; font-size: 0.9em; background: linear-gradient(135deg, #f6d365 0%, #fda085 100%); color: white;" onclick="openEditMaterialModal('${mat._fbKey}')">✏️ Sửa</button>
     <button class="btn-reject" style="padding: 6px 15px; font-size: 0.9em;" onclick="deleteMaterial('${mat._fbKey}')">🗑 Xóa tài liệu</button>
 </div>
                 ${videoHTML}${fileHTML}
@@ -666,7 +707,27 @@ function initFileListener() {
     });
 }
 
-async function populateStudentDropdown() { const users = await getDB('users'); const select = document.getElementById('targetStudent'); if (!select) return; select.innerHTML = '<option value="all">Tất cả học sinh</option>'; users.forEach(u => { if (u.role === 'student') { const opt = document.createElement('option'); opt.value = u.username; opt.innerText = u.name; select.appendChild(opt); } }); }
+async function populateStudentDropdown() { 
+    const users = await getDB('users'); 
+    const select = document.getElementById('targetStudent'); 
+    const matSelect = document.getElementById('materialTargetStudent'); 
+    const editMatSelect = document.getElementById('editMaterialTargetStudent'); // THÊM DÒNG NÀY
+    
+    if (select) select.innerHTML = '<option value="all">Tất cả học sinh</option>'; 
+    if (matSelect) matSelect.innerHTML = '<option value="all">Tất cả học sinh</option>'; 
+    if (editMatSelect) editMatSelect.innerHTML = '<option value="all">Tất cả học sinh</option>'; // THÊM DÒNG NÀY
+    
+    users.forEach(u => { 
+        if (u.role === 'student') { 
+            const opt = document.createElement('option'); 
+            opt.value = u.username; 
+            opt.innerText = u.name; 
+            if (select) select.appendChild(opt.cloneNode(true)); 
+            if (matSelect) matSelect.appendChild(opt.cloneNode(true)); 
+            if (editMatSelect) editMatSelect.appendChild(opt.cloneNode(true)); // THÊM DÒNG NÀY
+        } 
+    }); 
+}
 
 async function loadSubmissions() {
     const rawSubmissions = await getDB('submissions');
@@ -877,6 +938,7 @@ async function loadStudentsList() {
     if (!container) return;
 
     const students = users.filter(u => u.role === 'student');
+    renderStudentFilterButtons(students);
     if (students.length === 0) {
         container.innerHTML = '<p style="color: #666; font-style: italic;">Chưa có học sinh nào.</p>';
         return;
@@ -1068,7 +1130,7 @@ window.importQuestions = function () {
         questionCount++;
         questionIdGen++;
         let qId = questionIdGen;
-        
+
         // --- ĐOẠN FIX LỖI Ở ĐÂY: Thêm .replace(/"/g, '&quot;') để chống cắt chữ ---
         let cleanText = q.text.replace(/^(Câu|Bài)\s*\d+[\.\:\-]*\s*/i, '').replace(/^\d+[\.\:\)]\s*/, '').trim().replace(/"/g, '&quot;');
         let optA = q.options.A.replace(/"/g, '&quot;');
@@ -1084,7 +1146,7 @@ window.importQuestions = function () {
         let chkD = q.correct === 'D' ? 'checked' : '';
 
         const div = document.createElement('div'); div.className = 'question-block'; div.style.cssText = 'background: rgba(255,255,255,0.6); padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid rgba(0,0,0,0.1); animation: fadeInUp 0.5s ease;';
-        
+
         // Nhét biến optA, optB, optC, optD mới vào value
         div.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;"><strong style="color: #764ba2;">Câu ${questionCount}:</strong><button type="button" style="background: transparent; color: #ff0844; border: none; padding: 0; font-weight: bold; width: auto; box-shadow: none;" onclick="removeQuestion(this)">Xóa</button></div>
@@ -1321,6 +1383,22 @@ window.openEditAssignmentModal = async function (fbKey) {
         document.getElementById('editStartDate').value = assign.startDate ? assign.startDate.replace(" ", "T") : '';
         document.getElementById('editEndDate').value = assign.endDate ? assign.endDate.replace(" ", "T") : '';
 
+        const users = await getDB('users');
+        const editTargetSelect = document.getElementById('editTargetStudent');
+        if (editTargetSelect) {
+            editTargetSelect.innerHTML = '<option value="all">Tất cả học sinh</option>';
+            users.forEach(u => {
+                if (u.role === 'student') {
+                    const opt = document.createElement('option');
+                    opt.value = u.username;
+                    opt.innerText = `${u.name} (${u.username})`;
+                    editTargetSelect.appendChild(opt);
+                }
+            });
+            // Gán lại giá trị học sinh đang được giao bài (mặc định là 'all')
+            editTargetSelect.value = assign.targetStudent || 'all';
+        }
+
         // Lấy các Section
         const tuLuanSec = document.getElementById('editTuLuanSection');
         const tracNghiemSec = document.getElementById('editTracNghiemSection');
@@ -1382,11 +1460,11 @@ window.addEditQuestionBlock = function (qData = null) {
     div.className = 'edit-question-block';
     div.style.cssText = 'background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid rgba(0,0,0,0.1); box-shadow: 0 4px 6px rgba(0,0,0,0.02);';
 
-    let qText = qData ? qData.qText : '';
-    let optA = qData ? qData.A : '';
-    let optB = qData ? qData.B : '';
-    let optC = qData ? qData.C : '';
-    let optD = qData ? qData.D : '';
+    let qText = qData ? qData.qText.replace(/"/g, '&quot;') : '';
+    let optA = qData ? qData.A.replace(/"/g, '&quot;') : '';
+    let optB = qData ? qData.B.replace(/"/g, '&quot;') : '';
+    let optC = qData ? qData.C.replace(/"/g, '&quot;') : '';
+    let optD = qData ? qData.D.replace(/"/g, '&quot;') : '';
     let correct = qData ? qData.correct : '';
     let qId = Date.now() + Math.random();
 
@@ -1446,6 +1524,8 @@ window.saveAssignmentEdit = async function () {
     const startDate = document.getElementById('editStartDate').value;
     const endDate = document.getElementById('editEndDate').value;
 
+    const targetStudent = document.getElementById('editTargetStudent').value;
+
     if (!title || !startDate || !endDate) return alert("Vui lòng điền đầy đủ Tiêu đề và Thời hạn nộp!");
 
     const assignments = await getDB('assignments');
@@ -1455,7 +1535,8 @@ window.saveAssignmentEdit = async function () {
     const updateObj = {
         title: title,
         startDate: startDate.replace("T", " "),
-        endDate: endDate.replace("T", " ")
+        endDate: endDate.replace("T", " "),
+        targetStudent: targetStudent // [MỚI THÊM] Lưu đối tượng học sinh mới lên Firebase
     };
 
     // Thu thập dữ liệu Tự Luận
@@ -1753,9 +1834,15 @@ window.openEditMaterialModal = async function (fbKey) {
     const mat = materials.find(m => m._fbKey === fbKey);
     if (!mat) return alert("Không tìm thấy thông tin tài liệu!");
 
-    // Gán dữ liệu cũ vào form
+    // Đổ toàn bộ dữ liệu cũ của tài liệu vào form sửa
     document.getElementById('editMaterialKey').value = fbKey;
     document.getElementById('editMaterialTitle').value = mat.title || '';
+    document.getElementById('editMaterialVideoLink').value = mat.videoLink || '';
+    document.getElementById('editMaterialLinkInput').value = mat.docLink || '';
+    
+    if (document.getElementById('editMaterialTargetStudent')) {
+        document.getElementById('editMaterialTargetStudent').value = mat.targetStudent || 'all';
+    }
 
     document.getElementById('editMaterialModal').classList.add('active');
 };
@@ -2637,43 +2724,42 @@ async function initGiftDropdowns() {
 window.updateGiftItemDropdown = async function () {
     const target = document.getElementById('giftTargetStudent').value;
     const itemSelect = document.getElementById('giftValueItem');
+    const targetSelect = document.getElementById('giftDiscountTargetItem');
 
     if (!itemSelect || typeof StoreConfig === 'undefined') return;
 
     let ownedItems = [];
-
-    // Lấy dữ liệu kho đồ trên Firebase nếu chọn 1 học sinh cụ thể
     if (target !== 'all') {
         try {
             const invSnap = await db.ref(`student_inventory/${target}`).once('value');
             const inventory = invSnap.val();
-            if (inventory) {
-                // Trích xuất ID các vật phẩm học sinh đang có
-                ownedItems = Object.values(inventory).map(item => item.id);
-            }
-        } catch (error) {
-            console.error("Lỗi lấy kho đồ học sinh:", error);
-        }
+            if (inventory) ownedItems = Object.values(inventory).map(item => item.id);
+        } catch (error) { console.error("Lỗi lấy kho đồ học sinh:", error); }
     }
 
-    // Reset lại ô chọn
     itemSelect.innerHTML = '';
     let hasAvailableItem = false;
+    let targetOptionsHTML = '<option value="all">Tất cả vật phẩm (Mua bằng Coin)</option>';
 
-    // Đổ danh sách cửa hàng ra, kèm theo điều kiện kiểm tra
     StoreConfig.items.forEach(item => {
         const isOwned = ownedItems.includes(item.id);
-
-        // Nếu đã sở hữu -> Khóa (disabled) và đổi màu xám mờ
         const disabledAttr = isOwned ? 'disabled style="color: #aaa; background: #eee; font-style: italic;"' : '';
         const suffix = isOwned ? ' (HS đã có)' : '';
 
+        // Đổ dữ liệu cho nút "Tặng Vật phẩm"
         itemSelect.innerHTML += `<option value="${item.id}" ${disabledAttr}>[${item.tag}] ${item.name}${suffix}</option>`;
+
+        // CHỈ LỌC CÁC VẬT PHẨM BÁN BẰNG COIN VÀO DANH SÁCH THẺ GIẢM GIÁ
+        const isEventItem = item.isNonCoin || (!item.price || item.price <= 0);
+        if (!isEventItem) {
+            targetOptionsHTML += `<option value="${item.id}">[${item.tag}] ${item.name}</option>`;
+        }
 
         if (!isOwned) hasAvailableItem = true;
     });
 
-    // Nếu học sinh đã có toàn bộ vật phẩm trong Shop
+    if (targetSelect) targetSelect.innerHTML = targetOptionsHTML;
+
     if (!hasAvailableItem && StoreConfig.items.length > 0 && target !== 'all') {
         itemSelect.innerHTML = `<option value="" disabled selected>-- HS đã sở hữu tất cả vật phẩm --</option>` + itemSelect.innerHTML;
     }
@@ -2689,15 +2775,26 @@ window.toggleGiftInput = function () {
     const area = document.getElementById('giftValueInputArea');
     const numInput = document.getElementById('giftValueNumber');
     const itemInput = document.getElementById('giftValueItem');
+    const expiryArea = document.getElementById('giftExpiryInputArea');
+    const targetArea = document.getElementById('giftDiscountTargetArea'); // Lấy thẻ ẩn/hiện mục chọn áp dụng
+
+    if (expiryArea) expiryArea.style.display = 'none';
+    if (targetArea) targetArea.style.display = 'none'; // Ẩn mặc định
 
     if (type === 'none') {
         area.style.display = 'none';
     } else {
         area.style.display = 'block';
-        // Thêm 'ticket' vào điều kiện này
-        if (type === 'coin' || type === 'money' || type === 'ticket') {
+        if (type === 'coin' || type === 'money' || type === 'ticket' || type === 'discount') {
             numInput.style.display = 'block';
             itemInput.style.display = 'none';
+            if (type === 'discount') {
+                numInput.placeholder = "Nhập % giảm giá (10 - 100)...";
+                if (expiryArea) expiryArea.style.display = 'block';
+                if (targetArea) targetArea.style.display = 'block'; // Hiển thị ô chọn vật phẩm áp dụng khi chọn Thẻ giảm giá
+            } else {
+                numInput.placeholder = "Nhập số lượng...";
+            }
         } else if (type === 'item') {
             numInput.style.display = 'none';
             itemInput.style.display = 'block';
@@ -2710,21 +2807,36 @@ window.sendGiftMessage = async function () {
     const msg = document.getElementById('giftMessage').value.trim();
     const type = document.getElementById('giftType').value;
     let value = '';
+    let discountExpiry = null;
+    let discountTargetItems = ['all']; // ĐỔI THÀNH MẢNG (ARRAY)
 
-    if (type === 'coin' || type === 'money' || type === 'ticket') {
+    if (type === 'coin' || type === 'money' || type === 'ticket' || type === 'discount') {
         value = parseInt(document.getElementById('giftValueNumber').value);
         if (isNaN(value) || value <= 0) return alert("Vui lòng nhập số lượng hợp lệ (> 0)!");
+
+        if (type === 'discount') {
+            if (value < 10 || value > 100) return alert("Vui lòng nhập phần trăm giảm giá từ 10 đến 100!");
+            const expiryStr = document.getElementById('giftExpiryDate').value;
+            if (expiryStr) discountExpiry = new Date(expiryStr).getTime();
+
+            // XỬ LÝ LẤY NHIỀU VẬT PHẨM TỪ Ô SELECT MULTIPLE
+            const targetSelect = document.getElementById('giftDiscountTargetItem');
+            if (targetSelect && targetSelect.selectedOptions.length > 0) {
+                discountTargetItems = Array.from(targetSelect.selectedOptions).map(opt => opt.value);
+                // Nếu giáo viên có lỡ chọn cả 'all' và các món khác, ưu tiên 'all'
+                if (discountTargetItems.includes('all')) {
+                    discountTargetItems = ['all'];
+                }
+            }
+        }
     } else if (type === 'item') {
         value = document.getElementById('giftValueItem').value;
-        // Bổ sung chặn gửi nếu bị rỗng (do học sinh đã sở hữu hết và menu bị disabled)
         if (!value) return alert("❌ Không thể gửi! Học sinh này đã sở hữu tất cả các vật phẩm hiện có.");
     }
 
     if (type === 'none' && !msg) return alert("Bạn phải nhập lời nhắn nếu không đính kèm quà tặng!");
 
-    // Thiết lập thư hết hạn sau 5 ngày
     const expiryTimestamp = Date.now() + (5 * 24 * 60 * 60 * 1000);
-
     const payload = {
         message: msg,
         giftType: type,
@@ -2734,13 +2846,14 @@ window.sendGiftMessage = async function () {
         expiry: expiryTimestamp
     };
 
+    if (discountExpiry) payload.discountExpiry = discountExpiry;
+    if (type === 'discount') payload.discountTargetItem = discountTargetItems; // Đẩy mảng lên Firebase
+
     const users = await getDB('users');
     const students = users.filter(u => u.role === 'student');
 
     if (target === 'all') {
-        for (let st of students) {
-            await pushDB(`inbox_messages/${st.username}`, payload);
-        }
+        for (let st of students) { await pushDB(`inbox_messages/${st.username}`, payload); }
     } else {
         await pushDB(`inbox_messages/${target}`, payload);
     }
@@ -2748,6 +2861,7 @@ window.sendGiftMessage = async function () {
     alert("💌 Đã gửi thư và quà thành công!");
     document.getElementById('giftMessage').value = '';
     document.getElementById('giftValueNumber').value = '';
+    if (document.getElementById('giftExpiryDate')) document.getElementById('giftExpiryDate').value = '';
 
     const toggleBtn = document.getElementById('giftToggle');
     if (toggleBtn) toggleBtn.checked = false;
@@ -2761,3 +2875,388 @@ window.toggleGiftArea = function (isOpen) {
         inputArea.style.display = isOpen ? 'block' : 'none';
     }
 };
+
+// Hàm bật tắt Bảng quy đổi
+window.toggleConversionSettings = async function (isChecked) {
+    await db.ref('system_settings').update({ conversionTableEnabled: isChecked });
+    alert("Đã " + (isChecked ? "MỞ" : "ĐÓNG") + " chức năng Bảng quy đổi tiền của học sinh!");
+};
+
+// Hàm hiển thị danh sách yêu cầu rút tiền
+async function loadCashRequestsForTeacher() {
+    const requests = await getDB('cash_requests');
+    let html = '';
+
+    requests.reverse().forEach(req => {
+        let actionButtons = '';
+        let statusDisplay = '';
+
+        if (req.status === 'pending') {
+            statusDisplay = '<span style="color: #f39c12;">Đang chờ duyệt</span>';
+            actionButtons = `
+                <button onclick="updateRequestStatus('${req._fbKey}', 'transferring')" style="background: #2980b9; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer;">Chấp nhận</button>
+                <button onclick="updateRequestStatus('${req._fbKey}', 'rejected')" style="background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; margin-left: 5px;">Từ chối</button>
+            `;
+        } else if (req.status === 'transferring') {
+            statusDisplay = '<span style="color: #2980b9;">Đang chuyển tiền</span>';
+            actionButtons = `
+                <button onclick="updateRequestStatus('${req._fbKey}', 'completed')" style="background: #27ae60; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer;">Đã chuyển</button>
+            `;
+        } else if (req.status === 'completed') {
+            statusDisplay = '<span style="color: #27ae60;">Đã hoàn tất</span>';
+        } else if (req.status === 'rejected') {
+            statusDisplay = '<span style="color: #c0392b;">Đã từ chối</span>';
+        }
+
+        html += `
+            <div style="background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <strong>Học sinh:</strong> ${req.studentName} <br>
+                    <strong>Số tiền:</strong> <span style="color: #e67e22; font-weight: bold;">${req.amount.toLocaleString()} VNĐ</span> <br>
+                    <strong>Trạng thái:</strong> ${statusDisplay}
+                </div>
+                <div>
+                    ${actionButtons}
+                </div>
+            </div>
+        `;
+    });
+
+    const listElement = document.getElementById('teacherCashRequestsList');
+    if (listElement) {
+        listElement.innerHTML = html || '<p>Chưa có yêu cầu nào.</p>';
+    }
+}
+
+// Hàm cập nhật trạng thái yêu cầu
+async function updateRequestStatus(requestId, newStatus) {
+    let confirmMsg = "";
+    if (newStatus === 'transferring') confirmMsg = "Chấp nhận yêu cầu và báo học sinh đang chuyển tiền?";
+    if (newStatus === 'completed') confirmMsg = "Xác nhận đã chuyển tiền thành công?";
+    if (newStatus === 'rejected') confirmMsg = "Từ chối yêu cầu này (Tiền sẽ cần được hoàn lại nếu đã trừ trước đó)?";
+
+    if (confirm(confirmMsg)) {
+        await updateDB('cash_requests', requestId, { status: newStatus });
+
+        // Nếu bạn trừ tiền khi gửi yêu cầu mà giáo viên 'Từ chối', nhớ cộng lại tiền cho học sinh tại đây.
+
+        loadCashRequestsForTeacher(); // Render lại danh sách
+    }
+}
+
+// Đã ẩn gọi hàm cũ để tránh lỗi xung đột thẻ HTML
+// loadCashRequestsForTeacher();
+
+window.openCoinConversionModal = function () {
+    // THÊM ĐOẠN CHẶN NÀY
+    if (window.isConversionEnabled === false) {
+        alert("🔒 Chức năng Bảng quy đổi hiện đang bị Giáo viên tạm khóa!");
+        return;
+    }
+
+    if (window.currentActiveExamId) {
+        window.showExamLockWarning("⚠️ Bảng quy đổi Coin tạm khóa khi thi!");
+        return;
+    }
+    document.getElementById('convertAmount').value = '';
+    document.getElementById('convertResult').value = '';
+    setConvertDir('M2C'); // Reset về mặc định
+    document.getElementById('coinConversionModal').classList.add('active');
+};
+
+// =========================================================================
+// CHỨC NĂNG KIỂM DUYỆT RÚT TIỀN MẶT - PHÍA GIÁO VIÊN (CÁCH 2)
+// =========================================================================
+
+// Hàm tải toàn bộ yêu cầu tiền mặt lên bảng điều khiển của giáo viên
+window.loadTeacherCashRequests = async function () {
+    const container = document.getElementById('teacherCashRequestsListContainer');
+    if (!container) return;
+
+    try {
+        let requests = await getDB('cash_requests');
+        const now = Date.now();
+        const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000; // 2 ngày tính bằng mili-giây
+
+        // Quét và tự động xóa các yêu cầu đã xử lý quá 2 ngày
+        const validRequests = [];
+        for (let req of requests) {
+            if (req.status === 'completed' || req.status === 'rejected') {
+                const checkTime = req.resolvedAt || req.timestamp; // Lấy thời gian xử lý (hoặc thời gian tạo nếu là dữ liệu cũ)
+                if (now - checkTime > TWO_DAYS_MS) {
+                    // Xóa vĩnh viễn khỏi Firebase
+                    await removeDB('cash_requests', req._fbKey);
+                    continue; // Bỏ qua, không hiển thị ra màn hình
+                }
+            }
+            validRequests.push(req);
+        }
+        requests = validRequests;
+
+        if (requests.length === 0) {
+            container.innerHTML = '<p style="color: #64748b; font-size: 0.95em; text-align: center; padding: 20px; margin: 0;">Hiện tại chưa có yêu cầu nhận tiền mặt nào.</p>';
+            return;
+        }
+
+        let html = '';
+        // Hiện yêu cầu mới nhất lên trước
+        requests.reverse().forEach(req => {
+            let statusLabel = '';
+            let actionsHtml = '';
+
+            if (req.status === 'pending') {
+                statusLabel = '<span style="color: #d97706; background: #fef3c7; padding: 4px 10px; border-radius: 6px; font-weight: 600; font-size: 0.85em;">⏳ Chờ duyệt</span>';
+                actionsHtml = `
+                    <button onclick="handleTeacherProcessCash('${req._fbKey}', 'approve')" 
+                            style="background: #10b981; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.85em;">
+                        Chấp nhận
+                    </button>
+                    <button onclick="handleTeacherProcessCash('${req._fbKey}', 'reject')" 
+                            style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.85em; margin-left: 5px;">
+                        Từ chối
+                    </button>
+                `;
+            } else if (req.status === 'transferring') {
+                statusLabel = '<span style="color: #2563eb; background: #e0f2fe; padding: 4px 10px; border-radius: 6px; font-weight: 600; font-size: 0.85em;">🔄 Đang chuyển</span>';
+                actionsHtml = `
+                    <button onclick="handleTeacherProcessCash('${req._fbKey}', 'complete')" 
+                            style="background: #3b82f6; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.85em;">
+                        Đã chuyển
+                    </button>
+                `;
+            } else if (req.status === 'completed') {
+                statusLabel = '<span style="color: #16a34a; background: #dcfce7; padding: 4px 10px; border-radius: 6px; font-weight: 600; font-size: 0.85em;">✅ Đã hoàn tất</span>';
+            } else if (req.status === 'rejected') {
+                statusLabel = '<span style="color: #dc2626; background: #fee2e2; padding: 4px 10px; border-radius: 6px; font-weight: 600; font-size: 0.85em;">❌ Đã từ chối</span>';
+            }
+
+            html += `
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; display: flex; justify-content: space-between; align-items: center; gap: 15px; box-sizing: border-box;">
+                    <div>
+                        <div style="font-weight: bold; color: #1e293b; font-size: 0.95em;">👤 Học sinh: ${req.studentName}</div>
+                        <div style="margin-top: 4px; color: #475569; font-size: 0.9em;">
+                            Số tiền yêu cầu: <strong style="color: #ea580c;">${req.amount.toLocaleString('vi-VN')} VNĐ</strong>
+                        </div>
+                        <div style="margin-top: 6px; display: flex; align-items: center; gap: 6px;">
+                            <span style="font-size: 0.8em; color: #94a3b8;">Trạng thái:</span> ${statusLabel}
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; box-sizing: border-box;">
+                        ${actionsHtml}
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+    } catch (error) {
+        console.error("Lỗi hiển thị yêu cầu phía giáo viên:", error);
+        container.innerHTML = '<p style="color: #ef4444; font-size: 0.9em; text-align: center;">Không thể tải dữ liệu kiểm duyệt từ Firebase!</p>';
+    }
+};
+
+// Hàm xử lý kiểm duyệt (Đã fix lỗi tính sai tiền cho Giáo Viên)
+window.handleTeacherProcessCash = async function (reqFbKey, action) {
+    try {
+        const reqSnapshot = await db.ref(`cash_requests/${reqFbKey}`).once('value');
+        const reqData = reqSnapshot.val();
+        if (!reqData) {
+            alert("⚠️ Yêu cầu kiểm duyệt không tồn tại trên hệ thống!");
+            return;
+        }
+
+        // --- THAO TÁC 1: CHẤP NHẬN ---
+        if (action === 'approve') {
+            if (!confirm(`Bạn có đồng ý duyệt yêu cầu lấy tiền mặt trị giá ${reqData.amount.toLocaleString('vi-VN')} VNĐ của học sinh "${reqData.studentName}" không? Hệ thống sẽ kiểm tra tài khoản học sinh ngay bây giờ.`)) return;
+
+            // 1. Tìm Username chính xác của học sinh
+            const usersSnapshot = await db.ref('users').once('value');
+            const usersData = usersSnapshot.val();
+            let studentUsername = null;
+
+            if (usersData) {
+                for (let key in usersData) {
+                    if (usersData[key].name === reqData.studentName && usersData[key].role === 'student') {
+                        studentUsername = usersData[key].username;
+                        break;
+                    }
+                }
+            }
+
+            if (!studentUsername) {
+                alert("❌ Thất bại: Không tìm thấy tài khoản thông tin của học sinh này trên Firebase.");
+                return;
+            }
+
+            // 2. TÍNH LẠI CHÍNH XÁC TỔNG TIỀN LỘ TRÌNH CỦA HỌC SINH ĐÓ
+            let baseMoney = 0;
+            const assignments = await getDB('assignments');
+            const submissions = await getDB('submissions');
+            const stdAssignments = assignments.filter(a => a.targetStudent === 'all' || a.targetStudent === studentUsername);
+
+            stdAssignments.forEach(assign => {
+                const passingGrade = assign.passingGrade || 7;
+                const sub = submissions.find(s => s.assignmentId === assign.id && s.studentUsername === studentUsername);
+                let currentItemMoney = assign.roadmapMoney ? parseInt(assign.roadmapMoney) : 0;
+
+                if (sub) {
+                    if (sub.forcePass) baseMoney += currentItemMoney;
+                    else if (!sub.isAutoSubmitted && !sub.isLateFail && !sub.isRegrading && sub.grade !== null && sub.grade !== '') {
+                        if (parseFloat(sub.grade) >= passingGrade) baseMoney += currentItemMoney;
+                    }
+                }
+            });
+
+            // Lấy độ lệch tiền (offset)
+            const offsetSnap = await db.ref('student_money_offset/' + studentUsername).once('value');
+            let moneyOffset = offsetSnap.val() || 0;
+
+            let currentRouteMoney = baseMoney + moneyOffset;
+            if (currentRouteMoney < 0) currentRouteMoney = 0;
+
+            // 3. KIỂM TRA ĐIỀU KIỆN TRỪ TIỀN
+            if (currentRouteMoney < reqData.amount) {
+                alert(`❌ KHÔNG THỂ DUYỆT! Số dư lộ trình của học sinh hiện tại chỉ còn ${currentRouteMoney.toLocaleString('vi-VN')} VNĐ, không đủ để rút ${reqData.amount.toLocaleString('vi-VN')} VNĐ. Hãy bấm Từ Chối yêu cầu này.`);
+                return;
+            }
+
+            // TRỪ TIỀN HỌC SINH BẰNG CÁCH CHỈNH OFFSET (Cách hệ thống bạn đang hoạt động)
+            await db.ref(`student_money_offset/${studentUsername}`).set(moneyOffset - reqData.amount);
+
+            // Chuyển trạng thái sang 'Đang chuyển'
+            await db.ref(`cash_requests/${reqFbKey}`).update({ status: 'transferring' });
+            alert("✅ Duyệt thành công! Tài khoản học sinh đã được trừ tiền hợp lệ.");
+        }
+
+        // --- THAO TÁC 2: TỪ CHỐI ---
+        else if (action === 'reject') {
+            if (!confirm(`Bạn có chắc muốn TỪ CHỐI yêu cầu rút ${reqData.amount.toLocaleString('vi-VN')} VNĐ của học sinh "${reqData.studentName}"?`)) return;
+
+            await db.ref(`cash_requests/${reqFbKey}`).update({ status: 'rejected', resolvedAt: Date.now() });
+            alert("❌ Đã hủy và từ chối yêu cầu.");
+        }
+
+        // --- THAO TÁC 3: XÁC NHẬN ĐÃ CHUYỂN TIỀN XONG ---
+        else if (action === 'complete') {
+            if (!confirm(`Xác nhận bạn ĐÃ thực hiện chuyển/giao tiền mặt thành công cho học sinh "${reqData.studentName}"?`)) return;
+
+            await db.ref(`cash_requests/${reqFbKey}`).update({ status: 'completed', resolvedAt: Date.now() });
+            alert("🎉 Quy trình hoàn tất!");
+        }
+
+        // Cập nhật lại giao diện danh sách
+        loadTeacherCashRequests();
+
+    } catch (error) {
+        console.error("Lỗi khi xử lý phê duyệt tiền mặt:", error);
+        alert("❌ Lỗi thao tác Firebase. Vui lòng kiểm tra lại đường truyền kết nối.");
+    }
+};
+
+// ================= HÀM TẠO NÚT LỌC HỌC SINH TỰ ĐỘNG =================
+function renderStudentFilterButtons(studentsArray) {
+    const assignedContainer = document.getElementById('assignedStudentFilterContainer');
+    const submittedContainer = document.getElementById('submittedStudentFilterContainer');
+    const materialsContainer = document.getElementById('materialsStudentFilterContainer'); // MỚI THÊM
+    
+    let htmlAssigned = `<button class="btn-student-filter active" data-id="all" onclick="setStudentFilter('all', this, 'assigned')">Tất cả</button>`;
+    let htmlSubmitted = `<button class="btn-student-filter active" data-id="all" onclick="setStudentFilter('all', this, 'submitted')">Tất cả</button>`;
+    let htmlMaterials = `<button class="btn-student-filter active" data-id="all" onclick="setStudentFilter('all', this, 'materials')">Tất cả</button>`; // MỚI THÊM
+
+    studentsArray.forEach(student => {
+        let btnA = `<button class="btn-student-filter" data-id="${student.username}" onclick="setStudentFilter('${student.username}', this, 'assigned')">${student.name}</button>`;
+        let btnS = `<button class="btn-student-filter" data-id="${student.username}" onclick="setStudentFilter('${student.username}', this, 'submitted')">${student.name}</button>`;
+        let btnM = `<button class="btn-student-filter" data-id="${student.username}" onclick="setStudentFilter('${student.username}', this, 'materials')">${student.name}</button>`; // MỚI THÊM
+        
+        htmlAssigned += btnA;
+        htmlSubmitted += btnS;
+        htmlMaterials += btnM; // MỚI THÊM
+    });
+
+    if (assignedContainer) assignedContainer.innerHTML = htmlAssigned;
+    if (submittedContainer) submittedContainer.innerHTML = htmlSubmitted;
+    if (materialsContainer) materialsContainer.innerHTML = htmlMaterials; // MỚI THÊM
+}
+
+// ================= HÀM LỌC BÀI TẬP VÀ BÀI NỘP THEO HỌC SINH =================
+window.setStudentFilter = function(studentId, btnElement, type) {
+    const container = btnElement.parentElement;
+    container.querySelectorAll('.btn-student-filter').forEach(btn => btn.classList.remove('active'));
+    btnElement.classList.add('active');
+
+    if (type === 'assigned') {
+        activeAssignedStudentFilter = studentId;
+        applyAssignedFilters();
+    } else if (type === 'submitted') {
+        activeSubmissionStudentFilter = studentId;
+        applySubmissionFilters();
+    } else if (type === 'materials') { // MỚI THÊM
+        activeMaterialStudentFilter = studentId;
+        applyMaterialFilters();
+    }
+};
+
+// HÀM LỌC TÀI LIỆU HỌC TẬP ĐỘNG
+window.applyMaterialFilters = function() {
+    let searchInput = document.getElementById('searchMaterials');
+    let searchText = searchInput ? searchInput.value.toLowerCase() : '';
+    let items = document.querySelectorAll('#teacherMaterialsContainer > .card'); 
+
+    items.forEach(item => {
+        let targetStudent = item.getAttribute('data-target') || 'all'; 
+        let text = item.innerText.toLowerCase();
+
+        let matchFilter = (activeMaterialStudentFilter === 'all') || 
+                          (targetStudent === 'all') || 
+                          (targetStudent === activeMaterialStudentFilter);
+                          
+        let matchSearch = text.includes(searchText);
+
+        item.style.display = (matchFilter && matchSearch) ? '' : 'none';
+    });
+};
+
+window.applyAssignedFilters = function() {
+    let searchInput = document.getElementById('searchAssigned');
+    let searchText = searchInput ? searchInput.value.toLowerCase() : '';
+    // Quét tất cả các thẻ div đóng vai trò là card bài tập
+    let items = document.querySelectorAll('#assignedListContainer > .card'); 
+
+    items.forEach(item => {
+        let targetStudent = item.getAttribute('data-target') || 'all'; 
+        let text = item.innerText.toLowerCase();
+
+        // Nút 'Tất cả' -> Hiện bài của All và bài giao riêng
+        // Nút 'HS A' -> Hiện bài của All và bài giao riêng cho HS A
+        let matchFilter = (activeAssignedStudentFilter === 'all') || 
+                          (targetStudent === 'all') || 
+                          (targetStudent === activeAssignedStudentFilter);
+                          
+        let matchSearch = text.includes(searchText);
+
+        item.style.display = (matchFilter && matchSearch) ? '' : 'none';
+    });
+};
+
+window.applySubmissionFilters = function() {
+    let searchInput = document.getElementById('searchSubmissions');
+    let searchText = searchInput ? searchInput.value.toLowerCase() : '';
+    // Quét tất cả các thẻ div đóng vai trò là card bài nộp
+    let items = document.querySelectorAll('#submissionsList > .card');
+
+    items.forEach(item => {
+        let studentId = item.getAttribute('data-student') || ''; 
+        let text = item.innerText.toLowerCase();
+
+        // Ở danh sách bài nộp, nút của ai thì chỉ hiện bài của người đó
+        let matchFilter = (activeSubmissionStudentFilter === 'all') || 
+                          (studentId === activeSubmissionStudentFilter);
+                          
+        let matchSearch = text.includes(searchText);
+
+        item.style.display = (matchFilter && matchSearch) ? '' : 'none';
+    });
+};
+
+// Khởi chạy tải danh sách khi giáo viên mở trang
+loadTeacherCashRequests();

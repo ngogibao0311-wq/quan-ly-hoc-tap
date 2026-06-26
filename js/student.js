@@ -4,7 +4,10 @@ if (!currentUser || currentUser.role !== 'student') window.location.href = 'inde
 let cacheAssignmentsSt = "";
 let cacheSubmissionsSt = "";
 
-document.getElementById('studentName').innerText = currentUser.name;
+const nameElement = document.getElementById('studentName');
+if (nameElement) {
+    nameElement.innerText = currentUser.name;
+}
 updateAvatarDisplay(currentUser.avatar); // Tự động hiển thị ảnh đại diện ở góc phải
 
 window.studentSubmitDTs = {};
@@ -300,6 +303,71 @@ window.onload = async function () {
             renderStudentInbox();
         }
     });
+
+    // === QUÉT NGẦM VẬT PHẨM DÙNG THỬ (MỖI 60 GIÂY) ===
+    setInterval(async () => {
+        if (typeof myInventory === 'undefined' || !myInventory.length) return;
+
+        const now = Date.now();
+        let hasExpired = false;
+        let updates = {};
+
+        myInventory.forEach(item => {
+            if (item.isTrial && item.trialExpiry && now > item.trialExpiry) {
+                hasExpired = true;
+                updates[`student_inventory/${currentUser.username}/${item.id}`] = null; // Xóa khỏi kho đồ
+            }
+        });
+
+        if (hasExpired) {
+            await db.ref().update(updates);
+            alert("⏰ Hệ thống ghi nhận có vật phẩm dùng thử của bạn đã hết hạn 24 giờ và vừa bị thu hồi!");
+            // Hàm db.ref('student_inventory/').on('value') có sẵn của bạn sẽ tự động chạy lại để gỡ trang bị ngay lập tức
+        }
+    }, 60000);
+
+    // Đồng bộ nút Bật/Tắt Bảng quy đổi từ Giáo viên
+    db.ref('system_settings/conversionTableEnabled').on('value', (snapshot) => {
+        const isEnabled = snapshot.val() !== false;
+
+        // 1. Lưu cờ trạng thái để chặn mở popup
+        window.isConversionEnabled = isEnabled;
+
+        const conversionSection = document.getElementById('conversionTableSection');
+        if (conversionSection) {
+            conversionSection.style.display = isEnabled ? 'block' : 'none';
+        }
+
+        // 2. Tự động đóng ngay Bảng quy đổi nếu học sinh đang mở mà giáo viên tắt
+        const coinModal = document.getElementById('coinConversionModal');
+        if (!isEnabled && coinModal && coinModal.classList.contains('active')) {
+            closeCoinConversionModal();
+            alert("🔒 Giáo viên vừa tạm khóa chức năng Bảng quy đổi!");
+        }
+    });
+
+    // =================================================================
+    // ĐỒNG BỘ TIỀN TÍCH LŨY VÀ TRẠNG THÁI RÚT TIỀN THEO THỜI GIAN THỰC
+    // =================================================================
+    
+    // 1. Lắng nghe biến động tiền bù trừ (Giáo viên tặng/trừ tiền hoặc rút tiền)
+    db.ref('student_money_offset/' + currentUser.username).on('value', async () => {
+        // Cập nhật bảng lộ trình & Tổng tiền bên ngoài
+        if (typeof renderStudentRoadmap === 'function' && document.getElementById('studentRoadmapBody')) {
+            await renderStudentRoadmap();
+        }
+        // Cập nhật luôn màn hình "Yêu cầu rút tiền mặt" nếu đang mở bảng quy đổi
+        if (typeof window.initCashWithdrawInterface === 'function' && document.getElementById('displayRouteMoney')) {
+            await window.initCashWithdrawInterface();
+        }
+    });
+
+    // 2. Lắng nghe trạng thái duyệt/từ chối rút tiền mặt từ Giáo viên
+    db.ref('cash_requests').on('value', async () => {
+        if (typeof renderCashRequestHistory === 'function' && document.getElementById('cashRequestHistoryContainer')) {
+            await renderCashRequestHistory();
+        }
+    });
 };
 
 function getEmbedHTML(url) {
@@ -495,12 +563,12 @@ async function loadAssignments() {
                     (async () => {
                         let draftKey = `draft_${currentUser.username}_${assign.id}`;
                         let draft;
-try {
-    draft = JSON.parse(localStorage.getItem(draftKey));
-    if (typeof draft !== 'object' || draft === null) draft = { mcAnswers: {}, essay: '' };
-} catch (e) {
-    draft = { mcAnswers: {}, essay: '' };
-}
+                        try {
+                            draft = JSON.parse(localStorage.getItem(draftKey));
+                            if (typeof draft !== 'object' || draft === null) draft = { mcAnswers: {}, essay: '' };
+                        } catch (e) {
+                            draft = { mcAnswers: {}, essay: '' };
+                        }
 
                         let mcAnswersObj = draft.mcAnswers || {};
                         let rawEssay = draft.essay || "";
@@ -597,7 +665,7 @@ try {
                                 if (document.fullscreenElement) {
                                     document.exitFullscreen().catch(err => console.log(err));
                                 }
-                                document.querySelectorAll('.nav-item').forEach(btn => {
+                                document.querySelectorAll('.nav-item, .btn-logout').forEach(btn => {
                                     btn.style.opacity = '1';
                                     btn.style.pointerEvents = 'auto';
                                 });
@@ -651,12 +719,12 @@ try {
 
                     let draftKey = `draft_${currentUser.username}_${assign.id}`;
                     let draft;
-try {
-    draft = JSON.parse(localStorage.getItem(draftKey));
-    if (typeof draft !== 'object' || draft === null) draft = { mcAnswers: {}, essay: '' };
-} catch (e) {
-    draft = { mcAnswers: {}, essay: '' };
-}
+                    try {
+                        draft = JSON.parse(localStorage.getItem(draftKey));
+                        if (typeof draft !== 'object' || draft === null) draft = { mcAnswers: {}, essay: '' };
+                    } catch (e) {
+                        draft = { mcAnswers: {}, essay: '' };
+                    }
                     let savedMc = (mySub && mySub.mcAnswers) ? mySub.mcAnswers : draft.mcAnswers;
 
                     assign.questions.forEach((q, idx) => {
@@ -707,12 +775,12 @@ try {
 
                     let draftKey = `draft_${currentUser.username}_${assign.id}`;
                     let draft;
-try {
-    draft = JSON.parse(localStorage.getItem(draftKey));
-    if (typeof draft !== 'object' || draft === null) draft = { mcAnswers: {}, essay: '' };
-} catch (e) {
-    draft = { mcAnswers: {}, essay: '' };
-}
+                    try {
+                        draft = JSON.parse(localStorage.getItem(draftKey));
+                        if (typeof draft !== 'object' || draft === null) draft = { mcAnswers: {}, essay: '' };
+                    } catch (e) {
+                        draft = { mcAnswers: {}, essay: '' };
+                    }
 
                     let savedEssay = mySub && mySub.rawEssay ? mySub.rawEssay : draft.essay;
                     if (!savedEssay && mySub && mySub.answer) savedEssay = mySub.answer.replace(/\[PHẦN TRẮC NGHIỆM\][\s\S]*?\[PHẦN TỰ LUẬN\]\n/, '');
@@ -983,7 +1051,7 @@ async function submitAssignment(assignId, isAuto = false, isCheat = false) {
     // 1. Thêm assign.assessmentType === 'thi' vào điều kiện để chịu đọc file khi thi
     if (assign.assessmentType === 'tu_luan' || assign.assessmentType === 'ket_hop' || assign.assessmentType === 'thi' || !assign.assessmentType) {
         const answerEl = document.getElementById(`answer-${assignId}`); if (answerEl) answer = answerEl.value;
-        
+
         // 2. Ưu tiên đọc từ biến cộng dồn file (studentSubmitDTs) để chắc chắn lấy đủ 2-3 file
         if (window.studentSubmitDTs && window.studentSubmitDTs[assignId] && window.studentSubmitDTs[assignId].files.length > 0) {
             filesArray = await readMultipleFiles(window.studentSubmitDTs[assignId].files);
@@ -1061,8 +1129,8 @@ async function submitAssignment(assignId, isAuto = false, isCheat = false) {
                 document.exitFullscreen().catch(err => console.log(err));
             }
 
-            // Mở khóa toàn bộ menu bên trái (Sidebar)
-            document.querySelectorAll('.nav-item').forEach(btn => {
+            // Mở khóa toàn bộ menu bên trái (Sidebar) và nút đăng xuất
+            document.querySelectorAll('.nav-item, .btn-logout').forEach(btn => {
                 btn.style.opacity = '1';
                 btn.style.pointerEvents = 'auto'; // Trả lại khả năng click
             });
@@ -1129,14 +1197,22 @@ async function loadMaterialsListStudent() {
 }
 
 async function syncUserData() {
-    const users = await getDB('users'); const userRecord = users.find(u => u.username === currentUser.username);
+    const users = await getDB('users');
+    const userRecord = users.find(u => u.username === currentUser.username);
     if (userRecord) {
-        if (userRecord.isLocked) { alert("🔒 Tài khoản của bạn vừa bị Giáo viên khóa. Hệ thống sẽ tự động đăng xuất!"); logout(); return; }
-        localStorage.setItem('currentUser', JSON.stringify(userRecord)); Object.assign(currentUser, userRecord);
-        document.getElementById('studentName').innerHTML = currentUser.name; loadAssignments();
+        if (userRecord.isLocked) { /* ... */ return; }
+        localStorage.setItem('currentUser', JSON.stringify(userRecord));
+        Object.assign(currentUser, userRecord);
+
+        // FIX: Wrap in a check
+        const studentNameEl = document.getElementById('studentName');
+        if (studentNameEl) studentNameEl.innerHTML = currentUser.name;
+
+        loadAssignments();
         updateAvatarDisplay(currentUser.avatar);
     }
 }
+
 async function updateProfile() { if (currentUser.isLocked) return alert("🔒 Tài khoản đang bị khóa!"); const newName = document.getElementById('settingName').value.trim(); const newPass = document.getElementById('settingPass').value.trim(); if (!newName) return alert("Tên hiển thị trống!"); if (newName === currentUser.name && !newPass) return alert("Chưa đổi thông tin!"); const requests = await getDB('profile_requests'); if (requests.find(r => r.username === currentUser.username && r.status === 'pending')) return alert("Yêu cầu trước đang chờ duyệt!"); const now = new Date(); await pushDB('profile_requests', { username: currentUser.username, currentName: currentUser.name, newName: newName, newPass: newPass, status: 'pending', time: now.toLocaleTimeString('vi-VN') + ' ' + now.toLocaleDateString('vi-VN') }); document.getElementById('settingPass').value = ''; alert("Đã gửi yêu cầu thay đổi!"); }
 async function checkProfileRequests() {
     const requests = await getDB('profile_requests');
@@ -2109,39 +2185,218 @@ window.trialItem = async function (itemId) {
     }
 };
 
-// 4. Logic Mua đứt (Tính hoàn tiền nếu đang dùng thử)
+// 4. Logic Mua đứt và Bảng Thanh Toán (Có áp dụng Mã giảm giá)
 window.buyItem = async function (itemId, isUpgradingFromTrial = false) {
     const item = StoreManager.getItemById(itemId);
     if (!item) return;
-    if (item.isLocked) return alert("🔒 Vật phẩm này hiện đang bị Giáo viên khóa, không thể mua!");
-    if (item.isNonCoin && (!item.price || item.price <= 0)) return alert(`🎁 Đây là vật phẩm sự kiện, không thể mua bằng Coin!`);
+    if (item.isLocked) return alert("🔒 Vật phẩm này hiện đang bị Giáo viên khóa!");
+    if (item.isNonCoin && (!item.price || item.price <= 0)) return alert(`🎁 Vật phẩm sự kiện!`);
 
     const coinRef = db.ref('student_coins/' + currentUser.username);
     const snap = await coinRef.once('value');
     let currentCoins = snap.val() || 0;
 
     let finalPrice = item.price;
-    let confirmMsg = `Xác nhận dùng ${finalPrice} Coin để mua vĩnh viễn [ ${item.name} ]?`;
-
+    let isUpgrade = false;
     if (isUpgradingFromTrial) {
         const trialPrice = item.price / 2;
         const refund = trialPrice * 0.3;
-        finalPrice = item.price - refund;
-        confirmMsg = `Bạn đang dùng thử vật phẩm này. Nâng cấp vĩnh viễn ngay bây giờ sẽ được hoàn lại 30% phí dùng thử.\n\n💰 Giá cần thanh toán: ${finalPrice} Coin.\nXác nhận mua?`;
+        finalPrice = Math.floor(item.price - refund);
+        isUpgrade = true;
     }
 
-    if (currentCoins < finalPrice) return alert(`❌ Số dư Coin không đủ! Bạn cần ${finalPrice} Coin.`);
+    const discSnap = await db.ref(`student_discounts/${currentUser.username}`).once('value');
+    let discounts = [];
+    const now = Date.now();
 
-    if (confirm(confirmMsg)) {
-        await coinRef.set(currentCoins - finalPrice);
-        await db.ref(`student_inventory/${currentUser.username}/${item.id}`).update({
-            id: item.id,
+    if (discSnap.exists()) {
+        discSnap.forEach(child => {
+            let d = child.val();
+            if (!d.isUsed) {
+                if (d.expiry && now > d.expiry) {
+                    // CỐ TÌNH ĐỂ TRỐNG: Mã giảm giá hết hạn KHÔNG BỊ XÓA nữa để hiển thị trong Túi đồ
+                } else {
+                    let targetArr = d.targetItem || ['all'];
+                    if (typeof targetArr === 'string') targetArr = [targetArr];
+                    if (!Array.isArray(targetArr)) targetArr = ['all'];
+
+                    // LƯU TOÀN BỘ THẺ VÀO MẢNG, đánh dấu thẻ nào đủ điều kiện cho món đồ này
+                    let isEligible = targetArr.includes('all') || targetArr.includes(itemId);
+                    discounts.push({ ...d, _key: child.key, isEligible: isEligible });
+                }
+            }
+        });
+    }
+
+    openPaymentModal(item, finalPrice, currentCoins, discounts, isUpgrade);
+};
+
+// HÀM HIỂN THỊ GIAO DIỆN BẢNG THANH TOÁN
+window.openPaymentModal = function (item, basePrice, currentCoins, discounts, isUpgrade) {
+    const oldModal = document.getElementById('checkoutModal');
+    if (oldModal) oldModal.remove();
+
+    let discountOptions = `<option value="0">-- Không dùng mã giảm giá --</option>`;
+    discounts.forEach(d => {
+        let expStr = d.expiry ? ` | HSD: ${new Date(d.expiry).toLocaleDateString('vi-VN')}` : '';
+
+        let targetArr = d.targetItem || ['all'];
+        if (!Array.isArray(targetArr)) targetArr = [targetArr];
+        const targetStr = targetArr.join(',');
+
+        // CẤU HÌNH GIAO DIỆN CHO THẺ KHÔNG HỢP LỆ
+        let eligibleText = d.isEligible ? "" : " 🚫 (Không áp dụng)";
+        let colorStyle = d.isEligible ? "" : "color: #999;"; // Làm mờ thẻ không dùng được
+
+        discountOptions += `<option value="${d._key}" data-percent="${d.percent}" data-expiry="${d.expiry || ''}" data-target="${targetStr}" data-eligible="${d.isEligible}" style="${colorStyle}">🏷️ Giảm ${d.percent}%${expStr}${eligibleText}</option>`;
+    });
+
+    const modalHtml = `
+    <div id="checkoutModal" class="modal-overlay" style="z-index: 999999; display: flex; align-items: center; justify-content: center;">
+        <div class="modal-content form-container" style="max-width: 420px; width: 90%; text-align: left; border-top: 6px solid #f39c12; background: #fff; padding: 25px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); animation: fadeInUp 0.3s ease;">
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="color: #f39c12; margin: 0; font-size: 1.4em; display: flex; align-items: center; gap: 8px;">🛒 Thanh Toán</h3>
+                <button onclick="document.getElementById('checkoutModal').remove()" style="background: rgba(225, 29, 72, 0.1); color: #e11d48; border: none; border-radius: 50%; width: 32px; height: 32px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center;">✖</button>
+            </div>
+            
+            <div style="background: rgba(0,0,0,0.03); padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid rgba(0,0,0,0.05);">
+                <p style="margin: 0 0 10px 0; font-size: 1.05em; color: #444;"><strong>Vật phẩm:</strong> <span style="color: #667eea; font-weight: bold;">${item.name}</span> ${isUpgrade ? '<span style="color:#e83e8c; font-size:0.85em;">(Nâng cấp)</span>' : ''}</p>
+                <p style="margin: 0; color: #444;"><strong>Số dư của bạn:</strong> <span style="color: #2ecc71; font-weight: bold;">${currentCoins} 🪙</span></p>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <label style="font-weight: bold; color: #2c3e50; font-size: 0.95em;">🎁 Chọn thẻ giảm giá:</label>
+                <button onclick="showSelectedDiscountInfo()" style="background: #e0f7fa; color: #00838f; border: 1px solid #00acc1; border-radius: 50%; width: 26px; height: 26px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.9em; transition: 0.2s;" title="Xem thông tin chi tiết của thẻ">❓</button>
+            </div>
+            
+            <select id="checkoutDiscount" onchange="updateCheckoutPrice(${basePrice})" style="width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: 2px dashed #f39c12; font-weight: bold; color: #e83e8c; background: #fdfbfb; outline: none; cursor: pointer;">
+                ${discounts.length > 0 ? discountOptions : '<option value="0">Bạn chưa có thẻ giảm giá nào</option>'}
+            </select>
+
+            <!-- DÒNG CẢNH BÁO KHI CHỌN MÃ KHÔNG HỢP LỆ -->
+            <p id="checkoutDiscountWarning" style="color: #e11d48; font-size: 0.85em; margin: 0 0 15px 0; font-weight: bold; display: none;">⚠️ Thẻ này không áp dụng cho vật phẩm hiện tại. Vẫn tính giá gốc!</p>
+
+            <div style="background: rgba(243, 156, 18, 0.05); padding: 15px; border-radius: 12px; border: 1px solid rgba(243, 156, 18, 0.2); margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 1em; color: #555;">
+                    <span>Giá gốc:</span>
+                    <span id="checkoutBasePriceDisplay" style="font-weight: bold;">${basePrice} 🪙</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 1em; color: #e11d48; font-weight: bold;">
+                    <span>Mã giảm giá:</span>
+                    <span id="checkoutDiscountAmount">- 0 🪙</span>
+                </div>
+                <hr style="border: 0; border-top: 1px dashed rgba(243, 156, 18, 0.4); margin: 10px 0;">
+                <div style="text-align: center; margin-top: 10px;">
+                    <p style="margin: 0; font-size: 0.9em; color: #666; font-weight: bold; text-transform: uppercase;">Tổng thanh toán</p>
+                    <p style="margin: 5px 0 0 0; font-size: 2.2em; font-weight: 900; color: #d35400; text-shadow: 0 2px 4px rgba(0,0,0,0.1);" id="checkoutFinalPrice">${basePrice} 🪙</p>
+                </div>
+            </div>
+
+            <button id="btnConfirmCheckout" onclick="processPayment('${item.id}', ${basePrice}, ${currentCoins})" style="width: 100%; padding: 14px; background: linear-gradient(135deg, #f6d365 0%, #fda085 100%); color: white; border: none; border-radius: 12px; font-weight: 900; font-size: 1.1em; cursor: pointer; box-shadow: 0 4px 15px rgba(246, 211, 101, 0.4); text-transform: uppercase; transition: all 0.2s;">💳 Xác nhận mua</button>
+        </div>
+    </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+};
+
+// HÀM TÍNH TOÁN LẠI GIÁ TIỀN KHI CHỌN MÃ GIẢM GIÁ KHÁC NHAU
+window.updateCheckoutPrice = function (basePrice) {
+    const select = document.getElementById('checkoutDiscount');
+    const warningText = document.getElementById('checkoutDiscountWarning');
+    let percent = 0;
+
+    if (select.selectedIndex > 0 && select.value !== "0") {
+        const option = select.options[select.selectedIndex];
+        const isEligible = option.getAttribute('data-eligible') === 'true'; // Đọc cờ
+
+        if (isEligible) {
+            percent = parseInt(option.getAttribute('data-percent')) || 0;
+            warningText.style.display = 'none'; // Đủ điều kiện -> Ẩn cảnh báo
+        } else {
+            percent = 0; // Không đủ điều kiện -> Ép mức giảm về 0%
+            warningText.style.display = 'block'; // Hiện cảnh báo đỏ
+        }
+    } else {
+        warningText.style.display = 'none'; // Ẩn cảnh báo nếu chọn "Không dùng mã"
+    }
+
+    const discountAmount = Math.floor(basePrice * (percent / 100));
+    const finalPrice = Math.max(0, basePrice - discountAmount);
+
+    document.getElementById('checkoutDiscountAmount').innerText = `- ${discountAmount} 🪙`;
+    document.getElementById('checkoutFinalPrice').innerText = finalPrice + ' 🪙';
+
+    const basePriceDisplay = document.getElementById('checkoutBasePriceDisplay');
+    if (percent > 0) {
+        basePriceDisplay.style.textDecoration = 'line-through';
+        basePriceDisplay.style.color = '#999';
+    } else {
+        basePriceDisplay.style.textDecoration = 'none';
+        basePriceDisplay.style.color = '#555';
+    }
+};
+
+// HÀM XỬ LÝ THANH TOÁN CUỐI CÙNG LÊN FIREBASE
+window.processPayment = async function (itemId, basePrice, currentCoins) {
+    const btn = document.getElementById('btnConfirmCheckout');
+    btn.disabled = true;
+    btn.innerText = 'Đang xử lý giao dịch...';
+
+    const select = document.getElementById('checkoutDiscount');
+    let discountKey = null;
+    let percent = 0;
+
+    if (select && select.selectedIndex > 0 && select.value !== "0") {
+        const option = select.options[select.selectedIndex];
+        const isEligible = option.getAttribute('data-eligible') === 'true';
+
+        // CHẶN THANH TOÁN NẾU CỐ TÌNH DÙNG THẺ SAI
+        if (!isEligible) {
+            alert("❌ Thẻ giảm giá bạn chọn không đủ điều kiện cho vật phẩm này! Vui lòng chọn thẻ khác hoặc chuyển về 'Không dùng mã giảm giá'.");
+            btn.disabled = false;
+            btn.innerText = '💳 Xác nhận mua';
+            return;
+        }
+
+        discountKey = select.value;
+        percent = parseInt(option.getAttribute('data-percent')) || 0;
+    }
+
+    const finalPrice = Math.max(0, Math.floor(basePrice * (1 - percent / 100)));
+
+    if (currentCoins < finalPrice) {
+        alert(`❌ Bạn không đủ Coin! Tổng tiền cần thanh toán là ${finalPrice} 🪙.`);
+        btn.disabled = false;
+        btn.innerText = '💳 Xác nhận mua';
+        return;
+    }
+
+    try {
+        await db.ref('student_coins/' + currentUser.username).set(currentCoins - finalPrice);
+
+        if (discountKey) {
+            await db.ref(`student_discounts/${currentUser.username}/${discountKey}`).update({
+                isUsed: true,
+                usedAt: Date.now()
+            });
+        }
+
+        await db.ref(`student_inventory/${currentUser.username}/${itemId}`).update({
+            id: itemId,
             purchaseTime: Date.now(),
             isTrial: null,
             trialExpiry: null,
             isEquipped: true
         });
-        alert(`🎉 Chúc mừng! Bạn đã sở hữu vĩnh viễn [ ${item.name} ].`);
+
+        document.getElementById('checkoutModal').remove();
+        alert(`🎉 Mua thành công! Bạn đã thanh toán ${finalPrice} 🪙.`);
+
+    } catch (e) {
+        alert("❌ Đã xảy ra lỗi khi thanh toán. Vui lòng kiểm tra lại mạng!");
+        btn.disabled = false;
+        btn.innerText = '💳 Xác nhận mua';
     }
 };
 
@@ -2437,6 +2692,12 @@ async function renderStudentRoadmap() {
 window.currentConvertDir = 'M2C'; // Mặc định là Tiền đổi sang Coin
 
 window.openCoinConversionModal = function () {
+    // THÊM ĐOẠN CHẶN NÀY
+    if (window.isConversionEnabled === false) {
+        alert("🔒 Chức năng Bảng quy đổi hiện đang bị Giáo viên tạm khóa!");
+        return;
+    }
+
     if (window.currentActiveExamId) {
         window.showExamLockWarning("⚠️ Bảng quy đổi Coin tạm khóa khi thi!");
         return;
@@ -2445,6 +2706,7 @@ window.openCoinConversionModal = function () {
     document.getElementById('convertResult').value = '';
     setConvertDir('M2C'); // Reset về mặc định
     document.getElementById('coinConversionModal').classList.add('active');
+    window.initCashWithdrawInterface();
 };
 
 window.closeCoinConversionModal = function () {
@@ -2544,6 +2806,83 @@ window.executeConversion = async function () {
     renderStudentRoadmap(); // Render lại bảng để tiền nhảy về số dư mới ngay lập tức
 };
 
+// Hàm tải lịch sử yêu cầu rút tiền của học sinh
+async function loadCashRequestsStudent() {
+    const requests = await getDB('cash_requests');
+    // Lọc ra các yêu cầu của học sinh hiện tại
+    const myRequests = requests.filter(r => r.studentName === currentUser.name);
+
+    let html = '';
+    myRequests.reverse().forEach(req => {
+        let statusText = '';
+        let noteText = '';
+
+        switch (req.status) {
+            case 'pending':
+                statusText = '<span style="color: #f39c12; font-weight: bold;">⏳ Đang chờ duyệt</span>';
+                break;
+            case 'transferring':
+                statusText = '<span style="color: #2980b9; font-weight: bold;">🔄 Đang chuyển</span>';
+                noteText = '<div style="font-size: 0.85em; color: #7f8c8d; margin-top: 5px;"><i>(Tiền sẽ được chuyển đến trong 2-3 ngày)</i></div>';
+                break;
+            case 'completed':
+                statusText = '<span style="color: #27ae60; font-weight: bold;">✅ Đã hoàn tất yêu cầu</span>';
+                break;
+            case 'rejected':
+                statusText = '<span style="color: #c0392b; font-weight: bold;">❌ Bị từ chối</span>';
+                break;
+        }
+
+        html += `
+            <div style="background: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 8px; padding: 10px; margin-bottom: 8px;">
+                <div><strong>Số tiền:</strong> ${req.amount.toLocaleString()} VNĐ</div>
+                <div><strong>Trạng thái:</strong> ${statusText}</div>
+                ${noteText}
+            </div>
+        `;
+    });
+
+    document.getElementById('studentRequestHistory').innerHTML = html || '<p style="color: #999;">Chưa có yêu cầu nào.</p>';
+}
+
+// Hàm gửi yêu cầu rút tiền
+async function submitCashRequest() {
+    const amountInput = document.getElementById('withdrawAmount');
+    const amount = parseInt(amountInput.value);
+
+    // Lưu ý: Thay 'currentUser.routeMoney' bằng biến/trường lưu "Tổng tiền tích lũy lộ trình" thực tế trong data của bạn
+    const currentMoney = currentUser.routeMoney || 0;
+
+    if (!amount || amount <= 0) {
+        alert("Vui lòng nhập số tiền hợp lệ!");
+        return;
+    }
+
+    if (amount > currentMoney) {
+        alert("Số tiền vượt quá Tổng tiền tích lũy lộ trình hiện có!");
+        return;
+    }
+
+    // Gửi lên Firebase
+    await pushDB('cash_requests', {
+        studentName: currentUser.name,
+        amount: amount,
+        status: 'pending', // Trạng thái mặc định ban đầu
+        timestamp: Date.now()
+    });
+
+    // Chạy hàm load khi mở bảng quy đổi
+    loadCashRequestsStudent(); currentUser.routeMoney -= amount;
+    updateDB('users', currentUser._fbKey, { routeMoney: currentUser.routeMoney });
+
+    alert("Gửi yêu cầu thành công! Vui lòng chờ giáo viên xác nhận.");
+    amountInput.value = '';
+    loadCashRequestsStudent();
+}
+
+// Chạy hàm load khi mở bảng quy đổi
+// loadCashRequestsStudent();
+
 // ================= HỆ THỐNG HỘP THƯ & NHẬN QUÀ (HỌC SINH) =================
 
 window.openStudentInbox = function () {
@@ -2567,15 +2906,44 @@ window.renderStudentInbox = function () {
     }
 
     let html = '';
+    const now = Date.now();
+
     window.myInboxMessages.forEach(msg => {
         let giftHTML = '';
         let btnHTML = '';
+        let isExpiredDiscountInInbox = (msg.giftType === 'discount' && msg.discountExpiry && now > msg.discountExpiry);
 
         if (msg.giftType !== 'none') {
             let giftDisplay = '';
             if (msg.giftType === 'coin') giftDisplay = `🪙 ${parseInt(msg.giftValue).toLocaleString('vi-VN')} Coin`;
             else if (msg.giftType === 'money') giftDisplay = `💵 ${parseInt(msg.giftValue).toLocaleString('vi-VN')} đ (Tiền Lộ trình)`;
-            else if (msg.giftType === 'ticket') giftDisplay = `🎫 ${parseInt(msg.giftValue).toLocaleString('vi-VN')} Vé quay may mắn`; // Dòng mới thêm
+            else if (msg.giftType === 'ticket') giftDisplay = `🎫 ${parseInt(msg.giftValue).toLocaleString('vi-VN')} Vé quay may mắn`;
+            else if (msg.giftType === 'discount') {
+                let expStr = msg.discountExpiry ? `\n(HSD: ${new Date(msg.discountExpiry).toLocaleString('vi-VN')})` : ' (Vĩnh viễn)';
+
+                // XỬ LÝ ĐỌC DANH SÁCH MẢNG VẬT PHẨM
+                let targetText = "Tất cả Cửa hàng";
+                let targetArr = msg.discountTargetItem || ['all'];
+                if (!Array.isArray(targetArr)) targetArr = [targetArr]; // Cứu code cũ
+
+                if (!targetArr.includes('all')) {
+                    const itemNames = targetArr.map(id => {
+                        const def = StoreConfig.items.find(i => i.id === id);
+                        return def ? def.name : null;
+                    }).filter(n => n);
+
+                    // Rút gọn chữ nếu giáo viên chọn quá nhiều món
+                    if (itemNames.length > 0) {
+                        targetText = itemNames.length > 2 ? `${itemNames.slice(0, 2).join(', ')}... (+${itemNames.length - 2} món nữa)` : itemNames.join(', ');
+                    }
+                }
+
+                if (isExpiredDiscountInInbox) {
+                    giftDisplay = `<span style="text-decoration: line-through; color: #999;">🏷️ Thẻ giảm giá ${msg.giftValue}%</span> <span style="font-size: 0.8em; color: #e11d48; font-weight: bold;">\n(Đã quá hạn)</span>`;
+                } else {
+                    giftDisplay = `🏷️ Thẻ giảm giá ${msg.giftValue}% <span style="font-size: 0.8em; color: #e11d48;">${expStr}</span><br><span style="font-size: 0.85em; color: #059669; font-weight: normal;">Áp dụng: ${targetText}</span>`;
+                }
+            }
             else if (msg.giftType === 'item') {
                 const itemDef = StoreConfig.items.find(i => i.id === msg.giftValue);
                 giftDisplay = itemDef ? `📦 ${itemDef.name} (${itemDef.type})` : '📦 Vật phẩm bí ẩn';
@@ -2586,7 +2954,11 @@ window.renderStudentInbox = function () {
                 <span style="font-size: 1.1em; font-weight: bold; color: #2c3e50;">${giftDisplay}</span>
             </div>`;
 
-            btnHTML = `<button onclick="claimGift('${msg._fbKey}', '${msg.giftType}', '${msg.giftValue}')" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); width: 100%; padding: 10px; border-radius: 8px; font-weight: bold; border: none; color: white; cursor: pointer; box-shadow: 0 4px 10px rgba(17, 153, 142, 0.3);">🧧 Mở quà & Nhận vào túi</button>`;
+            if (isExpiredDiscountInInbox) {
+                btnHTML = `<button onclick="deleteMessage('${msg._fbKey}')" style="background: rgba(225, 29, 72, 0.1); color: #e11d48; width: 100%; padding: 10px; border-radius: 8px; font-weight: bold; border: 1px solid #e11d48; cursor: pointer;">🗑️ Thẻ đã hết hạn (Xóa thư)</button>`;
+            } else {
+                btnHTML = `<button onclick="claimGift('${msg._fbKey}', '${msg.giftType}', '${msg.giftValue}')" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); width: 100%; padding: 10px; border-radius: 8px; font-weight: bold; border: none; color: white; cursor: pointer; box-shadow: 0 4px 10px rgba(17, 153, 142, 0.3);">🧧 Mở quà & Nhận vào túi</button>`;
+            }
         } else {
             btnHTML = `<button onclick="deleteMessage('${msg._fbKey}')" style="background: rgba(0,0,0,0.05); color: #666; width: 100%; padding: 10px; border-radius: 8px; font-weight: bold; border: none; cursor: pointer;">🗑️ Đã đọc & Xóa thư</button>`;
         }
@@ -2598,7 +2970,6 @@ window.renderStudentInbox = function () {
             ${btnHTML}
         </div>`;
     });
-
     container.innerHTML = html;
 };
 
@@ -2607,41 +2978,49 @@ window.claimGift = async function (msgKey, giftType, giftValue) {
         if (giftType === 'coin') {
             const coinRef = db.ref('student_coins/' + currentUser.username);
             const snap = await coinRef.once('value');
-            const addValue = parseInt(giftValue);
-            if (!isNaN(addValue) && addValue > 0) {
-                await coinRef.set((snap.val() || 0) + addValue);
-                alert(`🎉 Bạn đã nhận được ${addValue.toLocaleString('vi-VN')} Coin!`);
-            }
-
+            await coinRef.set((snap.val() || 0) + parseInt(giftValue));
+            alert(`🎉 Bạn đã nhận được ${parseInt(giftValue).toLocaleString('vi-VN')} Coin!`);
         } else if (giftType === 'money') {
             const offsetRef = db.ref('student_money_offset/' + currentUser.username);
             const snap = await offsetRef.once('value');
-            const addValue = parseInt(giftValue);
-            if (!isNaN(addValue) && addValue > 0) {
-                await offsetRef.set((snap.val() || 0) + addValue);
-                alert(`🎉 Bạn đã nhận được ${addValue.toLocaleString('vi-VN')} đ vào Tiền Lộ trình!`);
-                if (typeof renderStudentRoadmap === 'function') renderStudentRoadmap();
-            }
+            await offsetRef.set((snap.val() || 0) + parseInt(giftValue));
+            alert(`🎉 Bạn đã nhận được ${parseInt(giftValue).toLocaleString('vi-VN')} đ vào Tiền Lộ trình!`);
+            if (typeof renderStudentRoadmap === 'function') renderStudentRoadmap();
         } else if (giftType === 'ticket') {
-            // Dòng mới thêm: Lưu vé được tặng vào một node riêng trên Firebase
             const ticketRef = db.ref('student_bonus_tickets/' + currentUser.username);
             const snap = await ticketRef.once('value');
             await ticketRef.set((snap.val() || 0) + parseInt(giftValue));
             alert(`🎉 Bạn đã nhận được ${parseInt(giftValue)} Vé quay may mắn!`);
         } else if (giftType === 'item') {
             await db.ref(`student_inventory/${currentUser.username}/${giftValue}`).update({
-                id: giftValue,
-                purchaseTime: Date.now(),
-                isTrial: null,
-                trialExpiry: null,
-                isEquipped: false
+                id: giftValue, purchaseTime: Date.now(), isTrial: null, trialExpiry: null, isEquipped: false
             });
             alert(`🎉 Vật phẩm đã được thêm vào Túi đồ của bạn!`);
+        } else if (giftType === 'discount') {
+            const msgSnap = await db.ref(`inbox_messages/${currentUser.username}/${msgKey}`).once('value');
+            const msgData = msgSnap.val();
+            const expiry = (msgData && msgData.discountExpiry) ? msgData.discountExpiry : null;
+
+            // Xử lý đọc dạng mảng
+            let targetArr = (msgData && msgData.discountTargetItem) ? msgData.discountTargetItem : ['all'];
+            if (!Array.isArray(targetArr)) targetArr = [targetArr];
+
+            if (expiry && Date.now() > expiry) {
+                alert("❌ Thẻ giảm giá này đã quá hạn sử dụng, hệ thống không thể thêm vào túi đồ!");
+                await db.ref(`inbox_messages/${currentUser.username}/${msgKey}`).remove();
+                return;
+            }
+
+            await db.ref(`student_discounts/${currentUser.username}`).push({
+                percent: parseInt(giftValue),
+                dateAcquired: Date.now(),
+                isUsed: false,
+                expiry: expiry,
+                targetItem: targetArr // Lưu mảng trực tiếp vào Database
+            });
+            alert(`🎉 Bạn đã nhận được Thẻ giảm giá ${giftValue}%!`);
         }
-
-        // Xóa thư sau khi nhận quà thành công
         await db.ref(`inbox_messages/${currentUser.username}/${msgKey}`).remove();
-
     } catch (error) {
         console.error(error);
         alert("❌ Có lỗi xảy ra khi nhận quà. Vui lòng thử lại mạng!");
@@ -2718,8 +3097,8 @@ window.startExamFullscreen = async function () {
                 }
             });
 
-            // 2. Làm mờ & vô hiệu hóa các Tab ở Sidebar (Trừ tab hiện tại)
-            document.querySelectorAll('.nav-item').forEach(btn => {
+            // 2. Làm mờ & vô hiệu hóa các Tab ở Sidebar và nút Đăng xuất
+            document.querySelectorAll('.nav-item, .btn-logout').forEach(btn => {
                 if (!btn.classList.contains('active')) {
                     btn.style.opacity = '0.4';
                     btn.style.pointerEvents = 'none'; // Khóa click triệt để bằng CSS
@@ -2801,12 +3180,12 @@ document.addEventListener('fullscreenchange', () => {
 window.saveDraft = function (assignId, type, qIndex, value) {
     const draftKey = `draft_${currentUser.username}_${assignId}`;
     let draft;
-try {
-    draft = JSON.parse(localStorage.getItem(draftKey));
-    if (typeof draft !== 'object' || draft === null) draft = { mcAnswers: {}, essay: '' };
-} catch (e) {
-    draft = { mcAnswers: {}, essay: '' };
-}
+    try {
+        draft = JSON.parse(localStorage.getItem(draftKey));
+        if (typeof draft !== 'object' || draft === null) draft = { mcAnswers: {}, essay: '' };
+    } catch (e) {
+        draft = { mcAnswers: {}, essay: '' };
+    }
     if (type === 'mc') {
         draft.mcAnswers[qIndex] = value;
     } else if (type === 'essay') {
@@ -2823,6 +3202,46 @@ document.addEventListener('visibilitychange', () => {
         alert("⚠️ VI PHẠM BẢO MẬT: Bạn đã chuyển sang tab/cửa sổ khác! Hệ thống tự động thu bài ngay lập tức.");
         // Thu bài tự động và đánh dấu gian lận
         submitAssignment(window.currentActiveExamId, true, true);
+    }
+});
+
+// Bắt sự kiện chuyển Tab hoặc thu nhỏ trình duyệt (Code cũ của bạn)
+document.addEventListener('visibilitychange', () => {
+    if (window.isSelectingFile) return; // BỎ QUA BẮT LỖI NẾU ĐANG MỞ HỘP THOẠI FILE
+
+    if (document.hidden && window.currentActiveExamId) {
+        alert("⚠️ VI PHẠM BẢO MẬT: Bạn đã chuyển sang tab/cửa sổ khác! Hệ thống tự động thu bài ngay lập tức.");
+        // Thu bài tự động và đánh dấu gian lận
+        submitAssignment(window.currentActiveExamId, true, true);
+    }
+});
+
+// ==============================================================
+// ĐOẠN CODE FIX LỖI PHÍM WINDOWS VÀ HÌNH-TRONG-HÌNH (THÊM MỚI)
+// ==============================================================
+
+// 1. Bắt sự kiện nhấn phím Windows, mở Start Menu, thanh Taskbar (Mất tiêu điểm)
+window.addEventListener('blur', () => {
+    if (window.isSelectingFile) return;
+
+    // Ngoại lệ quan trọng: Không bắt lỗi nếu học sinh click vào Iframe (Video YouTube bài giảng)
+    if (document.activeElement && document.activeElement.tagName === 'IFRAME') return;
+
+    if (window.currentActiveExamId) {
+        alert("⚠️ VI PHẠM BẢO MẬT: Bạn đã mở ứng dụng khác hoặc bấm phím hệ thống (Windows/Alt+Tab)! Hệ thống tự động thu bài.");
+        submitAssignment(window.currentActiveExamId, true, true);
+        window.currentActiveExamId = null; // Reset cờ
+    }
+});
+
+// 2. Chặn gian lận bằng chế độ Hình-Trong-Hình (PiP)
+document.addEventListener('enterpictureinpicture', (e) => {
+    if (window.currentActiveExamId) {
+        // Tắt PiP ngay lập tức
+        document.exitPictureInPicture().catch(console.error);
+        alert("⚠️ VI PHẠM BẢO MẬT: Không được phép sử dụng Hình-trong-Hình (PiP) khi đang thi!");
+        submitAssignment(window.currentActiveExamId, true, true);
+        window.currentActiveExamId = null;
     }
 });
 
@@ -2903,4 +3322,470 @@ window.showRoyalBallRewards = function () {
 
     listContainer.innerHTML = html;
     document.getElementById('royalRewardsModal').classList.add('active');
+};
+
+// HÀM HIỂN THỊ THÔNG TIN CHI TIẾT THẺ GIẢM GIÁ ĐANG CHỌN
+window.showSelectedDiscountInfo = function () {
+    const select = document.getElementById('checkoutDiscount');
+    if (!select || select.selectedIndex <= 0 || select.value === "0") {
+        alert("Vui lòng nhấp vào ô bên dưới để chọn một thẻ giảm giá trước khi xem thông tin nhé!");
+        return;
+    }
+
+    const option = select.options[select.selectedIndex];
+    const percent = option.getAttribute('data-percent');
+    const expiry = option.getAttribute('data-expiry');
+    const targetStr = option.getAttribute('data-target');
+
+    let expiryText = expiry ? new Date(parseInt(expiry)).toLocaleString('vi-VN') : "Vĩnh viễn (Không bao giờ hết hạn)";
+
+    // Tách chuỗi và hiển thị dạng danh sách hoa thị (Bullet List) nếu có nhiều món
+    let targetText = "Tất cả vật phẩm (Mua bằng Coin) hiện có trong Cửa hàng.";
+    if (targetStr && targetStr !== 'all') {
+        const targetIds = targetStr.split(',');
+        const itemNamesHTML = targetIds.map(id => {
+            const itemDef = typeof StoreConfig !== 'undefined' ? StoreConfig.items.find(i => i.id === id) : null;
+            return itemDef ? `<li style="margin-bottom: 4px;">[${itemDef.tag}] ${itemDef.name}</li>` : '';
+        }).join('');
+
+        targetText = `Chỉ áp dụng khi mua:<br><ul style="color: #c0392b; padding-left: 20px; margin-top: 5px; max-height: 120px; overflow-y: auto; font-weight: bold;">${itemNamesHTML}</ul>`;
+    }
+
+    const infoHtml = `
+    <div id="discountInfoModal" class="modal-overlay" style="z-index: 9999999; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.4);">
+        <div style="background: white; padding: 20px; border-radius: 12px; width: 340px; max-width: 90%; text-align: left; box-shadow: 0 10px 25px rgba(0,0,0,0.3); border-left: 5px solid #00acc1; animation: scaleIn 0.2s ease;">
+            <h4 style="margin: 0 0 15px 0; color: #00838f; display: flex; align-items: center; gap: 8px; font-size: 1.2em;">ℹ️ Chi tiết Thẻ giảm giá</h4>
+            
+            <p style="margin: 0 0 10px 0; font-size: 0.95em; color: #444;"><strong>Mức giảm giá:</strong> <span style="color: #e11d48; font-weight: bold; font-size: 1.1em;">${percent}%</span></p>
+            <p style="margin: 0 0 10px 0; font-size: 0.95em; color: #444;"><strong>Hạn sử dụng:</strong> <span style="color: #d35400;">${expiryText}</span></p>
+            
+            <p style="margin: 0 0 15px 0; font-size: 0.95em; color: #444; line-height: 1.5;"><strong>Phạm vi áp dụng:</strong> <br><span style="color: #059669;">${targetText}</span></p>
+            
+            <button onclick="document.getElementById('discountInfoModal').remove()" style="width: 100%; padding: 12px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; font-weight: bold; color: #334155; cursor: pointer; transition: 0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">Đã hiểu & Đóng lại</button>
+        </div>
+    </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', infoHtml);
+};
+
+// ================= HỆ THỐNG TÚI ĐỒ NÂNG CẤP (GRID INVENTORY) =================
+let bagHoldTimeout = null;
+let isBagPopupOpen = false;
+
+window.openStudentBag = function () {
+    if (window.currentActiveExamId) {
+        window.showExamLockWarning("⚠️ Túi đồ tạm khóa khi đang thi!");
+        return;
+    }
+    renderStudentBag();
+    document.getElementById('studentBagModal').classList.add('active');
+};
+
+window.closeStudentBag = function () {
+    document.getElementById('studentBagModal').classList.remove('active');
+    closeBagItemPopup();
+};
+
+window.closeBagItemPopup = function () {
+    const popup = document.getElementById('bagItemPopup');
+    if (popup) popup.style.display = 'none';
+    isBagPopupOpen = false;
+};
+
+// Xử lý sự kiện khi bắt đầu nhấn (hỗ trợ cả Chuột và Cảm ứng điện thoại)
+window.handleBagSlotPressStart = function (e, itemDataStr) {
+    if (isBagPopupOpen) return;
+    const itemData = JSON.parse(decodeURIComponent(itemDataStr));
+
+    // Tạo hiệu ứng lún nhẹ khi ấn giữ nhấp chuột/màn hình
+    e.currentTarget.style.transform = 'scale(0.92)';
+    e.currentTarget.style.borderColor = '#8e44ad';
+    e.currentTarget.style.backgroundColor = '#faf5ff';
+
+    bagHoldTimeout = setTimeout(() => {
+        window.showBagItemPopup(itemData);
+        bagHoldTimeout = null;
+    }, 450); // Thời gian giữ im là 450ms để kích hoạt popup thông tin
+};
+
+// Xử lý sự kiện khi nhả tay hoặc di chuột ra ngoài
+window.handleBagSlotPressEnd = function (e) {
+    if (bagHoldTimeout) {
+        clearTimeout(bagHoldTimeout);
+        bagHoldTimeout = null;
+    }
+    e.currentTarget.style.transform = 'scale(1)';
+    e.currentTarget.style.borderColor = '#94a3b8';
+    e.currentTarget.style.backgroundColor = 'white';
+};
+
+// Hiển thị Popup chứa thông tin chi tiết và Nút Bán
+window.showBagItemPopup = function (item) {
+    isBagPopupOpen = true;
+    const popup = document.getElementById('bagItemPopup');
+    const content = document.getElementById('bagItemPopupContent');
+
+    let iconHtml = item.isImg
+        ? `<img src="${item.icon}" style="width: 65px; height: 65px; object-fit: contain; margin-bottom: 12px; filter: drop-shadow(0 3px 5px rgba(0,0,0,0.15));">`
+        : `<div style="font-size: 3.5em; margin-bottom: 10px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));">${item.icon}</div>`;
+
+    let actionButtonHtml = '';
+
+    // SỬA LẠI: Chỉ hiện nút bán khi thẻ ĐÃ HẾT HẠN (item.isExpired là true)
+    if (item.type === 'discount' && item.firebaseKeys && item.firebaseKeys.length > 0 && item.isExpired) {
+        actionButtonHtml = `
+            <button onclick="sellDiscountCardFromPopup('${item.firebaseKeys[0]}', ${item.percent}, ${item.sellPrice})" 
+                style="margin-top: 15px; width: 100%; background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%); border: none; padding: 10px; border-radius: 8px; font-weight: bold; color: white; cursor: pointer; box-shadow: 0 4px 10px rgba(107, 114, 128, 0.4); font-size: 0.95em; transition: 0.2s;">
+                ♻️ Bán thẻ hết hạn nhận lại +${item.sellPrice} Coin
+            </button>
+        `;
+    }
+
+    content.innerHTML = `
+        ${iconHtml}
+        <h4 style="margin: 0 0 10px 0; color: #8e44ad; font-size: 1.25em; font-weight: bold;">${item.name}</h4>
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; font-size: 0.88em; color: #475569; text-align: left; line-height: 1.4;">
+            ${item.description}
+            <p style="margin: 8px 0 0 0; font-weight: bold; color: #1e293b; border-top: 1px dashed #cbd5e1; padding-top: 6px; text-align: right;">
+                Xếp chồng: ${item.quantity}/50
+            </p>
+        </div>
+        ${actionButtonHtml}
+    `;
+
+    popup.style.display = 'block';
+};
+
+// Thực hiện giao dịch bán thẻ từ Popup thông tin
+window.sellDiscountCardFromPopup = async function (discountKey, percent, sellPrice) {
+    if (!confirm(`Bạn có chắc muốn thanh lý 1 tấm thẻ giảm giá ${percent}% này để lấy lại ${sellPrice} Coin không?`)) return;
+
+    try {
+        const coinRef = db.ref('student_coins/' + currentUser.username);
+        const snap = await coinRef.once('value');
+        const currentCoins = snap.val() || 0;
+
+        // Cộng coin thanh lý và gỡ thẻ khỏi cơ sở dữ liệu
+        await coinRef.set(currentCoins + sellPrice);
+        await db.ref(`student_discounts/${currentUser.username}/${discountKey}`).remove();
+
+        alert(`🎉 Thu gom thành công! Đã quy đổi thẻ thành +${sellPrice} Coin.`);
+        window.closeBagItemPopup();
+        renderStudentBag(); // Làm tươi lại lưới túi đồ
+    } catch (e) {
+        console.error("Lỗi giao dịch bán thẻ:", e);
+        alert("❌ Hệ thống gặp sự cố phản hồi. Vui lòng thử lại!");
+    }
+};
+
+// Khởi chạy quy trình gom nhóm và kết xuất túi đồ dạng lưới ô
+window.renderStudentBag = async function () {
+    const container = document.getElementById('studentBagBody');
+    container.innerHTML = '<div style="text-align:center; padding: 40px 10px; color: #888; font-style: italic;">⏳ Đang mở kho hành trang...</div>';
+
+    try {
+        // [ĐÃ SỬA LỖI] Gọi thẳng hàm window.calculateTotalTickets() để tính chính xác Vé thưởng + Vé làm bài - Vé đã quay
+        const [ticketData, discountSnap] = await Promise.all([
+            window.calculateTotalTickets(),
+            db.ref('student_discounts/' + currentUser.username).once('value')
+        ]);
+
+        let slotsData = [];
+        const now = Date.now();
+
+        // --- 1. XỬ LÝ GỘP Ô: VÉ QUAY MAY MẮN ---
+        // Sử dụng ticketData.remaining thay vì chỉ đọc mỗi vé quà tặng
+        let totalTickets = ticketData.remaining > 0 ? ticketData.remaining : 0;
+
+        while (totalTickets > 0) {
+            let count = Math.min(50, totalTickets);
+            slotsData.push({
+                type: 'ticket',
+                name: 'Vé quay may mắn',
+                icon: '🎫',
+                isImg: false,
+                quantity: count,
+                isExpired: false,
+                description: 'Vật phẩm tiêu hao dùng để tham gia lượt quay Gacha nhân phẩm tại Vòng Quay May Mắn.'
+            });
+            totalTickets -= count;
+        }
+
+        // --- 2. XỬ LÝ GỘP Ô: THẺ GIẢM GIÁ (HIỂN THỊ CẢ THẺ HẾT HẠN) ---
+        const discounts = discountSnap.val() || {};
+        let groupedDiscounts = {};
+
+        for (let key in discounts) {
+            let d = discounts[key];
+            if (d.isUsed) continue; // Bỏ qua nếu thẻ đã dùng xong
+
+            let targetStr = d.targetItem ? JSON.stringify(d.targetItem) : '["all"]';
+            // Nhóm theo phần trăm, hạn dùng và mục tiêu áp dụng
+            let groupKey = `${d.percent}_${d.expiry || 'permanent'}_${targetStr}`;
+
+            if (!groupedDiscounts[groupKey]) {
+                groupedDiscounts[groupKey] = {
+                    percent: d.percent,
+                    expiry: d.expiry || null,
+                    targetItem: d.targetItem || ['all'],
+                    keys: []
+                };
+            }
+            groupedDiscounts[groupKey].keys.push(key);
+        }
+
+        for (let gk in groupedDiscounts) {
+            let group = groupedDiscounts[gk];
+            let allKeys = group.keys;
+            let totalVouchers = allKeys.length;
+            let index = 0;
+
+            while (totalVouchers > 0) {
+                let count = Math.min(50, totalVouchers);
+                let currentChunkKeys = allKeys.slice(index, index + count);
+
+                let isExpired = group.expiry && now > group.expiry;
+                let expText = group.expiry ? new Date(group.expiry).toLocaleString('vi-VN') : 'Vĩnh viễn';
+                if (isExpired) expText = '<span style="color: #e11d48; font-weight: bold;">Đã hết hạn</span>';
+
+                let targetText = "Áp dụng toàn bộ Cửa hàng";
+                if (group.targetItem && !group.targetItem.includes('all')) {
+                    targetText = `Áp dụng giới hạn cho một số vật phẩm chỉ định`;
+                }
+
+                let sellPrice = Math.max(1, Math.min(10, Math.floor(group.percent / 10)));
+
+                slotsData.push({
+                    type: 'discount',
+                    name: `Thẻ giảm giá ${group.percent}%`,
+                    icon: '🏷️',
+                    isImg: false,
+                    quantity: count,
+                    percent: group.percent,
+                    expiry: group.expiry,
+                    isExpired: isExpired,
+                    sellPrice: sellPrice,
+                    firebaseKeys: currentChunkKeys,
+                    description: `🏷️ <b>Mức giảm:</b> ${group.percent}%<br>🕒 <b>Hạn dùng:</b> ${expText}<br>🎯 <b>Phạm vi:</b> ${targetText}`
+                });
+
+                index += count;
+                totalVouchers -= count;
+            }
+        }
+
+        // Tạo sẵn các ô trống tối thiểu (24 ô lưới vuông) giúp giao diện cân đối
+        const minSlots = 24;
+        while (slotsData.length < minSlots) {
+            slotsData.push({ type: 'empty' });
+        }
+
+        // --- 3. RENDER GIAO DIỆN LƯỚI Ô ĐỒ ---
+        let gridHtml = '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(75px, 1fr)); gap: 10px; padding: 4px;">';
+
+        slotsData.forEach(slot => {
+            if (slot.type === 'empty') {
+                gridHtml += `
+                    <div style="background: #f1f5f9; border: 2px dashed #cbd5e1; border-radius: 10px; aspect-ratio: 1 / 1; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);"></div>
+                `;
+            } else {
+                let innerGraphic = slot.isImg
+                    ? `<img src="${slot.icon}" style="width: 75%; height: 75%; object-fit: contain; pointer-events: none;">`
+                    : `<span style="font-size: 2em; pointer-events: none; user-select: none;">${slot.icon}</span>`;
+
+                let quantityBadge = `
+                    <div style="position: absolute; bottom: 4px; right: 4px; background: rgba(30, 41, 59, 0.85); color: white; font-size: 0.72em; font-weight: bold; padding: 1px 5px; border-radius: 4px; pointer-events: none; z-index: 2; font-family: monospace;">
+                        ${slot.quantity}
+                    </div>
+                `;
+
+                let expiredBadge = slot.isExpired ? `
+                    <div style="position: absolute; top: 4px; left: 4px; background: #e11d48; color: white; font-size: 0.58em; font-weight: bold; padding: 2px 4px; border-radius: 4px; z-index: 3; box-shadow: 0 1px 3px rgba(0,0,0,0.15); line-height: 1; transform: scale(0.95); transform-origin: top left; letter-spacing: -0.2px;">
+                        Hết hạn
+                    </div>
+                ` : '';
+
+                let slotBg = slot.isExpired ? '#f8fafc' : 'white';
+                let slotBorder = slot.isExpired ? '#cbd5e1' : '#94a3b8';
+                let slotOpacity = slot.isExpired ? '0.65' : '1';
+
+                let itemStr = encodeURIComponent(JSON.stringify(slot));
+
+                gridHtml += `
+                    <div class="bag-inventory-slot"
+                         onmousedown="window.handleBagSlotPressStart(event, '${itemStr}')"
+                         onmouseup="window.handleBagSlotPressEnd(event)"
+                         onmouseleave="window.handleBagSlotPressEnd(event)"
+                         ontouchstart="window.handleBagSlotPressStart(event, '${itemStr}')"
+                         ontouchend="window.handleBagSlotPressEnd(event)"
+                         style="background: ${slotBg}; border: 2px solid ${slotBorder}; opacity: ${slotOpacity}; border-radius: 10px; aspect-ratio: 1 / 1; position: relative; display: flex; justify-content: center; align-items: center; cursor: pointer; user-select: none; -webkit-user-select: none; transition: transform 0.1s ease, background-color 0.1s ease, border-color 0.1s ease; box-shadow: 0 3px 6px rgba(0,0,0,0.04);">
+                        ${expiredBadge}
+                        ${innerGraphic}
+                        ${quantityBadge}
+                    </div>
+                `;
+            }
+        });
+
+        gridHtml += '</div>';
+        container.innerHTML = gridHtml;
+
+    } catch (error) {
+        console.error("Lỗi kết xuất túi lưới đồ: ", error);
+        container.innerHTML = '<p style="color: #e11d48; text-align: center; padding: 20px;">❌ Gặp sự cố nạp dữ liệu lưới đồ.</p>';
+    }
+};
+
+// =========================================================================
+// CHỨC NĂNG YÊU CẦU LẤY TIỀN MẶT - PHÍA HỌC SINH (CÁCH 2)
+// =========================================================================
+
+// Hàm hiển thị danh sách lịch sử yêu cầu rút tiền của học sinh
+async function renderCashRequestHistory() {
+    const container = document.getElementById('cashRequestHistoryContainer');
+    if (!container) return;
+
+    try {
+        const allRequests = await getDB('cash_requests');
+        const now = Date.now();
+        const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000;
+        const myRequests = [];
+
+        // Lọc yêu cầu của học sinh hiện tại VÀ tự động xóa cái quá 2 ngày
+        for (let req of allRequests) {
+            if (req.studentName === currentUser.name) {
+                if (req.status === 'completed' || req.status === 'rejected') {
+                    const checkTime = req.resolvedAt || req.timestamp;
+                    if (now - checkTime > TWO_DAYS_MS) {
+                        // Xóa vĩnh viễn khỏi Firebase để tránh nặng data
+                        await removeDB('cash_requests', req._fbKey);
+                        continue; // Bỏ qua không hiển thị vào danh sách
+                    }
+                }
+                myRequests.push(req);
+            }
+        }
+
+        if (myRequests.length === 0) {
+            container.innerHTML = '<p style="color: #94a3b8; font-size: 0.9em; margin: 0; text-align: center; padding: 10px;">Chưa có yêu cầu lấy tiền mặt nào.</p>';
+            return;
+        }
+
+        let html = '';
+        // Đảo thứ tự để yêu cầu mới nhất hiện lên trên đầu
+        myRequests.reverse().forEach(req => {
+            let statusBadge = '';
+            let note = '';
+
+            if (req.status === 'pending') {
+                statusBadge = '<span style="background: #fef3c7; color: #d97706; padding: 3px 8px; border-radius: 4px; font-weight: 500; font-size: 0.85em;">⏳ Đang chờ duyệt</span>';
+            } else if (req.status === 'transferring') {
+                statusBadge = '<span style="background: #e0f2fe; color: #0284c7; padding: 3px 8px; border-radius: 4px; font-weight: 500; font-size: 0.85em;">🔄 Đang chuyển</span>';
+                note = '<p style="margin: 5px 0 0 0; font-size: 0.85em; color: #64748b; font-style: italic;">👉 Ghi chú: Tiền sẽ được chuyển đến trong 2-3 ngày</p>';
+            } else if (req.status === 'completed') {
+                statusBadge = '<span style="background: #dcfce7; color: #16a34a; padding: 3px 8px; border-radius: 4px; font-weight: 500; font-size: 0.85em;">✅ Đã hoàn tất yêu cầu</span>';
+            } else if (req.status === 'rejected') {
+                statusBadge = '<span style="background: #fee2e2; color: #dc2626; padding: 3px 8px; border-radius: 4px; font-weight: 500; font-size: 0.85em;">❌ Bị từ chối</span>';
+            }
+
+            html += `
+                <div style="background: white; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+                        <span style="font-weight: 600; color: #1e293b;">${req.amount.toLocaleString('vi-VN')} VNĐ</span>
+                        ${statusBadge}
+                    </div>
+                    <div style="font-size: 0.8em; color: #94a3b8; margin-top: 4px;">Thời gian: ${new Date(req.timestamp).toLocaleString('vi-VN')}</div>
+                    ${note}
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+    } catch (error) {
+        console.error("Lỗi khi tải lịch sử rút tiền:", error);
+        container.innerHTML = '<p style="color: #dc2626; font-size: 0.85em; padding: 5px; margin: 0;">Lỗi tải dữ liệu lịch sử!</p>';
+    }
+}
+
+// HÀM MỚI: Tính toán chính xác Tổng tiền lộ trình thời gian thực
+window.calculateCurrentRouteMoney = async function () {
+    let baseMoney = 0;
+    const assignments = await getDB('assignments');
+    const submissions = await getDB('submissions');
+    const myAssignments = assignments.filter(assign => assign.targetStudent === 'all' || assign.targetStudent === currentUser.username);
+
+    myAssignments.forEach(assign => {
+        const passingGrade = assign.passingGrade || 7;
+        const sub = submissions.find(s => s.assignmentId === assign.id && s.studentUsername === currentUser.username);
+        let currentItemMoney = assign.roadmapMoney ? parseInt(assign.roadmapMoney) : 0;
+
+        if (sub) {
+            if (sub.forcePass) baseMoney += currentItemMoney;
+            else if (!sub.isAutoSubmitted && !sub.isLateFail && !sub.isRegrading && sub.grade !== null && sub.grade !== '') {
+                if (parseFloat(sub.grade) >= passingGrade) baseMoney += currentItemMoney;
+            }
+        }
+    });
+
+    // Cộng trừ với lịch sử quy đổi Coin (offset)
+    const offsetSnap = await db.ref('student_money_offset/' + currentUser.username).once('value');
+    let moneyOffset = offsetSnap.val() || 0;
+
+    let currentMoney = baseMoney + moneyOffset;
+    return currentMoney < 0 ? 0 : currentMoney;
+};
+
+// HÀM MỚI: Khởi tạo giao diện (Đã fix lỗi hiện 0 VNĐ)
+window.initCashWithdrawInterface = async function () {
+    // Gọi hàm tính tiền thực tế ở trên
+    const totalRouteMoney = await window.calculateCurrentRouteMoney();
+
+    const displayEl = document.getElementById('displayRouteMoney');
+    if (displayEl) {
+        displayEl.innerText = totalRouteMoney.toLocaleString('vi-VN');
+    }
+
+    // Tải danh sách lịch sử yêu cầu
+    renderCashRequestHistory();
+};
+
+// HÀM MỚI: Xử lý gửi yêu cầu (Đã fix lỗi lấy sai số dư)
+window.handleRequestCashSubmit = async function () {
+    const inputEl = document.getElementById('inputWithdrawAmount');
+    if (!inputEl) return;
+
+    const amount = parseInt(inputEl.value);
+
+    // Lấy số tiền thực tế vào đúng thời điểm học sinh bấm Gửi
+    const totalRouteMoney = await window.calculateCurrentRouteMoney();
+
+    if (isNaN(amount) || amount <= 0) {
+        alert("⚠️ Vui lòng nhập số tiền mặt muốn lấy hợp lệ!");
+        return;
+    }
+
+    if (amount > totalRouteMoney) {
+        alert(`⚠️ Số tiền yêu cầu (${amount.toLocaleString('vi-VN')} VNĐ) vượt quá Tổng tiền tích lũy lộ trình hiện tại (${totalRouteMoney.toLocaleString('vi-VN')} VNĐ)!`);
+        return;
+    }
+
+    if (!confirm(`Bạn có chắc chắn muốn gửi yêu cầu lấy ${amount.toLocaleString('vi-VN')} VNĐ về giáo viên không?`)) {
+        return;
+    }
+
+    try {
+        await pushDB('cash_requests', {
+            studentName: currentUser.name,
+            amount: amount,
+            status: 'pending',
+            timestamp: Date.now()
+        });
+
+        alert("🎉 Gửi yêu cầu thành công! Vui lòng đợi giáo viên xét duyệt.");
+        inputEl.value = '';
+        renderCashRequestHistory();
+    } catch (error) {
+        console.error("Lỗi gửi yêu cầu tiền mặt:", error);
+        alert("❌ Đã xảy ra lỗi kết nối khi gửi yêu cầu.");
+    }
 };
