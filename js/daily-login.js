@@ -101,9 +101,9 @@ class DailyLoginManager {
         }
 
         let summaryHtml = '';
-        
+
         // Sắp xếp các tuần: Mới nhất lên trên
-        const sortedWeeks = Object.keys(allWeeks).sort((a, b) => b.localeCompare(a)); 
+        const sortedWeeks = Object.keys(allWeeks).sort((a, b) => b.localeCompare(a));
 
         sortedWeeks.forEach(weekId => {
             const config = allWeeks[weekId];
@@ -222,7 +222,7 @@ class DailyLoginManager {
     static async openTeacherModal(weekId = null, isRefresh = false) {
         let config = {};
         const dateInput = document.getElementById('dl-week-start-date');
-        
+
         if (weekId) {
             // Mở từ danh sách đã lưu (Chế độ Edit)
             const snap = await db.ref(`game_settings/daily_login_weeks/${weekId}`).once('value');
@@ -235,7 +235,7 @@ class DailyLoginManager {
                 dateInput.value = this.getLocalDateString(new Date());
             }
             dateInput.disabled = false;
-            
+
             // Tự động tải dữ liệu của tuần vừa chọn (nếu có trên Firebase)
             const targetWeekId = this.getWeekId(new Date(dateInput.value));
             const snap = await db.ref(`game_settings/daily_login_weeks/${targetWeekId}`).once('value');
@@ -256,7 +256,7 @@ class DailyLoginManager {
 
         this.daysOfWeek.forEach(day => {
             const currentSetting = config[`day_${day.id}`] || { type: 'coin', value: 100 };
-            
+
             const typeSelect = document.getElementById(`dl-type-${day.id}`);
             const numInput = document.getElementById(`dl-value-number-${day.id}`);
             const itemInput = document.getElementById(`dl-value-item-${day.id}`);
@@ -264,7 +264,7 @@ class DailyLoginManager {
             const label = row.querySelector('.dl-day-label');
 
             typeSelect.value = currentSetting.type;
-            this.toggleTeacherInput(day.id); 
+            this.toggleTeacherInput(day.id);
 
             if (currentSetting.type === 'item') {
                 itemInput.value = currentSetting.value;
@@ -275,11 +275,11 @@ class DailyLoginManager {
             let isPastDay = false;
             // Nếu là tuần cũ -> Khóa tất cả
             if (selectedWeekId < currentWeekId) {
-                isPastDay = true; 
-            } 
+                isPastDay = true;
+            }
             // Nếu là tuần này -> Khóa các ngày trước hôm nay
             else if (selectedWeekId === currentWeekId && day.id < todayInfo.dayOfWeek) {
-                isPastDay = true; 
+                isPastDay = true;
             }
 
             if (isPastDay) {
@@ -287,7 +287,7 @@ class DailyLoginManager {
                 numInput.disabled = true;
                 itemInput.disabled = true;
                 row.style.opacity = '0.5';
-                row.style.pointerEvents = 'none'; 
+                row.style.pointerEvents = 'none';
                 if (!label.innerHTML.includes('Đã qua')) {
                     label.innerHTML = `${day.name} <br><span style="font-size:0.75em; color:#e11d48; font-weight:bold;">(Đã qua)</span>`;
                 }
@@ -325,10 +325,10 @@ class DailyLoginManager {
     static async saveConfig() {
         const dateVal = document.getElementById('dl-week-start-date').value;
         if (!dateVal) return alert("Vui lòng chọn ngày để hệ thống định vị Tuần đăng nhập!");
-        
+
         const selectedDate = new Date(dateVal);
         const weekId = this.getWeekId(selectedDate); // Tự động quy về Thứ 2
-        
+
         const config = { weekId: weekId, isTestMode: document.getElementById('dlTestModeToggle').checked };
 
         for (let day of this.daysOfWeek) {
@@ -347,15 +347,15 @@ class DailyLoginManager {
         }
 
         await db.ref(`game_settings/daily_login_weeks/${weekId}`).set(config);
-        
+
         this.closeTeacherModal();
-        this.loadAndRenderTeacherDisplay(); 
+        this.loadAndRenderTeacherDisplay();
         alert(`✅ Đã lưu cấu hình cho Tuần [${weekId}] thành công!`);
     }
 
     static async deleteConfig(weekId) {
         if (!confirm(`Bạn có chắc chắn muốn xóa sự kiện Đăng Nhập của tuần [${weekId}] không?`)) return;
-        
+
         await db.ref(`game_settings/daily_login_weeks/${weekId}`).remove();
         this.loadAndRenderTeacherDisplay();
         alert('🗑 Đã xóa sự kiện thành công!');
@@ -369,29 +369,56 @@ class DailyLoginManager {
         const today = this.getTodayInfo();
         const currentWeekId = this.getWeekId();
 
-        // Tải cấu hình CỦA TUẦN HIỆN TẠI (Đã được nâng cấp để trỏ vào thư mục mới)
-        const [configSnap, historySnap] = await Promise.all([
-            db.ref(`game_settings/daily_login_weeks/${currentWeekId}`).once('value'),
-            db.ref(`student_daily_login/${username}`).once('value')
-        ]);
-
-        const config = configSnap.val();
-
-        // Không có dữ liệu của tuần này -> Thoát
-        if (!config || config.weekId !== currentWeekId) return;
-
-        let history = historySnap.val() || { lastClaimDate: '', weekId: '' };
-
-        if (history.weekId !== currentWeekId) {
-            history = { lastClaimDate: '', weekId: currentWeekId };
+        if (localStorage.getItem(`hide_dl_popup_${username}_${today.dateString}`)) {
+            return; // Đã tick thì thoát luôn, không tải dữ liệu và không hiện popup
         }
 
-        if (config.isTestMode || history.lastClaimDate !== today.dateString) {
-            this.showStudentPopup(username, config, today, history);
+        // 1. Tải TOÀN BỘ cấu hình các tuần thay vì chỉ tuần hiện tại
+        const weeksSnap = await db.ref(`game_settings/daily_login_weeks`).once('value');
+        const allWeeks = weeksSnap.val() || {};
+
+        let targetWeekId = null;
+        let config = null;
+        let isUpcomingWeek = false;
+
+        // 2. Tìm tuần ưu tiên hiển thị
+        if (allWeeks[currentWeekId]) {
+            targetWeekId = currentWeekId; // Ưu tiên tuần hiện tại
+            config = allWeeks[currentWeekId];
+        } else {
+            // Nếu không có tuần hiện tại, tìm tuần SẮP DIỄN RA gần nhất
+            const upcomingWeeks = Object.keys(allWeeks).filter(w => w > currentWeekId).sort();
+            if (upcomingWeeks.length > 0) {
+                targetWeekId = upcomingWeeks[0];
+                config = allWeeks[targetWeekId];
+                isUpcomingWeek = true; // Cắm cờ đây là tuần của tương lai
+            }
+        }
+
+        // Không có dữ liệu của tuần này và cũng không có tuần tới -> Thoát
+        if (!config) return;
+
+        const historySnap = await db.ref(`student_daily_login/${username}`).once('value');
+        let history = historySnap.val() || { lastClaimDate: '', weekId: '' };
+
+        if (history.weekId !== targetWeekId) {
+            history = { lastClaimDate: '', weekId: targetWeekId };
+        }
+
+        // 3. Logic hiển thị
+        if (isUpcomingWeek) {
+            // Nếu là tuần tương lai, chỉ hiện 1 lần duy nhất trong phiên đăng nhập để tránh spam khi học sinh F5
+            if (!sessionStorage.getItem(`seen_upcoming_${targetWeekId}`)) {
+                sessionStorage.setItem(`seen_upcoming_${targetWeekId}`, 'true');
+                this.showStudentPopup(username, config, today, history, isUpcomingWeek);
+            }
+        } else if (config.isTestMode || history.lastClaimDate !== today.dateString) {
+            // Logic cũ cho tuần hiện tại
+            this.showStudentPopup(username, config, today, history, false);
         }
     }
 
-    static showStudentPopup(username, config, today, history) {
+    static showStudentPopup(username, config, today, history, isUpcomingWeek = false) {
         let cardsHtml = '';
         const isTestMode = config.isTestMode === true;
 
@@ -400,14 +427,16 @@ class DailyLoginManager {
             if (!reward) return;
 
             let isClaimed = history[`claimed_day_${day.id}`] === true;
-            let isPast = day.id < today.dayOfWeek;
-            let isCurrent = day.id === today.dayOfWeek;
+
+            // XỬ LÝ CHÍNH: Nếu là tuần sắp diễn ra -> Ép tất cả thành Chưa đến ngày
+            let isPast = !isUpcomingWeek && (day.id < today.dayOfWeek);
+            let isCurrent = !isUpcomingWeek && (day.id === today.dayOfWeek);
 
             let stateClass = '';
             let btnHtml = '';
 
             if (isClaimed) {
-                stateClass = 'dl-past'; 
+                stateClass = 'dl-past';
                 btnHtml = `<div class="dl-status-text" style="color: #10b981; font-weight: 900; margin-top: 15px; font-size: 0.9em;">✅ Đã nhận</div>`;
             } else if (isPast) {
                 stateClass = 'dl-past';
@@ -446,18 +475,33 @@ class DailyLoginManager {
             ? `<div style="position: absolute; top: 0; left: 0; width: 100%; background: #f59e0b; color: white; padding: 6px 0; text-align: center; font-weight: bold; font-size: 0.85em; z-index: 10; border-top-left-radius: 20px; border-top-right-radius: 20px; letter-spacing: 0.5px;">🛠️ ĐANG BẬT CHẾ ĐỘ THỬ NGHIỆM (NHẬN QUÀ ẢO) 🛠️</div>`
             : '';
 
+        // Tùy chỉnh câu chào mừng dựa theo việc tuần đó đang diễn ra hay ở tương lai
+        const titleText = isUpcomingWeek ? `✨ Xem Trước Quà Tuần Tới ✨` : `✨ Quà Đăng Nhập Tuần ✨`;
+        const subtitleText = isUpcomingWeek ? `Sự kiện điểm danh tuần sau (từ ${config.weekId}) sắp bắt đầu, hãy xem qua nhé!` : `Chào mừng trở lại! Hãy nhận phần thưởng của ngày hôm nay nhé.`;
+
+        const hideTodayHtml = `
+            <div style="margin-top: 20px; text-align: center;">
+                <label style="cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.9em; color: #666; background: rgba(0,0,0,0.03); padding: 8px 15px; border-radius: 20px; border: 1px solid rgba(0,0,0,0.05); transition: 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.08)'" onmouseout="this.style.background='rgba(0,0,0,0.03)'">
+                    <input type="checkbox" onchange="DailyLoginManager.toggleHideToday('${username}', '${today.dateString}', this.checked)" style="margin: 0; width: 16px; height: 16px; cursor: pointer;">
+                    Không hiển thị lại thông báo này trong hôm nay
+                </label>
+            </div>
+        `;
+
         const modalHtml = `
             <div id="dl-student-modal" class="dl-overlay">
                 <div class="dl-modal-content dl-student-content" style="position: relative;">
                     ${testModeBanner}
                     <button class="dl-close-btn" onclick="document.getElementById('dl-student-modal').remove()" style="z-index: 20;">✖</button>
                     <div class="dl-header-glow"></div>
-                    <h1 class="dl-title" style="${isTestMode ? 'margin-top: 35px;' : ''}">✨ Quà Đăng Nhập Tuần ✨</h1>
-                    <p class="dl-subtitle">Chào mừng trở lại! Hãy nhận phần thưởng của ngày hôm nay nhé.</p>
+                    <h1 class="dl-title" style="${isTestMode ? 'margin-top: 35px;' : ''}">${titleText}</h1>
+                    <p class="dl-subtitle">${subtitleText}</p>
                     
                     <div class="dl-cards-container">
                         ${cardsHtml}
                     </div>
+                    
+                    ${hideTodayHtml} <!-- Gắn UI vào đây -->
                 </div>
             </div>
         `;
@@ -487,7 +531,7 @@ class DailyLoginManager {
                     return { weekId: currentWeekId, lastClaimDate: dateString, [`claimed_day_${dayId}`]: true };
                 }
                 if (currentData[`claimed_day_${dayId}`]) {
-                    return undefined; 
+                    return undefined;
                 }
                 currentData.lastClaimDate = dateString;
                 currentData[`claimed_day_${dayId}`] = true;
@@ -525,6 +569,15 @@ class DailyLoginManager {
             alert("❌ Có lỗi xảy ra khi nhận quà. Vui lòng thử lại!");
             btn.innerHTML = 'Nhận Quà';
             btn.disabled = false;
+        }
+    }
+
+    static toggleHideToday(username, dateString, isChecked) {
+        const storageKey = `hide_dl_popup_${username}_${dateString}`;
+        if (isChecked) {
+            localStorage.setItem(storageKey, 'true');
+        } else {
+            localStorage.removeItem(storageKey);
         }
     }
 }
