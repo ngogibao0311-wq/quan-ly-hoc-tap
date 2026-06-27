@@ -93,10 +93,18 @@
                         <div class="form-group"><label for="endDate"><strong>Hạn nộp bài:</strong></label><input
                                 type="datetime-local" id="endDate"></div>
                     </div>
-                    <label for="targetStudent"><strong>Giao cho học sinh:</strong></label>
-                    <select id="targetStudent">
-                        <option value="all">Tất cả học sinh</option>
-                    </select>
+                    <label><strong>Giao cho học sinh:</strong></label>
+                    <div class="custom-student-select">
+                        <div class="css-select-trigger" onclick="openCustomStudentSelect('targetStudent')">
+                            <span id="targetStudent_displayText">Tất cả học sinh</span>
+                            <span style="color: #9ca3af; font-size: 12px;">▼</span>
+                        </div>
+                        <select id="targetStudent" multiple style="display: none;">
+                            <option value="all" selected>Tất cả học sinh</option>
+                        </select>
+                    </div>
+                    <p style="margin: 5px 0 15px 0; font-size: 0.85em; color: #d35400;">💡 <strong>Mẹo:</strong> Giữ
+                        phím <strong>Ctrl</strong> (hoặc kéo thả trên điện thoại) để chọn nhiều học sinh cùng lúc.</p>
 
                     <div id="tracNghiemFields"
                         style="display: none; background: rgba(255,255,255,0.4); padding: 15px; border-radius: 12px; margin-top: 15px; border: 1px solid rgba(255,255,255,0.8);">
@@ -730,10 +738,17 @@
 
                     <div id="giftInputArea" style="display: none; animation: fadeInUp 0.4s ease;">
                         <label><strong>Gửi đến:</strong></label>
-                        <select id="giftTargetStudent"
-                            style="background: white; margin-bottom: 15px; font-weight: bold;">
-                            <option value="all">Tất cả học sinh</option>
-                        </select>
+                        <div class="custom-student-select">
+                            <div class="css-select-trigger" onclick="openCustomStudentSelect('giftTargetStudent')">
+                                <span id="giftTargetStudent_displayText">Tất cả học sinh</span>
+                                <span style="color: #9ca3af; font-size: 12px;">▼</span>
+                            </div>
+                            <select id="giftTargetStudent" multiple style="display: none;">
+                                <option value="all" selected>Tất cả học sinh</option>
+                            </select>
+                        </div>
+                        <p style="margin: 0 0 15px 0; font-size: 0.85em; color: #d35400;">💡 Giữ <strong>Ctrl</strong>
+                            để chọn nhiều.</p>
 
                         <label><strong>Lời nhắn (Không bắt buộc nếu có quà):</strong></label>
                         <textarea id="giftMessage" placeholder="Nhập lời chúc hoặc tin nhắn gửi đến học sinh..."
@@ -800,10 +815,18 @@
                             có):</strong></label>
                     <input type="text" id="materialLinkInput" placeholder="Dán link chia sẻ tài liệu vào đây...">
 
-                    <label for="materialTargetStudent"><strong>Giao cho học sinh:</strong></label>
-                    <select id="materialTargetStudent" style="margin-bottom: 15px;">
-                        <option value="all">Tất cả học sinh</option>
-                    </select>
+                    <label><strong>Giao cho học sinh:</strong></label>
+                    <div class="custom-student-select">
+                        <div class="css-select-trigger" onclick="openCustomStudentSelect('materialTargetStudent')">
+                            <span id="materialTargetStudent_displayText">Tất cả học sinh</span>
+                            <span style="color: #9ca3af; font-size: 12px;">▼</span>
+                        </div>
+                        <select id="materialTargetStudent" multiple style="display: none;">
+                            <option value="all" selected>Tất cả học sinh</option>
+                        </select>
+                    </div>
+                    <p style="margin: 0 0 15px 0; font-size: 0.85em; color: #d35400;">💡 Giữ <strong>Ctrl</strong> để
+                        chọn nhiều.</p>
 
                     <button onclick="createMaterial()"
                         style="margin-top: 20px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">Đăng
@@ -830,10 +853,18 @@
                             có):</strong></label>
                     <input type="text" id="editMaterialLinkInput" placeholder="Dán link chia sẻ tài liệu mới...">
 
-                    <label for="editMaterialTargetStudent"><strong>Giao cho học sinh:</strong></label>
-                    <select id="editMaterialTargetStudent" style="margin-bottom: 15px;">
-                        <option value="all">Tất cả học sinh</option>
-                    </select>
+                    <label><strong>Giao cho học sinh:</strong></label>
+                    <div class="custom-student-select">
+                        <div class="css-select-trigger" onclick="openCustomStudentSelect('editMaterialTargetStudent')">
+                            <span id="editMaterialTargetStudent_displayText">Tất cả học sinh</span>
+                            <span style="color: #9ca3af; font-size: 12px;">▼</span>
+                        </div>
+                        <select id="editMaterialTargetStudent" multiple style="display: none;">
+                            <option value="all" selected>Tất cả học sinh</option>
+                        </select>
+                    </div>
+                    <p style="margin: 0 0 15px 0; font-size: 0.85em; color: #d35400;">💡 Giữ <strong>Ctrl</strong> để
+                        chọn nhiều.</p>
 
                     <button onclick="saveMaterialEdit()"
                         style="margin-top: 20px; background: linear-gradient(135deg, #f6d365 0%, #fda085 100%); color: #fff;">
@@ -863,10 +894,17 @@
                     <input type="text" id="scheduleNote" placeholder="VD: Nhớ mang theo máy tính bỏ túi...">
 
                     <label style="margin-top: 15px; display: block;"><strong>Áp dụng cho học sinh:</strong></label>
-                    <select id="scheduleTargetStudent"
-                        style="margin-bottom: 15px; width: 100%; padding: 10px; border-radius: 8px;">
-                        <option value="all">Tất cả học sinh</option>
-                    </select>
+                    <div class="custom-student-select">
+                        <div class="css-select-trigger" onclick="openCustomStudentSelect('scheduleTargetStudent')">
+                            <span id="scheduleTargetStudent_displayText">Tất cả học sinh</span>
+                            <span style="color: #9ca3af; font-size: 12px;">▼</span>
+                        </div>
+                        <select id="scheduleTargetStudent" multiple style="display: none;">
+                            <option value="all" selected>Tất cả học sinh</option>
+                        </select>
+                    </div>
+                    <p style="margin: 0 0 15px 0; font-size: 0.85em; color: #d35400;">💡 Giữ <strong>Ctrl</strong> để
+                        chọn nhiều.</p>
 
                     <button onclick="saveSchedule()"
                         style="margin-top: 20px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">Lưu
@@ -968,11 +1006,19 @@
                                     <input type="datetime-local" id="editEndDate" style="background: white;">
                                 </div>
                             </div>
-                            <label for="editTargetStudent" style="margin-top: 15px; display: block;"><strong>Giao cho
-                                    học sinh:</strong></label>
-                            <select id="editTargetStudent" style="background: white;">
-                                <option value="all">Tất cả học sinh</option>
-                            </select>
+                            <label style="margin-top: 15px; display: block;"><strong>Giao cho học sinh:</strong></label>
+                            <div class="custom-student-select">
+                                <div class="css-select-trigger" onclick="openCustomStudentSelect('editTargetStudent')">
+                                    <span id="editTargetStudent_displayText">Tất cả học sinh</span>
+                                    <span style="color: #9ca3af; font-size: 12px;">▼</span>
+                                </div>
+                                <select id="editTargetStudent" multiple style="display: none;">
+                                    <option value="all" selected>Tất cả học sinh</option>
+                                </select>
+                            </div>
+                            <p style="margin: 5px 0 15px 0; font-size: 0.85em; color: #d35400;">💡 Giữ
+                                <strong>Ctrl</strong> để chọn nhiều.
+                            </p>
                         </div>
 
                         <div id="editScoreWeightFields"
@@ -1072,6 +1118,27 @@
                         style="color: #11998e; margin-bottom: 20px; border-bottom: 2px solid rgba(0,0,0,0.1); padding-bottom: 10px;">
                         📊 Kết quả Khảo sát</h3>
                     <div id="surveyResultsContent" style="max-height: 65vh; overflow-y: auto; padding-right: 10px;">
+                    </div>
+                </div>
+            </div>
+
+            <div class="student-modal-overlay" id="customStudentModal">
+                <div class="student-modal-box">
+                    <div class="student-modal-header">
+                        <div class="student-search-box">
+                            <span style="color: #9ca3af;">🔍</span>
+                            <input type="text" id="customStudentSearch" placeholder="Tìm kiếm học sinh..."
+                                onkeyup="filterCustomStudentList()">
+                        </div>
+                    </div>
+
+                    <div class="student-modal-list" id="customStudentList">
+                    </div>
+
+                    <div class="student-modal-footer">
+                        <button type="button" class="btn-cancel" onclick="closeCustomStudentSelect()">Đóng</button>
+                        <button type="button" class="btn-confirm" onclick="confirmCustomStudentSelect()">Xác
+                            nhận</button>
                     </div>
                 </div>
             </div>

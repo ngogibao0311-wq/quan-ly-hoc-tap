@@ -349,7 +349,7 @@ window.onload = async function () {
     // =================================================================
     // ĐỒNG BỘ TIỀN TÍCH LŨY VÀ TRẠNG THÁI RÚT TIỀN THEO THỜI GIAN THỰC
     // =================================================================
-    
+
     // 1. Lắng nghe biến động tiền bù trừ (Giáo viên tặng/trừ tiền hoặc rút tiền)
     db.ref('student_money_offset/' + currentUser.username).on('value', async () => {
         // Cập nhật bảng lộ trình & Tổng tiền bên ngoài
@@ -450,7 +450,10 @@ async function loadAssignments() {
     // --- KẾT THÚC LOGIC SẮP XẾP ---
 
     assignments.forEach(assign => {
-        if (assign.targetStudent !== 'all' && assign.targetStudent !== currentUser.username) return;
+        // [THÊM MỚI] Xử lý mảng đối tượng học sinh
+        const targetArr = Array.isArray(assign.targetStudent) ? assign.targetStudent : [assign.targetStudent || 'all'];
+        if (!targetArr.includes('all') && !targetArr.includes(currentUser.username)) return;
+        
         const mySub = submissions.find(s => s.assignmentId === assign.id && s.studentUsername === currentUser.username);
 
         const now = new Date();
@@ -748,7 +751,7 @@ async function loadAssignments() {
                 let tuLuanInputHTML = '';
 
                 if (assign.assessmentType === 'tu_luan' || assign.assessmentType === 'ket_hop' || assign.assessmentType === 'thi' || !assign.assessmentType) {
-                    videoHTML = assign.videoLink ? getEmbedHTML(assign.videoLink) : '';
+                    videoHTML = assign.videoLink ? getTrackedVideoHTML(assign.videoLink, assign.id) : '';
                     descHTML = assign.desc ? `<div class="assignment-desc"><strong>Yêu cầu bài tập:</strong> <br>${(assign.desc || '').replace(/\n/g, '<br>')}</div>` : '';
                     if (assign.file) {
                         let aFiles = Array.isArray(assign.file) ? assign.file : [assign.file];
@@ -903,7 +906,14 @@ async function loadAssignments() {
             MathJax.typesetPromise(mathJaxTargets).catch((err) => console.log('MathJax error:', err));
         }
     }
+
+    setTimeout(() => {
+        if (typeof initYouTubeTrackers === 'function') {
+            initYouTubeTrackers(assignments);
+        }
+    }, 1000); // Chờ 1 giây để iframe kịp mount vào DOM
 }
+
 
 // =====================================================================
 // HÀM HIỂN THỊ POPUP CHỈ XEM CÂU HỎI BÀI TẬP (KHÔNG HIỆN ĐÁP ÁN)
@@ -1488,10 +1498,10 @@ window.loadScheduleStudent = async function () {
     mySchedules.forEach(s => {
         const tr = document.createElement('tr');
         tr.style.borderBottom = '1px solid rgba(0,0,0,0.05)';
-        
+
         // Thêm một mác nhỏ để học sinh biết đây là lịch học cá nhân (tuỳ chọn)
         let personalLabel = (s.targetStudent && s.targetStudent !== 'all') ? `<br><span style="font-size: 0.8em; color: #059669;">(Lịch học Riêng)</span>` : '';
-        
+
         tr.innerHTML = `
             <td style="padding:12px; font-weight:bold; color:#764ba2;">${s.day} ${personalLabel}</td>
             <td style="padding:12px; color:#d35400; font-weight:bold;">${s.time}</td>
@@ -3803,3 +3813,106 @@ window.handleRequestCashSubmit = async function () {
         alert("❌ Đã xảy ra lỗi kết nối khi gửi yêu cầu.");
     }
 };
+
+// ================= HỆ THỐNG THEO DÕI VIDEO YOUTUBE =================
+let ytPlayers = {};
+let watchTimers = {};
+let watchDurations = {}; // Lưu mốc thời gian XA NHẤT học sinh đã xem tới
+let lastSavedTime = {};  // Biến phụ để chống spam lưu lên Firebase liên tục
+
+// Hàm thay thế getEmbedHTML dành riêng cho việc có theo dõi thời gian
+function getTrackedVideoHTML(url, assignId) {
+    if (!url) return '';
+    let videoId = '';
+    if (url.includes('watch?v=')) { videoId = url.split('v=')[1].split('&')[0]; }
+    else if (url.includes('youtu.be/')) { videoId = url.split('youtu.be/')[1].split('?')[0]; }
+    else if (url.includes('youtube.com/shorts/')) { videoId = url.split('shorts/')[1].split('?')[0]; }
+    else if (url.includes('embed/')) { videoId = url.split('embed/')[1].split('?')[0]; }
+
+    if (videoId) {
+        let embedUrl = `https://www.youtube.com/embed/${videoId}?enablejsapi=1&rel=0`;
+        return `
+        <div class="video-wrapper" style="margin-top: 15px; border: 2px solid #667eea; padding: 10px; border-radius: 12px; background: rgba(255,255,255,0.8);">
+            <iframe id="yt-player-${assignId}" width="100%" height="315" src="${embedUrl}" frameborder="0" allowfullscreen></iframe>
+            <div style="text-align: center; margin-top: 10px; font-weight: bold; color: #059669; font-size: 1.1em;">
+                ⏱️ Mốc thời gian đã xem tới: <span id="watch-time-display-${assignId}">0</span> giây
+            </div>
+        </div>`;
+    }
+    return '';
+}
+
+window.initYouTubeTrackers = function(assignments) {
+    if (typeof YT === 'undefined' || !YT.Player) return; 
+
+    assignments.forEach(assign => {
+        const iframeId = `yt-player-${assign.id}`;
+        const iframeEl = document.getElementById(iframeId);
+        
+        if (iframeEl && !ytPlayers[assign.id]) {
+            // Lấy dữ liệu cũ TỪ TRƯỚC, lấy xong mới khởi tạo video
+            db.ref(`video_tracking/${assign.id}/${currentUser.username}`).once('value', (snap) => {
+                watchDurations[assign.id] = snap.val() || 0;
+                const display = document.getElementById(`watch-time-display-${assign.id}`);
+                if(display) display.innerText = watchDurations[assign.id];
+
+                // Bắt đầu khởi tạo Player
+                ytPlayers[assign.id] = new YT.Player(iframeId, {
+                    events: {
+                        'onReady': (event) => {
+                            // LỚP BẢO VỆ 1: Khi load video, ép tua tới đúng điểm đang xem dở
+                            if (watchDurations[assign.id] > 0) {
+                                event.target.seekTo(watchDurations[assign.id], true);
+                            }
+                        },
+                        'onStateChange': (event) => onPlayerStateChange(event, assign.id)
+                    }
+                });
+            });
+        }
+    });
+};
+
+function onPlayerStateChange(event, assignId) {
+    // 1. Lấy đúng instance của player từ mảng đã lưu trữ thay vì dùng event.target
+    const player = ytPlayers[assignId]; 
+    
+    if (event.data == YT.PlayerState.PLAYING) {
+        // 2. Dọn dẹp bộ đếm cũ nếu có để tránh tình trạng đếm chồng chéo (nhân đôi tốc độ) khi HS bấm Play/Pause liên tục
+        if (watchTimers[assignId]) clearInterval(watchTimers[assignId]);
+
+        watchTimers[assignId] = setInterval(() => {
+            // 3. CHỐT CHẶN AN TOÀN: Chỉ gọi getCurrentTime khi API của YouTube đã thực sự sẵn sàng
+            if (player && typeof player.getCurrentTime === 'function') {
+                let currentTime = Math.floor(player.getCurrentTime());
+                
+                // Lớp bảo vệ 2: Chống cày giờ
+                if (currentTime > watchDurations[assignId]) {
+                    
+                    // Lớp bảo vệ 3: Chống tua nhanh
+                    if (currentTime - watchDurations[assignId] > 5) {
+                        player.seekTo(watchDurations[assignId], true);
+                    } else {
+                        // Cập nhật thời gian hợp lệ
+                        watchDurations[assignId] = currentTime;
+                        const display = document.getElementById(`watch-time-display-${assignId}`);
+                        if(display) display.innerText = watchDurations[assignId];
+                        
+                        // Lưu dữ liệu lên Firebase
+                        if (watchDurations[assignId] % 5 === 0 && lastSavedTime[assignId] !== watchDurations[assignId]) {
+                            db.ref(`video_tracking/${assignId}/${currentUser.username}`).set(watchDurations[assignId]);
+                            lastSavedTime[assignId] = watchDurations[assignId];
+                        }
+                    }
+                }
+            }
+        }, 1000);
+    } else {
+        // Khi Pause hoặc Hết video -> Dừng đếm và lưu chốt lần cuối
+        if (watchTimers[assignId]) clearInterval(watchTimers[assignId]);
+        
+        if (watchDurations[assignId]) {
+            db.ref(`video_tracking/${assignId}/${currentUser.username}`).set(watchDurations[assignId]);
+        }
+    }
+}

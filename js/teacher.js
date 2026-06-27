@@ -343,7 +343,7 @@ async function createAssignment() {
     const title = document.getElementById('title').value;
     const startDate = document.getElementById('startDate').value;
     const endDate = document.getElementById('endDate').value;
-    const targetStudent = document.getElementById('targetStudent').value;
+    const targetStudent = window.getMultiSelectValues('targetStudent');
     const type = document.getElementById('assessmentType').value;
     let desc = '', videoLink = '', attachedFile = null, questions = [];
     let mcWeight = null, essayWeight = null;
@@ -512,7 +512,10 @@ async function loadAssignedList() {
             statusBadge = `<span style="background: rgba(245, 158, 11, 0.15); color: #d97706; padding: 4px 10px; border-radius: 20px; font-size: 0.75em; margin-left: 10px; vertical-align: middle; white-space: nowrap; font-weight: bold; border: 1px solid rgba(245, 158, 11, 0.3);">⏳ Chưa đến giờ</span>`;
         } else {
             // Lọc ra các học sinh được giao bài này
-            const targetStudents = students.filter(u => assign.targetStudent === 'all' || assign.targetStudent === u.username);
+            const targetStudents = students.filter(u => {
+                const arr = Array.isArray(assign.targetStudent) ? assign.targetStudent : [assign.targetStudent || 'all'];
+                return arr.includes('all') || arr.includes(u.username);
+            });
 
             // Kiểm tra xem có học sinh nào trong danh sách mục tiêu CHƯA có bài nộp không
             const hasMissing = targetStudents.some(st => !submissions.some(s => s.assignmentId === assign.id && s.studentUsername === st.username));
@@ -546,7 +549,7 @@ async function loadAssignedList() {
         const uniqueId = `teacher-assign-${assign.id}`;
         const div = document.createElement('div');
         div.className = 'card accordion-card';
-        div.setAttribute('data-target', assign.targetStudent || 'all');
+        div.setAttribute('data-target', Array.isArray(assign.targetStudent) ? assign.targetStudent.join(',') : (assign.targetStudent || 'all'));
 
         // Cập nhật lại HTML phần tiêu đề: Đưa Title và statusBadge vào một Flex box
         div.innerHTML = `<div class="accordion-header" onclick="toggleAccordion('${uniqueId}', this)">
@@ -593,7 +596,7 @@ async function createMaterial() {
     const title = document.getElementById('materialTitle').value.trim();
     const videoLink = document.getElementById('materialVideoLink').value.trim();
     const docLink = document.getElementById('materialLinkInput').value.trim();
-    const targetStudent = document.getElementById('materialTargetStudent').value; // MỚI THÊM
+    const targetStudent = window.getMultiSelectValues('materialTargetStudent'); // MỚI THÊM
 
     if (!title) return alert("Vui lòng nhập tiêu đề tài liệu!");
     if (!videoLink && !docLink) return alert("Vui lòng đính kèm ít nhất video bài giảng hoặc link tài liệu!");
@@ -636,7 +639,7 @@ async function loadMaterialsListTeacher() {
         const uniqueId = `teacher-mat-${mat.id}`;
         const div = document.createElement('div'); div.className = 'card accordion-card';
         div.className = 'card accordion-card';
-        div.setAttribute('data-target', mat.targetStudent || 'all');
+        div.setAttribute('data-target', Array.isArray(mat.targetStudent) ? mat.targetStudent.join(',') : (mat.targetStudent || 'all'));
         div.innerHTML = `
             <div class="accordion-header" onclick="toggleAccordion('${uniqueId}', this)">
                 <div class="accordion-title"><h4>${mat.title}</h4><span>🕒 Đăng lúc: ${mat.uploadTime || 'Chưa rõ'}</span></div>
@@ -736,6 +739,8 @@ async function populateStudentDropdown() {
 async function loadSubmissions() {
     const rawSubmissions = await getDB('submissions');
     const assignments = await getDB('assignments');
+    const trackingSnap = await db.ref('video_tracking').once('value');
+    const trackingData = trackingSnap.val() || {};
     const list = document.getElementById('submissionsList');
     if (!list) return;
     list.innerHTML = '';
@@ -816,6 +821,21 @@ async function loadSubmissions() {
         const hasGrade = (sub.grade !== null && sub.grade !== undefined && sub.grade !== '');
 
         let videoHTML = assign.videoLink ? getEmbedHTML(assign.videoLink) : '';
+        let watchDuration = 0;
+        if (trackingData[assign.id] && trackingData[assign.id][sub.studentUsername]) {
+            watchDuration = trackingData[assign.id][sub.studentUsername];
+        }
+
+        let minutes = Math.floor(watchDuration / 60);
+        let seconds = watchDuration % 60;
+        let timeStr = `${minutes} phút ${seconds} giây`;
+
+        let watchStatusHTML = assign.videoLink ? `
+            <div style="background: rgba(16, 185, 129, 0.1); border-left: 4px solid #10b981; padding: 10px; margin-bottom: 15px; border-radius: 8px;">
+                <strong style="color: #059669;">⏱️ Thời lượng HS đã xem Video:</strong> 
+                <span style="font-weight: bold; color: #2c3e50;">${timeStr}</span>
+                ${watchDuration === 0 ? '<span style="color: #e11d48; font-size: 0.85em; margin-left: 5px;">(Học sinh chưa xem hoặc lướt qua)</span>' : ''}
+            </div>` : '';
 
         // XỬ LÝ TRẠNG THÁI "ĐANG LÀM LẠI" VÀ CÁC NÚT THAO TÁC
         let gradeStatus = '';
@@ -869,7 +889,9 @@ async function loadSubmissions() {
                 <div class="accordion-title"><h4>${assign.title}</h4><span>HS: <strong>${sub.studentName}</strong></span></div>
                 <div class="accordion-meta"><span>${gradeStatus}</span><span class="toggle-icon">▼</span></div>
             </div>
-            <div id="${uniqueId}" class="accordion-content">${violationHTML}<span style="color: #888; font-size: 0.85em; display: block; margin-bottom: 10px;">🕒 Lần nộp cuối: ${sub.submitTime || 'Chưa rõ'}</span>${videoHTML}
+            <div id="${uniqueId}" class="accordion-content">${violationHTML}<span style="color: #888; font-size: 0.85em; display: block; margin-bottom: 10px;">🕒 Lần nộp cuối: ${sub.submitTime || 'Chưa rõ'}</span>
+    ${watchStatusHTML}
+    ${videoHTML}
                 <div style="background: rgba(255,255,255,0.4); padding: 15px; border-radius: 12px; margin-bottom: 15px;">
                     <p style="margin: 0; font-weight: bold;">Bài nộp:</p>
                     <p style="white-space: pre-wrap; word-break: break-word; margin-top:5px;">
@@ -1411,7 +1433,7 @@ window.openEditAssignmentModal = async function (fbKey) {
                 }
             });
             // Gán lại giá trị học sinh đang được giao bài (mặc định là 'all')
-            editTargetSelect.value = assign.targetStudent || 'all';
+            window.setMultiSelectValues('editTargetStudent', assign.targetStudent);
         }
 
         // Lấy các Section
@@ -1539,7 +1561,7 @@ window.saveAssignmentEdit = async function () {
     const startDate = document.getElementById('editStartDate').value;
     const endDate = document.getElementById('editEndDate').value;
 
-    const targetStudent = document.getElementById('editTargetStudent').value;
+    const targetStudent = window.getMultiSelectValues('editTargetStudent');
 
     if (!title || !startDate || !endDate) return alert("Vui lòng điền đầy đủ Tiêu đề và Thời hạn nộp!");
 
@@ -1780,6 +1802,11 @@ window.openScheduleModal = function (fbKey = '', day = '', time = '', subject = 
     document.getElementById('scheduleSubject').value = subject;
     document.getElementById('scheduleNote').value = note;
 
+    // Mới: Dùng mảng để đổ dữ liệu vào modal
+    if (document.getElementById('scheduleTargetStudent')) {
+        window.setMultiSelectValues('scheduleTargetStudent', targetStudent);
+    }
+
     // Gán giá trị đích danh
     if (document.getElementById('scheduleTargetStudent')) {
         document.getElementById('scheduleTargetStudent').value = targetStudent;
@@ -1798,7 +1825,7 @@ window.saveSchedule = async function () {
     const time = document.getElementById('scheduleTime').value.trim();
     const subject = document.getElementById('scheduleSubject').value.trim();
     const note = document.getElementById('scheduleNote').value.trim();
-    const targetStudent = document.getElementById('scheduleTargetStudent') ? document.getElementById('scheduleTargetStudent').value : 'all'; // Đọc thông tin học sinh
+    const targetStudent = document.getElementById('scheduleTargetStudent') ? window.getMultiSelectValues('scheduleTargetStudent') : ['all']; // Đọc thông tin học sinh
 
     if (!day || !time || !subject) return alert('Vui lòng nhập đầy đủ: Thứ, Thời gian và Nội dung!');
 
@@ -1836,7 +1863,7 @@ window.loadScheduleTeacher = async function () {
     schedules.forEach(s => {
         const tr = document.createElement('tr');
         tr.style.borderBottom = '1px solid rgba(0,0,0,0.05)';
-        tr.setAttribute('data-target', s.targetStudent || 'all'); // Gắn nhãn để thanh bộ lọc hoạt động
+        tr.setAttribute('data-target', Array.isArray(s.targetStudent) ? s.targetStudent.join(',') : (s.targetStudent || 'all'));
 
         // Nhãn để giáo viên dễ nhìn xem lịch này là lịch chung hay lịch riêng
         let targetLabel = (s.targetStudent && s.targetStudent !== 'all') ? `<br><span style="font-size: 0.8em; color: #059669; font-weight: normal;">(Giao riêng HS)</span>` : '';
@@ -1869,7 +1896,7 @@ window.openEditMaterialModal = async function (fbKey) {
     document.getElementById('editMaterialLinkInput').value = mat.docLink || '';
 
     if (document.getElementById('editMaterialTargetStudent')) {
-        document.getElementById('editMaterialTargetStudent').value = mat.targetStudent || 'all';
+        window.setMultiSelectValues('editMaterialTargetStudent', mat.targetStudent);
     }
 
     document.getElementById('editMaterialModal').classList.add('active');
@@ -1886,7 +1913,7 @@ window.saveMaterialEdit = async function () {
     // Lấy thêm các thông tin mới từ popup
     const newVideoLink = document.getElementById('editMaterialVideoLink') ? document.getElementById('editMaterialVideoLink').value.trim() : '';
     const newDocLink = document.getElementById('editMaterialLinkInput') ? document.getElementById('editMaterialLinkInput').value.trim() : '';
-    const newTargetStudent = document.getElementById('editMaterialTargetStudent') ? document.getElementById('editMaterialTargetStudent').value : 'all';
+    const newTargetStudent = document.getElementById('editMaterialTargetStudent') ? window.getMultiSelectValues('editMaterialTargetStudent') : ['all'];
 
     if (!newTitle) return alert("Vui lòng nhập tên tài liệu mới!");
 
@@ -2846,7 +2873,7 @@ window.toggleGiftInput = function () {
 };
 
 window.sendGiftMessage = async function () {
-    const target = document.getElementById('giftTargetStudent').value;
+    const targets = window.getMultiSelectValues('giftTargetStudent');
     const msg = document.getElementById('giftMessage').value.trim();
     const type = document.getElementById('giftType').value;
     let value = '';
@@ -2895,10 +2922,12 @@ window.sendGiftMessage = async function () {
     const users = await getDB('users');
     const students = users.filter(u => u.role === 'student');
 
-    if (target === 'all') {
+    if (targets.includes('all')) {
         for (let st of students) { await pushDB(`inbox_messages/${st.username}`, payload); }
     } else {
-        await pushDB(`inbox_messages/${target}`, payload);
+        for (let username of targets) {
+            await pushDB(`inbox_messages/${username}`, payload);
+        }
     }
 
     alert("💌 Đã gửi thư và quà thành công!");
@@ -3251,11 +3280,13 @@ window.applyScheduleFilters = function () {
     let items = document.querySelectorAll('#teacherScheduleBody > tr');
 
     items.forEach(item => {
-        let targetStudent = item.getAttribute('data-target') || 'all';
+        let targetStudent = item.getAttribute('data-target') || 'all'; // Bạn bị thiếu dòng lấy dữ liệu này
+        let targetArr = targetStudent.split(',');
 
+        // Đã sửa activeAssignedStudentFilter thành activeScheduleStudentFilter
         let matchFilter = (activeScheduleStudentFilter === 'all') ||
-            (targetStudent === 'all') ||
-            (targetStudent === activeScheduleStudentFilter);
+            targetArr.includes('all') ||
+            targetArr.includes(activeScheduleStudentFilter);
 
         item.style.display = matchFilter ? '' : 'none';
     });
@@ -3269,11 +3300,13 @@ window.applyMaterialFilters = function () {
 
     items.forEach(item => {
         let targetStudent = item.getAttribute('data-target') || 'all';
+        let targetArr = targetStudent.split(','); // Cắt chuỗi thành mảng
         let text = item.innerText.toLowerCase();
 
+        // Thay vì dùng dấu ===, ta dùng includes() để tìm trong mảng
         let matchFilter = (activeMaterialStudentFilter === 'all') ||
-            (targetStudent === 'all') ||
-            (targetStudent === activeMaterialStudentFilter);
+            targetArr.includes('all') ||
+            targetArr.includes(activeMaterialStudentFilter);
 
         let matchSearch = text.includes(searchText);
 
@@ -3289,13 +3322,12 @@ window.applyAssignedFilters = function () {
 
     items.forEach(item => {
         let targetStudent = item.getAttribute('data-target') || 'all';
+        let targetArr = targetStudent.split(','); // Cắt chuỗi thành mảng
         let text = item.innerText.toLowerCase();
 
-        // Nút 'Tất cả' -> Hiện bài của All và bài giao riêng
-        // Nút 'HS A' -> Hiện bài của All và bài giao riêng cho HS A
         let matchFilter = (activeAssignedStudentFilter === 'all') ||
-            (targetStudent === 'all') ||
-            (targetStudent === activeAssignedStudentFilter);
+            targetArr.includes('all') ||
+            targetArr.includes(activeAssignedStudentFilter);
 
         let matchSearch = text.includes(searchText);
 
@@ -3323,5 +3355,134 @@ window.applySubmissionFilters = function () {
     });
 };
 
+window.getMultiSelectValues = function (selectId) {
+    const select = document.getElementById(selectId);
+    if (!select || select.selectedOptions.length === 0) return ['all'];
+    const values = Array.from(select.selectedOptions).map(opt => opt.value);
+    // Ưu tiên "all" nếu giáo viên lỡ chọn chung "all" cùng các học sinh khác
+    if (values.includes('all')) return ['all'];
+    return values;
+};
+
+window.setMultiSelectValues = function (selectId, valuesArray) {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+    const arr = Array.isArray(valuesArray) ? valuesArray : [valuesArray || 'all'];
+    Array.from(select.options).forEach(opt => {
+        opt.selected = arr.includes(opt.value);
+    });
+};
+
+let currentCustomSelectId = '';
+
+    function openCustomStudentSelect(selectId) {
+        currentCustomSelectId = selectId;
+        const selectEl = document.getElementById(selectId);
+        const listContainer = document.getElementById('customStudentList');
+        document.getElementById('customStudentSearch').value = '';
+        
+        let html = '';
+        let hasCheckedOthers = false;
+
+        // Kiểm tra xem có học sinh cụ thể nào đang được chọn không
+        Array.from(selectEl.options).forEach(opt => {
+            if(opt.value !== 'all' && opt.selected) hasCheckedOthers = true;
+        });
+
+        Array.from(selectEl.options).forEach(opt => {
+            const isAllOption = opt.value === 'all';
+            
+            // Logic chọn thông minh: Đã chọn cụ thể thì tắt "Tất cả"
+            let isChecked = opt.selected;
+            if (isAllOption && hasCheckedOthers) isChecked = false;
+            if (isAllOption && !hasCheckedOthers && selectEl.selectedOptions.length === 0) isChecked = true;
+
+            // Tạo Avatar (lấy chữ cái đầu của tên hoặc icon)
+            let avatarHtml = '';
+            if (isAllOption) {
+                avatarHtml = `<div class="student-avatar" style="background:#dbeafe; color:#2563eb;">👥</div>`;
+            } else {
+                const firstLetter = opt.text.charAt(0).toUpperCase();
+                avatarHtml = `<div class="student-avatar" style="background:#f3f4f6; color:#4b5563;">${firstLetter}</div>`;
+            }
+
+            html += `
+                <label class="student-item">
+                    <input type="checkbox" class="student-cb" value="${opt.value}" ${isChecked ? 'checked' : ''} onchange="handleStudentCbChange(this)">
+                    ${avatarHtml}
+                    <span style="font-weight: 500; font-size: 15px; color: #1f2937;">${opt.text}</span>
+                </label>
+            `;
+        });
+
+        listContainer.innerHTML = html;
+        document.getElementById('customStudentModal').style.display = 'flex';
+    }
+
+    function handleStudentCbChange(checkbox) {
+        const isAll = checkbox.value === 'all';
+        const checkboxes = document.querySelectorAll('.student-cb');
+        
+        if (isAll && checkbox.checked) {
+            // Nếu click chọn "Tất cả học sinh", gỡ bỏ chọn tất cả các cá nhân
+            checkboxes.forEach(cb => { if (cb.value !== 'all') cb.checked = false; });
+        } else if (!isAll && checkbox.checked) {
+            // Nếu click chọn 1 người, gỡ dấu check ở mục "Tất cả"
+            const allCb = Array.from(checkboxes).find(cb => cb.value === 'all');
+            if (allCb) allCb.checked = false;
+        }
+    }
+
+    function filterCustomStudentList() {
+        const text = document.getElementById('customStudentSearch').value.toLowerCase();
+        const items = document.querySelectorAll('.student-item');
+        items.forEach(item => {
+            const label = item.querySelector('span').innerText.toLowerCase();
+            item.style.display = label.includes(text) ? 'flex' : 'none';
+        });
+    }
+
+    function closeCustomStudentSelect() {
+        document.getElementById('customStudentModal').style.display = 'none';
+    }
+
+    function confirmCustomStudentSelect() {
+        const selectEl = document.getElementById(currentCustomSelectId);
+        const checkboxes = document.querySelectorAll('.student-cb');
+        const displaySpan = document.getElementById(currentCustomSelectId + '_displayText');
+        
+        let selectedCount = 0;
+        let isAllSelected = false;
+
+        // Lưu dữ liệu vào <select> ẩn để hệ thống backend (Firebase) đọc
+        Array.from(selectEl.options).forEach(opt => {
+            const cb = Array.from(checkboxes).find(c => c.value === opt.value);
+            if (cb) {
+                opt.selected = cb.checked;
+                if (cb.checked) {
+                    if (opt.value === 'all') isAllSelected = true;
+                    else selectedCount++;
+                }
+            }
+        });
+
+        // Nếu quên không chọn ai, mặc định chuyển về "Tất cả học sinh"
+        if (selectedCount === 0 && !isAllSelected) {
+            let allOpt = Array.from(selectEl.options).find(o => o.value === 'all');
+            if(allOpt) allOpt.selected = true;
+            isAllSelected = true;
+        }
+
+        // Đổi chữ bên ngoài (Ví dụ: Đã chọn 3 học sinh)
+        if (displaySpan) {
+            if (isAllSelected) {
+                displaySpan.innerHTML = 'Tất cả học sinh';
+            } else {
+                displaySpan.innerHTML = `<span style="color:#2563eb; font-weight:600;">Đã chọn ${selectedCount} học sinh</span>`;
+            }
+        }
+
+        closeCustomStudentSelect();
+    }
 // Khởi chạy tải danh sách khi giáo viên mở trang
 loadTeacherCashRequests();
