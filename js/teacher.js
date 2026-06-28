@@ -1277,6 +1277,7 @@ async function renderTeacherRoadmap() {
 
     const assignments = await getDB('assignments');
     const submissions = await getDB('submissions');
+    const users = await getDB('users');
     const selectedStudent = document.getElementById('roadmapStudentSelect').value;
 
     let isParticipating = true;
