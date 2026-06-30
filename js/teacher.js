@@ -88,11 +88,11 @@ window.onload = async function () {
     });
     db.ref('users').on('value', async (snapshot) => {
         const hash = JSON.stringify(snapshot.val());
-        if (hash !== cacheUsers) { 
-            cacheUsers = hash; 
-            await loadStudentsList(); 
-            await populateStudentDropdown(); 
-            await populateRoadmapStudentDropdown(); 
+        if (hash !== cacheUsers) {
+            cacheUsers = hash;
+            await loadStudentsList();
+            await populateStudentDropdown();
+            await populateRoadmapStudentDropdown();
             // Cập nhật lại cột bảng lộ trình ngay lập tức
             if (document.getElementById('teacherRoadmapBody')) renderTeacherRoadmap();
         }
@@ -833,9 +833,18 @@ async function loadSubmissions() {
             watchDuration = trackingData[assign.id][sub.studentUsername];
         }
 
-        let minutes = Math.floor(watchDuration / 60);
-        let seconds = watchDuration % 60;
-        let timeStr = `${minutes} phút ${seconds} giây`;
+        let d = Math.floor(watchDuration / (24 * 3600));
+        let h = Math.floor((watchDuration % (24 * 3600)) / 3600);
+        let m = Math.floor((watchDuration % 3600) / 60);
+        let s = watchDuration % 60;
+
+        let timeParts = [];
+        if (d > 0) timeParts.push(`${d} ngày`);
+        if (h > 0) timeParts.push(`${h} giờ`);
+        if (m > 0) timeParts.push(`${m} phút`);
+        if (s > 0 || timeParts.length === 0) timeParts.push(`${s} giây`);
+
+        let timeStr = timeParts.join(' ');
 
         let watchStatusHTML = assign.videoLink ? `
             <div style="background: rgba(16, 185, 129, 0.1); border-left: 4px solid #10b981; padding: 10px; margin-bottom: 15px; border-radius: 8px;">
@@ -3529,9 +3538,9 @@ window.toggleParticipateRoadmap = async function (userKey, isParticipating) {
     await updateDB('users', userKey, { isParticipatingRoadmap: isParticipating });
 };
 
-window.downloadRoadmapPDF = async function() {
+window.downloadRoadmapPDF = async function () {
     const selectedStudent = document.getElementById('roadmapStudentSelect').value;
-    
+
     // Điều kiện: Phải chọn học sinh mới được tải
     if (!selectedStudent || selectedStudent === "") {
         alert("⚠️ Vui lòng chọn một học sinh trong danh sách (ở mục Số điểm) trước khi tải bảng điểm!");
@@ -3541,7 +3550,7 @@ window.downloadRoadmapPDF = async function() {
     const assignments = await getDB('assignments');
     const submissions = await getDB('submissions');
     const users = await getDB('users');
-    
+
     const st = users.find(u => u.username === selectedStudent);
     const stName = st ? st.name : selectedStudent;
 
@@ -3569,7 +3578,7 @@ window.downloadRoadmapPDF = async function() {
 
         const subs = submissions.filter(s => s.assignmentId === assign._fbKey && s.studentId === selectedStudent);
         let studentScore = "Chưa làm";
-        
+
         if (subs.length > 0) {
             const bestSub = subs.sort((a, b) => (b.score || 0) - (a.score || 0))[0];
             studentScore = bestSub.score !== undefined ? bestSub.score : "Chưa chấm";
@@ -3592,13 +3601,13 @@ window.downloadRoadmapPDF = async function() {
 
     // Cấu hình tải xuống PDF
     const opt = {
-        margin:       10,
-        filename:     `BangDiem_${stName}.pdf`,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true },
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        margin: 10,
+        filename: `BangDiem_${stName}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
-    
+
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = htmlContent;
     html2pdf().set(opt).from(tempDiv).save();

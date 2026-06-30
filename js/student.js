@@ -392,10 +392,29 @@ function getEmbedHTML(url) {
 let assignmentTimers = [];
 function formatCountdown(ms) {
     if (ms <= 0) return "00:00:00";
-    let h = Math.floor(ms / (1000 * 60 * 60)).toString().padStart(2, '0');
+    let d = Math.floor(ms / (1000 * 60 * 60 * 24));
+    let h = Math.floor((ms % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)).toString().padStart(2, '0');
     let m = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60)).toString().padStart(2, '0');
     let s = Math.floor((ms % (1000 * 60)) / 1000).toString().padStart(2, '0');
+
+    if (d > 0) return `${d} ngày ${h}:${m}:${s}`;
     return `${h}:${m}:${s}`;
+}
+
+function formatSecondsToDHMS(totalSeconds) {
+    if (totalSeconds <= 0) return "0 giây";
+    let d = Math.floor(totalSeconds / (24 * 3600));
+    let h = Math.floor((totalSeconds % (24 * 3600)) / 3600);
+    let m = Math.floor((totalSeconds % 3600) / 60);
+    let s = totalSeconds % 60;
+
+    let parts = [];
+    if (d > 0) parts.push(`${d} ngày`);
+    if (h > 0) parts.push(`${h} giờ`);
+    if (m > 0) parts.push(`${m} phút`);
+    if (s > 0 || parts.length === 0) parts.push(`${s} giây`);
+
+    return parts.join(' ');
 }
 
 async function loadAssignments() {
@@ -406,6 +425,20 @@ async function loadAssignments() {
 
     if (list) list.innerHTML = '';
     if (grades) grades.innerHTML = '';
+
+    // Dọn dẹp trình phát Video cũ để không bị kẹt khi tải lại bài
+    if (typeof ytPlayers !== 'undefined') {
+        for (let key in ytPlayers) {
+            if (ytPlayers[key] && typeof ytPlayers[key].destroy === 'function') {
+                try { ytPlayers[key].destroy(); } catch(e){}
+            }
+        }
+        ytPlayers = {};
+    }
+    if (typeof watchTimers !== 'undefined') {
+        for (let key in watchTimers) { clearInterval(watchTimers[key]); }
+        watchTimers = {};
+    }
 
     assignmentTimers.forEach(t => clearInterval(t));
     assignmentTimers = [];
@@ -455,7 +488,7 @@ async function loadAssignments() {
         // [THÊM MỚI] Xử lý mảng đối tượng học sinh
         const targetArr = Array.isArray(assign.targetStudent) ? assign.targetStudent : [assign.targetStudent || 'all'];
         if (!targetArr.includes('all') && !targetArr.includes(currentUser.username)) return;
-        
+
         const mySub = submissions.find(s => s.assignmentId === assign.id && s.studentUsername === currentUser.username);
 
         const now = new Date();
@@ -3856,97 +3889,100 @@ function getTrackedVideoHTML(url, assignId) {
     else if (url.includes('embed/')) { videoId = url.split('embed/')[1].split('?')[0]; }
 
     if (videoId) {
-        let embedUrl = `https://www.youtube.com/embed/${videoId}?enablejsapi=1&rel=0`;
+        // Tự động nhận diện nguồn đang chạy web để khai báo với YouTube
+        let hostUrl = window.location.protocol === 'file:' ? 'https://localhost' : window.location.origin;
+        let embedUrl = `https://www.youtube.com/embed/${videoId}?enablejsapi=1&rel=0&origin=${hostUrl}`;
+        
         return `
         <div class="video-wrapper" style="margin-top: 15px; border: 2px solid #667eea; padding: 10px; border-radius: 12px; background: rgba(255,255,255,0.8);">
             <iframe id="yt-player-${assignId}" width="100%" height="315" src="${embedUrl}" frameborder="0" allowfullscreen></iframe>
             <div style="text-align: center; margin-top: 10px; font-weight: bold; color: #059669; font-size: 1.1em;">
-                ⏱️ Mốc thời gian đã xem tới: <span id="watch-time-display-${assignId}">0</span> giây
+                ⏱️ Mốc thời gian đã xem tới: <span id="watch-time-display-${assignId}">0 giây</span>
             </div>
         </div>`;
     }
     return '';
 }
 
-window.initYouTubeTrackers = function(assignments) {
-    if (typeof YT === 'undefined' || !YT.Player) return; 
+window.initYouTubeTrackers = function (assignments, retryCount = 0) {
+    if (typeof YT === 'undefined' || typeof YT.Player === 'undefined') {
+        if (retryCount < 10) { // Tăng thời gian chờ YouTube lên 10 lần
+            setTimeout(() => window.initYouTubeTrackers(assignments, retryCount + 1), 1000);
+        }
+        return;
+    }
 
     assignments.forEach(assign => {
         const iframeId = `yt-player-${assign.id}`;
         const iframeEl = document.getElementById(iframeId);
-        
-        if (iframeEl && !ytPlayers[assign.id]) {
-            // Lấy dữ liệu cũ TỪ TRƯỚC, lấy xong mới khởi tạo video
-            db.ref(`video_tracking/${assign.id}/${currentUser.username}`).once('value', (snap) => {
-                watchDurations[assign.id] = snap.val() || 0;
-                const display = document.getElementById(`watch-time-display-${assign.id}`);
-                if(display) display.innerText = watchDurations[assign.id];
 
-                // Bắt đầu khởi tạo Player
-                ytPlayers[assign.id] = new YT.Player(iframeId, {
-                    events: {
-                        'onReady': (event) => {
-                            // LỚP BẢO VỆ 1: Khi load video, ép tua tới đúng điểm đang xem dở
+        if (iframeEl && !ytPlayers[assign.id]) {
+            // KHỞI TẠO PLAYER NGAY LẬP TỨC
+            ytPlayers[assign.id] = new YT.Player(iframeId, {
+                events: {
+                    'onReady': (event) => {
+                        // KHI PLAYER ĐÃ SẴN SÀNG MỚI ĐI LẤY DỮ LIỆU BỀN VỮNG TỪ FIREBASE
+                        db.ref(`video_tracking/${assign.id}/${currentUser.username}`).once('value', (snap) => {
+                            watchDurations[assign.id] = parseInt(snap.val()) || 0;
+                            
+                            const display = document.getElementById(`watch-time-display-${assign.id}`);
+                            if (display) display.innerText = formatSecondsToDHMS(watchDurations[assign.id]);
+
+                            // Ép tua tới điểm xem dở
                             if (watchDurations[assign.id] > 0) {
                                 event.target.seekTo(watchDurations[assign.id], true);
                             }
-                        },
-                        'onStateChange': (event) => onPlayerStateChange(event, assign.id)
-                    }
-                });
+                        });
+                    },
+                    'onStateChange': (event) => window.onPlayerStateChange(event, assign.id)
+                }
             });
         }
     });
 };
 
-function onPlayerStateChange(event, assignId) {
-    // 1. Lấy đúng instance của player từ mảng đã lưu trữ thay vì dùng event.target
-    const player = ytPlayers[assignId]; 
-    
-    if (event.data == YT.PlayerState.PLAYING) {
-        // 2. Dọn dẹp bộ đếm cũ nếu có để tránh tình trạng đếm chồng chéo (nhân đôi tốc độ) khi HS bấm Play/Pause liên tục
+window.onPlayerStateChange = function(event, assignId) {
+    const player = event.target; // Lấy trực tiếp video đang phát
+
+    if (event.data === YT.PlayerState.PLAYING) {
         if (watchTimers[assignId]) clearInterval(watchTimers[assignId]);
 
         watchTimers[assignId] = setInterval(() => {
-            // 3. CHỐT CHẶN AN TOÀN: Chỉ gọi getCurrentTime khi API của YouTube đã thực sự sẵn sàng
             if (player && typeof player.getCurrentTime === 'function') {
                 let currentTime = Math.floor(player.getCurrentTime());
-                
-                // Lớp bảo vệ 2: Chống cày giờ
-                if (currentTime > watchDurations[assignId]) {
-                    
-                    // Lớp bảo vệ 3: Chống tua nhanh
-                    if (currentTime - watchDurations[assignId] > 5) {
-                        player.seekTo(watchDurations[assignId], true);
+                let lastTime = watchDurations[assignId] || 0;
+
+                if (currentTime > lastTime) {
+                    if (currentTime - lastTime > 5) {
+                        // Bị tua nhanh -> Giật ngược về mốc cũ
+                        player.seekTo(lastTime, true);
                     } else {
-                        // Cập nhật thời gian hợp lệ
+                        // Hợp lệ -> Đẩy đồng hồ lên
                         watchDurations[assignId] = currentTime;
                         const display = document.getElementById(`watch-time-display-${assignId}`);
-                        if(display) display.innerText = watchDurations[assignId];
-                        
-                        // Lưu dữ liệu lên Firebase
-                        if (watchDurations[assignId] % 5 === 0 && lastSavedTime[assignId] !== watchDurations[assignId]) {
-                            db.ref(`video_tracking/${assignId}/${currentUser.username}`).set(watchDurations[assignId]);
-                            lastSavedTime[assignId] = watchDurations[assignId];
+                        if (display) display.innerText = formatSecondsToDHMS(currentTime);
+
+                        // Lưu Firebase mỗi 5 giây để giảm tải
+                        if (currentTime % 5 === 0 && lastSavedTime[assignId] !== currentTime) {
+                            db.ref(`video_tracking/${assignId}/${currentUser.username}`).set(currentTime);
+                            lastSavedTime[assignId] = currentTime;
                         }
                     }
                 }
             }
         }, 1000);
     } else {
-        // Khi Pause hoặc Hết video -> Dừng đếm và lưu chốt lần cuối
         if (watchTimers[assignId]) clearInterval(watchTimers[assignId]);
-        
         if (watchDurations[assignId]) {
             db.ref(`video_tracking/${assignId}/${currentUser.username}`).set(watchDurations[assignId]);
         }
     }
-}
+};
 
-window.downloadStudentRoadmapPDF = async function() {
+window.downloadStudentRoadmapPDF = async function () {
     const assignments = await getDB('assignments');
     const submissions = await getDB('submissions');
-    
+
     const htmlContent = `
         <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
             <h2 style="text-align: center; color: #2c3e50; text-transform: uppercase;">BẢNG ĐIỂM HỌC TẬP</h2>
@@ -3971,7 +4007,7 @@ window.downloadStudentRoadmapPDF = async function() {
     sortedAssignments.forEach(assign => {
         const subs = submissions.filter(s => s.assignmentId === assign._fbKey && s.studentId === currentUser.username);
         let studentScore = "Chưa làm";
-        
+
         if (subs.length > 0) {
             const bestSub = subs.sort((a, b) => (b.score || 0) - (a.score || 0))[0];
             studentScore = bestSub.score !== undefined ? bestSub.score : "Chưa chấm";
@@ -3993,13 +4029,13 @@ window.downloadStudentRoadmapPDF = async function() {
     `;
 
     const opt = {
-        margin:       10,
-        filename:     `BangDiem_${currentUser.name}.pdf`,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true },
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        margin: 10,
+        filename: `BangDiem_${currentUser.name}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
-    
+
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = finalHTML;
     html2pdf().set(opt).from(tempDiv).save();
