@@ -658,6 +658,96 @@
                             được gộp chung vào bảng Lịch sử quay thưởng phía trên để dễ theo dõi.</p>
                     </div>
                 </div>
+
+                <div class="card accordion-card" style="margin-top: 20px;">
+                    <div class="accordion-header" onclick="toggleAccordion('leaderboardManageView', this)">
+                        <div class="accordion-title">
+                            <h3 style="color: #f39c12; margin: 0; display: flex; align-items: center; gap: 8px;">🏆 Quản
+                                lý Bảng Xếp Hạng Thi Đua</h3>
+                        </div>
+                        <div class="accordion-meta"><span class="toggle-icon">▼</span></div>
+                    </div>
+
+                    <div id="leaderboardManageView" class="accordion-content">
+                        <!-- 1. Tắt/Mở Bảng Xếp Hạng -->
+                        <label
+                            style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 15px; background: rgba(255,255,255,0.4); padding: 12px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.05);">
+                            <input type="checkbox" id="lbToggle" onchange="toggleLeaderboardStatus(this.checked)"
+                                style="width: 22px; height: 22px; margin: 0; cursor: pointer;">
+                            <strong style="color: #2c3e50; font-size: 0.95em;">Mở Bảng Xếp Hạng cho học sinh</strong>
+                        </label>
+
+                        <!-- 2. Đặt lịch mở mùa giải -->
+                        <div
+                            style="background: rgba(255,255,255,0.5); padding: 15px; border-radius: 12px; border: 1px dashed #3b82f6; margin-bottom: 20px;">
+                            <h4 style="color: #3b82f6; margin-top: 0; margin-bottom: 10px;">📅 Đặt lịch mùa giải</h4>
+                            <p style="font-size: 0.9em; color: #666; margin-bottom: 10px;">Hệ thống sẽ tự động cấu hình
+                                mùa giải cho tháng tiếp theo nếu bạn đang ở giữa tháng hiện tại.</p>
+                            <p>Mùa giải đang xét: <strong id="currentSeasonDisplay" style="color: #e11d48;">Chưa cấu
+                                    hình</strong></p>
+
+                            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                                <button onclick="setNextMonthSeason()"
+                                    style="flex: 2; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer;">📅
+                                    Tự động đặt lịch</button>
+                                <button onclick="deleteCurrentSeason()"
+                                    style="flex: 1; background: linear-gradient(135deg, #e11d48 0%, #ff4d4d 100%); color: white; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer;">🗑️
+                                    Xóa lịch</button>
+                            </div>
+                        </div>
+
+                        <!-- 3. Điều chỉnh phần thưởng & Rương -->
+                        <div
+                            style="background: rgba(255,255,255,0.5); padding: 15px; border-radius: 12px; border: 1px dashed #f39c12; margin-bottom: 20px;">
+                            <h4 style="color: #f39c12; margin-top: 0; margin-bottom: 10px;">🎁 Điều chỉnh phần thưởng &
+                                Tỉ lệ Rương</h4>
+
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                                <div>
+                                    <label style="font-size: 0.9em; font-weight: bold;">Thưởng Hạng 3 (Coin):</label>
+                                    <input type="number" id="lbRewardRank3" min="0"
+                                        style="width: 100%; padding: 8px; margin-top: 5px;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.9em; font-weight: bold;">Thưởng Hạng 4+ (Coin):</label>
+                                    <input type="number" id="lbRewardRank4" min="0"
+                                        style="width: 100%; padding: 8px; margin-top: 5px;">
+                                </div>
+                            </div>
+
+                            <hr style="border: 0; border-top: 1px dashed #ccc; margin: 15px 0;">
+                            <h5 style="color: #c0392b; margin: 0 0 10px 0;">📦 Tỉ lệ Rương Hạng 1 (Khi chọn mở Vật phẩm)
+                            </h5>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+                                <div>
+                                    <label style="font-size: 0.8em; font-weight: bold; color: #888;">Trùng lặp
+                                        (%)</label>
+                                    <input type="number" id="lbChestDup" min="0" max="100"
+                                        style="padding: 8px; width: 100%; text-align: center;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.8em; font-weight: bold; color: #2980b9;">VP Thường
+                                        (%)</label>
+                                    <input type="number" id="lbChestNorm" min="0" max="100"
+                                        style="padding: 8px; width: 100%; text-align: center;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.8em; font-weight: bold; color: #e11d48;">VP Truyền Thuyết
+                                        (%)</label>
+                                    <input type="number" id="lbChestLeg" min="0" max="100"
+                                        style="padding: 8px; width: 100%; text-align: center;">
+                                </div>
+                            </div>
+                            <p id="lbErrorMsg"
+                                style="color: #e11d48; font-weight: bold; font-size: 0.85em; display: none; margin-top: 5px;">
+                            </p>
+
+                            <button onclick="saveLeaderboardSettings()"
+                                style="margin-top: 15px; background: linear-gradient(135deg, #f6d365 0%, #fda085 100%); color: white; border: none; font-weight: bold; width: 100%; padding: 10px; border-radius: 8px;">💾
+                                Lưu cấu hình Phần thưởng</button>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div id="tab-settings" class="tab-content">

@@ -101,12 +101,53 @@ window.closeRulesModal = function() {
 
 // 2. MỞ BẢNG XẾP HẠNG VÀ TÍNH TOÁN
 window.openLeaderboardModal = async function() {
+    // Chặn mở bảng xếp hạng nếu học sinh đang trong bài thi nghiêm ngặt
     if (window.currentActiveExamId) {
-        window.showExamLockWarning("⚠️ Bảng xếp hạng tạm khóa khi đang thi!");
+        window.showExamLockWarning("⚠️ Bảng xếp hạng tạm khóa khi đang làm bài thi!");
         return;
     }
-    document.getElementById('leaderboardModal').classList.add('active');
-    await calculateAndRenderLeaderboard();
+
+    // Lấy trạng thái cài đặt từ Giáo viên
+    const lbSettingsSnap = await db.ref('leaderboard_settings').once('value');
+    const lbSettings = lbSettingsSnap.val() || { isOpen: false };
+
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
+
+    let isSeasonActive = lbSettings.isOpen;
+
+    // LOGIC TỰ ĐỘNG MỞ LẠI KHI ĐẾN LỊCH HẸN:
+    // Nếu giáo viên đang TẮT bảng xếp hạng nhưng có thiết lập lịch hẹn tương lai
+    if (!isSeasonActive && lbSettings.targetMonth && lbSettings.targetYear) {
+        // Kiểm tra xem thời gian thực tế đã đạt hoặc vượt qua mốc tháng/năm hẹn chưa
+        if (currentYear > lbSettings.targetYear || (currentYear === lbSettings.targetYear && currentMonth >= lbSettings.targetMonth)) {
+            isSeasonActive = true;
+            // Kích hoạt đồng bộ ngầm trạng thái mở lên cơ sở dữ liệu để hệ thống hoạt động bình thường
+            await db.ref('leaderboard_settings').update({ isOpen: true });
+        }
+    }
+
+    // Nếu sau khi kiểm tra lịch hẹn mà bảng xếp hạng vẫn đóng (chưa đến thời gian)
+    if (!isSeasonActive) {
+        if (lbSettings.targetMonth && lbSettings.targetYear) {
+            // Trường hợp có lịch hẹn tương lai
+            alert(`🔒 Bảng xếp hạng thi đua hiện đang đóng để bảo trì. Mùa giải mới sẽ chính thức bắt đầu vào Tháng ${lbSettings.targetMonth}/${lbSettings.targetYear}!`);
+        } else {
+            // Trường hợp giáo viên tắt và xóa lịch (Mặc định hiển thị thông báo chưa bắt đầu)
+            alert(`🔒 Bảng xếp hạng đang bị khóa do chưa bắt đầu mùa giải!`);
+        }
+        return;
+    }
+
+    // Nếu hợp lệ thì hiển thị modal bảng xếp hạng
+    const lbModal = document.getElementById('leaderboardModal');
+    if (lbModal) {
+        lbModal.classList.add('active');
+        if (typeof calculateAndRenderLeaderboard === 'function') {
+            await calculateAndRenderLeaderboard();
+        }
+    }
 };
 
 window.closeLeaderboardModal = function() {
@@ -284,47 +325,51 @@ window.claimChestReward = async function(choiceType) {
     btnNodes.forEach(btn => { btn.disabled = true; btn.style.opacity = '0.5'; });
 
     try {
+        // Lấy cấu hình rương từ Firebase
+        const lbSettingsSnap = await db.ref('leaderboard_settings').once('value');
+        const lbSettings = lbSettingsSnap.val() || { chestDup: 95, chestNorm: 4, chestLeg: 1 };
+        
+        // Tính toán lại mốc thập phân (Ví dụ 95% -> 0.95)
+        const dupThreshold = lbSettings.chestDup / 100;
+        const normThreshold = dupThreshold + (lbSettings.chestNorm / 100);
+
         if (choiceType === 'coin') {
-            // Lựa chọn 1: Random 200 - 1000 Coin (Tỉ lệ rớt cao cho mốc thấp)
+            // ... (Logic nhận coin giữ nguyên) ...
             const rand = Math.random();
             let amount = 0;
-            if (rand < 0.70) { amount = Math.floor(Math.random() * 301) + 200; } // 70%: 200 - 500
-            else if (rand < 0.90) { amount = Math.floor(Math.random() * 201) + 500; } // 20%: 500 - 700
-            else { amount = Math.floor(Math.random() * 301) + 700; } // 10%: 700 - 1000
+            if (rand < 0.70) { amount = Math.floor(Math.random() * 301) + 200; }
+            else if (rand < 0.90) { amount = Math.floor(Math.random() * 201) + 500; }
+            else { amount = Math.floor(Math.random() * 301) + 700; }
 
             const coinRef = db.ref('student_coins/' + currentUser.username);
             const snap = await coinRef.once('value');
             await coinRef.set((snap.val() || 0) + amount);
-            
             alert(`🎉 CHÚC MỪNG! Bạn đã mở Rương và nhận được ${amount} Coin!`);
 
         } else if (choiceType === 'item') {
-            // Lựa chọn 2: Random Vật Phẩm
             const rand = Math.random();
             const invSnap = await db.ref(`student_inventory/${currentUser.username}`).once('value');
             const exactInventory = invSnap.val() ? Object.values(invSnap.val()).map(i => i.id) : [];
 
-            if (rand < 0.95) {
-                // 95% ra vật phẩm đã sở hữu -> Tự động quy đổi thành 200 Coin
+            // ÁP DỤNG TỈ LỆ TỪ GIÁO VIÊN VÀO ĐÂY
+            if (rand < dupThreshold) {
+                // Rớt vào mốc Trùng lặp
                 const coinRef = db.ref('student_coins/' + currentUser.username);
                 const snap = await coinRef.once('value');
                 await coinRef.set((snap.val() || 0) + 200);
                 alert("♻️ Bạn mở ra vật phẩm trùng lặp. Hệ thống đã tự động quy đổi thành +200 Coin!");
 
             } else {
-                // Lọc vật phẩm từ StoreConfig (bỏ qua nhạc lofi đang phát triển)
                 const validItems = StoreConfig.items.filter(i => i.type !== 'music');
-                const legendaryTags = ['Truyền thuyết', 'Tứ Kỵ Sĩ']; // Đồng bộ Tứ Kỵ Sĩ theo dữ liệu cá nhân
-                
+                const legendaryTags = ['Truyền thuyết', 'Tứ Kỵ Sĩ'];
                 let selectedItem = null;
 
-                if (rand < 0.99) {
-                    // 4% Ra vật phẩm thường chưa sở hữu (Giá <= 700)
+                if (rand < normThreshold) {
+                    // Rớt vào mốc Vật phẩm Thường
                     const normalItems = validItems.filter(i => !legendaryTags.includes(i.tag) && (i.price <= 700) && !exactInventory.includes(i.id));
                     if (normalItems.length > 0) {
                         selectedItem = normalItems[Math.floor(Math.random() * normalItems.length)];
                     } else {
-                        // Nếu đã full đồ thường, đền bù 400 coin
                         const coinRef = db.ref('student_coins/' + currentUser.username);
                         const snap = await coinRef.once('value');
                         await coinRef.set((snap.val() || 0) + 400);
@@ -333,12 +378,11 @@ window.claimChestReward = async function(choiceType) {
                         return;
                     }
                 } else {
-                    // 1% Ra vật phẩm Truyền thuyết / Tứ Kỵ Sĩ / Giá trị cao
+                    // Rớt vào mốc Truyền Thuyết
                     const rareItems = validItems.filter(i => (legendaryTags.includes(i.tag) || i.price > 700) && !exactInventory.includes(i.id));
                     if (rareItems.length > 0) {
                         selectedItem = rareItems[Math.floor(Math.random() * rareItems.length)];
                     } else {
-                        // Đền bù mốc cao
                         const coinRef = db.ref('student_coins/' + currentUser.username);
                         const snap = await coinRef.once('value');
                         await coinRef.set((snap.val() || 0) + 1000);
@@ -348,15 +392,12 @@ window.claimChestReward = async function(choiceType) {
                     }
                 }
 
-                // Cấp phát vật phẩm
                 await db.ref(`student_inventory/${currentUser.username}/${selectedItem.id}`).update({
                     id: selectedItem.id, purchaseTime: Date.now(), isTrial: null, trialExpiry: null, isEquipped: false
                 });
                 alert(`🎊 KỲ TÍCH! Bạn đã nhận được [${selectedItem.tag}] ${selectedItem.name}!`);
             }
         }
-        
-        // Tắt Modal sau khi nhận quà
         document.getElementById('treasureChestModal').classList.remove('active');
 
     } catch (e) {

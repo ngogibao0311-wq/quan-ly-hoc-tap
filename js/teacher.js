@@ -3951,13 +3951,13 @@ async function getStudentTicketInfo(username) {
     let spinTracking = countSnapshot.val() || { count: 0 };
     let usedSpins = parseInt(spinTracking.count) || 0;
 
-    return { 
-        remaining: totalTickets - usedSpins, 
-        bonus: bonusTickets 
+    return {
+        remaining: totalTickets - usedSpins,
+        bonus: bonusTickets
     };
 }
 
-window.initTicketManagement = async function() {
+window.initTicketManagement = async function () {
     const users = await getDB('users');
     const students = users.filter(u => u.role === 'student');
     const select = document.getElementById('ticketStudentSelect');
@@ -3969,20 +3969,20 @@ window.initTicketManagement = async function() {
     });
 };
 
-window.onTicketStudentChange = async function() {
+window.onTicketStudentChange = async function () {
     const username = document.getElementById('ticketStudentSelect').value;
     const display = document.getElementById('currentTicketDisplay');
     if (!username) {
         display.innerText = '0';
         return;
     }
-    
+
     display.innerText = '⏳';
     const info = await getStudentTicketInfo(username);
     display.innerText = info.remaining;
 };
 
-window.modifyStudentTickets = async function(action) {
+window.modifyStudentTickets = async function (action) {
     const username = document.getElementById('ticketStudentSelect').value;
     const amountStr = document.getElementById('ticketModifyAmount').value;
     const amount = parseInt(amountStr);
@@ -4012,6 +4012,119 @@ window.modifyStudentTickets = async function(action) {
     } catch (e) {
         console.error("Lỗi cập nhật vé:", e);
         alert("❌ Đã xảy ra lỗi khi kết nối dữ liệu.");
+    }
+};
+
+// --- QUẢN LÝ BẢNG XẾP HẠNG THI ĐUA (CẬP NHẬT) ---
+
+db.ref('leaderboard_settings').on('value', (snapshot) => {
+    const settings = snapshot.val() || {};
+
+    // Đảm bảo luôn có giá trị mặc định chạy ngầm nếu Firebase trống
+    const isOpen = settings.isOpen !== undefined ? settings.isOpen : false;
+    const targetMonth = settings.targetMonth || (new Date().getMonth() + 1);
+    const targetYear = settings.targetYear || new Date().getFullYear();
+    const rewardRank3 = settings.rewardRank3 !== undefined ? settings.rewardRank3 : 100;
+    const rewardRank4 = settings.rewardRank4 !== undefined ? settings.rewardRank4 : 50;
+    const chestDup = settings.chestDup !== undefined ? settings.chestDup : 95;
+    const chestNorm = settings.chestNorm !== undefined ? settings.chestNorm : 4;
+    const chestLeg = settings.chestLeg !== undefined ? settings.chestLeg : 1;
+
+    // Cập nhật giao diện an toàn theo từng ID riêng biệt để tránh lỗi DOM sập luồng
+    const toggleInput = document.getElementById('lbToggle');
+    if (toggleInput) toggleInput.checked = !!isOpen;
+
+    const seasonDisplay = document.getElementById('currentSeasonDisplay');
+    if (seasonDisplay) {
+        if (settings.targetMonth && settings.targetYear) {
+            seasonDisplay.innerText = `Tháng ${settings.targetMonth}/${settings.targetYear}`;
+            seasonDisplay.style.color = '#3b82f6';
+        } else {
+            seasonDisplay.innerText = `Chưa có lịch`;
+            seasonDisplay.style.color = '#e11d48';
+        }
+    }
+
+    const elR3 = document.getElementById('lbRewardRank3');
+    if (elR3) elR3.value = rewardRank3;
+
+    const elR4 = document.getElementById('lbRewardRank4');
+    if (elR4) elR4.value = rewardRank4;
+
+    // Đổ dữ liệu tỷ lệ phần trăm ra các ô input công khai
+    const elDup = document.getElementById('lbChestDup');
+    if (elDup) elDup.value = chestDup;
+
+    const elNorm = document.getElementById('lbChestNorm');
+    if (elNorm) elNorm.value = chestNorm;
+
+    const elLeg = document.getElementById('lbChestLeg');
+    if (elLeg) elLeg.value = chestLeg;
+});
+
+// Tắt/Mở BXH thủ công
+window.toggleLeaderboardStatus = async function (isOpen) {
+    await db.ref('leaderboard_settings').update({ isOpen: isOpen });
+};
+
+// Đặt lịch mùa giải tự động cho tháng sau
+window.setNextMonthSeason = async function () {
+    const now = new Date();
+    let targetMonth = now.getMonth() + 2; // Đẩy tiến sang tháng tiếp theo
+    let targetYear = now.getFullYear();
+
+    if (targetMonth > 12) {
+        targetMonth = 1;
+        targetYear += 1;
+    }
+
+    if (confirm(`Bạn có muốn thiết lập lịch hẹn mùa giải mới bắt đầu vào Tháng ${targetMonth}/${targetYear}?`)) {
+        await db.ref('leaderboard_settings').update({
+            targetMonth: targetMonth,
+            targetYear: targetYear
+        });
+        alert(`✅ Đã đặt lịch hẹn! Khi đến tháng ${targetMonth}/${targetYear}, hệ thống sẽ tự động kích hoạt lại bảng xếp hạng.`);
+    }
+};
+
+// Lưu cấu hình phần thưởng và kiểm tra tổng tỷ lệ 100%
+window.saveLeaderboardSettings = async function () {
+    const r3 = parseInt(document.getElementById('lbRewardRank3').value) || 0;
+    const r4 = parseInt(document.getElementById('lbRewardRank4').value) || 0;
+
+    const dup = parseInt(document.getElementById('lbChestDup').value) || 0;
+    const norm = parseInt(document.getElementById('lbChestNorm').value) || 0;
+    const leg = parseInt(document.getElementById('lbChestLeg').value) || 0;
+
+    const totalRate = dup + norm + leg;
+    const errorMsg = document.getElementById('lbErrorMsg');
+
+    if (totalRate !== 100) {
+        errorMsg.innerText = `❌ LỖI: Tổng tỉ lệ Rương đang là ${totalRate}%. Phải thiết lập tổng đúng bằng 100%!`;
+        errorMsg.style.display = 'block';
+        return;
+    }
+
+    errorMsg.style.display = 'none';
+    await db.ref('leaderboard_settings').update({
+        rewardRank3: r3,
+        rewardRank4: r4,
+        chestDup: dup,
+        chestNorm: norm,
+        chestLeg: leg
+    });
+    alert('✅ Đã lưu cấu hình phần thưởng và tỷ lệ rương thành công!');
+};
+
+window.deleteCurrentSeason = async function () {
+    if (confirm("⚠️ Bạn có chắc chắn muốn XÓA lịch mùa giải hiện tại không?\nHành động này sẽ xóa ngày hẹn và Bảng xếp hạng sẽ đóng cho đến khi bạn thiết lập lại.")) {
+        // Cập nhật Firebase: set targetMonth và targetYear thành null, đồng thời tắt luôn BXH cho an toàn
+        await db.ref('leaderboard_settings').update({
+            isOpen: false,
+            targetMonth: null,
+            targetYear: null
+        });
+        alert(`🗑️ Đã xóa lịch mùa giải thành công!`);
     }
 };
 
