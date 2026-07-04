@@ -16,6 +16,14 @@ let activeScheduleStudentFilter = 'all';
 const dtTeacherAssign = new DataTransfer(); // Dùng cho Giao bài
 window.teacherGradeDTs = {}; // Dùng cho Chấm bài (nhiều học sinh)
 
+function debounce(func, wait) {
+    let timeout;
+    return function (...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+    };
+}
+
 window.handleTeacherFileAccumulate = function (input, subId) {
     if (!window.teacherGradeDTs[subId]) window.teacherGradeDTs[subId] = new DataTransfer();
     const existingFiles = Array.from(window.teacherGradeDTs[subId].files).map(f => f.name + '_' + f.size);
@@ -54,52 +62,62 @@ window.onload = async function () {
     initFileListener();
     initMaterialFileListener();
 
-    // === TỐI ƯU HÓA HIỆU SUẤT (BỘ ĐỆM CACHE) ===
-    let cacheProfile = "", cacheSubmissions = "", cacheAssignments = "", cacheMaterials = "", cacheUsers = "";
+    // ==========================================
+    // PHẦN 1: TẢI DỮ LIỆU NẶNG LẦN ĐẦU (Tải 1 lần để có giao diện ngay)
+    // ==========================================
+    await Promise.all([
+        loadProfileRequests(),
+        loadAssignedList(),
+        loadSubmissions(),
+        loadMaterialsListTeacher(),
+        loadStudentsList(),
+        typeof loadScheduleTeacher === 'function' ? loadScheduleTeacher() : Promise.resolve(),
+        typeof loadSpinHistory === 'function' ? loadSpinHistory() : Promise.resolve(),
+        typeof loadTeacherCashRequests === 'function' ? loadTeacherCashRequests() : Promise.resolve()
+    ]);
+    await populateStudentDropdown();
+    await populateRoadmapStudentDropdown();
+    if (typeof initTicketManagement === 'function') await initTicketManagement();
+    if (document.getElementById('teacherRoadmapBody')) renderTeacherRoadmap();
+    if (document.getElementById('studentRoadmapBody')) renderStudentRoadmap();
 
-    db.ref('profile_requests').on('value', async (snapshot) => {
-        const hash = JSON.stringify(snapshot.val());
-        if (hash !== cacheProfile) { cacheProfile = hash; await loadProfileRequests(); }
-    });
-    db.ref('assignments').on('value', async (snapshot) => {
-        const hash = JSON.stringify(snapshot.val());
-        if (hash !== cacheAssignmentsSt) {
-            cacheAssignmentsSt = hash;
-            window.cachedAssignments = snapshot.val() ? Object.values(snapshot.val()) : [];
-            // Sửa tại đây: Gọi đúng hàm loadAssignedList() thay vì loadAssignments()
-            await loadAssignedList();
-            if (document.getElementById('studentRoadmapBody')) renderStudentRoadmap();
-        }
-    });
+    // ==========================================
+    // PHẦN 2: LẮNG NGHE DỮ LIỆU NẶNG BẰNG DEBOUNCE
+    // Gom các thay đổi liên tục trong 1.5 giây thành 1 lần render duy nhất
+    // Bỏ hoàn toàn JSON.stringify cache vì nó ngốn quá nhiều CPU
+    // ==========================================
+    const renderSubmissions = debounce(async () => {
+        window.cachedSubmissions = await getDB('submissions');
+        await loadSubmissions();
+        if (document.getElementById('studentRoadmapBody')) renderStudentRoadmap();
+    }, 1500);
 
-    db.ref('submissions').on('value', async (snapshot) => {
-        const hash = JSON.stringify(snapshot.val());
-        if (hash !== cacheSubmissionsSt) {
-            cacheSubmissionsSt = hash;
-            window.cachedSubmissions = snapshot.val() ? Object.values(snapshot.val()) : [];
-            // Sửa tại đây: Gọi đúng hàm loadSubmissions() thay vì loadAssignments()
-            await loadSubmissions();
-            if (document.getElementById('studentRoadmapBody')) renderStudentRoadmap();
-        }
-    });
-    db.ref('materials').on('value', async (snapshot) => {
-        const hash = JSON.stringify(snapshot.val());
-        if (hash !== cacheMaterials) { cacheMaterials = hash; await loadMaterialsListTeacher(); }
-    });
-    db.ref('users').on('value', async (snapshot) => {
-        const hash = JSON.stringify(snapshot.val());
-        if (hash !== cacheUsers) {
-            cacheUsers = hash;
-            await loadStudentsList();
-            await populateStudentDropdown();
-            await populateRoadmapStudentDropdown();
-            // Cập nhật lại cột bảng lộ trình ngay lập tức
-            if (document.getElementById('teacherRoadmapBody')) renderTeacherRoadmap();
-        }
-    });
-    // ============================================
+    const renderAssignments = debounce(async () => {
+        window.cachedAssignments = await getDB('assignments');
+        await loadAssignedList();
+        if (document.getElementById('studentRoadmapBody')) renderStudentRoadmap();
+    }, 1500);
 
-    // Lắng nghe cấu hình điểm đạt tối thiểu từ Firebase
+    const renderUsers = debounce(async () => {
+        await loadStudentsList();
+        await populateStudentDropdown();
+        await populateRoadmapStudentDropdown();
+        if (document.getElementById('teacherRoadmapBody')) renderTeacherRoadmap();
+    }, 1500);
+
+    db.ref('submissions').on('value', renderSubmissions);
+    db.ref('assignments').on('value', renderAssignments);
+    db.ref('users').on('value', renderUsers);
+    db.ref('profile_requests').on('value', debounce(loadProfileRequests, 1500));
+    db.ref('materials').on('value', debounce(loadMaterialsListTeacher, 1500));
+    db.ref('schedule').on('value', debounce(loadScheduleTeacher, 1500));
+    db.ref('spin_history').on('value', debounce(loadSpinHistory, 1500));
+    db.ref('student_coins').on('value', debounce(loadStudentsList, 1500));
+    db.ref('cash_requests').on('value', debounce(loadTeacherCashRequests, 1500));
+
+    // ==========================================
+    // PHẦN 3: LẮNG NGHE SETTINGS (Dữ liệu nhỏ, giữ nguyên real-time)
+    // ==========================================
     db.ref('roadmap_settings/passingGrade').on('value', (snapshot) => {
         const val = snapshot.val() || 7;
         if (document.getElementById('passingGradeSetting')) document.getElementById('passingGradeSetting').value = val;
@@ -107,16 +125,8 @@ window.onload = async function () {
         if (document.getElementById('teacherRoadmapBody')) renderTeacherRoadmap();
     });
 
-    // BỔ SUNG: Lắng nghe cấu hình Lịch học
-    db.ref('schedule').on('value', async () => {
-        if (typeof loadScheduleTeacher === 'function') await loadScheduleTeacher();
-    });
-
-    // DÁN ĐOẠN THỜI GIAN THỰC ĐỒNG BỘ NÀY VÀO ĐÂY
     db.ref('game_settings').on('value', (snapshot) => {
         const settings = snapshot.val() || { isOpen: true, lockMessage: '' };
-
-        // Khai báo biến toàn cục để hệ thống chẩn đoán nhận diện được
         window.isGameEnabled = settings.isOpen;
 
         const toggleInput = document.getElementById('gameToggle');
@@ -128,18 +138,11 @@ window.onload = async function () {
         if (msgArea) msgArea.style.display = settings.isOpen ? 'none' : 'block';
     });
 
-    window.wheelProbs = { miss: 50, c100: 20, c150: 25, c500: 4, gift: 1 }; // Mặc định
-    db.ref('game_settings/wheel_probabilities').on('value', (snapshot) => {
-        if (snapshot.exists()) {
-            window.wheelProbs = snapshot.val();
-        }
-    });
-
-    db.ref('spin_history').on('value', async () => {
-        if (typeof loadSpinHistory === 'function') await loadSpinHistory();
-    });
+    // Sửa lỗi: Cộp chung 2 listener vòng quay bị trùng lặp ở code cũ
+    window.wheelProbs = { miss: 50, c100: 20, c150: 25, c500: 4, gift: 1 };
     db.ref('game_settings/wheel_probabilities').on('value', (snapshot) => {
         const probs = snapshot.val() || { miss: 50, c100: 20, c150: 25, c500: 4, gift: 1 };
+        window.wheelProbs = probs;
         if (document.getElementById('probMiss')) {
             document.getElementById('probMiss').value = probs.miss;
             document.getElementById('prob100').value = probs.c100;
@@ -148,17 +151,9 @@ window.onload = async function () {
             document.getElementById('probGift').value = probs.gift;
         }
     });
-    // Lắng nghe sự thay đổi biến động Coin để cập nhật bảng quản lý tự động
-    db.ref('student_coins').on('value', async () => {
-        if (document.getElementById('studentsListContainer')) {
-            await loadStudentsList();
-        }
-    });
 
     db.ref('store_settings').on('value', (snapshot) => {
         const settings = snapshot.val();
-
-        // ---> THÊM 4 DÒNG NÀY ĐỂ ĐỒNG BỘ NÚT TICK TỪ FIREBASE <---
         const storeToggleInput = document.getElementById('storeToggle');
         if (storeToggleInput && settings !== null && settings.isOpen !== undefined) {
             storeToggleInput.checked = settings.isOpen;
@@ -170,16 +165,29 @@ window.onload = async function () {
                     if (settings[item.id].price !== undefined) item.price = settings[item.id].price;
                     if (settings[item.id].startDate !== undefined) item.startDate = settings[item.id].startDate;
                     if (settings[item.id].endDate !== undefined) item.endDate = settings[item.id].endDate;
-                    item.isLocked = !!settings[item.id].isLocked; // ĐỒNG BỘ TRẠNG THÁI KHÓA
+                    item.isLocked = !!settings[item.id].isLocked;
                 }
             });
-            if (typeof initTeacherStoreManagement === 'function') {
-                initTeacherStoreManagement();
-            }
+            if (typeof initTeacherStoreManagement === 'function') initTeacherStoreManagement();
         }
     });
 
-    // (Bổ sung) Lắng nghe giáo viên nhập điểm để tự ẩn/hiện phần câu hỏi
+    db.ref('system_settings/conversionTableEnabled').on('value', (snapshot) => {
+        const isEnabled = snapshot.val() !== false;
+        window.isConversionEnabled = isEnabled;
+        const toggleBtn = document.getElementById('toggleConversionTable');
+        if (toggleBtn) toggleBtn.checked = isEnabled;
+
+        const conversionSection = document.getElementById('conversionTableSection');
+        if (conversionSection) conversionSection.style.display = isEnabled ? 'block' : 'none';
+
+        const coinModal = document.getElementById('coinConversionModal');
+        if (!isEnabled && coinModal && coinModal.classList.contains('active')) {
+            closeCoinConversionModal();
+        }
+    });
+
+    // Lắng nghe giáo viên nhập điểm (Giữ nguyên)
     const mcInput = document.getElementById('mcWeight');
     const essayInput = document.getElementById('essayWeight');
     if (mcInput) mcInput.addEventListener('input', window.updateExamFields);
@@ -189,39 +197,6 @@ window.onload = async function () {
     const editEssayInput = document.getElementById('editEssayWeight');
     if (editMcInput) editMcInput.addEventListener('input', window.updateEditExamFields);
     if (editEssayInput) editEssayInput.addEventListener('input', window.updateEditExamFields);
-
-    // Đồng bộ nút Bật/Tắt Bảng quy đổi từ Giáo viên
-    db.ref('system_settings/conversionTableEnabled').on('value', (snapshot) => {
-        const isEnabled = snapshot.val() !== false;
-
-        // 1. Lưu trạng thái vào biến toàn cục để sử dụng cho popup nổi
-        window.isConversionEnabled = isEnabled;
-
-        // [BỔ SUNG] Đồng bộ hiển thị trạng thái của nút gạt sau khi tải lại trang
-        const toggleBtn = document.getElementById('toggleConversionTable');
-        if (toggleBtn) toggleBtn.checked = isEnabled;
-
-        // 2. Ẩn/Hiện khu vực Rút tiền ở tab Lộ trình
-        const conversionSection = document.getElementById('conversionTableSection');
-        if (conversionSection) {
-            conversionSection.style.display = isEnabled ? 'block' : 'none';
-        }
-
-        // 3. Tự động đóng Popup quy đổi Coin nếu giáo viên vừa tắt
-        const coinModal = document.getElementById('coinConversionModal');
-        if (!isEnabled && coinModal && coinModal.classList.contains('active')) {
-            closeCoinConversionModal();
-        }
-    });
-
-    // =================================================================
-    // ĐỒNG BỘ YÊU CẦU RÚT TIỀN CỦA HỌC SINH VỀ GIÁO VIÊN THỜI GIAN THỰC
-    // =================================================================
-    db.ref('cash_requests').on('value', async () => {
-        if (typeof loadTeacherCashRequests === 'function' && document.getElementById('teacherCashRequestsListContainer')) {
-            await loadTeacherCashRequests();
-        }
-    });
 };
 
 function getEmbedHTML(url) {
@@ -234,11 +209,11 @@ function getEmbedHTML(url) {
 
     if (videoId) {
         let embedUrl = `https://www.youtube.com/embed/${videoId}`;
-        // Thêm loading="lazy" vào thẻ iframe
-        return `<div class="video-wrapper"><iframe width="100%" height="315" src="${embedUrl}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy"></iframe></div>`;
+        // Thêm margin-bottom: 20px
+        return `<div class="video-wrapper" style="margin-bottom: 20px;"><iframe width="100%" height="315" src="${embedUrl}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy"></iframe></div>`;
     }
-    // Thêm loading="lazy" vào thẻ iframe dự phòng
-    return `<div class="video-wrapper"><iframe width="100%" height="315" src="${url}" frameborder="0" allowfullscreen loading="lazy"></iframe></div>`;
+    // Thêm margin-bottom: 20px
+    return `<div class="video-wrapper" style="margin-bottom: 20px;"><iframe width="100%" height="315" src="${url}" frameborder="0" allowfullscreen loading="lazy"></iframe></div>`;
 }
 
 // Hàm tự động ẩn/hiện giao diện tạo câu hỏi khi nhập điểm Thi
@@ -347,7 +322,7 @@ window.addQuestion = function () {
 };
 
 async function createAssignment() {
-    const title = document.getElementById('title').value;
+    const title = document.getElementById('title').value.trim();
     const startDate = document.getElementById('startDate').value;
     const endDate = document.getElementById('endDate').value;
     const targetStudent = window.getMultiSelectValues('targetStudent');
@@ -355,6 +330,28 @@ async function createAssignment() {
     let desc = '', videoLink = '', attachedFile = null, questions = [];
     let mcWeight = null, essayWeight = null;
     let hideEssayText = false;
+
+    // ==========================================
+    // 1. KIỂM TRA DỮ LIỆU ĐẦU VÀO (VALIDATION)
+    // ==========================================
+    if (!title || !startDate || !endDate) return alert("⚠️ Vui lòng điền đủ Tiêu đề và Thời hạn!");
+    if (title.length < 5) return alert("⚠️ Tiêu đề bài tập quá ngắn (yêu cầu ít nhất 5 ký tự)!");
+
+    // Kiểm tra logic thời gian
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (start >= end) {
+        return alert("⏳ Lỗi thời gian: Hạn nộp bài (Thời gian kết thúc) phải diễn ra SAU Thời gian bắt đầu!");
+    }
+
+    // Kiểm tra định dạng link YouTube (Nếu có nhập)
+    const rawVideoLink = (type === 'thi') ? '' : document.getElementById('videoLink').value.trim();
+    if (rawVideoLink) {
+        const ytRegex = /^(https?\:\/\/)?(www\.youtube\.com|youtu\.?be)\/.+$/;
+        if (!ytRegex.test(rawVideoLink)) {
+            return alert("🔗 Lỗi: Đường dẫn video không hợp lệ! Hệ thống hiện chỉ hỗ trợ link từ YouTube.");
+        }
+    }
 
     // BƯỚC 1: XỬ LÝ ĐIỂM SỐ TRƯỚC (Gỡ bỏ bắt buộc bằng 10 cho hệ thi)
     if (type === 'ket_hop' || type === 'thi') {
@@ -420,13 +417,23 @@ async function createAssignment() {
         essayWeight = parseFloat(document.getElementById('essayWeight').value) || 0;
     }
 
+    let watchCondition = 0;
+    if (document.getElementById('videoLink').value.trim()) {
+        const d = parseInt(document.getElementById('condDay').value) || 0;
+        const h = parseInt(document.getElementById('condHour').value) || 0;
+        const m = parseInt(document.getElementById('condMin').value) || 0;
+        const s = parseInt(document.getElementById('condSec').value) || 0;
+        watchCondition = d * 86400 + h * 3600 + m * 60 + s;
+    }
+
     await pushDB('assignments', {
         id: Date.now().toString(), title, desc,
         startDate: startDate.replace("T", " "), endDate: endDate.replace("T", " "),
         targetStudent, file: attachedFile, videoLink: videoLink,
         assessmentType: type, questions: questions,
         mcWeight: mcWeight, essayWeight: essayWeight,
-        hideEssayText: hideEssayText // Đẩy lên Firebase dữ liệu cấu hình mới
+        hideEssayText: hideEssayText,
+        watchCondition: watchCondition // Đẩy lên Firebase dữ liệu cấu hình mới
     });
 
     document.getElementById('title').value = ''; document.getElementById('desc').value = '';
@@ -510,7 +517,7 @@ async function loadAssignedList() {
             typeText += ' 📁 [Chỉ nhận Tệp]';
         }
 
-        // --- LOGIC MỚI: TẠO NHÃN CHƯA NỘP / CHƯA ĐẾN GIỜ ---
+        // --- LOGIC MỚI ĐÃ SỬA: TẠO NHÃN TRẠNG THÁI NỘP BÀI ---
         const now = new Date();
         const startTime = assign.startDate ? new Date(assign.startDate.replace(" ", "T")) : new Date(0);
         let statusBadge = '';
@@ -524,11 +531,23 @@ async function loadAssignedList() {
                 return arr.includes('all') || arr.includes(u.username);
             });
 
-            // Kiểm tra xem có học sinh nào trong danh sách mục tiêu CHƯA có bài nộp không
-            const hasMissing = targetStudents.some(st => !submissions.some(s => s.assignmentId === assign.id && s.studentUsername === st.username));
+            const totalAssigned = targetStudents.length;
 
-            if (hasMissing) {
-                statusBadge = `<span style="background: rgba(225, 29, 72, 0.15); color: #e11d48; padding: 4px 10px; border-radius: 20px; font-size: 0.75em; margin-left: 10px; vertical-align: middle; white-space: nowrap; font-weight: bold; border: 1px solid rgba(225, 29, 72, 0.3);">⚠️ Chưa nộp</span>`;
+            // Đếm số lượng học sinh ĐÃ nộp bài cho bài tập này
+            let submittedCount = 0;
+            targetStudents.forEach(st => {
+                if (submissions.some(s => s.assignmentId === assign.id && s.studentUsername === st.username)) {
+                    submittedCount++;
+                }
+            });
+
+            // Quyết định màu sắc và nội dung hiển thị dựa trên tỉ lệ nộp
+            if (submittedCount === 0) {
+                statusBadge = `<span style="background: rgba(225, 29, 72, 0.15); color: #e11d48; padding: 4px 10px; border-radius: 20px; font-size: 0.75em; margin-left: 10px; vertical-align: middle; white-space: nowrap; font-weight: bold; border: 1px solid rgba(225, 29, 72, 0.3);">🔴 Chưa ai nộp (0/${totalAssigned})</span>`;
+            } else if (submittedCount < totalAssigned) {
+                statusBadge = `<span style="background: rgba(245, 158, 11, 0.15); color: #d97706; padding: 4px 10px; border-radius: 20px; font-size: 0.75em; margin-left: 10px; vertical-align: middle; white-space: nowrap; font-weight: bold; border: 1px solid rgba(245, 158, 11, 0.3);">🟡 Đang làm (${submittedCount}/${totalAssigned})</span>`;
+            } else {
+                statusBadge = `<span style="background: rgba(16, 185, 129, 0.15); color: #059669; padding: 4px 10px; border-radius: 20px; font-size: 0.75em; margin-left: 10px; vertical-align: middle; white-space: nowrap; font-weight: bold; border: 1px solid rgba(16, 185, 129, 0.3);">🟢 Đã nộp đủ (${submittedCount}/${totalAssigned})</span>`;
             }
         }
         // ---------------------------------------------------
@@ -545,18 +564,25 @@ async function loadAssignedList() {
         let quizHTML = '';
         const hasMC = assign.assessmentType === 'trac_nghiem' || assign.assessmentType === 'ket_hop' || (assign.assessmentType === 'thi' && (assign.mcWeight || 0) > 0);
         if (hasMC && assign.questions) {
-            quizHTML = `<div style="background: rgba(255,255,255,0.5); padding: 10px; border-radius: 8px; margin-top: 10px;"><strong>Trắc nghiệm:</strong><ul style="margin-left: 20px;">`;
+            quizHTML = `<div style="background: rgba(255,255,255,0.5); padding: 10px; border-radius: 8px; margin-top: 10px; margin-bottom: 15px;"><strong>Trắc nghiệm:</strong><ul style="margin-left: 20px;">`;
             assign.questions.forEach((q, idx) => { quizHTML += `<li>Câu ${idx + 1}: ${q.qText} <strong>(${q.correct})</strong></li>`; });
             quizHTML += '</ul></div>';
         }
 
         const hasEssay = assign.assessmentType === 'tu_luan' || assign.assessmentType === 'ket_hop' || !assign.assessmentType || (assign.assessmentType === 'thi' && (assign.essayWeight || 0) > 0);
-        let tuLuanHTML = hasEssay ? `<p style="background: rgba(255,255,255,0.5); padding:15px; border-radius:12px; border-left:4px solid #667eea;"><strong>Yêu cầu Tự luận:</strong><br>${(assign.desc || '').replace(/\n/g, '<br>')}</p>` : '';
+        let tuLuanHTML = hasEssay ? `<p style="background: rgba(255,255,255,0.5); padding:15px; border-radius:12px; border-left:4px solid #667eea; margin-top: 15px;"><strong>Yêu cầu Tự luận:</strong><br>${(assign.desc || '').replace(/\n/g, '<br>')}</p>` : '';
 
         const uniqueId = `teacher-assign-${assign.id}`;
         const div = document.createElement('div');
         div.className = 'card accordion-card';
         div.setAttribute('data-target', Array.isArray(assign.targetStudent) ? assign.targetStudent.join(',') : (assign.targetStudent || 'all'));
+
+        if (typeof activeAssignedStudentFilter !== 'undefined' && activeAssignedStudentFilter !== 'all') {
+            const targets = Array.isArray(assign.targetStudent) ? assign.targetStudent : [assign.targetStudent || 'all'];
+            if (!targets.includes('all') && !targets.includes(activeAssignedStudentFilter)) {
+                div.style.display = 'none';
+            }
+        }
 
         // Cập nhật lại HTML phần tiêu đề: Đưa Title và statusBadge vào một Flex box
         div.innerHTML = `<div class="accordion-header" onclick="toggleAccordion('${uniqueId}', this)">
@@ -647,6 +673,14 @@ async function loadMaterialsListTeacher() {
         const div = document.createElement('div'); div.className = 'card accordion-card';
         div.className = 'card accordion-card';
         div.setAttribute('data-target', Array.isArray(mat.targetStudent) ? mat.targetStudent.join(',') : (mat.targetStudent || 'all'));
+
+        if (typeof activeMaterialStudentFilter !== 'undefined' && activeMaterialStudentFilter !== 'all') {
+            const targets = Array.isArray(mat.targetStudent) ? mat.targetStudent : [mat.targetStudent || 'all'];
+            if (!targets.includes('all') && !targets.includes(activeMaterialStudentFilter)) {
+                div.style.display = 'none';
+            }
+        }
+
         div.innerHTML = `
             <div class="accordion-header" onclick="toggleAccordion('${uniqueId}', this)">
                 <div class="accordion-title"><h4>${mat.title}</h4><span>🕒 Đăng lúc: ${mat.uploadTime || 'Chưa rõ'}</span></div>
@@ -896,23 +930,31 @@ async function loadSubmissions() {
             violationHTML = `<div style="background: rgba(225, 29, 72, 0.1); border-left: 4px solid #e11d48; padding: 10px; margin-top: 10px; margin-bottom: 10px; border-radius: 8px;"><strong style="color: #e11d48;">🚨 HỌC SINH VI PHẠM QUY CHẾ THI:</strong><br><span style="color:#b91c1c; font-size:0.9em;">Hệ thống phát hiện học sinh này đã tự ý thoát khỏi chế độ Toàn màn hình trong lúc thi.</span></div>`;
         }
 
+        let missingEssayBadge = sub.isEssayMissing ? '<span style="background: rgba(245, 158, 11, 0.15); color: #d97706; border: 1px solid #f59e0b; padding: 2px 6px; border-radius: 4px; font-size: 0.8em; margin-left: 8px; font-weight: bold; vertical-align: middle;">⚠️ Thiếu tự luận</span>' : '';
+
         const uniqueId = `teacher-sub-${sub.id}`;
         const div = document.createElement('div');
         div.className = 'card accordion-card';
         div.setAttribute('data-student', sub.studentUsername); // <--- THÊM ĐÚNG 1 DÒNG NÀY ĐỂ DÁN NHÃN
 
+        if (typeof activeSubmissionStudentFilter !== 'undefined' && activeSubmissionStudentFilter !== 'all') {
+            if (sub.studentUsername !== activeSubmissionStudentFilter) {
+                div.style.display = 'none'; // Ẩn các học sinh khác đi để giữ đúng bộ lọc hiện tại
+            }
+        }
+
         div.innerHTML = `<div class="accordion-header" onclick="toggleAccordion('${uniqueId}', this)">
-                <div class="accordion-title"><h4>${assign.title}</h4><span>HS: <strong>${sub.studentName}</strong></span></div>
-                <div class="accordion-meta"><span>${gradeStatus}</span><span class="toggle-icon">▼</span></div>
-            </div>
+    <div class="accordion-title"><h4>${assign.title}</h4><span>HS: <strong>${sub.studentName}</strong> ${missingEssayBadge}</span></div>
+    <div class="accordion-meta"><span>${gradeStatus}</span><span class="toggle-icon">▼</span></div>
+</div>
             <div id="${uniqueId}" class="accordion-content">${violationHTML}<span style="color: #888; font-size: 0.85em; display: block; margin-bottom: 10px;">🕒 Lần nộp cuối: ${sub.submitTime || 'Chưa rõ'}</span>
     ${watchStatusHTML}
     ${videoHTML}
-                <div style="background: rgba(255,255,255,0.4); padding: 15px; border-radius: 12px; margin-bottom: 15px;">
-                    <p style="margin: 0; font-weight: bold;">Bài nộp:</p>
-                    <p style="white-space: pre-wrap; word-break: break-word; margin-top:5px;">
-    ${sub.answer ? sub.answer.replace(/</g, "&lt;").replace(/>/g, "&gt;") : '<i>(Trống)</i>'}
-</p>
+                <div style="background: rgba(255,255,255,0.6); padding: 15px; border-radius: 12px; margin-top: 20px; margin-bottom: 15px; border: 1px solid rgba(0,0,0,0.05);">
+                    <p style="margin: 0 0 10px 0; font-weight: bold; color: #2c3e50; border-bottom: 1px dashed rgba(0,0,0,0.1); padding-bottom: 8px;">📝 Bài nộp của học sinh:</p>
+                    <div style="background: rgba(0,0,0,0.02); padding: 15px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.03);">
+                        <p style="white-space: pre-wrap; word-break: break-word; margin: 0; color: #444; line-height: 1.6;">${sub.answer ? sub.answer.replace(/</g, "&lt;").replace(/>/g, "&gt;") : '<i>(Trống)</i>'}</p>
+                    </div>
                     ${studentFileHTML}
                 </div>
                 <div style="background: rgba(255,255,255,0.6); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.9);">
@@ -1039,6 +1081,7 @@ window.toggleLockStudent = async function (userKey, isCurrentlyLocked) {
     const actionText = isCurrentlyLocked ? "MỞ KHÓA" : "KHÓA TẠM THỜI"; if (!confirm(`Bạn có chắc chắn muốn ${actionText} tài khoản này không?`)) return;
     await updateDB('users', userKey, { isLocked: !isCurrentlyLocked }); alert(`✅ Đã ${actionText.toLowerCase()} tài khoản thành công!`);
 }
+
 async function createStudent() {
     const username = document.getElementById('newStudentUsername').value.trim();
     const password = document.getElementById('newStudentPassword').value.trim();
@@ -1047,20 +1090,43 @@ async function createStudent() {
     const hobbies = document.getElementById('newStudentHobbies').value.trim();
     const motto = document.getElementById('newStudentMotto').value.trim();
 
-    if (!username || !password || !name) return alert('Vui lòng điền đủ Tên đăng nhập, Mật khẩu và Họ tên!');
+    // ==========================================
+    // KIỂM TRA DỮ LIỆU ĐẦU VÀO (VALIDATION)
+    // ==========================================
+    if (!username || !password || !name) return alert('⚠️ Vui lòng điền đủ Tên đăng nhập, Mật khẩu và Họ tên!');
+
+    // 1. Kiểm tra Tên đăng nhập (Chỉ cho phép chữ cái không dấu, số, dấu gạch dưới)
+    const usernameRegex = /^[a-zA-Z0-9_]+$/;
+    if (!usernameRegex.test(username)) {
+        return alert('❌ Tên đăng nhập không hợp lệ! Không được chứa khoảng trắng, dấu Tiếng Việt hoặc ký tự đặc biệt (chỉ chấp nhận a-z, 0-9 và _).');
+    }
+    if (username.length < 4) return alert('⚠️ Tên đăng nhập phải có ít nhất 4 ký tự!');
+
+    // 2. Kiểm tra Mật khẩu an toàn
+    if (password.length < 6) return alert('🔒 Mật khẩu quá ngắn! Cần ít nhất 6 ký tự để đảm bảo an toàn.');
+
+    // 3. (Tùy chọn) Kiểm tra Họ tên không chứa số
+    const nameHasNumbers = /\d/.test(name);
+    if (nameHasNumbers) return alert('⚠️ Họ tên học sinh không được chứa chữ số!');
+    // ==========================================
 
     const users = await getDB('users');
-    if (users.find(u => u.username === username)) return alert('Tên đăng nhập đã tồn tại!');
+    if (users.find(u => u.username === username)) return alert('❌ Tên đăng nhập này đã tồn tại trên hệ thống! Vui lòng chọn tên khác.');
 
     await pushDB('users', { username, password, name, role: 'student', isLocked: false, classInfo, hobbies, motto });
 
-    document.getElementById('newStudentUsername').value = ''; document.getElementById('newStudentPassword').value = '';
-    document.getElementById('newStudentName').value = ''; document.getElementById('newStudentClass').value = '';
-    document.getElementById('newStudentHobbies').value = ''; document.getElementById('newStudentMotto').value = '';
+    // Dọn dẹp Form sau khi thành công
+    document.getElementById('newStudentUsername').value = '';
+    document.getElementById('newStudentPassword').value = '';
+    document.getElementById('newStudentName').value = '';
+    document.getElementById('newStudentClass').value = '';
+    document.getElementById('newStudentHobbies').value = '';
+    document.getElementById('newStudentMotto').value = '';
 
     closeStudentModal();
-    alert('Đã tạo tài khoản thành công!');
+    alert('✅ Đã tạo tài khoản học sinh thành công!');
 }
+
 async function deleteStudent(username) { if (!confirm(`Xóa tài khoản "${username}"?`)) return; const users = await getDB('users'); const st = users.find(u => u.username === username); if (st) await removeDB('users', st._fbKey); }
 async function loadProfileRequests() {
     const requests = await getDB('profile_requests'); const pendingReqs = requests.filter(r => r.status === 'pending'); const card = document.getElementById('requestsCard'); const container = document.getElementById('requestsListContainer');
@@ -1321,8 +1387,9 @@ async function renderTeacherRoadmap() {
         // Kiểm tra: Nếu giáo viên đã chọn 1 học sinh cụ thể, 
         // thì bỏ qua (không in ra bảng) những bài tập giao riêng cho học sinh khác.
         if (selectedStudent && selectedStudent !== "") {
-            if (assign.targetStudent && assign.targetStudent !== 'all' && assign.targetStudent !== selectedStudent) {
-                return; // Lệnh return này giúp bỏ qua bài tập, chuyển sang bài tiếp theo
+            const targetArr = Array.isArray(assign.targetStudent) ? assign.targetStudent : [assign.targetStudent || 'all'];
+            if (!targetArr.includes('all') && !targetArr.includes(selectedStudent)) {
+                return;
             }
         }
         // THÊM DÒNG NÀY: Lấy điều kiện điểm chuẩn của RIÊNG bài tập này (Mặc định là 7 nếu chưa cài)
@@ -1529,6 +1596,32 @@ window.openEditAssignmentModal = async function (fbKey) {
         }
 
         if (assign.assessmentType === 'thi') window.updateEditExamFields();
+        // Đổ dữ liệu thời gian vào form sửa và cho phép Edit
+        const editDay = document.getElementById('editCondDay');
+        const editHour = document.getElementById('editCondHour');
+        const editMin = document.getElementById('editCondMin');
+        const editSec = document.getElementById('editCondSec');
+
+        if (editDay && editHour && editMin && editSec) {
+            // assign.watchCondition đã được quy ra giây ở hàm tạo
+            let watchDuration = assign.watchCondition || 0;
+
+            let d = Math.floor(watchDuration / 86400);
+            let h = Math.floor((watchDuration % 86400) / 3600);
+            let m = Math.floor((watchDuration % 3600) / 60);
+            let s = watchDuration % 60;
+
+            editDay.value = d;
+            editHour.value = h;
+            editMin.value = m;
+            editSec.value = s;
+
+            // Gỡ bỏ tính trạng khóa để giáo viên sửa lại
+            editDay.disabled = false;
+            editHour.disabled = false;
+            editMin.disabled = false;
+            editSec.disabled = false;
+        }
 
         document.getElementById('editAssignmentModal').classList.add('active');
     } catch (err) {
@@ -1618,11 +1711,21 @@ window.saveAssignmentEdit = async function () {
     const assign = assignments.find(a => a._fbKey === currentEditingAssignmentKey);
     if (!assign) return;
 
+    let watchCondition = 0;
+    if (document.getElementById('editVideoLink').value.trim()) {
+        const d = parseInt(document.getElementById('editCondDay').value) || 0;
+        const h = parseInt(document.getElementById('editCondHour').value) || 0;
+        const m = parseInt(document.getElementById('editCondMin').value) || 0;
+        const s = parseInt(document.getElementById('editCondSec').value) || 0;
+        watchCondition = d * 86400 + h * 3600 + m * 60 + s;
+    }
+
     const updateObj = {
         title: title,
         startDate: startDate.replace("T", " "),
         endDate: endDate.replace("T", " "),
-        targetStudent: targetStudent // [MỚI THÊM] Lưu đối tượng học sinh mới lên Firebase
+        targetStudent: targetStudent,
+        watchCondition: watchCondition
     };
 
     // Thu thập dữ liệu Tự Luận
@@ -1697,46 +1800,57 @@ window.saveAssignmentEdit = async function () {
     loadAssignedList();
 };
 
-// ================= HÀM ĐÓNG / MỞ POPUP TRẠNG THÁI LÀM BÀI =================
+// ================= HÀM ĐÓNG / MỞ VÀ PHÂN TÍCH TRẠNG THÁI CHI TIẾT BÀI LÀM =================
 window.openAssignmentStatusModal = async function (assignId) {
     const modal = document.getElementById('assignmentStatusModal');
     const container = document.getElementById('assignmentStatusContainer');
 
-    // Hiển thị loading trong lúc fetch dữ liệu
-    container.innerHTML = '<p style="text-align: center; color: #666;">⏳ Đang tải dữ liệu trạng thái...</p>';
+    // Hiển thị trạng thái chờ tải dữ liệu thời gian thực
+    container.innerHTML = '<p style="text-align: center; color: #475569; font-weight: 500;">⏳ Đang đồng bộ trạng thái hệ thống...</p>';
     modal.classList.add('active');
 
-    // Tải dữ liệu từ database
-    const assignments = await getDB('assignments');
+    // Tải dữ liệu từ database (Ưu tiên bộ nhớ đệm Cache để tăng tốc độ phản hồi)
+    const assignments = (window.cachedAssignments && window.cachedAssignments.length > 0) ? window.cachedAssignments : await getDB('assignments');
     const users = await getDB('users');
-    const submissions = await getDB('submissions');
+    const submissions = (window.cachedSubmissions && window.cachedSubmissions.length > 0) ? window.cachedSubmissions : await getDB('submissions');
 
-    // Tìm bài tập hiện tại
+    // Kiểm tra tính hợp lệ của bài tập
     const assign = assignments.find(a => a.id === assignId);
     if (!assign) {
-        container.innerHTML = '<p style="color: red;">Không tìm thấy thông tin bài tập.</p>';
+        container.innerHTML = '<p style="color: #ef4444; text-align: center; padding: 10px; font-weight: 600;">❌ Không tìm thấy dữ liệu bài tập cấu hình.</p>';
         return;
     }
 
-    // Lọc ra danh sách học sinh được giao bài này
-    const students = users.filter(u => u.role === 'student' && (assign.targetStudent === 'all' || assign.targetStudent === u.username));
+    // XỬ LÝ ĐA DẠNG ĐỐI TƯỢNG ĐƯỢC GIAO: 1 học sinh, chuỗi nhiều học sinh, hoặc mảng học sinh
+    let targetArr = [];
+    if (Array.isArray(assign.targetStudent)) {
+        targetArr = assign.targetStudent;
+    } else if (typeof assign.targetStudent === 'string') {
+        // Phân tách bằng dấu phẩy nếu giao cho nhiều học sinh viết liền
+        targetArr = assign.targetStudent.split(',').map(s => s.trim()).filter(Boolean);
+    }
+    if (targetArr.length === 0) targetArr = ['all'];
+
+    // Lọc danh sách học sinh thuộc diện được giao bài
+    const students = users.filter(u => u.role === 'student' && (targetArr.includes('all') || targetArr.includes(u.username)));
 
     if (students.length === 0) {
-        container.innerHTML = '<p>Không có học sinh nào được giao bài tập này.</p>';
+        container.innerHTML = '<p style="text-align: center; color: #64748b; padding: 20px;">Danh sách học sinh được phân phối đang trống.</p>';
         return;
     }
 
-    // Lấy mốc thời gian
+    // Lấy các mốc thời gian hệ thống
     const now = new Date();
     const startTime = assign.startDate ? new Date(assign.startDate.replace(" ", "T")) : new Date(0);
     const endTime = assign.endDate ? new Date(assign.endDate.replace(" ", "T")) : new Date("2100-01-01");
 
-    // Tạo bảng hiển thị
-    let html = '<table style="width:100%; border-collapse: collapse; text-align: left;">';
-    html += '<tr style="background:rgba(255,255,255,0.7); border-bottom: 2px solid rgba(0,0,0,0.05);"><th style="padding:12px;">Học sinh</th><th style="padding:12px; text-align:center;">Trạng thái</th></tr>';
+    // Xây dựng giao diện bảng dữ liệu chống tràn viền (Có thanh cuộn ghim tiêu đề)
+    let html = '<div style="max-height: 65vh; overflow-y: auto; border-radius: 8px; border: 1px solid #e2e8f0;">';
+    html += '<table style="width:100%; border-collapse: collapse; text-align: left; font-size: 0.95em; background: #fff;">';
+    html += '<tr style="background:#f8fafc; border-bottom: 2px solid #e2e8f0; position: sticky; top: 0; z-index: 10;"><th style="padding:12px 16px; color:#475569; font-weight:600;">Học sinh</th><th style="padding:12px 16px; text-align:center; color:#475569; font-weight:600;">Trạng thái tiến độ</th></tr>';
 
     students.forEach(st => {
-        // Kiểm tra xem học sinh này đã nộp bài chưa
+        // Tìm lịch sử bản ghi bài làm tương ứng
         const sub = submissions.find(s => s.assignmentId === assignId && s.studentUsername === st.username);
 
         let statusText = '';
@@ -1744,37 +1858,71 @@ window.openAssignmentStatusModal = async function (assignId) {
         let statusColor = '';
 
         if (sub) {
-            statusText = '✅ Đã nộp';
-            statusBg = 'rgba(16, 185, 129, 0.15)'; // Nền Xanh lá
-            statusColor = '#059669';
+            // === KIỂM TRA CÁC ĐIỀU KIỆN LOGIC CỦA BÀI NỘP ===
+            if (sub.isCheatFail) {
+                statusText = '🚨 Vi phạm quy chế thi';
+                statusBg = '#fef2f2';
+                statusColor = '#ef4444';
+            } else if (sub.isRedoing) {
+                statusText = '🔁 Đang làm lại'; // Trạng thái học sinh đang phải làm lại bài
+                statusBg = '#f3e8ff';
+                statusColor = '#9333ea';
+            } else if (sub.isAutoSubmitted) {
+                statusText = '⏳ Bị thu tự động';
+                statusBg = '#fff7ed';
+                statusColor = '#ea580c';
+            } else if (sub.isLateFail) {
+                statusText = '⚠️ Nộp trễ quá hạn';
+                statusBg = '#fff1f2';
+                statusColor = '#f43f5e';
+            } else if (sub.grade !== null && sub.grade !== undefined && sub.grade !== '') {
+                // Phân định trạng thái chấm điểm và chấm lại
+                if (sub.isRegrading) {
+                    statusText = `🔄 Đang chấm lại (${sub.grade}đ)`;
+                    statusBg = '#f0fdf4';
+                    statusColor = '#16a34a';
+                } else {
+                    statusText = `✅ Đã chấm điểm: ${sub.grade}đ`;
+                    statusBg = '#f0fdf4';
+                    statusColor = '#15803d';
+                }
+            } else {
+                statusText = '📥 Đã nộp bài (Chờ chấm)';
+                statusBg = '#f0fdfa';
+                statusColor = '#0d9488';
+            }
         } else {
+            // === KIỂM TRA TIẾN TRÌNH KHI CHƯA PHÁT SINH BÀI NỘP CHÍNH THỨC ===
             if (now < startTime) {
-                statusText = '⏳ Chưa thi';
-                statusBg = 'rgba(245, 158, 11, 0.15)'; // Nền Cam
-                statusColor = '#d97706';
+                statusText = '📅 Chưa tới giờ làm';
+                statusBg = '#f1f5f9';
+                statusColor = '#64748b';
             } else if (now >= startTime && now <= endTime) {
-                statusText = '✍️ Đang thi';
-                statusBg = 'rgba(59, 130, 246, 0.15)'; // Nền Xanh dương
+                statusText = '✍️ Đang làm (Xem video/Trắc nghiệm)'; // Trạng thái đang thực hiện bài lần đầu
+                statusBg = '#eff6ff';
                 statusColor = '#2563eb';
             } else {
-                // Thêm trường hợp hết hạn nhưng hệ thống chưa kịp tự thu bài
-                statusText = '⚠️ Quá hạn (Chưa nộp)';
-                statusBg = 'rgba(225, 29, 72, 0.15)'; // Nền Đỏ
+                statusText = '❌ Quá hạn (Chưa nộp)';
+                statusBg = '#fff1f2';
                 statusColor = '#e11d48';
             }
         }
 
-        html += `<tr style="border-bottom: 1px solid rgba(0,0,0,0.05);">
-            <td style="padding:12px; color: #2c3e50;"><strong>${st.name}</strong> <br><span style="font-size: 0.85em; color: #888;">${st.username}</span></td>
-            <td style="padding:12px; text-align:center;">
-                <span style="color: ${statusColor}; background: ${statusBg}; padding: 6px 12px; border-radius: 20px; font-size: 0.85em; font-weight: 800;">
+        // Tạo dòng dữ liệu với hiệu ứng Hover
+        html += `<tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+            <td style="padding:14px 16px;">
+                <span style="font-weight: 600; color: #1e293b; display: block;">${st.name}</span>
+                <span style="font-size: 0.8em; color: #64748b;">@${st.username}</span>
+            </td>
+            <td style="padding:14px 16px; text-align:center;">
+                <span style="color: ${statusColor}; background: ${statusBg}; padding: 6px 14px; border-radius: 50px; font-size: 0.85em; font-weight: 600; display: inline-block; border: 1px solid ${statusColor}25; white-space: nowrap;">
                     ${statusText}
                 </span>
             </td>
         </tr>`;
     });
 
-    html += '</table>';
+    html += '</table></div>';
     container.innerHTML = html;
 };
 
@@ -3213,7 +3361,10 @@ window.handleTeacherProcessCash = async function (reqFbKey, action) {
             let baseMoney = 0;
             const assignments = await getDB('assignments');
             const submissions = await getDB('submissions');
-            const stdAssignments = assignments.filter(a => a.targetStudent === 'all' || a.targetStudent === studentUsername);
+            const stdAssignments = assignments.filter(a => {
+                const targetArr = Array.isArray(a.targetStudent) ? a.targetStudent : [a.targetStudent || 'all'];
+                return targetArr.includes('all') || targetArr.includes(studentUsername);
+            });
 
             stdAssignments.forEach(assign => {
                 const passingGrade = assign.passingGrade || 7;
@@ -3554,7 +3705,6 @@ window.downloadRoadmapPDF = async function () {
     const st = users.find(u => u.username === selectedStudent);
     const stName = st ? st.name : selectedStudent;
 
-    // Chỉ định cấu trúc bảng sẽ xuất ra PDF
     let htmlContent = `
         <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
             <h2 style="text-align: center; color: #2c3e50; text-transform: uppercase;">BẢNG ĐIỂM HỌC TẬP</h2>
@@ -3574,14 +3724,25 @@ window.downloadRoadmapPDF = async function () {
     const sortedAssignments = [...assignments].sort((a, b) => (a.title || '').localeCompare(b.title || '', 'vi-VN', { numeric: true, sensitivity: 'base' }));
 
     sortedAssignments.forEach(assign => {
-        if (assign.targetStudent !== 'all' && assign.targetStudent !== selectedStudent) return;
+        // Lọc các bài tập đúng với học sinh đã chọn
+        const targetArr = Array.isArray(assign.targetStudent) ? assign.targetStudent : [assign.targetStudent || 'all'];
+        if (!targetArr.includes('all') && !targetArr.includes(selectedStudent)) return;
 
-        const subs = submissions.filter(s => s.assignmentId === assign._fbKey && s.studentId === selectedStudent);
+        // SỬA LỖI Ở ĐÂY: Dùng studentUsername để khớp với dữ liệu bài nộp
+        const subs = submissions.filter(s => s.assignmentId === assign.id && s.studentUsername === selectedStudent);
         let studentScore = "Chưa làm";
 
         if (subs.length > 0) {
-            const bestSub = subs.sort((a, b) => (b.score || 0) - (a.score || 0))[0];
-            studentScore = bestSub.score !== undefined ? bestSub.score : "Chưa chấm";
+            // SỬA LỖI Ở ĐÂY: Dùng thuộc tính grade thay vì score
+            const bestSub = subs.sort((a, b) => (parseFloat(b.grade) || 0) - (parseFloat(a.grade) || 0))[0];
+
+            if (bestSub.isRegrading) {
+                studentScore = "Đang chấm lại";
+            } else if (bestSub.grade !== null && bestSub.grade !== undefined && bestSub.grade !== '') {
+                studentScore = bestSub.grade;
+            } else {
+                studentScore = "Chưa chấm";
+            }
         }
 
         htmlContent += `
@@ -3599,7 +3760,6 @@ window.downloadRoadmapPDF = async function () {
         </div>
     `;
 
-    // Cấu hình tải xuống PDF
     const opt = {
         margin: 10,
         filename: `BangDiem_${stName}.pdf`,
@@ -3612,5 +3772,248 @@ window.downloadRoadmapPDF = async function () {
     tempDiv.innerHTML = htmlContent;
     html2pdf().set(opt).from(tempDiv).save();
 };
+
+window.currentVideoDuration = 0; // Biến lưu tổng số giây của video hiện tại để validate
+
+// 1. Hàm tự động tải API Youtube và bóc tách thời lượng chuẩn xác (ĐÃ FIX LỖI)
+function getYoutubeDurationCorrectly(url, callback) {
+    let videoId = '';
+    if (url.includes('watch?v=')) videoId = url.split('v=')[1].split('&')[0];
+    else if (url.includes('youtu.be/')) videoId = url.split('youtu.be/')[1].split('?')[0];
+    else if (url.includes('shorts/')) videoId = url.split('shorts/')[1].split('?')[0];
+    else if (url.includes('embed/')) videoId = url.split('embed/')[1].split('?')[0];
+
+    if (!videoId) return callback(0);
+
+    let tempDiv = document.createElement('div');
+    tempDiv.id = 'yt-temp-' + Date.now();
+
+    // FIX LỖI Ở ĐÂY: Không dùng display none. Đẩy Iframe ra ngoài vùng nhìn thấy của màn hình.
+    tempDiv.style.position = 'absolute';
+    tempDiv.style.left = '-9999px';
+    tempDiv.style.top = '-9999px';
+    tempDiv.style.width = '10px';
+    tempDiv.style.height = '10px';
+    document.body.appendChild(tempDiv);
+
+    const loadPlayer = () => {
+        let player = new YT.Player(tempDiv.id, {
+            height: '10', // Kích thước phải lớn hơn 0 để trình duyệt chịu render
+            width: '10',
+            videoId: videoId,
+            playerVars: {
+                'autoplay': 0,
+                'controls': 0
+            },
+            events: {
+                'onReady': function (event) {
+                    let totalSeconds = Math.floor(event.target.getDuration());
+                    callback(totalSeconds);
+                    // Tăng delay lên 1000ms để Youtube xử lý xong postMessage trước khi đóng
+                    setTimeout(() => {
+                        try { player.destroy(); } catch (e) { }
+                        if (document.body.contains(tempDiv)) document.body.removeChild(tempDiv);
+                    }, 1000);
+                },
+                'onError': function (event) {
+                    callback(0);
+                    setTimeout(() => {
+                        try { player.destroy(); } catch (e) { }
+                        if (document.body.contains(tempDiv)) document.body.removeChild(tempDiv);
+                    }, 1000);
+                }
+            }
+        });
+    };
+
+    if (typeof YT !== 'undefined' && YT.Player) {
+        loadPlayer();
+    } else {
+        let tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        document.head.appendChild(tag);
+        window.onYouTubeIframeAPIReady = loadPlayer;
+    }
+}
+
+// 2. Hàm xử lý chung để tái sử dụng cho cả Giao bài và Sửa bài
+function handleVideoLinkInput(e, displayId, prefix) {
+    const url = e.target.value.trim();
+    const display = document.getElementById(displayId);
+    const inputs = [
+        document.getElementById(prefix + 'Day'),
+        document.getElementById(prefix + 'Hour'),
+        document.getElementById(prefix + 'Min'),
+        document.getElementById(prefix + 'Sec')
+    ];
+
+    if (!url) {
+        if (display) display.innerText = "(Chưa có video)";
+        inputs.forEach(inp => { if (inp) { inp.value = ''; inp.disabled = true; } });
+        window.currentVideoDuration = 0;
+        return;
+    }
+
+    if (display) display.innerText = '⏳ Đang phân tích thời lượng...';
+
+    getYoutubeDurationCorrectly(url, function (durationInSeconds) {
+        if (durationInSeconds === 0) {
+            if (display) display.innerText = '(Không đọc được thời lượng, vui lòng kiểm tra lại link)';
+            inputs.forEach(inp => { if (inp) { inp.value = ''; inp.disabled = true; } });
+            return;
+        }
+
+        window.currentVideoDuration = durationInSeconds; // Lưu để validate không nhập quá số lượng
+
+        let d = Math.floor(durationInSeconds / 86400);
+        let h = Math.floor((durationInSeconds % 86400) / 3600);
+        let m = Math.floor((durationInSeconds % 3600) / 60);
+        let s = durationInSeconds % 60;
+
+        if (inputs[0]) { inputs[0].value = d; inputs[0].disabled = false; }
+        if (inputs[1]) { inputs[1].value = h; inputs[1].disabled = false; }
+        if (inputs[2]) { inputs[2].value = m; inputs[2].disabled = false; }
+        if (inputs[3]) { inputs[3].value = s; inputs[3].disabled = false; }
+
+        if (display) display.innerText = `(Độ dài gốc: ${d > 0 ? d + ' ngày ' : ''}${h}g ${m}p ${s}s)`;
+    });
+}
+
+// 3. Gắn sự kiện cho Form Giao Bài
+const videoLinkInput = document.getElementById('videoLink');
+if (videoLinkInput) {
+    videoLinkInput.addEventListener('input', function (e) {
+        handleVideoLinkInput(e, 'videoTotalTimeDisplay', 'cond');
+    });
+}
+
+// 4. Gắn sự kiện cho Form Sửa Bài
+const editVideoLinkInput = document.getElementById('editVideoLink');
+if (editVideoLinkInput) {
+    editVideoLinkInput.addEventListener('input', function (e) {
+        handleVideoLinkInput(e, 'editVideoTotalTimeDisplay', 'editCond');
+    });
+}
+
+// 5. Ràng buộc không cho nhập điều kiện quá tổng độ dài video (Giao bài)
+window.validateConditionInput = function () {
+    const d = parseInt(document.getElementById('condDay').value) || 0;
+    const h = parseInt(document.getElementById('condHour').value) || 0;
+    const m = parseInt(document.getElementById('condMin').value) || 0;
+    const s = parseInt(document.getElementById('condSec').value) || 0;
+
+    const totalInputSec = d * 86400 + h * 3600 + m * 60 + s;
+    if (totalInputSec > window.currentVideoDuration && window.currentVideoDuration > 0) {
+        alert("⚠️ Điều kiện thời gian không được vượt quá tổng độ dài video!");
+        document.getElementById('condSec').value = 0;
+    }
+};
+
+// 6. Ràng buộc không cho nhập điều kiện quá tổng độ dài video (Sửa bài)
+window.validateEditConditionInput = function () {
+    const d = parseInt(document.getElementById('editCondDay').value) || 0;
+    const h = parseInt(document.getElementById('editCondHour').value) || 0;
+    const m = parseInt(document.getElementById('editCondMin').value) || 0;
+    const s = parseInt(document.getElementById('editCondSec').value) || 0;
+
+    const totalInputSec = d * 86400 + h * 3600 + m * 60 + s;
+    if (totalInputSec > window.currentVideoDuration && window.currentVideoDuration > 0) {
+        alert("⚠️ Điều kiện thời gian không được vượt quá tổng độ dài video!");
+        document.getElementById('editCondSec').value = 0;
+    }
+};
+
+// ==============================================================
+// HỆ THỐNG QUẢN LÝ VÉ MAY MẮN CHO TỪNG HỌC SINH (GIÁO VIÊN)
+// ==============================================================
+
+async function getStudentTicketInfo(username) {
+    const submissions = await getDB('submissions');
+    const mySubs = submissions.filter(s => s.studentUsername === username && s.grade !== null && s.grade !== undefined && s.grade !== '');
+
+    let totalTickets = 0;
+    mySubs.forEach(sub => {
+        let score = parseFloat(sub.grade);
+        let subTickets = 0;
+        if (score === 10) subTickets = 3;
+        else if (score > 7) subTickets = 2;
+        else if (score > 5) subTickets = 1;
+
+        if (sub.hasRedone && subTickets > 0) subTickets -= 1;
+        totalTickets += subTickets;
+    });
+
+    const bonusSnap = await db.ref('student_bonus_tickets/' + username).once('value');
+    const bonusTickets = parseInt(bonusSnap.val()) || 0;
+    totalTickets += bonusTickets;
+
+    const countSnapshot = await db.ref('spin_counts/' + username).once('value');
+    let spinTracking = countSnapshot.val() || { count: 0 };
+    let usedSpins = parseInt(spinTracking.count) || 0;
+
+    return { 
+        remaining: totalTickets - usedSpins, 
+        bonus: bonusTickets 
+    };
+}
+
+window.initTicketManagement = async function() {
+    const users = await getDB('users');
+    const students = users.filter(u => u.role === 'student');
+    const select = document.getElementById('ticketStudentSelect');
+    if (!select) return;
+
+    select.innerHTML = '<option value="">-- Chọn học sinh để xem vé --</option>';
+    students.forEach(st => {
+        select.innerHTML += `<option value="${st.username}">${st.name} (${st.username})</option>`;
+    });
+};
+
+window.onTicketStudentChange = async function() {
+    const username = document.getElementById('ticketStudentSelect').value;
+    const display = document.getElementById('currentTicketDisplay');
+    if (!username) {
+        display.innerText = '0';
+        return;
+    }
+    
+    display.innerText = '⏳';
+    const info = await getStudentTicketInfo(username);
+    display.innerText = info.remaining;
+};
+
+window.modifyStudentTickets = async function(action) {
+    const username = document.getElementById('ticketStudentSelect').value;
+    const amountStr = document.getElementById('ticketModifyAmount').value;
+    const amount = parseInt(amountStr);
+
+    if (!username) return alert("⚠️ Vui lòng chọn một học sinh trước!");
+    if (isNaN(amount) || amount <= 0) return alert("⚠️ Vui lòng nhập số lượng vé hợp lệ (lớn hơn 0)!");
+
+    const info = await getStudentTicketInfo(username);
+    let newBonus = info.bonus;
+
+    if (action === 'add') {
+        if (!confirm(`Bạn có chắc chắn muốn CỘNG THÊM ${amount} vé cho học sinh này?`)) return;
+        newBonus += amount;
+    } else if (action === 'sub') {
+        if (info.remaining < amount) {
+            return alert(`❌ Học sinh này hiện chỉ có ${info.remaining} vé, không đủ để trừ!`);
+        }
+        if (!confirm(`Bạn có chắc chắn muốn TRỪ ĐI ${amount} vé của học sinh này?`)) return;
+        newBonus -= amount;
+    }
+
+    try {
+        await db.ref('student_bonus_tickets/' + username).set(newBonus);
+        alert(`✅ Đã ${action === 'add' ? 'CỘNG' : 'TRỪ'} ${amount} vé thành công!`);
+        document.getElementById('ticketModifyAmount').value = '';
+        window.onTicketStudentChange();
+    } catch (e) {
+        console.error("Lỗi cập nhật vé:", e);
+        alert("❌ Đã xảy ra lỗi khi kết nối dữ liệu.");
+    }
+};
+
 // Khởi chạy tải danh sách khi giáo viên mở trang
 loadTeacherCashRequests();
