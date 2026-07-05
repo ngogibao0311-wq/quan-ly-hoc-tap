@@ -4747,3 +4747,25 @@ window.openHoiHoaChest = async function (chestKey) {
     alert(`🎉 Chúc mừng! Mở rương thành công.\nBạn nhận được: ${rewardText}`);
     renderStudentBag(); // Làm mới lại túi đồ ngay lập tức
 };
+
+// === CHẶN ĐÓNG POPUP THÔNG BÁO BẮT BUỘC KHI CLICK RA NGOÀI ===
+document.addEventListener('DOMContentLoaded', () => {
+    const studentNotificationModal = document.getElementById('studentNotificationModal');
+    
+    if (studentNotificationModal) {
+        // Lắng nghe sự kiện click trực tiếp lên phần nền của modal
+        studentNotificationModal.addEventListener('click', function(event) {
+            // Kiểm tra nếu người dùng click đúng vào vùng nền mờ chứ không phải khung nội dung bên trong
+            if (event.target === studentNotificationModal) {
+                // Ngăn chặn sự kiện lan truyền lên các thẻ cha (tránh kích hoạt hàm đóng chung nếu có)
+                event.stopPropagation();
+                event.preventDefault();
+                
+                // Hiển thị nhắc nhở (Sử dụng hàm showToast đã có sẵn trong hệ thống của bạn)
+                if (typeof window.showToast === 'function') {
+                    window.showToast("Bạn phải đọc hiểu và xác nhận thông báo mới có thể đóng!", "warning");
+                }
+            }
+        });
+    }
+});
