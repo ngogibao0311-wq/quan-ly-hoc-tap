@@ -1,6 +1,8 @@
 const currentUser = JSON.parse(localStorage.getItem('currentUser'));
 if (!currentUser || currentUser.role !== 'teacher') window.location.href = 'index.html';
 
+const secondaryApp = firebase.initializeApp(firebaseConfig, "SecondaryApp")
+
 let cacheAssignmentsSt = "";
 let cacheSubmissionsSt = "";
 
@@ -1100,7 +1102,7 @@ async function createStudent() {
     if (!usernameRegex.test(username)) {
         return alert('❌ Tên đăng nhập không hợp lệ! Không được chứa khoảng trắng, dấu Tiếng Việt hoặc ký tự đặc biệt (chỉ chấp nhận a-z, 0-9 và _).');
     }
-    if (username.length < 4) return alert('⚠️ Tên đăng nhập phải có ít nhất 4 ký tự!');
+    if (username.length < 2) return alert('⚠️ Tên đăng nhập phải có ít nhất 2 ký tự!');
 
     // 2. Kiểm tra Mật khẩu an toàn
     if (password.length < 6) return alert('🔒 Mật khẩu quá ngắn! Cần ít nhất 6 ký tự để đảm bảo an toàn.');
@@ -1110,21 +1112,50 @@ async function createStudent() {
     if (nameHasNumbers) return alert('⚠️ Họ tên học sinh không được chứa chữ số!');
     // ==========================================
 
-    const users = await getDB('users');
-    if (users.find(u => u.username === username)) return alert('❌ Tên đăng nhập này đã tồn tại trên hệ thống! Vui lòng chọn tên khác.');
+    const fakeEmail = username + "@hethong.edu.vn"; // Tạo email giả cho Auth
 
-    await pushDB('users', { username, password, name, role: 'student', isLocked: false, classInfo, hobbies, motto });
+    try {
+        // 1. Tạo tài khoản trên hệ thống Auth bằng App phụ (Secondary App)
+        const userCredential = await secondaryApp.auth().createUserWithEmailAndPassword(fakeEmail, password);
+        const newUid = userCredential.user.uid;
 
-    // Dọn dẹp Form sau khi thành công
-    document.getElementById('newStudentUsername').value = '';
-    document.getElementById('newStudentPassword').value = '';
-    document.getElementById('newStudentName').value = '';
-    document.getElementById('newStudentClass').value = '';
-    document.getElementById('newStudentHobbies').value = '';
-    document.getElementById('newStudentMotto').value = '';
+        // 2. Lưu thông tin vào Database với khóa chính (key) là UID vừa sinh ra
+        await db.ref('users/' + newUid).set({ 
+            username, 
+            password, // Auth đã quản lý pass, bạn có thể xóa dòng này nếu muốn bảo mật tuyệt đối
+            name, 
+            role: 'student', 
+            isLocked: false, 
+            classInfo, 
+            hobbies, 
+            motto 
+        });
 
-    closeStudentModal();
-    alert('✅ Đã tạo tài khoản học sinh thành công!');
+        // 3. Đăng xuất app phụ ngay lập tức để không ảnh hưởng app chính
+        await secondaryApp.auth().signOut();
+
+        // Dọn dẹp Form sau khi thành công
+        document.getElementById('newStudentUsername').value = '';
+        document.getElementById('newStudentPassword').value = '';
+        document.getElementById('newStudentName').value = '';
+        document.getElementById('newStudentClass').value = '';
+        document.getElementById('newStudentHobbies').value = '';
+        document.getElementById('newStudentMotto').value = '';
+
+        closeStudentModal();
+        alert('✅ Đã tạo tài khoản học sinh thành công!');
+        
+        // Tùy chọn: Tải lại danh sách học sinh ngay lập tức
+        if (typeof loadStudentsList === 'function') loadStudentsList();
+
+    } catch (error) {
+        // Bắt lỗi trùng lặp từ Auth thay vì phải tải toàn bộ bảng Users về để check
+        if (error.code === 'auth/email-already-in-use') {
+            alert('❌ Tên đăng nhập này đã tồn tại trên hệ thống! Vui lòng chọn tên khác.');
+        } else {
+            alert('❌ Lỗi tạo tài khoản: ' + error.message);
+        }
+    }
 }
 
 async function deleteStudent(username) { if (!confirm(`Xóa tài khoản "${username}"?`)) return; const users = await getDB('users'); const st = users.find(u => u.username === username); if (st) await removeDB('users', st._fbKey); }
@@ -1135,13 +1166,83 @@ async function loadProfileRequests() {
     container.innerHTML = html;
 }
 async function handleRequest(reqKey, isApprove, username, newName, newPass) {
-    if (isApprove) { const users = await getDB('users'); const userRecord = users.find(u => u.username === username); if (userRecord) { const updateData = { name: newName }; if (newPass) updateData.password = newPass; await updateDB('users', userRecord._fbKey, updateData); } await updateDB('profile_requests', reqKey, { status: 'approved' }); }
-    else { await updateDB('profile_requests', reqKey, { status: 'rejected' }); }
+    if (isApprove) { 
+        const users = await getDB('users'); 
+        const userRecord = users.find(u => u.username === username); 
+        
+        if (userRecord) { 
+            // NẾU HỌC SINH CÓ YÊU CẦU ĐỔI MẬT KHẨU
+            if (newPass) {
+                try {
+                    const fakeEmail = username + "@hethong.edu.vn";
+                    const oldPass = userRecord.password; // Mật khẩu cũ vẫn đang nằm trong DB
+                    
+                    // Dùng app phụ đăng nhập ngầm vào tài khoản học sinh
+                    const userCredential = await secondaryApp.auth().signInWithEmailAndPassword(fakeEmail, oldPass);
+                    // Đổi sang mật khẩu mới
+                    await userCredential.user.updatePassword(newPass);
+                    // Đăng xuất app phụ ngay lập tức
+                    await secondaryApp.auth().signOut();
+                } catch (error) {
+                    console.error("Lỗi đổi pass Auth phụ:", error);
+                    return alert("❌ Lỗi hệ thống Auth khi duyệt mật khẩu học sinh: " + error.message);
+                }
+            }
+
+            // Ghi nhận Database
+            const updateData = { name: newName }; 
+            if (newPass) updateData.password = newPass; 
+            await updateDB('users', userRecord._fbKey, updateData); 
+        } 
+        await updateDB('profile_requests', reqKey, { status: 'approved' }); 
+        alert("✅ Đã phê duyệt yêu cầu và đổi mật khẩu thành công!");
+    } else { 
+        await updateDB('profile_requests', reqKey, { status: 'rejected' }); 
+        alert("❌ Đã từ chối yêu cầu!");
+    }
+    
+    // Tự động load lại danh sách sau khi duyệt
+    if (typeof loadProfileRequests === 'function') loadProfileRequests();
 }
 async function updateProfile() {
-    const newName = document.getElementById('settingName').value.trim(); const newPass = document.getElementById('settingPass').value.trim(); if (!newName) return alert("Tên hiển thị không được để trống!");
-    const users = await getDB('users'); const userRecord = users.find(u => u.username === currentUser.username);
-    if (userRecord) { const updateData = { name: newName }; if (newPass) updateData.password = newPass; await updateDB('users', userRecord._fbKey, updateData); currentUser.name = newName; if (newPass) currentUser.password = newPass; localStorage.setItem('currentUser', JSON.stringify(currentUser)); alert("Cập nhật thông tin thành công!"); document.getElementById('settingPass').value = ''; }
+    const newName = document.getElementById('settingName').value.trim(); 
+    const newPass = document.getElementById('settingPass').value.trim(); 
+    if (!newName) return alert("Tên hiển thị không được để trống!");
+    
+    const users = await getDB('users'); 
+    const userRecord = users.find(u => u.username === currentUser.username);
+    
+    if (userRecord) { 
+        // 1. NẾU CÓ ĐỔI MẬT KHẨU -> CẬP NHẬT TRÊN FIREBASE AUTH TRƯỚC
+        if (newPass) {
+            try {
+                const userAuth = firebase.auth().currentUser;
+                if (userAuth) {
+                    await userAuth.updatePassword(newPass);
+                } else {
+                    return alert("❌ Lỗi: Không tìm thấy phiên xác thực để đổi mật khẩu!");
+                }
+            } catch (error) {
+                // Firebase có quy định nếu đăng nhập quá lâu sẽ không cho đổi pass trực tiếp
+                if (error.code === 'auth/requires-recent-login') {
+                    return alert("⚠️ Bảo mật Firebase yêu cầu: Bạn cần đăng xuất và đăng nhập lại trước khi đổi mật khẩu!");
+                }
+                return alert("❌ Lỗi cập nhật Auth: " + error.message);
+            }
+        }
+
+        // 2. KHI AUTH THÀNH CÔNG, LƯU VÀO DATABASE
+        const updateData = { name: newName }; 
+        if (newPass) updateData.password = newPass; 
+        await updateDB('users', userRecord._fbKey, updateData); 
+        
+        currentUser.name = newName; 
+        if (newPass) currentUser.password = newPass; 
+        localStorage.setItem('currentUser', JSON.stringify(currentUser)); 
+        
+        alert("✅ Cập nhật thông tin thành công!"); 
+        document.getElementById('settingPass').value = ''; 
+    }
 }
 function switchTab(tabId, btnElement) {
     // 1. Reset trạng thái active của các tab
@@ -1957,11 +2058,36 @@ window.saveStudentEdit = async function () {
     if (!name) return alert('Họ tên không được để trống!');
 
     const updateObj = { name, classInfo, hobbies, motto };
-    if (password) updateObj.password = password; // Chỉ cập nhật mật khẩu nếu có nhập
+
+    // NẾU GIÁO VIÊN CÓ NHẬP MẬT KHẨU MỚI
+    if (password) { 
+        try {
+            const users = await getDB('users');
+            const st = users.find(u => u._fbKey === fbKey);
+            
+            if (st) {
+                const fakeEmail = st.username + "@hethong.edu.vn";
+                const oldPass = st.password;
+                
+                // Đăng nhập ngầm và đổi pass
+                const userCredential = await secondaryApp.auth().signInWithEmailAndPassword(fakeEmail, oldPass);
+                await userCredential.user.updatePassword(password);
+                await secondaryApp.auth().signOut();
+                
+                updateObj.password = password; 
+            }
+        } catch (error) {
+            console.error("Lỗi Auth phụ khi sửa HS:", error);
+            return alert("❌ Lỗi khi đổi mật khẩu trên hệ thống Auth: " + error.message);
+        }
+    }
 
     await updateDB('users', fbKey, updateObj);
     closeEditStudentModal();
-    alert('Cập nhật thông tin học sinh thành công!');
+    alert('✅ Cập nhật thông tin học sinh thành công!');
+    
+    // Load lại danh sách học sinh
+    if (typeof loadStudentsList === 'function') loadStudentsList();
 };
 
 // ================= HỆ THỐNG XỬ LÝ LỊCH HỌC (THỜI KHÓA BIỂU) =================
@@ -4125,6 +4251,48 @@ window.deleteCurrentSeason = async function () {
             targetYear: null
         });
         alert(`🗑️ Đã xóa lịch mùa giải thành công!`);
+    }
+};
+
+window.changeTeacherPassword = async function () {
+    const newPassword = document.getElementById('newPasswordInput').value.trim();
+    const confirmPassword = document.getElementById('confirmPasswordInput').value.trim();
+
+    if (!newPassword || newPassword.length < 6) {
+        return alert("⚠️ Mật khẩu mới phải có ít nhất 6 ký tự!");
+    }
+    if (newPassword !== confirmPassword) {
+        return alert("❌ Mật khẩu xác nhận không khớp!");
+    }
+
+    try {
+        const user = firebase.auth().currentUser;
+        if (user) {
+            // 1. Cập nhật trên Firebase Authentication
+            await user.updatePassword(newPassword);
+            
+            // 2. Cập nhật vào Realtime Database để đồng bộ với dữ liệu cũ của bạn
+            await db.ref('users/' + currentUser._fbKey).update({
+                password: newPassword
+            });
+
+            // 3. Cập nhật lại localStorage để tránh bị lỗi khi tải lại trang
+            currentUser.password = newPassword;
+            localStorage.setItem('currentUser', JSON.stringify(currentUser));
+
+            alert("✅ Đổi mật khẩu thành công! Hãy nhớ mật khẩu mới của bạn.");
+            // Reset ô nhập
+            document.getElementById('newPasswordInput').value = '';
+            document.getElementById('confirmPasswordInput').value = '';
+        } else {
+            alert("❌ Không tìm thấy thông tin đăng nhập. Vui lòng đăng nhập lại!");
+        }
+    } catch (error) {
+        if (error.code === 'auth/requires-recent-login') {
+            alert("⚠️ Bảo mật Firebase: Bạn cần đăng xuất và đăng nhập lại để xác thực quyền đổi mật khẩu!");
+        } else {
+            alert("❌ Lỗi: " + error.message);
+        }
     }
 };
 

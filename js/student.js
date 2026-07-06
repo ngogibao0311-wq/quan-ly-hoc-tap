@@ -4756,6 +4756,7 @@ document.addEventListener('DOMContentLoaded', () => {
         studentNotificationModal.addEventListener('click', function(event) {
             // Kiểm tra nếu người dùng click đúng vào vùng nền mờ
             if (event.target === studentNotificationModal) {
+                // Chỉ chặn sự kiện đóng, không hiển thị bất kỳ thông báo nào
                 event.stopPropagation();
                 event.preventDefault();
             }
