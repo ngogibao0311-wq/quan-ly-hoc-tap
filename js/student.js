@@ -4356,7 +4356,20 @@ function updateAvatarDisplay(avatarData) {
     // FIX: Thêm dòng rào chắn này để ngăn JS bị sập nếu không tìm thấy thẻ HTML
     if (!avatarImg || !avatarPlaceholder || !triggerBtn) return;
 
-    if (avatarData && avatarData.startsWith('data:image')) {
+    if (
+        avatarData &&
+        (
+            avatarData.startsWith(
+                'data:image'
+            ) ||
+            avatarData.startsWith(
+                'https://'
+            ) ||
+            avatarData.startsWith(
+                'http://'
+            )
+        )
+    ) {
         // Nếu đã có ảnh
         avatarImg.src = avatarData;
         avatarImg.style.display = 'block'; // Hiện ảnh
@@ -4373,28 +4386,184 @@ function updateAvatarDisplay(avatarData) {
 }
 
 // 2. Chức năng xem trước ảnh khi học sinh chọn file
-let selectedAvatarBase64 = null; // Biến tạm lưu mã ảnh mới chọn
-window.previewAvatar = function (input) {
-    if (input.files && input.files[0]) {
-        const file = input.files[0];
+let selectedAvatarFile = null;
+let selectedAvatarPreviewUrl = '';
 
-        // Kiểm tra dung lượng (giới hạn < 1MB để Firebase không bị quá tải)
-        if (file.size > 1024 * 1024) {
-            alert('Ảnh quá lớn! Vui lòng chọn ảnh nhỏ hơn 1MB.');
-            input.value = ''; // Reset input
-            return;
+window.previewAvatar = function (input) {
+    if (
+        !input.files ||
+        !input.files[0]
+    ) {
+        return;
+    }
+
+    const file =
+        input.files[0];
+
+    if (
+        !file.type.startsWith(
+            'image/'
+        )
+    ) {
+        alert(
+            'Vui lòng chọn đúng file ảnh!'
+        );
+
+        input.value = '';
+
+        return;
+    }
+
+    if (
+        file.size >
+        1024 * 1024
+    ) {
+        alert(
+            'Ảnh quá lớn! ' +
+            'Vui lòng chọn ảnh nhỏ hơn 1 MB.'
+        );
+
+        input.value = '';
+
+        return;
+    }
+
+    if (selectedAvatarPreviewUrl) {
+        URL.revokeObjectURL(
+            selectedAvatarPreviewUrl
+        );
+    }
+
+    /*
+     * URL tạm chỉ dùng để xem trước.
+     * Không lưu URL blob vào Firebase.
+     */
+    selectedAvatarPreviewUrl =
+        URL.createObjectURL(file);
+
+    selectedAvatarFile =
+        file;
+
+    const preview =
+        document.getElementById(
+            'modalAvatarPreview'
+        );
+
+    if (preview) {
+        preview.src =
+            selectedAvatarPreviewUrl;
+    }
+
+    const saveButton =
+        document.getElementById(
+            'saveAvatarBtn'
+        );
+
+    if (saveButton) {
+        saveButton.style.display =
+            'block';
+    }
+};
+
+window.saveNewAvatar = async function () {
+    if (!selectedAvatarFile) {
+        return;
+    }
+
+    const cornerImg =
+        document.getElementById(
+            'avatarImage'
+        );
+
+    if (cornerImg) {
+        cornerImg.classList.add(
+            'loading'
+        );
+    }
+
+    try {
+        const uploaded =
+            await window
+                .CloudinaryStorage
+                .uploadFile(
+                    selectedAvatarFile,
+                    {
+                        maxSizeBytes:
+                            1024 * 1024
+                    }
+                );
+
+        /*
+         * Chỉ lưu URL, không lưu Base64.
+         */
+        await updateDB(
+            'users',
+            currentUser._fbKey,
+            {
+                avatar:
+                    uploaded.url,
+
+                avatarStorage:
+                    uploaded
+            }
+        );
+
+        currentUser.avatar =
+            uploaded.url;
+
+        currentUser.avatarStorage =
+            uploaded;
+
+        localStorage.setItem(
+            'currentUser',
+            JSON.stringify(
+                currentUser
+            )
+        );
+
+        updateAvatarDisplay(
+            uploaded.url
+        );
+
+        const saveButton =
+            document.getElementById(
+                'saveAvatarBtn'
+            );
+
+        if (saveButton) {
+            saveButton.style.display =
+                'none';
         }
 
-        const reader = new FileReader();
-        reader.onload = function (e) {
-            // Hiển thị ảnh xem trước lên Modal
-            document.getElementById('modalAvatarPreview').src = e.target.result;
-            // Hiện nút lưu
-            document.getElementById('saveAvatarBtn').style.display = 'block';
-            // Lưu mã ảnh vào biến tạm
-            selectedAvatarBase64 = e.target.result;
-        };
-        reader.readAsDataURL(file); // Đọc file thành mã Base64
+        selectedAvatarFile = null;
+
+        if (
+            selectedAvatarPreviewUrl
+        ) {
+            URL.revokeObjectURL(
+                selectedAvatarPreviewUrl
+            );
+
+            selectedAvatarPreviewUrl =
+                '';
+        }
+
+        alert(
+            'Đã cập nhật ảnh đại diện thành công! 🎉'
+        );
+    } catch (error) {
+        console.error(error);
+
+        alert(
+            `❌ Không tải được ảnh đại diện: ` +
+            `${error.message}`
+        );
+    } finally {
+        if (cornerImg) {
+            cornerImg.classList.remove(
+                'loading'
+            );
+        }
     }
 };
 
@@ -4487,30 +4656,26 @@ window.loadScheduleStudent = async function () {
 };
 
 async function readMultipleFiles(files) {
-    const MAX_SIZE_MB = 5; // Tăng giới hạn lên 5MB
-    const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
-    const results = [];
+    if (
+        !window.CloudinaryStorage ||
+        typeof window.CloudinaryStorage
+            .uploadFiles !== 'function'
+    ) {
+        alert(
+            'Không tìm thấy cloudinary-storage.js!'
+        );
 
-    for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-
-        // Chặn file quá lớn
-        if (file.size > MAX_SIZE_BYTES) {
-            alert(`⚠️ File "${file.name}" quá lớn. Hệ thống chỉ cho phép tối đa ${MAX_SIZE_MB}MB/file!`);
-            continue;
-        }
-
-        // Băm file thành chuỗi Base64
-        const base64String = await new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = (e) => resolve(e.target.result);
-            reader.readAsDataURL(file);
-        });
-
-        results.push({ name: file.name, type: file.type, base64: base64String });
+        return [];
     }
 
-    return results;
+    return window.CloudinaryStorage
+        .uploadFiles(
+            files,
+            {
+                maxSizeBytes:
+                    5 * 1024 * 1024
+            }
+        );
 }
 
 // THAY THẾ TOÀN BỘ HÀM spinWheel CŨ Ở CUỐI FILE STUDENT.JS BẰNG ĐOẠN NÀY

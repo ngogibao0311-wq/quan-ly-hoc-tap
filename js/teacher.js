@@ -1845,69 +1845,196 @@ async function loadAssignedList(isLoadMore = false) {
 
 // LOGIC XỬ LÝ ĐĂNG TẢI TÀI LIỆU
 function initMaterialFileListener() {
-    const mInput = document.getElementById('materialFileInput');
-    if (!mInput) return;
+    const input =
+        document.getElementById(
+            'materialFileInput'
+        );
 
-    const MAX_SIZE_MB = 5;
-    const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
+    if (!input) return;
 
-    mInput.addEventListener('change', function (e) {
-        const file = e.target.files && e.target.files[0];
-        attachedMaterialFileData = null;
+    input.addEventListener(
+        'change',
+        function (event) {
+            const file =
+                event.target.files?.[0];
 
-        if (!file) return;
+            attachedMaterialFileData =
+                null;
 
-        // Chặn trước khi FileReader đọc Base64
-        if (file.size > MAX_SIZE_BYTES) {
-            alert(`⚠️ File "${file.name}" quá lớn (${(file.size / (1024 * 1024)).toFixed(2)}MB). Hệ thống chỉ cho phép tối đa ${MAX_SIZE_MB}MB/file và đã tự động loại bỏ file này!`);
-            e.target.value = '';
-            return;
+            if (!file) return;
+
+            const maxSizeBytes =
+                5 * 1024 * 1024;
+
+            if (
+                file.size >
+                maxSizeBytes
+            ) {
+                alert(
+                    `⚠️ File "${file.name}" ` +
+                    `vượt giới hạn 5 MB.`
+                );
+
+                event.target.value = '';
+
+                return;
+            }
+
+            /*
+             * Chỉ giữ File trong bộ nhớ RAM.
+             * Không chuyển sang Base64.
+             */
+            attachedMaterialFileData =
+                file;
         }
-
-        const reader = new FileReader();
-
-        reader.onload = function (event) {
-            attachedMaterialFileData = {
-                name: file.name,
-                type: file.type,
-                size: file.size,
-                base64: event.target.result
-            };
-        };
-
-        reader.onerror = function () {
-            attachedMaterialFileData = null;
-            e.target.value = '';
-            alert(`⚠️ Không thể đọc file "${file.name}". Vui lòng chọn lại file khác!`);
-        };
-
-        reader.readAsDataURL(file);
-    });
+    );
 }
 
 async function createMaterial() {
-    const title = document.getElementById('materialTitle').value.trim();
-    const videoLink = document.getElementById('materialVideoLink').value.trim();
-    const docLink = document.getElementById('materialLinkInput').value.trim();
-    const targetStudent = window.getMultiSelectValues('materialTargetStudent'); // MỚI THÊM
+    const title =
+        document
+            .getElementById(
+                'materialTitle'
+            )
+            .value
+            .trim();
 
-    if (!title) return alert("Vui lòng nhập tiêu đề tài liệu!");
-    if (!videoLink && !docLink) return alert("Vui lòng đính kèm ít nhất video bài giảng hoặc link tài liệu!");
+    const videoLink =
+        document
+            .getElementById(
+                'materialVideoLink'
+            )
+            .value
+            .trim();
+
+    const docLink =
+        document
+            .getElementById(
+                'materialLinkInput'
+            )
+            .value
+            .trim();
+
+    const targetStudent =
+        window.getMultiSelectValues(
+            'materialTargetStudent'
+        );
+
+    if (!title) {
+        return alert(
+            'Vui lòng nhập tiêu đề tài liệu!'
+        );
+    }
+
+    /*
+     * Cho phép tạo tài liệu bằng:
+     * video, link hoặc file Cloudinary.
+     */
+    if (
+        !videoLink &&
+        !docLink &&
+        !attachedMaterialFileData
+    ) {
+        return alert(
+            'Vui lòng đính kèm video, ' +
+            'link hoặc file tài liệu!'
+        );
+    }
+
+    let uploadedFile = null;
+
+    if (attachedMaterialFileData) {
+        try {
+            uploadedFile =
+                await window
+                    .CloudinaryStorage
+                    .uploadFile(
+                        attachedMaterialFileData,
+                        {
+                            maxSizeBytes:
+                                5 *
+                                1024 *
+                                1024
+                        }
+                    );
+        } catch (error) {
+            console.error(error);
+
+            return alert(
+                `❌ Không tải được tài liệu: ` +
+                `${error.message}`
+            );
+        }
+    }
 
     const now = new Date();
-    await pushDB('materials', {
-        id: Date.now().toString(), title, videoLink, docLink,
-        targetStudent, // MỚI THÊM: Đẩy dữ liệu đích danh lên Firebase
-        uploadTime: now.toLocaleTimeString('vi-VN') + ' ' + now.toLocaleDateString('vi-VN')
-    });
 
-    document.getElementById('materialTitle').value = '';
-    document.getElementById('materialVideoLink').value = '';
-    document.getElementById('materialLinkInput').value = '';
-    if (document.getElementById('materialTargetStudent')) document.getElementById('materialTargetStudent').value = 'all'; // Reset ô chọn
+    await pushDB(
+        'materials',
+        {
+            id:
+                Date.now()
+                    .toString(),
+
+            title,
+            videoLink,
+            docLink,
+            targetStudent,
+
+            /*
+             * Firebase chỉ lưu object URL ngắn.
+             */
+            file:
+                uploadedFile,
+
+            uploadTime:
+                now.toLocaleTimeString(
+                    'vi-VN'
+                ) +
+                ' ' +
+                now.toLocaleDateString(
+                    'vi-VN'
+                )
+        }
+    );
+
+    document.getElementById(
+        'materialTitle'
+    ).value = '';
+
+    document.getElementById(
+        'materialVideoLink'
+    ).value = '';
+
+    document.getElementById(
+        'materialLinkInput'
+    ).value = '';
+
+    const fileInput =
+        document.getElementById(
+            'materialFileInput'
+        );
+
+    if (fileInput) {
+        fileInput.value = '';
+    }
+
+    const targetSelect =
+        document.getElementById(
+            'materialTargetStudent'
+        );
+
+    if (targetSelect) {
+        targetSelect.value = 'all';
+    }
+
+    attachedMaterialFileData = null;
 
     closeMaterialModal();
-    alert("Đăng tải tài liệu học tập thành công!");
+
+    alert(
+        'Đăng tải tài liệu học tập thành công!'
+    );
 }
 
 async function loadMaterialsListTeacher() {
@@ -4593,30 +4720,26 @@ window.saveMaterialEdit = async function () {
 };
 
 async function readMultipleFiles(files) {
-    const MAX_SIZE_MB = 5; // Tăng giới hạn lên 5MB
-    const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
-    const results = [];
+    if (
+        !window.CloudinaryStorage ||
+        typeof window.CloudinaryStorage
+            .uploadFiles !== 'function'
+    ) {
+        alert(
+            'Không tìm thấy cloudinary-storage.js!'
+        );
 
-    for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-
-        // Chặn file quá lớn
-        if (file.size > MAX_SIZE_BYTES) {
-            alert(`⚠️ File "${file.name}" quá lớn. Hệ thống chỉ cho phép tối đa ${MAX_SIZE_MB}MB/file!`);
-            continue;
-        }
-
-        // Băm file thành chuỗi Base64
-        const base64String = await new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = (e) => resolve(e.target.result);
-            reader.readAsDataURL(file);
-        });
-
-        results.push({ name: file.name, type: file.type, base64: base64String });
+        return [];
     }
 
-    return results;
+    return window.CloudinaryStorage
+        .uploadFiles(
+            files,
+            {
+                maxSizeBytes:
+                    5 * 1024 * 1024
+            }
+        );
 }
 
 // DÁN VÀO DÒNG CUỐI CÙNG CỦA FILE TEACHER.JS

@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Kiểm tra upload Cloudinary</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 760px; margin: 40px auto; padding: 0 16px; }
+    button { padding: 10px 16px; cursor: pointer; }
+    #status { margin-top: 16px; white-space: pre-wrap; }
+    #result { margin-top: 16px; word-break: break-all; }
+    img { max-width: 320px; max-height: 240px; display: block; margin-top: 12px; }
+  </style>
+</head>
+<body>
+  <h1>Kiểm tra upload Cloudinary</h1>
+  <p>Cloud name: <b>kexe2zqv</b> — Preset: <b>quan_ly_bai_tap</b></p>
+
+  <input id="fileInput" type="file"
+         accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip">
+  <button id="uploadBtn" type="button">Tải lên thử</button>
+
+  <div id="status"></div>
+  <div id="result"></div>
+
+  <script>
+    const CLOUD_NAME = 'kexe2zqv';
+    const UPLOAD_PRESET = 'quan_ly_bai_tap';
+    const MAX_SIZE = 5 * 1024 * 1024;
+
+    document.getElementById('uploadBtn').addEventListener('click', async () => {
+      const fileInput = document.getElementById('fileInput');
+      const status = document.getElementById('status');
+      const resultBox = document.getElementById('result');
+      const file = fileInput.files[0];
+
+      resultBox.innerHTML = '';
+
+      if (!file) {
+        status.textContent = '⚠️ Hãy chọn một file trước.';
+        return;
+      }
+
+      if (file.size > MAX_SIZE) {
+        status.textContent = '❌ File lớn hơn 5 MB.';
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', UPLOAD_PRESET);
+
+      status.textContent = '⏳ Đang tải file lên Cloudinary...';
+
+      try {
+        const response = await fetch(
+          `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/auto/upload`,
+          { method: 'POST', body: formData }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.secure_url) {
+          throw new Error(data?.error?.message || `HTTP ${response.status}`);
+        }
+
+        status.textContent = '✅ Upload thành công.';
+        resultBox.innerHTML = `
+          <p><b>Tên:</b> ${escapeHtml(file.name)}</p>
+          <p><b>Loại:</b> ${escapeHtml(data.resource_type || '')}</p>
+          <p><b>Dung lượng:</b> ${Number(data.bytes || file.size).toLocaleString('vi-VN')} byte</p>
+          <p><b>URL:</b> <a href="${data.secure_url}" target="_blank" rel="noopener noreferrer">${data.secure_url}</a></p>
+        `;
+
+        if ((data.resource_type === 'image') && data.secure_url) {
+          const img = document.createElement('img');
+          img.src = data.secure_url;
+          img.alt = 'Ảnh vừa tải lên';
+          resultBox.appendChild(img);
+        }
+
+        console.log('Cloudinary upload result:', data);
+      } catch (error) {
+        console.error(error);
+        status.textContent = `❌ Upload thất bại: ${error.message}`;
+      }
+    });
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+  </script>
+</body>
+</html>
