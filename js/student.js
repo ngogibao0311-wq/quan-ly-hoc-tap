@@ -4567,32 +4567,6 @@ window.saveNewAvatar = async function () {
     }
 };
 
-// 3. Chức năng lưu ảnh mới lên cơ sở dữ liệu
-window.saveNewAvatar = async function () {
-    if (!selectedAvatarBase64) return;
-
-    // 1. Hiển thị trạng thái đang lưu ở góc màn hình
-    const cornerImg = document.getElementById('avatarImage');
-    cornerImg.classList.add('loading');
-
-    // 2. Cập nhật vào Firebase
-    await updateDB('users', currentUser._fbKey, { avatar: selectedAvatarBase64 });
-
-    // 3. Cập nhật lại Object người dùng hiện tại trong Session
-    currentUser.avatar = selectedAvatarBase64;
-    localStorage.setItem('currentUser', JSON.stringify(currentUser)); // Lưu lại vào localStorage
-
-    // 4. Cập nhật hiển thị
-    updateAvatarDisplay(selectedAvatarBase64); // Cập nhật góc phải
-
-    // 5. Ẩn nút lưu, xóa biến tạm
-    document.getElementById('saveAvatarBtn').style.display = 'none';
-    selectedAvatarBase64 = null;
-    cornerImg.classList.remove('loading');
-
-    alert('Đã cập nhật ảnh đại diện thành công! 🎉');
-};
-
 // ================= HỆ THỐNG XỬ LÝ LỊCH HỌC (THỜI KHÓA BIỂU) =================
 
 // Hàm đổi qua lại giữa giao diện Lộ trình / Lịch học
