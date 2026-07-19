@@ -26,6 +26,52 @@ window.showToast = function (message, type = 'error') {
 
 const currentUser = JSON.parse(localStorage.getItem('currentUser'));
 
+// ======================================================
+// TƯƠNG THÍCH BÀI TẬP/BÀI NỘP CŨ PHÍA HỌC SINH
+// ======================================================
+function studentCompatText(value) {
+    return String(value ?? '').trim();
+}
+
+function getStudentCompatAssignmentIds(assignmentOrId) {
+    const values =
+        assignmentOrId &&
+            typeof assignmentOrId === 'object'
+            ? [
+                assignmentOrId.id,
+                assignmentOrId._fbKey,
+                assignmentOrId.assignmentId,
+                assignmentOrId.assignmentKey,
+                assignmentOrId.key
+            ]
+            : [assignmentOrId];
+
+    return [...new Set(
+        values
+            .map(studentCompatText)
+            .filter(Boolean)
+    )];
+}
+
+function getStudentCompatSubmissionAssignmentId(submission) {
+    return studentCompatText(
+        submission?.assignmentId ??
+        submission?.assignId ??
+        submission?.assignmentKey ??
+        submission?.taskId ??
+        submission?.exerciseId
+    );
+}
+
+function getStudentCompatSubmissionUsername(submission) {
+    return studentCompatText(
+        submission?.studentUsername ??
+        submission?.username ??
+        submission?.studentUser ??
+        submission?.studentId
+    );
+}
+
 /*
  * Chuẩn hóa ID để tránh lỗi:
  * 123 !== "123"
@@ -374,7 +420,29 @@ window.onload = async function () {
         const val = snapshot.val();
         if (!isDeepEqual(val, cacheAssignmentsSt)) {
             cacheAssignmentsSt = val;
-            window.cachedAssignments = val ? Object.values(val) : []; // Lưu cache mảng object dữ liệu gốc
+            window.cachedAssignments = val
+                ? Object.entries(val).map(
+                    ([firebaseKey, assignment]) => {
+                        const normalized = {
+                            ...(assignment || {}),
+                            _fbKey:
+                                assignment?._fbKey ||
+                                firebaseKey
+                        };
+
+                        // Bài cũ không có id thì dùng Firebase key.
+                        if (
+                            normalized.id === null ||
+                            normalized.id === undefined ||
+                            normalized.id === ''
+                        ) {
+                            normalized.id = firebaseKey;
+                        }
+
+                        return normalized;
+                    }
+                )
+                : []; // Lưu cache mảng object dữ liệu gốc
             await loadAssignments();
             setTimeout(() => {
                 if (
@@ -404,10 +472,39 @@ window.onload = async function () {
 
                 window.cachedSubmissions = val
                     ? Object.entries(val).map(
-                        ([firebaseKey, submission]) => ({
-                            _fbKey: firebaseKey,
-                            ...submission
-                        })
+                        ([firebaseKey, submission]) => {
+                            const normalized = {
+                                ...(submission || {}),
+                                _fbKey:
+                                    submission?._fbKey ||
+                                    firebaseKey,
+                                id:
+                                    submission?.id ||
+                                    firebaseKey
+                            };
+
+                            const assignmentId =
+                                getStudentCompatSubmissionAssignmentId(
+                                    normalized
+                                );
+
+                            const studentUsername =
+                                getStudentCompatSubmissionUsername(
+                                    normalized
+                                );
+
+                            if (assignmentId) {
+                                normalized.assignmentId =
+                                    assignmentId;
+                            }
+
+                            if (studentUsername) {
+                                normalized.studentUsername =
+                                    studentUsername;
+                            }
+
+                            return normalized;
+                        }
                     )
                     : [];
 
@@ -1088,23 +1185,33 @@ function getStudentSubmissionRank(sub) {
 
 function getPreferredStudentSubmission(
     submissions,
-    assignmentId,
+    assignmentOrId,
     username
 ) {
+    const assignmentIds =
+        getStudentCompatAssignmentIds(
+            assignmentOrId
+        );
+
+    const normalizedUsername =
+        normalizeStudentSubmissionValue(
+            username
+        );
+
     const matches = (submissions || []).filter(
-        sub =>
-            normalizeStudentSubmissionValue(
-                sub.assignmentId
-            ) ===
-            normalizeStudentSubmissionValue(
-                assignmentId
+        submission =>
+            assignmentIds.includes(
+                normalizeStudentSubmissionValue(
+                    getStudentCompatSubmissionAssignmentId(
+                        submission
+                    )
+                )
             ) &&
             normalizeStudentSubmissionValue(
-                sub.studentUsername
-            ) ===
-            normalizeStudentSubmissionValue(
-                username
-            )
+                getStudentCompatSubmissionUsername(
+                    submission
+                )
+            ) === normalizedUsername
     );
 
     return matches.reduce(
@@ -1178,7 +1285,7 @@ async function loadAssignments() {
         const getSortVals = (assign) => {
             const mySub = getPreferredStudentSubmission(
                 submissions,
-                assign.id,
+                assign,
                 currentUser.username
             );
             const end = assign.endDate ? new Date(assign.endDate.replace(" ", "T")) : new Date("2100-01-01");
@@ -1223,7 +1330,7 @@ async function loadAssignments() {
 
         const mySub = getPreferredStudentSubmission(
             submissions,
-            assign.id,
+            assign,
             currentUser.username
         );
 
@@ -1563,7 +1670,7 @@ async function loadAssignments() {
                             const existingSubmission =
                                 getPreferredStudentSubmission(
                                     latestSubmissions,
-                                    assign.id,
+                                    assign,
                                     currentUser.username
                                 );
 
@@ -3560,15 +3667,22 @@ async function submitAssignment(assignId, isAuto = false, isCheat = false) {
     if (currentUser.isLocked && !isAuto) return alert("🔒 LỖI: Tài khoản đang bị khóa tạm thời!");
 
     const assignments = await getDB('assignments');
+
+    const normalizedAssignId =
+        studentCompatText(assignId);
+
     const assign = assignments.find(
-        a => String(a.id) === String(assignId)
+        assignment =>
+            getStudentCompatAssignmentIds(
+                assignment
+            ).includes(normalizedAssignId)
     );
     if (!assign) return;
 
     const submissions = await getDB('submissions');
     const mySub = getPreferredStudentSubmission(
         submissions,
-        assignId,
+        assign,
         currentUser.username
     );
     const isRedoing = mySub && mySub.isRedoing;
@@ -3800,7 +3914,7 @@ async function submitAssignment(assignId, isAuto = false, isCheat = false) {
             const latestSubmission =
                 getPreferredStudentSubmission(
                     latestSubmissions,
-                    assign.id,
+                    assign,
                     currentUser.username
                 );
 
@@ -9927,78 +10041,78 @@ window.toggleMobileVideoSummary =
     };
 
 window.updateVideoSummaryAccess =
-function (
-    assignId,
-    isUnlocked,
-    requiredSeconds = 0
-) {
-    // Nút trượt ngang trên máy tính.
-    const desktopButton =
-        document.getElementById(
-            `video-summary-toggle-${assignId}`
-        );
-
-    // Nút xổ xuống trên điện thoại.
-    const mobileButton =
-        document.getElementById(
-            `video-summary-mobile-toggle-${assignId}`
-        );
-
-    const buttons = [
-        desktopButton,
-        mobileButton
-    ].filter(Boolean);
-
-    const note =
-        document.getElementById(
-            `video-summary-lock-note-${assignId}`
-        );
-
-    if (buttons.length === 0) {
-        return;
-    }
-
-    buttons.forEach(button => {
-        button.dataset.requiredSeconds =
-            String(
-                Number(
-                    requiredSeconds
-                ) || 0
+    function (
+        assignId,
+        isUnlocked,
+        requiredSeconds = 0
+    ) {
+        // Nút trượt ngang trên máy tính.
+        const desktopButton =
+            document.getElementById(
+                `video-summary-toggle-${assignId}`
             );
 
-        button.disabled =
-            !isUnlocked;
+        // Nút xổ xuống trên điện thoại.
+        const mobileButton =
+            document.getElementById(
+                `video-summary-mobile-toggle-${assignId}`
+            );
 
-        button.classList.toggle(
-            'is-locked',
-            !isUnlocked
-        );
+        const buttons = [
+            desktopButton,
+            mobileButton
+        ].filter(Boolean);
 
-        button.title =
-            isUnlocked
-                ? 'Mở bảng tóm tắt'
-                : (
-                    'Cần đạt điều kiện ' +
-                    'xem video trước'
+        const note =
+            document.getElementById(
+                `video-summary-lock-note-${assignId}`
+            );
+
+        if (buttons.length === 0) {
+            return;
+        }
+
+        buttons.forEach(button => {
+            button.dataset.requiredSeconds =
+                String(
+                    Number(
+                        requiredSeconds
+                    ) || 0
                 );
-    });
 
-    if (note) {
-        note.classList.toggle(
-            'show',
-            !isUnlocked
-        );
+            button.disabled =
+                !isUnlocked;
 
-        note.textContent =
-            isUnlocked
-                ? ''
-                : (
-                    '🔒 Bảng tóm tắt sẽ mở ' +
-                    'sau khi đạt điều kiện ' +
-                    'xem video.'
-                );
-    }
-};
+            button.classList.toggle(
+                'is-locked',
+                !isUnlocked
+            );
+
+            button.title =
+                isUnlocked
+                    ? 'Mở bảng tóm tắt'
+                    : (
+                        'Cần đạt điều kiện ' +
+                        'xem video trước'
+                    );
+        });
+
+        if (note) {
+            note.classList.toggle(
+                'show',
+                !isUnlocked
+            );
+
+            note.textContent =
+                isUnlocked
+                    ? ''
+                    : (
+                        '🔒 Bảng tóm tắt sẽ mở ' +
+                        'sau khi đạt điều kiện ' +
+                        'xem video.'
+                    );
+        }
+    };
 
 window.startVideoSummaryResize =
     function (event, assignId) {

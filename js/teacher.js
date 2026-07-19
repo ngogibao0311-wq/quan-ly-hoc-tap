@@ -45,6 +45,104 @@ function normalizeAssignmentTargets(targetStudent) {
     return ['all'];
 }
 
+// ======================================================
+// TƯƠNG THÍCH BÀI TẬP VÀ BÀI NỘP CŨ
+// Chỉ chuẩn hóa lúc đọc, không sửa/xóa dữ liệu Firebase.
+// ======================================================
+function compatText(value) {
+    return String(value ?? '').trim();
+}
+
+function compatToken(value) {
+    return compatText(value)
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/đ/g, 'd')
+        .replace(/Đ/g, 'D')
+        .toLowerCase()
+        .replace(/[\s_-]+/g, '');
+}
+
+function getCompatAssignmentIds(assignment) {
+    return [...new Set(
+        [
+            assignment?.id,
+            assignment?._fbKey,
+            assignment?.assignmentId,
+            assignment?.assignmentKey,
+            assignment?.key
+        ]
+            .map(compatText)
+            .filter(Boolean)
+    )];
+}
+
+function getCompatSubmissionAssignmentId(submission) {
+    return compatText(
+        submission?.assignmentId ??
+        submission?.assignId ??
+        submission?.assignmentKey ??
+        submission?.taskId ??
+        submission?.exerciseId
+    );
+}
+
+function getCompatSubmissionUsername(submission) {
+    return compatText(
+        submission?.studentUsername ??
+        submission?.username ??
+        submission?.studentUser ??
+        submission?.studentId
+    );
+}
+
+function compatTargetMatchesStudent(targets, student) {
+    if (targets.includes('all')) return true;
+
+    const studentIdentities = [
+        student?.username,
+        student?._fbKey,
+        student?.uid,
+        student?.id,
+        student?.name
+    ]
+        .map(compatText)
+        .filter(Boolean);
+
+    return targets.some(target =>
+        studentIdentities.includes(compatText(target))
+    );
+}
+
+function getCompatRelatedSubmissions(
+    assignment,
+    submissionsByAssignment
+) {
+    const rowsByKey = new Map();
+
+    getCompatAssignmentIds(assignment).forEach(assignmentId => {
+        const rows =
+            submissionsByAssignment[assignmentId] || [];
+
+        rows.forEach(submission => {
+            const uniqueKey =
+                compatText(
+                    submission._fbKey ||
+                    submission.id
+                ) ||
+                [
+                    getCompatSubmissionAssignmentId(submission),
+                    getCompatSubmissionUsername(submission),
+                    submission.submitTime || ''
+                ].join('|');
+
+            rowsByKey.set(uniqueKey, submission);
+        });
+    });
+
+    return [...rowsByKey.values()];
+}
+
 let currentAssignKey = null;
 let isAssignEnd = false;
 
@@ -85,13 +183,27 @@ async function getPaginatedDB(path, limit = 20, cursorKey = null) {
 }
 
 async function getStudentsLite() {
-    const snap = await db.ref('users')
-        .orderByChild('role')
-        .equalTo('student')
-        .once('value');
-
+    const snap = await db.ref('users').once('value');
     const students = [];
-    snap.forEach(child => students.push({ _fbKey: child.key, ...child.val() }));
+
+    snap.forEach(child => {
+        const student = {
+            _fbKey: child.key,
+            ...(child.val() || {})
+        };
+
+        const role = compatToken(student.role);
+
+        // Nhận cả cấu trúc role cũ.
+        if (
+            role === 'student' ||
+            role === 'hocsinh' ||
+            role === 'hs'
+        ) {
+            students.push(student);
+        }
+    });
+
     return students;
 }
 
@@ -164,41 +276,81 @@ async function getAssignmentsByIds(assignmentIds) {
 async function getSubmissionsByAssignmentIds(
     assignmentIds
 ) {
-    const result = {};
-    const normalizeKey = value => String(value ?? '');
+    const normalizedIds = [
+        ...new Set(
+            (assignmentIds || [])
+                .map(compatText)
+                .filter(Boolean)
+        )
+    ];
 
-    assignmentIds.forEach(id => {
-        result[normalizeKey(id)] = [];
+    const result = {};
+
+    normalizedIds.forEach(assignmentId => {
+        result[assignmentId] = [];
     });
 
+    // Chỉ tải toàn bộ submissions một lần khi cần tìm dữ liệu cũ.
+    let fallbackSnapshotPromise = null;
+
     await Promise.all(
-        assignmentIds.map(async assignmentId => {
+        normalizedIds.map(async assignmentId => {
+            const rowsByKey = new Map();
+
             const variants =
                 getFirebaseEqualityVariants(assignmentId);
 
-            const rowsByKey = new Map();
-
+            // Tìm theo cấu trúc mới: submissions/.../assignmentId
             await Promise.all(
                 variants.map(async variant => {
-                    const snap = await db
+                    const snapshot = await db
                         .ref('submissions')
                         .orderByChild('assignmentId')
                         .equalTo(variant)
                         .once('value');
 
-                    snap.forEach(child => {
-                        rowsByKey.set(
-                            child.key,
-                            {
-                                _fbKey: child.key,
-                                ...child.val()
-                            }
-                        );
+                    snapshot.forEach(child => {
+                        rowsByKey.set(child.key, {
+                            _fbKey: child.key,
+                            ...(child.val() || {})
+                        });
                     });
                 })
             );
 
-            result[normalizeKey(assignmentId)] = [
+            /*
+             * Khi không tìm thấy, quét tương thích dữ liệu cũ:
+             * assignId, assignmentKey, taskId...
+             */
+            if (rowsByKey.size === 0) {
+                if (!fallbackSnapshotPromise) {
+                    fallbackSnapshotPromise =
+                        db.ref('submissions').once('value');
+                }
+
+                const allSubmissionsSnapshot =
+                    await fallbackSnapshotPromise;
+
+                allSubmissionsSnapshot.forEach(child => {
+                    const submission = {
+                        _fbKey: child.key,
+                        ...(child.val() || {})
+                    };
+
+                    if (
+                        getCompatSubmissionAssignmentId(
+                            submission
+                        ) === compatText(assignmentId)
+                    ) {
+                        rowsByKey.set(
+                            child.key,
+                            submission
+                        );
+                    }
+                });
+            }
+
+            result[assignmentId] = [
                 ...rowsByKey.values()
             ];
         })
@@ -1420,15 +1572,29 @@ async function loadAssignedList(isLoadMore = false) {
     const students = await getStudentsLite();
 
     // 3. Chỉ lấy submissions của các bài đang render, không kéo toàn bộ submissions.
-    const assignmentIds = assignmentsPage.map(a => a.id).filter(Boolean);
-    const submissionsByAssignment = await getSubmissionsByAssignmentIds(assignmentIds);
+    const assignmentIds = [
+        ...new Set(
+            assignmentsPage.flatMap(
+                assignment => getCompatAssignmentIds(assignment)
+            )
+        )
+    ];
+
+    const submissionsByAssignment =
+        await getSubmissionsByAssignmentIds(
+            assignmentIds
+        );
 
     // 4. Sắp xếp trong phạm vi trang hiện tại.
     const nowSort = new Date();
     assignmentsPage.sort((a, b) => {
         const getSortVals = (assign) => {
             const end = assign.endDate ? new Date(assign.endDate.replace(" ", "T")) : new Date(8640000000000000);
-            const relatedSubs = submissionsByAssignment[assign.id] || [];
+            const relatedSubs =
+                getCompatRelatedSubmissions(
+                    assign,
+                    submissionsByAssignment
+                );
 
             let rank = 2;
             if (nowSort <= end) rank = 1;
@@ -1457,7 +1623,11 @@ async function loadAssignedList(isLoadMore = false) {
     });
 
     assignmentsPage.forEach(assign => {
-        const relatedSubs = submissionsByAssignment[assign.id] || [];
+        const relatedSubs =
+            getCompatRelatedSubmissions(
+                assign,
+                submissionsByAssignment
+            );
 
         let typeText = '';
         if (assign.assessmentType === 'trac_nghiem') typeText = 'Trắc nghiệm';
@@ -1516,16 +1686,52 @@ async function loadAssignedList(isLoadMore = false) {
             statusBadge = `<span style="background: rgba(245, 158, 11, 0.15); color: #d97706; padding: 4px 10px; border-radius: 20px; font-size: 0.75em; margin-left: 10px; vertical-align: middle; white-space: nowrap; font-weight: bold; border: 1px solid rgba(245, 158, 11, 0.3);">⏳ Chưa đến giờ</span>`;
         } else {
             const targetStudents =
-                students.filter(u =>
-                    assignmentTargets.includes('all') ||
-                    assignmentTargets.includes(u.username)
+                students.filter(student =>
+                    compatTargetMatchesStudent(
+                        assignmentTargets,
+                        student
+                    )
                 );
 
-            const totalAssigned = targetStudents.length;
-            const submittedUsernames = new Set(relatedSubs.map(s => s.studentUsername));
-            const submittedCount = targetStudents.filter(st => submittedUsernames.has(st.username)).length;
+            const submittedUsernames = new Set(
+                relatedSubs
+                    .map(getCompatSubmissionUsername)
+                    .map(compatText)
+                    .filter(Boolean)
+            );
 
-            if (submittedCount === 0) {
+            const targetUsernames = new Set(
+                targetStudents
+                    .map(student =>
+                        compatText(student.username)
+                    )
+                    .filter(Boolean)
+            );
+
+            let submittedCount;
+
+            if (targetStudents.length > 0) {
+                submittedCount = [...targetUsernames]
+                    .filter(username =>
+                        submittedUsernames.has(username)
+                    )
+                    .length;
+            } else {
+                /*
+                 * Khi dữ liệu giao bài cũ không còn khớp danh sách
+                 * học sinh, vẫn nhận số bài nộp thực tế.
+                 */
+                submittedCount = submittedUsernames.size;
+            }
+
+            let totalAssigned = Math.max(
+                targetStudents.length,
+                submittedCount
+            );
+
+            if (totalAssigned === 0 && submittedCount === 0) {
+                statusBadge = `<span style="background: rgba(245, 158, 11, 0.15); color: #b45309; padding: 4px 10px; border-radius: 20px; font-size: 0.75em; margin-left: 10px; vertical-align: middle; white-space: nowrap; font-weight: bold; border: 1px solid rgba(245, 158, 11, 0.3);">⚠️ Chưa đọc được danh sách học sinh</span>`;
+            } else if (submittedCount === 0) {
                 statusBadge = `<span style="background: rgba(225, 29, 72, 0.15); color: #e11d48; padding: 4px 10px; border-radius: 20px; font-size: 0.75em; margin-left: 10px; vertical-align: middle; white-space: nowrap; font-weight: bold; border: 1px solid rgba(225, 29, 72, 0.3);">🔴 Chưa ai nộp (0/${totalAssigned})</span>`;
             } else if (submittedCount < totalAssigned) {
                 statusBadge = `<span style="background: rgba(245, 158, 11, 0.15); color: #d97706; padding: 4px 10px; border-radius: 20px; font-size: 0.75em; margin-left: 10px; vertical-align: middle; white-space: nowrap; font-weight: bold; border: 1px solid rgba(245, 158, 11, 0.3);">🟡 Đang làm (${submittedCount}/${totalAssigned})</span>`;
