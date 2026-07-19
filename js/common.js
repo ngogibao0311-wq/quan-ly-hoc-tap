@@ -1,7 +1,54 @@
 const loginForm = document.getElementById('loginForm');
-
-// Khai báo biến toàn cục để quản lý bộ đếm ngược
 let lockoutInterval = null;
+
+// ==========================================
+// HỆ THỐNG BẢO MẬT: DẤU VÂN TAY THIẾT BỊ
+// ==========================================
+// Hàm này tạo ra một ID cố định dựa trên phần cứng và trình duyệt của thiết bị
+function getDeviceID() {
+    const deviceInfo = navigator.userAgent + screen.width + screen.height + navigator.language;
+    let hash = 0;
+    for (let i = 0; i < deviceInfo.length; i++) {
+        hash = ((hash << 5) - hash) + deviceInfo.charCodeAt(i);
+        hash |= 0;
+    }
+    return 'dev_' + Math.abs(hash);
+}
+
+const DEVICE_ID = getDeviceID();
+
+// Vẫn giữ LocalStorage/Cookie làm lớp phòng thủ đầu tiên cho nhẹ Server
+function getLockoutData(key) {
+    let val = localStorage.getItem(key);
+    if (!val) {
+        const match = document.cookie.match(new RegExp('(^| )' + key + '=([^;]+)'));
+        if (match) val = match[2];
+    }
+    return val;
+}
+
+function setLockoutData(key, value, expireSeconds) {
+    localStorage.setItem(key, value);
+    if (expireSeconds > 0) {
+        document.cookie = `${key}=${value}; max-age=${expireSeconds}; path=/`;
+    } else {
+        document.cookie = `${key}=; max-age=0; path=/`;
+    }
+}
+
+async function clearAllLockouts() {
+    localStorage.removeItem('_sys_df');
+    localStorage.removeItem('_sys_dl');
+    document.cookie = '_sys_df=; max-age=0; path=/';
+    document.cookie = '_sys_dl=; max-age=0; path=/';
+
+    // Xóa án phạt trên Server Firebase
+    if (typeof db !== 'undefined') {
+        try {
+            await db.ref('device_locks/' + DEVICE_ID).remove();
+        } catch (e) { }
+    }
+}
 
 if (loginForm) {
     loginForm.addEventListener('submit', async function (e) {
@@ -14,35 +61,42 @@ if (loginForm) {
         const passVal = document.getElementById('password').value.trim();
         const errorMsg = document.getElementById('errorMsg');
 
-        // 0. FIX LỖI KẸT ĐỒNG HỒ UI: Dừng đồng hồ của người trước (nếu có)
         if (lockoutInterval) {
             clearInterval(lockoutInterval);
             lockoutInterval = null;
         }
 
-        errorMsg.innerHTML = 'Đang xác thực...';
+        errorMsg.innerHTML = '⏳ Đang kiểm tra an ninh thiết bị...';
         errorMsg.style.color = 'blue';
 
         const now = Date.now();
+        let serverLockoutTime = 0;
 
-        // 1. KIỂM TRA ÁN PHẠT TRÊN THIẾT BỊ NÀY (Bảo vệ chống phá hoại)
-        const deviceLockout = localStorage.getItem('deviceLockoutUntil');
-        if (deviceLockout && now < parseInt(deviceLockout)) {
-            startLockoutCountdown(parseInt(deviceLockout), errorMsg);
+        // 1. KIỂM TRA ÁN PHẠT TRÊN SERVER FIREBASE (Chống xóa Cache tuyệt đối)
+        try {
+            const snap = await db.ref('device_locks/' + DEVICE_ID).once('value');
+            if (snap.exists()) {
+                serverLockoutTime = parseInt(snap.val());
+            }
+        } catch (err) {
+            console.log("Không thể kết nối Server kiểm tra an ninh.");
+        }
+
+        const localLockout = parseInt(getLockoutData('_sys_dl') || '0');
+        const finalLockoutTime = Math.max(serverLockoutTime, localLockout);
+
+        if (finalLockoutTime > now) {
+            startLockoutCountdown(finalLockoutTime, errorMsg);
             return;
         }
 
-        // --- BẮT ĐẦU ĐOẠN CODE MỚI DÙNG FIREBASE AUTH ---
-
-        // Tạo email ảo từ Tên đăng nhập do người dùng nhập (VD: gv1 -> gv1@hethong.edu.vn)
+        errorMsg.innerHTML = 'Đang xác thực...';
         const fakeEmail = userVal + "@hethong.edu.vn";
 
         try {
-            // Xác thực bằng hệ thống bảo mật của Firebase Auth (Thay vì tải toàn bộ DB về)
             const userCredential = await firebase.auth().signInWithEmailAndPassword(fakeEmail, passVal);
             const uid = userCredential.user.uid;
 
-            // Tải thông tin chi tiết từ Realtime Database dựa trên UID được bảo mật
             const snapshot = await db.ref('users/' + uid).once('value');
             const user = snapshot.val();
 
@@ -52,19 +106,16 @@ if (loginForm) {
                 return;
             }
 
-            // 2. KIỂM TRA KHÓA THỦ CÔNG (Giáo viên khóa học sinh từ hệ thống)
             if (user.isLocked) {
                 errorMsg.innerHTML = '🔒 LỖI: Tài khoản đã bị khóa.<br>Vui lòng liên hệ Giáo viên để giải quyết!';
                 errorMsg.style.color = 'red';
-                await firebase.auth().signOut(); // Ép đăng xuất lập tức trên Firebase
+                await firebase.auth().signOut();
                 return;
             }
 
-            // 3. ĐĂNG NHẬP THÀNH CÔNG -> GỠ BỎ LỊCH SỬ SAI CỦA THIẾT BỊ NÀY
-            localStorage.removeItem('deviceFails');
-            localStorage.removeItem('deviceLockoutUntil');
+            // Đăng nhập thành công -> Gỡ bỏ hoàn toàn mọi án phạt
+            await clearAllLockouts();
 
-            // Gắn thêm _fbKey chính là uid để hệ thống đồng bộ
             user._fbKey = uid;
             localStorage.setItem('currentUser', JSON.stringify(user));
 
@@ -75,17 +126,29 @@ if (loginForm) {
             }
 
         } catch (error) {
-            // 4. XỬ LÝ KHI SAI MẬT KHẨU / TÀI KHOẢN & GHI ÁN PHẠT
-            let currentFails = parseInt(localStorage.getItem('deviceFails') || '0') + 1;
+            let currentFails = parseInt(getLockoutData('_sys_df') || '0') + 1;
+            let forceLock = false;
 
-            if (currentFails >= 5) {
-                // Phạt khóa thiết bị 15 phút
-                const lockTime = Date.now() + (15 * 60 * 1000);
-                localStorage.setItem('deviceLockoutUntil', lockTime);
-                localStorage.setItem('deviceFails', '0'); // Reset bộ đếm
+            // Bắt lỗi brute-force native từ Firebase
+            if (error.code === 'auth/too-many-requests') {
+                forceLock = true;
+            }
+
+            if (currentFails >= 5 || forceLock) {
+                const lockTime = Date.now() + (15 * 60 * 1000); // Phạt 15 phút
+
+                // Lưu cục bộ
+                setLockoutData('_sys_dl', lockTime, 15 * 60);
+                setLockoutData('_sys_df', '0', 0);
+
+                // LƯU LÊN SERVER FIREBASE (Khóa cứng thiết bị)
+                try {
+                    await db.ref('device_locks/' + DEVICE_ID).set(lockTime);
+                } catch (e) { }
+
                 startLockoutCountdown(lockTime, errorMsg);
             } else {
-                localStorage.setItem('deviceFails', currentFails);
+                setLockoutData('_sys_df', currentFails, 24 * 60 * 60);
                 errorMsg.innerHTML = `❌ Sai Tên đăng nhập hoặc Mật khẩu! Thiết bị này còn <b>${5 - currentFails}</b> lần thử.`;
                 errorMsg.style.color = 'red';
             }
@@ -94,7 +157,7 @@ if (loginForm) {
 }
 
 // ==========================================
-// HÀM HỖ TRỢ: CHẠY ĐỒNG HỒ ĐẾM NGƯỢC
+// HÀM HỖ TRỢ: CHẠY ĐỒNG HỒ ĐẾM NGƯỢC (ĐÃ SỬA LỖI TRÙNG LẶP)
 // ==========================================
 function startLockoutCountdown(lockoutUntil, errorElement) {
     if (lockoutInterval) clearInterval(lockoutInterval);
@@ -103,26 +166,85 @@ function startLockoutCountdown(lockoutUntil, errorElement) {
         const remain = lockoutUntil - Date.now();
         if (remain <= 0) {
             clearInterval(lockoutInterval);
-            errorElement.innerHTML = '✅ Hết thời gian phạt! Bạn có thể thử đăng nhập lại.';
+            lockoutInterval = null;
+
+            errorElement.innerHTML =
+                '✅ Hết thời gian phạt! Bạn có thể thử đăng nhập lại.';
             errorElement.style.color = 'green';
-            localStorage.removeItem('deviceLockoutUntil'); // Xóa án phạt khi hết giờ
+
+            clearAllLockouts().catch(console.error);
             return;
         }
 
         const minutes = Math.floor(remain / 60000);
         const seconds = Math.floor((remain % 60000) / 1000);
-        errorElement.innerHTML = `⏳ Thiết bị này đã nhập sai quá nhiều lần.<br>Khóa đăng nhập: <b style="color:red;">${minutes} phút ${seconds} giây</b>`;
+        errorElement.innerHTML = `⏳ Cảnh báo An ninh: Thiết bị nhập sai quá nhiều lần.<br>Khóa đăng nhập từ Server trong: <b style="color:red;">${minutes} phút ${seconds} giây</b>`;
         errorElement.style.color = '#e67e22';
     }
 
-    update(); // Chạy ngay lập tức để không bị delay 1 giây
+    // Chạy ngay lập tức hàm update() để không bị delay 1 giây ban đầu
+    update();
     lockoutInterval = setInterval(update, 1000);
 }
 
-function logout() {
-    localStorage.removeItem('currentUser');
-    window.location.href = 'index.html';
-}
+// ==============================================================
+// QUẢN LÝ FIREBASE REALTIME LISTENERS - CHỐNG MEMORY LEAK
+// ==============================================================
+
+window.firebaseListenerRegistry = window.firebaseListenerRegistry || [];
+
+window.listenFirebase = function (queryOrRef, eventType, callback, cancelCallbackOrContext, context) {
+    if (!queryOrRef || typeof queryOrRef.on !== 'function') {
+        console.warn('⚠️ listenFirebase nhận ref/query không hợp lệ:', queryOrRef);
+        return callback;
+    }
+
+    queryOrRef.on(eventType, callback, cancelCallbackOrContext, context);
+
+    window.firebaseListenerRegistry.push({
+        ref: queryOrRef,
+        eventType,
+        callback,
+        context
+    });
+
+    return callback;
+};
+
+window.cleanupFirebaseListeners = function () {
+    const list = window.firebaseListenerRegistry || [];
+
+    list.forEach(item => {
+        try {
+            item.ref.off(item.eventType, item.callback, item.context);
+        } catch (err) {
+            console.warn('⚠️ Không thể gỡ Firebase listener:', err);
+        }
+    });
+
+    window.firebaseListenerRegistry = [];
+    console.log('✅ Đã gỡ toàn bộ Firebase listeners:', list.length);
+};
+
+// Khi rời trang / F5 / đóng tab cũng tự gỡ listener
+window.addEventListener('beforeunload', function () {
+    if (typeof window.cleanupFirebaseListeners === 'function') {
+        window.cleanupFirebaseListeners();
+    }
+});
+
+window.logout = function () {
+    if (confirm("Bạn có chắc chắn muốn đăng xuất?")) {
+        // --- BẮT ĐẦU: Dọn dẹp Firebase Realtime trước khi thoát ---
+        if (typeof cleanupFirebaseListeners === 'function') {
+            cleanupFirebaseListeners();
+        }
+        // --- KẾT THÚC ---
+
+        localStorage.removeItem('currentUser');
+        window.location.href = 'index.html';
+    }
+};
 
 // ==============================================================
 // HÀM XỬ LÝ ĐÓNG / MỞ CARD (ACCORDION)
@@ -459,3 +581,963 @@ document.addEventListener('click', function (event) {
         }
     }
 });
+
+// === HỆ THỐNG AUTO-SAVE DỮ LIỆU NHÁP ===
+
+/**
+ * Hàm thiết lập tự động lưu nháp cho một ô nhập liệu (input/textarea)
+ * @param {HTMLElement} inputElement - Thẻ input hoặc textarea cần lưu nháp
+ * @param {string} storageKey - Khóa lưu trữ duy nhất trong localStorage (VD: 'draft_teacher_assign')
+ */
+window.setupAutoSave = function (inputElement, storageKey) {
+    if (!inputElement) return;
+
+    // 1. Phục hồi dữ liệu nếu có bản nháp từ trước
+    const savedDraft = localStorage.getItem(storageKey);
+    if (savedDraft) {
+        inputElement.value = savedDraft;
+        // Kích hoạt sự kiện input để các thư viện UI (nếu có) tự cập nhật chiều cao, style...
+        inputElement.dispatchEvent(new Event('input'));
+    }
+
+    // 2. Hàm delay (debounce) tích hợp sẵn để chống lưu liên tục gây giật lag
+    let timeout;
+    const saveToLocal = function () {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => {
+            localStorage.setItem(storageKey, inputElement.value);
+        }, 1000); // Đợi người dùng ngừng gõ 1 giây mới tiến hành lưu
+    };
+
+    // 3. Lắng nghe sự kiện gõ phím
+    inputElement.addEventListener('input', saveToLocal);
+};
+
+/**
+ * Hàm xóa bản nháp (gọi hàm này SAU KHI người dùng đã nộp bài/lưu bài thành công)
+ */
+window.clearAutoSave = function (storageKey) {
+    localStorage.removeItem(storageKey);
+};
+
+// ==============================================================
+// BỘ XEM TRỰC TIẾP TỆP/LINK TRÊN WEB (ẢNH, PDF, DOCX, URL)
+// ==============================================================
+(function () {
+    const registry =
+        window.__filePreviewRegistry =
+        window.__filePreviewRegistry || {};
+
+    let previewCounter = 0;
+
+    // Chống chèn mã HTML vào giao diện
+    function escapeHTML(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    // Chuẩn hóa và kiểm tra URL
+    function normalizeUrl(url) {
+        const value = String(url || '').trim();
+
+        if (
+            !value ||
+            /^(javascript|vbscript|file):/i.test(value)
+        ) {
+            return '';
+        }
+
+        // Chỉ chấp nhận các Data URL an toàn cần dùng
+        if (/^data:/i.test(value)) {
+            const safeData =
+                /^data:(image\/|application\/pdf|application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document)/i.test(
+                    value
+                );
+
+            return safeData ? value : '';
+        }
+
+        if (
+            /^(blob:|https?:\/\/|\/|\.\.?\/)/i.test(value)
+        ) {
+            return value;
+        }
+
+        // Tự thêm https:// khi người dùng nhập www...
+        if (
+            /^www\./i.test(value) ||
+            /^[a-z0-9.-]+\.[a-z]{2,}(?:[\/:?#]|$)/i.test(
+                value
+            )
+        ) {
+            return 'https://' + value;
+        }
+
+        return value;
+    }
+
+    // Lấy phần mở rộng của tên file hoặc URL
+    function getExtension(nameOrUrl) {
+        const clean = String(nameOrUrl || '')
+            .split('#')[0]
+            .split('?')[0];
+
+        const match = clean.match(/\.([a-z0-9]{1,8})$/i);
+
+        return match ? match[1].toLowerCase() : '';
+    }
+
+    // Nhận diện file là ảnh, PDF, DOCX, DOC hay link web
+    function inferKind(item) {
+        const url = item.url || '';
+        const type = String(item.type || '').toLowerCase();
+        const ext = getExtension(item.name || url);
+
+        const dataMime = url.startsWith('data:')
+            ? (
+                url.slice(5).split(';')[0] || ''
+            ).toLowerCase()
+            : '';
+
+        const mime = type || dataMime;
+
+        if (
+            mime.startsWith('image/') ||
+            [
+                'png',
+                'jpg',
+                'jpeg',
+                'gif',
+                'webp',
+                'bmp',
+                'svg',
+                'avif'
+            ].includes(ext)
+        ) {
+            return 'image';
+        }
+
+        if (
+            mime === 'application/pdf' ||
+            ext === 'pdf'
+        ) {
+            return 'pdf';
+        }
+
+        if (
+            mime.includes('wordprocessingml') ||
+            ext === 'docx'
+        ) {
+            return 'docx';
+        }
+
+        if (
+            mime === 'application/msword' ||
+            ext === 'doc'
+        ) {
+            return 'doc';
+        }
+
+        return 'web';
+    }
+
+    // Chuyển một số link Google thành link có thể xem trong iframe
+    function toEmbeddableUrl(url) {
+        let value = normalizeUrl(url);
+
+        if (!value) {
+            return '';
+        }
+
+        try {
+            const parsed = new URL(
+                value,
+                window.location.href
+            );
+
+            const host = parsed.hostname.toLowerCase();
+
+            // Google Drive
+            if (host.includes('drive.google.com')) {
+                const fileMatch =
+                    parsed.pathname.match(
+                        /\/file\/d\/([^/]+)/
+                    );
+
+                if (fileMatch) {
+                    return (
+                        'https://drive.google.com/file/d/' +
+                        fileMatch[1] +
+                        '/preview'
+                    );
+                }
+            }
+
+            // Google Docs, Sheets, Slides
+            if (host.includes('docs.google.com')) {
+                const docsMatch =
+                    parsed.pathname.match(
+                        /\/(document|spreadsheets|presentation)\/d\/([^/]+)/
+                    );
+
+                if (docsMatch) {
+                    return (
+                        'https://docs.google.com/' +
+                        docsMatch[1] +
+                        '/d/' +
+                        docsMatch[2] +
+                        '/preview'
+                    );
+                }
+            }
+
+            return parsed.href;
+        } catch (error) {
+            return value;
+        }
+    }
+
+    // Chuyển DOCX dạng Base64 thành ArrayBuffer cho Mammoth
+    function dataUrlToArrayBuffer(dataUrl) {
+        const parts = String(dataUrl).split(',');
+
+        if (parts.length < 2) {
+            throw new Error(
+                'Dữ liệu DOCX không hợp lệ.'
+            );
+        }
+
+        const meta = parts[0];
+        const body = parts.slice(1).join(',');
+
+        const binary = meta.includes(';base64')
+            ? atob(body)
+            : decodeURIComponent(body);
+
+        const bytes = new Uint8Array(binary.length);
+
+        for (
+            let index = 0;
+            index < binary.length;
+            index++
+        ) {
+            bytes[index] =
+                binary.charCodeAt(index);
+        }
+
+        return bytes.buffer;
+    }
+
+    // Loại bỏ các nội dung nguy hiểm trong HTML do Mammoth tạo
+    function sanitizeMammothHTML(html) {
+        const doc = new DOMParser().parseFromString(
+            `<div>${html || ''}</div>`,
+            'text/html'
+        );
+
+        doc.querySelectorAll(
+            'script, iframe, object, embed, style, link, meta'
+        ).forEach(element => {
+            element.remove();
+        });
+
+        doc.querySelectorAll('*').forEach(element => {
+            [...element.attributes].forEach(attribute => {
+                const name =
+                    attribute.name.toLowerCase();
+
+                const value =
+                    String(attribute.value || '')
+                        .trim()
+                        .toLowerCase();
+
+                if (
+                    name.startsWith('on') ||
+                    (
+                        (
+                            name === 'href' ||
+                            name === 'src'
+                        ) &&
+                        value.startsWith('javascript:')
+                    )
+                ) {
+                    element.removeAttribute(
+                        attribute.name
+                    );
+                }
+            });
+        });
+
+        return doc.body.firstElementChild
+            ? doc.body.firstElementChild.innerHTML
+            : '';
+    }
+
+    // Tạo cửa sổ xem file nếu chưa tồn tại
+    function ensureModal() {
+        let modal = document.getElementById(
+            'universalFilePreviewModal'
+        );
+
+        if (modal) {
+            return modal;
+        }
+
+        modal = document.createElement('div');
+
+        modal.id = 'universalFilePreviewModal';
+
+        modal.className =
+            'modal-overlay universal-preview-overlay';
+
+        modal.innerHTML = `
+            <div
+                class="universal-preview-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="universalPreviewTitle"
+            >
+                <div class="universal-preview-header">
+                    <div>
+                        <p class="universal-preview-kicker">
+                            XEM TRỰC TIẾP TRÊN WEB
+                        </p>
+
+                        <h3 id="universalPreviewTitle">
+                            Tài liệu
+                        </h3>
+                    </div>
+
+                    <button
+                        type="button"
+                        class="close-btn universal-preview-close"
+                        onclick="closeFilePreview()"
+                        aria-label="Đóng"
+                    >
+                        ✖
+                    </button>
+                </div>
+
+                <div class="universal-preview-actions">
+                    <button
+                        type="button"
+                        id="universalPreviewOpenTab"
+                        class="preview-action-btn"
+                        onclick="openPreviewSourceInNewTab()"
+                    >
+                        ↗ Mở tab mới
+                    </button>
+
+                    <a
+                        id="universalPreviewDownload"
+                        class="preview-action-btn preview-download-btn"
+                        href="#"
+                        download
+                        style="display:none;"
+                    >
+                        ⬇ Tải xuống
+                    </a>
+                </div>
+
+                <div
+                    id="universalPreviewNotice"
+                    class="universal-preview-notice"
+                    style="display:none;"
+                ></div>
+
+                <div
+                    id="universalPreviewBody"
+                    class="universal-preview-body"
+                ></div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        return modal;
+    }
+
+    // Hiển thị trạng thái đang tải
+    function showLoading(text) {
+        const body = document.getElementById(
+            'universalPreviewBody'
+        );
+
+        if (!body) {
+            return;
+        }
+
+        body.innerHTML = `
+            <div class="preview-loading">
+                <span class="preview-spinner"></span>
+
+                <p>
+                    ${escapeHTML(
+                        text ||
+                        'Đang mở tài liệu...'
+                    )}
+                </p>
+            </div>
+        `;
+    }
+
+    // Hiện thông báo phía trên khung xem
+    function showNotice(message) {
+        const notice = document.getElementById(
+            'universalPreviewNotice'
+        );
+
+        if (!notice) {
+            return;
+        }
+
+        notice.textContent = message || '';
+
+        notice.style.display = message
+            ? 'block'
+            : 'none';
+    }
+
+    // Tạo iframe dùng xem PDF, link web, Google Drive...
+    function createIframe(
+        url,
+        title,
+        sandboxed
+    ) {
+        const iframe =
+            document.createElement('iframe');
+
+        iframe.className =
+            'universal-preview-frame';
+
+        iframe.title =
+            title || 'Xem tài liệu';
+
+        iframe.src = url;
+
+        iframe.referrerPolicy =
+            'no-referrer-when-downgrade';
+
+        iframe.allow =
+            'fullscreen; clipboard-read; clipboard-write';
+
+        if (sandboxed) {
+            iframe.setAttribute(
+                'sandbox',
+                [
+                    'allow-scripts',
+                    'allow-same-origin',
+                    'allow-forms',
+                    'allow-popups',
+                    'allow-downloads'
+                ].join(' ')
+            );
+        }
+
+        return iframe;
+    }
+
+    /**
+     * Tạo HTML nút xem file.
+     *
+     * source có thể là:
+     * - Chuỗi URL
+     * - Object: { name, type, base64 }
+     * - Object: { name, type, url }
+     */
+    window.buildFilePreviewHTML = function (
+        source,
+        label,
+        options
+    ) {
+        options = options || {};
+
+        const raw =
+            typeof source === 'string'
+                ? { url: source }
+                : (source || {});
+
+        const url = normalizeUrl(
+            raw.url ||
+            raw.base64 ||
+            raw.href ||
+            ''
+        );
+
+        if (!url) {
+            return '';
+        }
+
+        const name =
+            raw.name ||
+            options.name ||
+            (
+                typeof source === 'string'
+                    ? source
+                    : 'Tài liệu'
+            );
+
+        const key =
+            `preview_${Date.now()}_${++previewCounter}`;
+
+        registry[key] = {
+            url: url,
+            name: name,
+            type: raw.type || '',
+            label: label || 'Tài liệu',
+
+            allowDownload:
+                options.allowDownload !== false,
+
+            sourceIsLink:
+                typeof source === 'string' ||
+                (
+                    Boolean(raw.url) &&
+                    !raw.base64
+                )
+        };
+
+        const tone = options.tone
+            ? (
+                ' preview-file-card--' +
+                escapeHTML(options.tone)
+            )
+            : '';
+
+        return `
+            <div class="preview-file-card${tone}">
+                <div class="preview-file-info">
+                    <strong>
+                        ${escapeHTML(
+                            label ||
+                            '📎 Tài liệu'
+                        )}
+                    </strong>
+
+                    <span title="${escapeHTML(name)}">
+                        ${escapeHTML(name)}
+                    </span>
+                </div>
+
+                <div class="preview-file-buttons">
+                    <button
+                        type="button"
+                        class="preview-inline-btn"
+                        onclick="
+                            event.stopPropagation();
+                            openFilePreview('${key}');
+                        "
+                    >
+                        👁 Xem trực tiếp
+                    </button>
+
+                    <button
+                        type="button"
+                        class="
+                            preview-inline-btn
+                            preview-inline-btn-secondary
+                        "
+                        onclick="
+                            event.stopPropagation();
+                            openPreviewSourceInNewTab('${key}');
+                        "
+                    >
+                        ↗ Mở tab mới
+                    </button>
+                </div>
+            </div>
+        `;
+    };
+
+    // Mở cửa sổ xem trực tiếp
+    window.openFilePreview = async function (
+        key
+    ) {
+        const item = registry[key];
+
+        if (!item) {
+            alert(
+                'Không tìm thấy dữ liệu tài liệu để mở.'
+            );
+
+            return;
+        }
+
+        const modal = ensureModal();
+
+        window.__activePreviewKey = key;
+
+        modal.classList.add('active');
+
+        document.body.classList.add(
+            'preview-modal-open'
+        );
+
+        const title =
+            document.getElementById(
+                'universalPreviewTitle'
+            );
+
+        const body =
+            document.getElementById(
+                'universalPreviewBody'
+            );
+
+        const download =
+            document.getElementById(
+                'universalPreviewDownload'
+            );
+
+        if (title) {
+            title.textContent =
+                item.name ||
+                item.label ||
+                'Tài liệu';
+        }
+
+        if (body) {
+            body.innerHTML = '';
+        }
+
+        showNotice('');
+        showLoading('Đang chuẩn bị nội dung...');
+
+        if (download) {
+            const isDownloadableData =
+                /^(data:|blob:)/i.test(
+                    item.url
+                );
+
+            download.style.display =
+                item.allowDownload &&
+                isDownloadableData
+                    ? 'inline-flex'
+                    : 'none';
+
+            download.href = item.url;
+
+            download.download =
+                item.name || 'tai-lieu';
+        }
+
+        const kind = inferKind(item);
+
+        try {
+            body.innerHTML = '';
+
+            // Xem ảnh
+            if (kind === 'image') {
+                const wrap =
+                    document.createElement('div');
+
+                wrap.className =
+                    'universal-image-wrap';
+
+                const image =
+                    document.createElement('img');
+
+                image.src = item.url;
+
+                image.alt =
+                    item.name ||
+                    'Ảnh tài liệu';
+
+                image.className =
+                    'universal-preview-image';
+
+                wrap.appendChild(image);
+                body.appendChild(wrap);
+
+                return;
+            }
+
+            // Xem PDF
+            if (kind === 'pdf') {
+                body.appendChild(
+                    createIframe(
+                        item.url,
+                        item.name,
+                        false
+                    )
+                );
+
+                return;
+            }
+
+            // Xem DOCX
+            if (kind === 'docx') {
+                // Ưu tiên dùng Mammoth.js
+                if (window.mammoth) {
+                    try {
+                        let arrayBuffer;
+
+                        // DOCX được lưu Base64 trong Firebase
+                        if (
+                            item.url.startsWith(
+                                'data:'
+                            )
+                        ) {
+                            arrayBuffer =
+                                dataUrlToArrayBuffer(
+                                    item.url
+                                );
+                        } else {
+                            // DOCX dạng link công khai
+                            const response =
+                                await fetch(item.url);
+
+                            if (!response.ok) {
+                                throw new Error(
+                                    'Không tải được DOCX'
+                                );
+                            }
+
+                            arrayBuffer =
+                                await response.arrayBuffer();
+                        }
+
+                        const result =
+                            await window.mammoth
+                                .convertToHtml({
+                                    arrayBuffer:
+                                        arrayBuffer
+                                });
+
+                        const article =
+                            document.createElement(
+                                'article'
+                            );
+
+                        article.className =
+                            'universal-docx-content';
+
+                        article.innerHTML =
+                            sanitizeMammothHTML(
+                                result.value
+                            );
+
+                        body.appendChild(article);
+
+                        if (
+                            result.messages &&
+                            result.messages.length
+                        ) {
+                            showNotice(
+                                'Một số định dạng phức tạp trong DOCX có thể hiển thị khác so với Microsoft Word.'
+                            );
+                        }
+
+                        return;
+                    } catch (docxError) {
+                        console.warn(
+                            'Không thể đọc DOCX trực tiếp bằng Mammoth:',
+                            docxError
+                        );
+                    }
+                }
+
+                // Nếu Mammoth không đọc được và DOCX là URL công khai
+                if (
+                    /^https?:\/\//i.test(
+                        item.url
+                    )
+                ) {
+                    const officeUrl =
+                        'https://view.officeapps.live.com/op/embed.aspx?src=' +
+                        encodeURIComponent(
+                            item.url
+                        );
+
+                    showNotice(
+                        'Đang dùng Microsoft Office Online để xem DOCX. Link phải được chia sẻ công khai.'
+                    );
+
+                    body.appendChild(
+                        createIframe(
+                            officeUrl,
+                            item.name,
+                            false
+                        )
+                    );
+                } else {
+                    showNotice(
+                        'Trình duyệt chưa thể đọc DOCX này trực tiếp. Hãy dùng nút “Mở tab mới” hoặc “Tải xuống”.'
+                    );
+
+                    body.innerHTML = `
+                        <div class="preview-empty-state">
+                            Không thể hiển thị DOCX
+                            trong khung xem.
+                        </div>
+                    `;
+                }
+
+                return;
+            }
+
+            // Xem định dạng Word .doc cũ
+            if (kind === 'doc') {
+                if (
+                    /^https?:\/\//i.test(
+                        item.url
+                    )
+                ) {
+                    const officeUrl =
+                        'https://view.officeapps.live.com/op/embed.aspx?src=' +
+                        encodeURIComponent(
+                            item.url
+                        );
+
+                    showNotice(
+                        'Đang dùng Microsoft Office Online để xem tệp Word. Link phải được chia sẻ công khai.'
+                    );
+
+                    body.appendChild(
+                        createIframe(
+                            officeUrl,
+                            item.name,
+                            false
+                        )
+                    );
+                } else {
+                    showNotice(
+                        'Tệp .doc cũ không thể đọc trực tiếp từ dữ liệu nội bộ. Vui lòng tải xuống.'
+                    );
+
+                    body.innerHTML = `
+                        <div class="preview-empty-state">
+                            Không thể hiển thị
+                            tệp .doc cũ.
+                        </div>
+                    `;
+                }
+
+                return;
+            }
+
+            // Xem link trang web, Google Drive, Google Docs...
+            const embedUrl =
+                toEmbeddableUrl(item.url);
+
+            showNotice(
+                'Nếu trang nguồn chặn nhúng, hãy bấm “Mở tab mới” ở phía trên.'
+            );
+
+            body.appendChild(
+                createIframe(
+                    embedUrl,
+                    item.name,
+                    true
+                )
+            );
+        } catch (error) {
+            console.error(
+                'Lỗi xem trực tiếp tài liệu:',
+                error
+            );
+
+            showNotice(
+                'Không thể hiển thị tài liệu trong khung xem. Hãy thử mở ở tab mới.'
+            );
+
+            body.innerHTML = `
+                <div class="preview-empty-state">
+                    Không thể tải nội dung tài liệu.
+                </div>
+            `;
+        }
+    };
+
+    // Mở nguồn tài liệu trong tab mới
+    window.openPreviewSourceInNewTab =
+        function (key) {
+            const activeKey =
+                key ||
+                window.__activePreviewKey;
+
+            const item =
+                registry[activeKey];
+
+            if (
+                !item ||
+                !item.url
+            ) {
+                return;
+            }
+
+            const targetUrl =
+                toEmbeddableUrl(item.url);
+
+            const opened =
+                window.open(
+                    targetUrl,
+                    '_blank'
+                );
+
+            if (opened) {
+                try {
+                    opened.opener = null;
+                } catch (error) {
+                    // Không cần xử lý
+                }
+            } else {
+                alert(
+                    'Trình duyệt đang chặn cửa sổ mới. Vui lòng cho phép pop-up cho trang này.'
+                );
+            }
+        };
+
+    // Đóng cửa sổ xem file
+    window.closeFilePreview = function () {
+        const modal =
+            document.getElementById(
+                'universalFilePreviewModal'
+            );
+
+        const body =
+            document.getElementById(
+                'universalPreviewBody'
+            );
+
+        if (modal) {
+            modal.classList.remove('active');
+        }
+
+        if (body) {
+            body.innerHTML = '';
+        }
+
+        showNotice('');
+
+        document.body.classList.remove(
+            'preview-modal-open'
+        );
+
+        window.__activePreviewKey = null;
+    };
+
+    // Nhấn Escape để đóng cửa sổ xem
+    document.addEventListener(
+        'keydown',
+        function (event) {
+            const modal =
+                document.getElementById(
+                    'universalFilePreviewModal'
+                );
+
+            if (
+                event.key === 'Escape' &&
+                modal &&
+                modal.classList.contains(
+                    'active'
+                )
+            ) {
+                window.closeFilePreview();
+            }
+        }
+    );
+})();
