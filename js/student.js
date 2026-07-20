@@ -422,13 +422,13 @@ updateAvatarDisplay(currentUser.avatar);
 window.handleStudentFileAccumulate = function (input, assignId) {
     if (!window.studentSubmitDTs[assignId]) window.studentSubmitDTs[assignId] = new DataTransfer();
     const existingFiles = Array.from(window.studentSubmitDTs[assignId].files).map(f => f.name + '_' + f.size);
-    const MAX_SIZE_BYTES = 5 * 1024 * 1024; // Giới hạn 5MB
+    const MAX_SIZE_BYTES = 7 * 1024 * 1024; // Giới hạn 5MB
 
     let hasOversize = false;
     for (let i = 0; i < input.files.length; i++) {
         // Chặn ngay file quá nặng, không cho vào DataTransfer
         if (input.files[i].size > MAX_SIZE_BYTES) {
-            alert(`⚠️ File "${input.files[i].name}" quá lớn (${(input.files[i].size / (1024 * 1024)).toFixed(2)}MB). Hệ thống chỉ cho phép tối đa 5MB/file và đã tự động loại bỏ file này!`);
+            alert(`⚠️ File "${input.files[i].name}" quá lớn (${(input.files[i].size / (1024 * 1024)).toFixed(2)}MB). Hệ thống chỉ cho phép tối đa 7MB/file và đã tự động loại bỏ file này!`);
             hasOversize = true;
             continue;
         }
@@ -4784,7 +4784,7 @@ async function readMultipleFiles(
     return window.CloudflareR2Storage.uploadFiles(
         files,
         {
-            maxSizeBytes: 5 * 1024 * 1024,
+            maxSizeBytes: 10 * 1024 * 1024,
             folder: options.folder || 'submissions'
         }
     );

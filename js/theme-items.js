@@ -137,6 +137,30 @@ class ThemeManager {
 
             styleId:
                 'shizuka-trinity-card-style'
+        }),
+
+        /* Bộ Thần Hệ Tinh Vân */
+        'galaxy-legend-trinity': Object.freeze({
+            itemIds: Object.freeze([
+                'pet_truyenthuyet_1',
+                'effect_truyenthuyet_vutru',
+                'theme_truyenthuyet_vutru'
+            ]),
+
+            className:
+                'store-card-galaxy-legend-trinity'
+        }),
+
+        /* Bộ Vệ Thần Ngân Hà */
+        'galaxy-guardian-trinity': Object.freeze({
+            itemIds: Object.freeze([
+                'pet_truyenthuyet_2',
+                'effect_truyenthuyet_nganha',
+                'theme_truyenthuyet_nganha'
+            ]),
+
+            className:
+                'store-card-galaxy-guardian-trinity'
         })
     });
 
