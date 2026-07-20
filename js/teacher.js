@@ -2793,12 +2793,99 @@ async function loadSubmissions(isLoadMore = false) {
             }
         }
 
+        // Kiểm tra bài tập có phần trắc nghiệm hay không
+        const hasMultipleChoicePart =
+            Array.isArray(assign.questions) &&
+            assign.questions.length > 0 &&
+            (
+                assign.assessmentType === 'trac_nghiem' ||
+                assign.assessmentType === 'ket_hop' ||
+                assign.assessmentType === 'thi'
+            );
+
+        // Kiểm tra bài nộp có lưu đáp án trắc nghiệm hay không
+        const hasStoredMultipleChoiceAnswers =
+            sub.mcAnswers &&
+            typeof sub.mcAnswers === 'object' &&
+            Object.keys(sub.mcAnswers).length > 0;
+
+        // Chỉ coi là bài chỉ nộp file khi hoàn toàn không có trắc nghiệm
         const isFileOnlySubmission =
-            assign.hideEssayText === true;
+            assign.hideEssayText === true &&
+            !hasMultipleChoicePart &&
+            !hasStoredMultipleChoiceAnswers;
+
+        // Dựng lại kết quả trắc nghiệm cho những bài nộp cũ
+        // chưa lưu nội dung tổng hợp trong trường answer
+        let reconstructedMultipleChoice = '';
+
+        if (
+            hasStoredMultipleChoiceAnswers &&
+            Array.isArray(assign.questions) &&
+            assign.questions.length > 0
+        ) {
+            const reconstructedLines = assign.questions.map(
+                (question, questionIndex) => {
+                    const selectedAnswer =
+                        sub.mcAnswers[questionIndex] ??
+                        sub.mcAnswers[String(questionIndex)] ??
+                        '';
+
+                    const correctAnswer =
+                        question?.correct ?? '';
+
+                    if (!selectedAnswer) {
+                        return `Câu ${questionIndex + 1}: Chưa chọn` +
+                            (
+                                correctAnswer
+                                    ? ` (Đáp án đúng: ${correctAnswer})`
+                                    : ''
+                            );
+                    }
+
+                    const isCorrect =
+                        correctAnswer &&
+                        String(selectedAnswer) === String(correctAnswer);
+
+                    return `Câu ${questionIndex + 1}: Chọn ${selectedAnswer}` +
+                        (
+                            correctAnswer
+                                ? ` ${isCorrect
+                                    ? '✅'
+                                    : `❌ (Đáp án đúng: ${correctAnswer})`
+                                }`
+                                : ''
+                        );
+                }
+            );
+
+            reconstructedMultipleChoice =
+                `[PHẦN TRẮC NGHIỆM]\n` +
+                reconstructedLines.join('\n');
+        }
+
+        // Lấy lại phần tự luận riêng nếu có
+        const rawEssayFallback =
+            typeof sub.rawEssay === 'string' &&
+                sub.rawEssay.trim() !== ''
+                ? `[PHẦN TỰ LUẬN]\n${sub.rawEssay}`
+                : '';
+
+        // Ghép trắc nghiệm và tự luận
+        const reconstructedAnswer = [
+            reconstructedMultipleChoice,
+            rawEssayFallback
+        ].filter(Boolean).join('\n\n');
+
+        // Ưu tiên answer đã lưu; nếu không có thì dùng nội dung dựng lại
+        const writtenAnswer =
+            typeof sub.answer === 'string' &&
+                sub.answer.trim() !== ''
+                ? sub.answer
+                : reconstructedAnswer;
 
         const hasWrittenAnswer =
-            typeof sub.answer === 'string' &&
-            sub.answer.trim() !== '';
+            writtenAnswer.trim() !== '';
 
         const submissionHeading =
             isFileOnlySubmission
@@ -2825,8 +2912,8 @@ async function loadSubmissions(isLoadMore = false) {
         "
     >
         ${hasWrittenAnswer
-                    ? sub.answer.replace(/\n/g, '<br>')
-                    : '<i>(Trống)</i>'
+                    ? writtenAnswer.replace(/\n/g, '<br>')
+                    : '<i>(Học sinh chưa nhập nội dung chữ)</i>'
                 }
     </div>
 </div>`
