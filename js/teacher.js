@@ -2903,16 +2903,45 @@ async function loadSubmissions(isLoadMore = false) {
 ">
     <div
         class="ql-editor"
-        style="
-            word-break: break-word;
-            margin: 0;
-            color: #444;
-            line-height: 1.6;
-            padding: 0;
-        "
+style="
+    word-break: break-word;
+    margin: 0;
+    color: #444;
+    line-height: 1.8;
+    padding: 0;
+    text-align: left !important;
+    width: 100%;
+"
     >
         ${hasWrittenAnswer
-                    ? writtenAnswer.replace(/\n/g, '<br>')
+                    ? writtenAnswer
+                        .replace(
+                            /\[PHẦN TRẮC NGHIỆM\]/g,
+                            `<div style="
+                font-weight: 800;
+                color: #4f46e5;
+                background: rgba(79, 70, 229, 0.08);
+                border-left: 4px solid #4f46e5;
+                padding: 9px 12px;
+                margin: 0 0 12px 0;
+                border-radius: 6px;
+                text-align: left;
+            ">📝 PHẦN TRẮC NGHIỆM</div>`
+                        )
+                        .replace(
+                            /\[PHẦN TỰ LUẬN\]/g,
+                            `<div style="
+                font-weight: 800;
+                color: #059669;
+                background: rgba(5, 150, 105, 0.08);
+                border-left: 4px solid #059669;
+                padding: 9px 12px;
+                margin: 16px 0 12px 0;
+                border-radius: 6px;
+                text-align: left;
+            ">✍️ PHẦN TỰ LUẬN</div>`
+                        )
+                        .replace(/\n/g, '<br>')
                     : '<i>(Học sinh chưa nhập nội dung chữ)</i>'
                 }
     </div>
