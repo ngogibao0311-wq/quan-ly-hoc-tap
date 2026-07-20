@@ -263,6 +263,37 @@
                         </label>
                     </div>
 
+                    <div style="background: rgba(255,255,255,0.5);
+    padding: 15px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+    margin-bottom: 20px;
+    border: 1px solid rgba(0,0,0,0.05);">
+
+                        <div>
+                            <strong style="color: #2c3e50;">
+                                🪙 Hiển thị thanh số dư Coin
+                            </strong>
+
+                            <p style="margin: 4px 0 0;
+            color: #666;
+            font-size: 0.85em;
+            line-height: 1.4;">
+                                Chỉ ẩn hoặc hiện thanh Coin trên màn hình,
+                                không ảnh hưởng số dư và các chức năng khác.
+                            </p>
+                        </div>
+
+                        <label class="switch" title="Ẩn hoặc hiện thanh số dư Coin">
+                            <input type="checkbox" id="toggleCoinBalanceWidget"
+                                onchange="toggleCoinBalanceWidget(this.checked)" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
                     <label><strong>🎨 Giao diện hiển thị:</strong></label>
                     <select id="themeSelector" onchange="changeTheme(this.value)"
                         style="margin-bottom: 20px; font-weight: bold; color: #667eea;">
@@ -794,14 +825,21 @@
 
     <!-- 2. Khởi tạo Firebase -->
     <script src="js/firebase-config.js?v=3.5"></script>
-    <script src="js/cloudinary-storage.js?v=1.0"></script>
+    <script src="js/cloudinary-storage.js?v=3.5"></script>
+
+    <script>
+        window.R2_WORKER_URL =
+            "https://school-r2-files.ngogibao0311.workers.dev";
+    </script>
+
+    <script src="js/cloudflare-r2-storage.js?v=3.5"></script>
 
     <!-- 3. Thư viện đọc file DOCX -->
     <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
 
     <!-- 4. Mã nền tảng -->
     <script src="js/common.js?v=3.5"></script>
-    
+
 
 
     <!-- 4. Các module tính năng -->

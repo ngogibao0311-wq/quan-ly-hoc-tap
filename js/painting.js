@@ -6984,6 +6984,107 @@ ${this.toolButton(
             this.loadTeacherRounds();
         },
 
+        getArtworkStorageAsset(
+            submission
+        ) {
+            if (
+                !submission ||
+                typeof submission !==
+                'object'
+            ) {
+                return null;
+            }
+
+            if (
+                submission.imageStorage &&
+                typeof submission
+                    .imageStorage ===
+                'object'
+            ) {
+                return {
+                    ...submission.imageStorage,
+
+                    provider:
+                        submission
+                            .imageStorage
+                            .provider ||
+                        'cloudinary'
+                };
+            }
+
+            const imageUrl =
+                String(
+                    submission.imageUrl ||
+                    submission.image ||
+                    ''
+                ).trim();
+
+            /*
+             * Base64 cũ nằm trong Firebase,
+             * không có ảnh ngoài cần gọi API xóa.
+             */
+            if (
+                !imageUrl ||
+                imageUrl.startsWith(
+                    'data:'
+                )
+            ) {
+                return null;
+            }
+
+            return {
+                provider:
+                    submission.imageProvider ||
+                    'cloudinary',
+
+                publicId:
+                    submission.imagePublicId ||
+                    '',
+
+                resourceType:
+                    submission
+                        .imageResourceType ||
+                    'image',
+
+                url:
+                    imageUrl
+            };
+        },
+
+        async deleteArtworkFiles(
+            submissions
+        ) {
+            const assets =
+                (submissions || [])
+                    .map(submission =>
+                        this
+                            .getArtworkStorageAsset(
+                                submission
+                            )
+                    )
+                    .filter(Boolean);
+
+            if (assets.length === 0) {
+                return;
+            }
+
+            if (
+                !window.CloudflareR2Storage ||
+                typeof window
+                    .CloudflareR2Storage
+                    .deleteAssets !==
+                'function'
+            ) {
+                throw new Error(
+                    'Không tìm thấy chức năng xóa ảnh trên Worker.'
+                );
+            }
+
+            await window
+                .CloudflareR2Storage
+                .deleteAssets(assets);
+        },
+
         async deleteRound(roundKey, roundId) {
             if (!this.isTeacher || !roundKey) return;
 
@@ -7017,6 +7118,14 @@ ${this.toolButton(
                 );
 
                 if (!confirmed) return;
+
+                /*
+                 * Xóa tất cả ảnh Cloudinary trước.
+                 * Lỗi xóa ảnh thì chưa xóa Firebase.
+                 */
+                await this.deleteArtworkFiles(
+                    submissions
+                );
 
                 const updates = {};
 
@@ -7623,6 +7732,14 @@ ${this.toolButton(
                 );
 
                 if (!confirmed) return;
+
+                /*
+                 * Xóa ảnh Cloudinary trước khi
+                 * xóa bài nộp Firebase.
+                 */
+                await this.deleteArtworkFiles(
+                    [submission]
+                );
 
                 const effectiveRoundId = String(
                     roundId ??

@@ -27,6 +27,104 @@ window.showToast = function (message, type = 'error') {
 const currentUser = JSON.parse(localStorage.getItem('currentUser'));
 
 // ======================================================
+// CÀI ĐẶT RIÊNG: ẨN / HIỆN THANH SỐ DƯ COIN
+// Chỉ thay đổi giao diện, không sửa dữ liệu Coin.
+// ======================================================
+
+function getCoinWidgetVisibilityStorageKey() {
+    const username = String(
+        currentUser?.username || 'guest'
+    ).trim();
+
+    return `student_coin_widget_visible:${username}`;
+}
+
+function getSavedCoinWidgetVisibility() {
+    return localStorage.getItem(
+        getCoinWidgetVisibilityStorageKey()
+    ) !== 'false';
+}
+
+window.applyCoinBalanceWidgetVisibility = function (
+    isVisible,
+    shouldPersist = true
+) {
+    const visible = isVisible !== false;
+
+    const coinWidget = document.getElementById('coinWidget');
+
+    const toggle = document.getElementById(
+        'toggleCoinBalanceWidget'
+    );
+
+    if (coinWidget) {
+        /*
+         * Chỉ ẩn giao diện.
+         * Phần tử vẫn tồn tại nên listener Firebase và
+         * quá trình cập nhật số Coin không bị ảnh hưởng.
+         */
+        coinWidget.style.visibility = visible
+            ? 'visible'
+            : 'hidden';
+
+        coinWidget.style.opacity = visible ? '1' : '0';
+
+        coinWidget.style.pointerEvents = visible
+            ? 'auto'
+            : 'none';
+
+        coinWidget.setAttribute(
+            'aria-hidden',
+            String(!visible)
+        );
+    }
+
+    if (toggle && toggle.checked !== visible) {
+        toggle.checked = visible;
+    }
+
+    if (shouldPersist) {
+        localStorage.setItem(
+            getCoinWidgetVisibilityStorageKey(),
+            String(visible)
+        );
+    }
+};
+
+window.toggleCoinBalanceWidget = function (isVisible) {
+    window.applyCoinBalanceWidgetVisibility(
+        Boolean(isVisible),
+        true
+    );
+
+    if (typeof window.showToast === 'function') {
+        window.showToast(
+            isVisible
+                ? 'Đã hiện thanh số dư Coin.'
+                : 'Đã ẩn thanh số dư Coin.',
+            'success'
+        );
+    }
+};
+
+function initializeCoinBalanceWidgetSetting() {
+    window.applyCoinBalanceWidgetVisibility(
+        getSavedCoinWidgetVisibility(),
+        false
+    );
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener(
+        'DOMContentLoaded',
+        initializeCoinBalanceWidgetSetting,
+        { once: true }
+    );
+} else {
+    initializeCoinBalanceWidgetSetting();
+}
+
+// ======================================================
 // TƯƠNG THÍCH BÀI TẬP/BÀI NỘP CŨ PHÍA HỌC SINH
 // ======================================================
 function studentCompatText(value) {
@@ -4629,27 +4727,28 @@ window.loadScheduleStudent = async function () {
     });
 };
 
-async function readMultipleFiles(files) {
+async function readMultipleFiles(
+    files,
+    options = {}
+) {
     if (
-        !window.CloudinaryStorage ||
-        typeof window.CloudinaryStorage
-            .uploadFiles !== 'function'
+        !window.CloudflareR2Storage ||
+        typeof window.CloudflareR2Storage.uploadFiles !== 'function'
     ) {
         alert(
-            'Không tìm thấy cloudinary-storage.js!'
+            'Không tìm thấy cloudflare-r2-storage.js!'
         );
 
         return [];
     }
 
-    return window.CloudinaryStorage
-        .uploadFiles(
-            files,
-            {
-                maxSizeBytes:
-                    5 * 1024 * 1024
-            }
-        );
+    return window.CloudflareR2Storage.uploadFiles(
+        files,
+        {
+            maxSizeBytes: 5 * 1024 * 1024,
+            folder: options.folder || 'submissions'
+        }
+    );
 }
 
 // THAY THẾ TOÀN BỘ HÀM spinWheel CŨ Ở CUỐI FILE STUDENT.JS BẰNG ĐOẠN NÀY

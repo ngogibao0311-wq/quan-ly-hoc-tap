@@ -1440,7 +1440,12 @@ async function createAssignment() {
 
         const fInput = document.getElementById('fileInput');
         if (fInput && fInput.files.length > 0) {
-            attachedFile = await readMultipleFiles(fInput.files);
+            attachedFile = await readMultipleFiles(
+                fInput.files,
+                {
+                    folder: 'assignments'
+                }
+            );
             if (attachedFile.length === 0) return;
         } else {
             attachedFile = null;
@@ -1944,25 +1949,29 @@ async function createMaterial() {
     let uploadedFile = null;
 
     if (attachedMaterialFileData) {
+        if (
+            !window.CloudflareR2Storage ||
+            typeof window.CloudflareR2Storage.uploadFile !== 'function'
+        ) {
+            return alert(
+                'Không tìm thấy cloudflare-r2-storage.js!'
+            );
+        }
+
         try {
             uploadedFile =
-                await window
-                    .CloudinaryStorage
-                    .uploadFile(
-                        attachedMaterialFileData,
-                        {
-                            maxSizeBytes:
-                                5 *
-                                1024 *
-                                1024
-                        }
-                    );
+                await window.CloudflareR2Storage.uploadFile(
+                    attachedMaterialFileData,
+                    {
+                        maxSizeBytes: 5 * 1024 * 1024,
+                        folder: 'materials'
+                    }
+                );
         } catch (error) {
             console.error(error);
 
             return alert(
-                `❌ Không tải được tài liệu: ` +
-                `${error.message}`
+                `❌ Không tải được tài liệu: ${error.message}`
             );
         }
     }
@@ -2103,33 +2112,256 @@ async function loadMaterialsListTeacher() {
     });
 }
 
-window.deleteMaterial = async function (fbKey) {
-    if (!confirm("Bạn có chắc chắn muốn xóa tài liệu học tập này không?")) return;
-    await removeDB('materials', fbKey);
-    alert("Đã xóa tài liệu thành công!");
+function flattenStorageFiles(
+    value,
+    output = []
+) {
+    if (
+        value === null ||
+        value === undefined ||
+        value === ''
+    ) {
+        return output;
+    }
+
+    if (Array.isArray(value)) {
+        value.forEach(item =>
+            flattenStorageFiles(
+                item,
+                output
+            )
+        );
+
+        return output;
+    }
+
+    output.push(value);
+
+    return output;
 }
 
-window.deleteAssignment = async function (assignId) {
-    if (!confirm("Bạn có chắc chắn muốn xóa bài tập này?")) return;
+async function deleteStoredFilesBeforeFirebase(
+    values,
+    label
+) {
+    const files =
+        flattenStorageFiles(values);
+
+    if (files.length === 0) {
+        return;
+    }
+
+    if (
+        !window.CloudflareR2Storage ||
+        typeof window
+            .CloudflareR2Storage
+            .deleteAssets !==
+        'function'
+    ) {
+        throw new Error(
+            'Không tìm thấy chức năng xóa file trên Worker.'
+        );
+    }
 
     try {
-        // 1. Xóa trên Firebase
-        await db.ref('assignments/' + assignId).remove();
+        await window
+            .CloudflareR2Storage
+            .deleteAssets(files);
+    } catch (error) {
+        console.error(
+            `Lỗi xóa file của ${label}:`,
+            error,
+            error?.failures || []
+        );
 
-        // 2. Thông báo thành công
-        alert("Xóa thành công!");
+        throw new Error(
+            `Không thể xóa file của ${label}: ` +
+            error.message
+        );
+    }
+}
 
-        // 3. 🔥 CẬP NHẬT GIAO DIỆN NGAY LẬP TỨC
-        const element = document.getElementById('assignment-card-' + assignId);
-        if (element) {
-            element.remove(); // Xóa thẻ HTML khỏi trang mà không cần F5
+window.deleteMaterial =
+    async function (fbKey) {
+        if (
+            !confirm(
+                'Bạn có chắc chắn muốn xóa tài liệu học tập này không?'
+            )
+        ) {
+            return;
         }
 
-    } catch (error) {
-        console.error("Lỗi khi xóa:", error);
-        alert("Có lỗi xảy ra: " + error.message);
-    }
-};
+        try {
+            const materialRef =
+                db.ref(
+                    `materials/${fbKey}`
+                );
+
+            const snapshot =
+                await materialRef.once(
+                    'value'
+                );
+
+            if (!snapshot.exists()) {
+                return alert(
+                    'Tài liệu không còn tồn tại.'
+                );
+            }
+
+            const material =
+                snapshot.val() || {};
+
+            /*
+             * docLink là link ngoài nên không xóa.
+             * Chỉ xóa trường file thuộc R2/Cloudinary.
+             */
+            await deleteStoredFilesBeforeFirebase(
+                material.file,
+                'tài liệu'
+            );
+
+            await materialRef.remove();
+
+            alert(
+                'Đã xóa tài liệu và file đính kèm!'
+            );
+        } catch (error) {
+            console.error(error);
+
+            alert(
+                'Không thể xóa tài liệu: ' +
+                error.message
+            );
+        }
+    };
+
+window.deleteAssignment =
+    async function (assignId) {
+        if (
+            !confirm(
+                'Bạn có chắc chắn muốn xóa bài tập này?\n' +
+                'Tất cả bài học sinh đã nộp cho bài này cũng sẽ bị xóa.'
+            )
+        ) {
+            return;
+        }
+
+        try {
+            const assignmentRef =
+                db.ref(
+                    `assignments/${assignId}`
+                );
+
+            const snapshot =
+                await assignmentRef.once(
+                    'value'
+                );
+
+            if (!snapshot.exists()) {
+                return alert(
+                    'Bài tập không còn tồn tại.'
+                );
+            }
+
+            const assignment = {
+                _fbKey:
+                    assignId,
+                ...(
+                    snapshot.val() ||
+                    {}
+                )
+            };
+
+            const submissionsByAssignment =
+                await getSubmissionsByAssignmentIds(
+                    getCompatAssignmentIds(
+                        assignment
+                    )
+                );
+
+            const relatedSubmissions =
+                getCompatRelatedSubmissions(
+                    assignment,
+                    submissionsByAssignment
+                );
+
+            const storageFiles = [
+                assignment.file
+            ];
+
+            relatedSubmissions.forEach(
+                submission => {
+                    storageFiles.push(
+                        submission.file,
+                        submission.teacherFile
+                    );
+                }
+            );
+
+            /*
+             * Xóa file thật trước.
+             * File lỗi thì giữ nguyên Firebase.
+             */
+            await deleteStoredFilesBeforeFirebase(
+                storageFiles,
+                'bài tập và bài nộp'
+            );
+
+            const updates = {
+                [`assignments/${assignId}`]:
+                    null
+            };
+
+            relatedSubmissions.forEach(
+                submission => {
+                    const key =
+                        submission._fbKey ||
+                        submission.id;
+
+                    if (key) {
+                        updates[
+                            `submissions/${key}`
+                        ] = null;
+                    }
+                }
+            );
+
+            await db.ref().update(
+                updates
+            );
+
+            const element =
+                document.getElementById(
+                    `assignment-card-${assignId}`
+                );
+
+            if (element) {
+                element.remove();
+            }
+
+            alert(
+                'Đã xóa bài tập, ' +
+                `${relatedSubmissions.length} bài nộp ` +
+                'và toàn bộ file liên quan!'
+            );
+
+            if (
+                typeof loadSubmissions ===
+                'function'
+            ) {
+                await loadSubmissions(
+                    false
+                );
+            }
+        } catch (error) {
+            console.error(error);
+
+            alert(
+                'Không thể xóa bài tập: ' +
+                error.message
+            );
+        }
+    };
 
 function initFileListener() {
     const fInput = document.getElementById('fileInput');
@@ -2719,7 +2951,13 @@ async function gradeSubmission(subId) {
     };
 
     if (fileInput && fileInput.files.length > 0) {
-        const filesArray = await readMultipleFiles(fileInput.files);
+        const filesArray =
+            await readMultipleFiles(
+                fileInput.files,
+                {
+                    folder: 'teacher-feedback'
+                }
+            );
         // Thêm dòng này để chặn chấm bài
         if (filesArray.length === 0) return;
         await processGrading(filesArray);
@@ -4719,27 +4957,28 @@ window.saveMaterialEdit = async function () {
     }
 };
 
-async function readMultipleFiles(files) {
+async function readMultipleFiles(
+    files,
+    options = {}
+) {
     if (
-        !window.CloudinaryStorage ||
-        typeof window.CloudinaryStorage
-            .uploadFiles !== 'function'
+        !window.CloudflareR2Storage ||
+        typeof window.CloudflareR2Storage.uploadFiles !== 'function'
     ) {
         alert(
-            'Không tìm thấy cloudinary-storage.js!'
+            'Không tìm thấy cloudflare-r2-storage.js!'
         );
 
         return [];
     }
 
-    return window.CloudinaryStorage
-        .uploadFiles(
-            files,
-            {
-                maxSizeBytes:
-                    5 * 1024 * 1024
-            }
-        );
+    return window.CloudflareR2Storage.uploadFiles(
+        files,
+        {
+            maxSizeBytes: 5 * 1024 * 1024,
+            folder: options.folder || 'assignments'
+        }
+    );
 }
 
 // DÁN VÀO DÒNG CUỐI CÙNG CỦA FILE TEACHER.JS
