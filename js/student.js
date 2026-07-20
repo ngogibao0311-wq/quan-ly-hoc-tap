@@ -170,6 +170,23 @@ function getStudentCompatSubmissionUsername(submission) {
     );
 }
 
+function getStudentAssignmentDescHTML(value) {
+    return String(value || '')
+        // Xóa lớp căn giữa, căn phải và căn đều của Quill
+        .replace(
+            /\bql-align-(center|right|justify)\b/gi,
+            ''
+        )
+
+        // Xử lý trường hợp căn giữa bằng style trực tiếp
+        .replace(
+            /text-align\s*:\s*(center|right|justify)\s*;?/gi,
+            'text-align: left;'
+        )
+
+        .replace(/\n/g, '<br>');
+}
+
 /*
  * Chuẩn hóa ID để tránh lỗi:
  * 123 !== "123"
@@ -2030,7 +2047,26 @@ async function loadAssignments() {
                 let tuLuanInputHTML = '';
 
                 if (assign.assessmentType === 'tu_luan' || assign.assessmentType === 'ket_hop' || assign.assessmentType === 'thi' || !assign.assessmentType) {
-                    descHTML = assign.desc ? `<div class="assignment-desc"><strong>Yêu cầu bài tập:</strong> <br>${(assign.desc || '').replace(/\n/g, '<br>')}</div>` : '';
+                    descHTML = assign.desc
+                        ? `
+        <div
+            class="assignment-desc student-assignment-desc-view"
+            style="
+                text-align: left !important;
+                width: 100%;
+                word-break: break-word;
+                line-height: 1.7;
+            "
+        >
+            <strong>Yêu cầu bài tập:</strong>
+            <br>
+
+            <div style="text-align: left !important;">
+                ${getStudentAssignmentDescHTML(assign.desc)}
+            </div>
+        </div>
+    `
+                        : '';
                     if (assign.file) {
                         const aFiles = Array.isArray(assign.file)
                             ? assign.file
@@ -2893,16 +2929,19 @@ window.viewAssignmentQuestions = async function (assignId) {
                 </h4>
 
                 <div
-                    style="
-                        padding:15px;
-                        border:1px solid #e2e8f0;
-                        border-radius:10px;
-                        background:#f8fafc;
-                        color:#444;
-                    "
-                >
-                    ${assign.desc}
-                </div>
+    style="
+        padding:15px;
+        border:1px solid #e2e8f0;
+        border-radius:10px;
+        background:#f8fafc;
+        color:#444;
+        text-align:left !important;
+        word-break:break-word;
+        line-height:1.7;
+    "
+>
+    ${getStudentAssignmentDescHTML(assign.desc)}
+</div>
             `;
         }
     }

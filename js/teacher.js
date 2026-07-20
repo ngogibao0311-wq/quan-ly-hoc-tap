@@ -143,6 +143,48 @@ function getCompatRelatedSubmissions(
     return [...rowsByKey.values()];
 }
 
+function ensureTeacherAssignmentEssayStyles() {
+    if (
+        document.getElementById(
+            'teacherAssignmentEssayStyles'
+        )
+    ) {
+        return;
+    }
+
+    const style = document.createElement('style');
+
+    style.id = 'teacherAssignmentEssayStyles';
+
+    style.textContent = `
+        .teacher-assignment-essay-view,
+        .teacher-assignment-essay-view p,
+        .teacher-assignment-essay-view div,
+        .teacher-assignment-essay-view span,
+        .teacher-assignment-essay-view li {
+            text-align: left !important;
+        }
+
+        .teacher-assignment-essay-view p {
+            margin-top: 0;
+            margin-bottom: 8px;
+        }
+
+        .teacher-assignment-essay-view ul,
+        .teacher-assignment-essay-view ol {
+            padding-left: 24px;
+            margin: 8px 0;
+        }
+
+        .teacher-assignment-essay-view img {
+            max-width: 100%;
+            height: auto;
+        }
+    `;
+
+    document.head.appendChild(style);
+}
+
 let currentAssignKey = null;
 let isAssignEnd = false;
 
@@ -1538,6 +1580,7 @@ async function createAssignment() {
 }
 
 async function loadAssignedList(isLoadMore = false) {
+    ensureTeacherAssignmentEssayStyles();
     const container = document.getElementById('assignedListContainer');
     if (!container) return;
 
@@ -1785,15 +1828,55 @@ async function loadAssignedList(isLoadMore = false) {
             quizHTML += '</ul></div>';
         }
 
-        const hasEssay = assign.assessmentType === 'tu_luan' || assign.assessmentType === 'ket_hop' || !assign.assessmentType || (assign.assessmentType === 'thi' && (assign.essayWeight || 0) > 0);
+        const hasEssay =
+            assign.assessmentType === 'tu_luan' ||
+            assign.assessmentType === 'ket_hop' ||
+            !assign.assessmentType ||
+            (
+                assign.assessmentType === 'thi' &&
+                (assign.essayWeight || 0) > 0
+            );
+
+        // Ép nội dung hướng dẫn căn trái khi hiển thị.
+        // Vẫn giữ các định dạng in đậm, màu chữ, danh sách...
+        const essayDisplayHTML = String(assign.desc || '')
+            // Xóa các lớp căn giữa, căn phải, căn đều của Quill
+            .replace(
+                /\bql-align-(center|right|justify)\b/gi,
+                ''
+            )
+
+            // Sửa cả trường hợp nội dung có style căn giữa trực tiếp
+            .replace(
+                /text-align\s*:\s*(center|right|justify)\s*;?/gi,
+                'text-align: left;'
+            )
+
+            .replace(/\n/g, '<br>');
+
         const tuLuanHTML = hasEssay ? `
         <div style="background: rgba(255, 255, 255, 0.8); border-radius: 10px; margin-top: 15px; border: 1px solid rgba(0, 0, 0, 0.08); box-shadow: 0 2px 4px rgba(0,0,0,0.02); overflow: hidden;">
             <div style="background: rgba(102, 126, 234, 0.1); padding: 8px 15px; border-bottom: 1px solid rgba(0, 0, 0, 0.05); font-weight: 600; color: #4338ca; font-size: 0.9em; display: flex; align-items: center; gap: 8px;">
                 📝 Yêu cầu Tự luận / Hướng dẫn
             </div>
-            <div class="ql-editor" style="padding: 12px 15px; color: #374151; font-size: 0.95em; line-height: 1.6; max-height: 150px; overflow-y: auto; word-break: break-word; background: rgba(0,0,0,0.01);">
-                ${(assign.desc || '').replace(/\n/g, '<br>')}
-            </div>
+            <div
+    class="ql-editor teacher-assignment-essay-view"
+    style="
+        padding: 12px 15px;
+        color: #374151;
+        font-size: 0.95em;
+        line-height: 1.7;
+        max-height: 250px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        word-break: break-word;
+        background: rgba(0,0,0,0.01);
+        text-align: left !important;
+        width: 100%;
+    "
+>
+    ${essayDisplayHTML || '<i>Không có nội dung hướng dẫn.</i>'}
+</div>
         </div>` : '';
 
         const uniqueId = `teacher-assign-${assign.id}`;
