@@ -355,11 +355,11 @@ const StoreConfig = {
         // Thêm vào cuối mảng StoreConfig.items
         {
             id: 'music_lofi_01',
-            name: 'That gril',
+            name: 'Hí khúc',
             type: 'music',
             price: 250,
             isNonCoin: false,
-            tag: 'Thư giãn',
+            tag: 'Âm nhạc',
             customIcon: '🎧',
             musicUrl: 'https://youtu.be/TWX6Eq8v46M?si=xOz5ZQcJmbKI1Paa',
             volume: 0.35,
