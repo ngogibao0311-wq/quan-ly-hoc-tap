@@ -3141,11 +3141,29 @@ async function gradeSubmission(subId) {
             const updateObj = { grade: grade, teacherComment: commentVal, isRegrading: false };
             if (fileDataArray) updateObj.teacherFile = fileDataArray;
             await updateDB('submissions', sub._fbKey, updateObj);
+
             alert("Đã chấm điểm và lưu nhận xét thành công!");
 
-            // THÊM 2 DÒNG NÀY
             await loadSubmissions();
-            if (typeof renderTeacherRoadmap === 'function') renderTeacherRoadmap();
+
+            if (typeof renderTeacherRoadmap === 'function') {
+                renderTeacherRoadmap();
+            }
+
+            // Tự cập nhật số vé nếu giáo viên đang xem đúng học sinh vừa chấm
+            const ticketStudentSelect =
+                document.getElementById('ticketStudentSelect');
+
+            const submissionUsername =
+                getCompatSubmissionUsername(sub);
+
+            if (
+                ticketStudentSelect &&
+                ticketStudentSelect.value === submissionUsername &&
+                typeof window.onTicketStudentChange === 'function'
+            ) {
+                await window.onTicketStudentChange();
+            }
         }
     };
 
@@ -7937,7 +7955,12 @@ window.validateEditConditionInput = function () {
 
 async function getStudentTicketInfo(username) {
     const submissions = await getDB('submissions');
-    const mySubs = submissions.filter(s => s.studentUsername === username && s.grade !== null && s.grade !== undefined && s.grade !== '');
+    const mySubs = submissions.filter(sub =>
+        getCompatSubmissionUsername(sub) === String(username).trim() &&
+        sub.grade !== null &&
+        sub.grade !== undefined &&
+        sub.grade !== ''
+    );
 
     let totalTickets = 0;
     mySubs.forEach(sub => {
