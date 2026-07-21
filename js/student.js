@@ -4797,7 +4797,13 @@ let isSpinning = false;
 // HÀM DÙNG CHUNG: Tính vé chính xác (Vé từ điểm + Vé quà tặng - Số lần đã quay)
 window.calculateTotalTickets = async function () {
     const submissions = await getDB('submissions');
-    const mySubs = submissions.filter(s => s.studentUsername === currentUser.username && s.grade !== null && s.grade !== undefined && s.grade !== '');
+    const mySubs = submissions.filter(sub =>
+        getStudentCompatSubmissionUsername(sub) ===
+        String(currentUser.username).trim() &&
+        sub.grade !== null &&
+        sub.grade !== undefined &&
+        sub.grade !== ''
+    );
 
     let currentGradeTickets = 0;
     // 1. Tính vé cơ bản theo điểm
