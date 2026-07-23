@@ -565,6 +565,7 @@ window.onload = async function () {
     }
     // BẬT CỜ XÁC THỰC AN TOÀN SAU KHI FIREBASE ĐÃ KIỂM TRA THÀNH CÔNG
     window.isVerifiedTeacher = true;
+    await issueTodayBirthdayRewardsByTeacher();
     if (document.getElementById('settingName')) document.getElementById('settingName').value = currentUser.name;
     initFileListener();
     initMaterialFileListener();
@@ -3191,6 +3192,267 @@ window.requestRegrade = async function (subKey) {
     }
 }
 
+// =============================================================
+// HỆ THỐNG NGÀY SINH VÀ XU SINH NHẬT
+// =============================================================
+
+function getStudentBirthDateValue(student) {
+    return String(
+        student?.birthdayProfile?.date ||
+        student?.birthDate ||
+        ''
+    ).trim();
+}
+
+function isValidStudentBirthDate(value) {
+    const text = String(value || '').trim();
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+        return false;
+    }
+
+    const [year, month, day] = text.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+
+    if (
+        date.getFullYear() !== year ||
+        date.getMonth() !== month - 1 ||
+        date.getDate() !== day
+    ) {
+        return false;
+    }
+
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+
+    return year >= 1900 && date.getTime() <= today.getTime();
+}
+
+function formatStudentBirthDate(value) {
+    if (!isValidStudentBirthDate(value)) {
+        return 'Chưa cập nhật';
+    }
+
+    const [year, month, day] = value.split('-');
+
+    return `${day}/${month}/${year}`;
+}
+
+function getVietnamTodayParts() {
+    const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Ho_Chi_Minh',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }).formatToParts(new Date());
+
+    const result = {};
+
+    parts.forEach(part => {
+        if (part.type !== 'literal') {
+            result[part.type] = part.value;
+        }
+    });
+
+    return {
+        year: Number(result.year),
+        month: Number(result.month),
+        day: Number(result.day)
+    };
+}
+
+async function issueTodayBirthdayRewardsByTeacher() {
+    try {
+        const today = getVietnamTodayParts();
+        const birthdayCatalog = {};
+
+        if (
+            typeof StoreConfig !== 'undefined' &&
+            Array.isArray(StoreConfig.items)
+        ) {
+            StoreConfig.items.forEach(item => {
+                const year = Number(item?.birthdayYear);
+
+                if (
+                    item?.rewardSource !== 'birthday_coin' ||
+                    !Number.isInteger(year) ||
+                    !item.id
+                ) {
+                    return;
+                }
+
+                const yearKey = String(year);
+
+                if (!birthdayCatalog[yearKey]) {
+                    birthdayCatalog[yearKey] = [];
+                }
+
+                birthdayCatalog[yearKey].push(String(item.id));
+            });
+        }
+
+        // Dữ liệu mặc định năm 2026.
+        if (!birthdayCatalog['2026']) {
+            birthdayCatalog['2026'] = [
+                'pet_sinh_nhat_2026'
+            ];
+        }
+
+        const catalogUpdates = {};
+
+        Object.entries(birthdayCatalog).forEach(
+            ([catalogYear, itemIds]) => {
+                itemIds.forEach(itemId => {
+                    catalogUpdates[
+                        `birthday_item_catalog/${catalogYear}/${itemId}`
+                    ] = true;
+
+                    catalogUpdates[
+                        `birthday_item_years/${itemId}`
+                    ] = String(catalogYear);
+                });
+            }
+        );
+
+        if (Object.keys(catalogUpdates).length > 0) {
+            await db.ref().update(catalogUpdates);
+        }
+
+        const usersSnapshot = await db
+            .ref('users')
+            .once('value');
+
+        const tasks = [];
+
+        usersSnapshot.forEach(child => {
+            const student = child.val() || {};
+            const role = compatToken(student.role);
+
+            if (
+                !['student', 'hocsinh', 'hs'].includes(role) ||
+                !student.username
+            ) {
+                return;
+            }
+
+            const birthDate =
+                getStudentBirthDateValue(student);
+
+            if (!isValidStudentBirthDate(birthDate)) {
+                return;
+            }
+
+            const [, month, day] =
+                birthDate.split('-').map(Number);
+
+            if (
+                month !== today.month ||
+                day !== today.day
+            ) {
+                return;
+            }
+
+            tasks.push((async () => {
+                const username =
+                    String(student.username).trim();
+
+                const year = today.year;
+
+                const logRef = db.ref(
+                    `birthday_reward_logs/${username}/${year}`
+                );
+
+                const lockTx =
+                    await logRef.transaction(current => {
+                        if (
+                            current &&
+                            current.status === 'issued'
+                        ) {
+                            return;
+                        }
+
+                        return {
+                            status: 'issuing',
+                            year,
+                            birthDate,
+                            username,
+                            attemptAt: Date.now(),
+                            issuedBy: 'teacher_fallback'
+                        };
+                    });
+
+                if (!lockTx.committed) {
+                    return;
+                }
+
+                const messageId =
+                    `birthday_${year}`;
+
+                const now = Date.now();
+
+                const timeString =
+                    new Date(now).toLocaleString(
+                        'vi-VN',
+                        {
+                            timeZone:
+                                'Asia/Ho_Chi_Minh'
+                        }
+                    );
+
+                const updates = {};
+
+                (birthdayCatalog[year] || [])
+                    .forEach(itemId => {
+                        updates[
+                            `birthday_item_catalog/${year}/${itemId}`
+                        ] = true;
+
+                        updates[
+                            `birthday_item_years/${itemId}`
+                        ] = String(year);
+                    });
+
+                updates[
+                    `inbox_messages/${username}/${messageId}`
+                ] = {
+                    message:
+                        `🎉 Chúc mừng sinh nhật ${student.name || username}! ` +
+                        `Bạn nhận được 1 Xu Sinh Nhật ${year}. ` +
+                        `Xu này chỉ đổi được 1 vật phẩm mang tag Sinh nhật ${year}.`,
+
+                    giftType: 'birthday_coin',
+                    giftValue: year,
+                    birthdayYear: year,
+                    source: 'birthday_system',
+                    timestamp: now,
+                    timeString
+                };
+
+                updates[
+                    `birthday_reward_logs/${username}/${year}`
+                ] = {
+                    status: 'issued',
+                    year,
+                    birthDate,
+                    username,
+                    messageId,
+                    issuedAt: now,
+                    issuedBy: 'teacher_fallback'
+                };
+
+                await db.ref().update(updates);
+            })());
+        });
+
+        await Promise.all(tasks);
+    } catch (error) {
+        console.warn(
+            'Không thể chạy quét sinh nhật dự phòng:',
+            error
+        );
+    }
+}
+
 async function loadStudentsList() {
     const users = await getDB('users');
     const container = document.getElementById('studentsListContainer');
@@ -3208,7 +3470,18 @@ async function loadStudentsList() {
     const coinData = coinSnap.val() || {};
 
     // THÊM CỘT "SỐ DƯ COIN" VÀO TIÊU ĐỀ BẢNG
-    let html = `<div style="overflow-x: auto;"><table style="width:100%; border-collapse: collapse; text-align: left;"><tr style="background:rgba(255,255,255,0.7); border-bottom: 2px solid rgba(0,0,0,0.05);"><th style="padding:15px;">Họ và Tên</th><th style="padding:15px;">Tên đăng nhập</th><th style="padding:15px;">Mật khẩu</th><th style="padding:15px; text-align: center;">Số dư Coin</th><th style="padding:15px; text-align: center;">Thao tác</th></tr>`;
+    let html = `
+    <div style="overflow-x:auto;">
+        <table style="width:100%; border-collapse:collapse; text-align:left;">
+            <tr style="background:rgba(255,255,255,0.7); border-bottom:2px solid rgba(0,0,0,0.05);">
+                <th style="padding:15px;">Họ và Tên</th>
+                <th style="padding:15px;">Tên đăng nhập</th>
+                <th style="padding:15px;">Mật khẩu</th>
+                <th style="padding:15px; white-space:nowrap;">Ngày sinh</th>
+                <th style="padding:15px; text-align:center;">Số dư Coin</th>
+                <th style="padding:15px; text-align:center;">Thao tác</th>
+            </tr>
+`;
 
     students.forEach(st => {
         let lockBtnText = st.isLocked ? '🔓 Mở khóa' : '🔒 Khóa';
@@ -3220,6 +3493,12 @@ async function loadStudentsList() {
 
         // LẤY SỐ COIN TƯƠNG ỨNG VỚI USERNAME (Mặc định là 0 nếu chưa có)
         let studentCoins = coinData[st.username] || 0;
+
+        const birthDate =
+            getStudentBirthDateValue(st);
+
+        const birthDateDisplay =
+            formatStudentBirthDate(birthDate);
 
         html += `<tr style="border-bottom: 1px solid rgba(0,0,0,0.05); ${st.isLocked ? 'background: rgba(225, 29, 72, 0.05);' : ''}">
             <td style="padding:12px;">
@@ -3234,6 +3513,15 @@ async function loadStudentsList() {
             </td>
             <td style="padding:12px;">${st.username}</td>
             <td style="padding:12px;">${st.password}</td>
+
+            <td style="
+    padding:12px;
+    white-space:nowrap;
+    color:${birthDate ? '#be185d' : '#94a3b8'};
+    font-weight:${birthDate ? '700' : '400'};
+">
+    ${birthDate ? '🎂 ' : ''}${birthDateDisplay}
+</td>
             
             <td style="padding:12px; text-align: center; color: #d35400; font-weight: bold; font-size: 1.1em;">
                 ${studentCoins.toLocaleString('vi-VN')} 🪙
@@ -3255,75 +3543,223 @@ window.toggleLockStudent = async function (userKey, isCurrentlyLocked) {
 }
 
 async function createStudent() {
-    const username = document.getElementById('newStudentUsername').value.trim();
-    const password = document.getElementById('newStudentPassword').value.trim();
-    const name = document.getElementById('newStudentName').value.trim();
-    const classInfo = document.getElementById('newStudentClass').value.trim();
-    const hobbies = document.getElementById('newStudentHobbies').value.trim();
-    const motto = document.getElementById('newStudentMotto').value.trim();
+    const username = document
+        .getElementById('newStudentUsername')
+        .value.trim();
+
+    const password = document
+        .getElementById('newStudentPassword')
+        .value.trim();
+
+    const name = document
+        .getElementById('newStudentName')
+        .value.trim();
+
+    const classInfo = document
+        .getElementById('newStudentClass')
+        .value.trim();
+
+    const birthDate = document
+        .getElementById('newStudentBirthDate')
+        .value.trim();
+
+    const hobbies = document
+        .getElementById('newStudentHobbies')
+        .value.trim();
+
+    const motto = document
+        .getElementById('newStudentMotto')
+        .value.trim();
 
     // ==========================================
-    // KIỂM TRA DỮ LIỆU ĐẦU VÀO (VALIDATION)
+    // KIỂM TRA DỮ LIỆU ĐẦU VÀO
     // ==========================================
-    if (!username || !password || !name) return alert('⚠️ Vui lòng điền đủ Tên đăng nhập, Mật khẩu và Họ tên!');
 
-    // 1. Kiểm tra Tên đăng nhập (Chỉ cho phép chữ cái không dấu, số, dấu gạch dưới)
-    const usernameRegex = /^[a-zA-Z0-9_]+$/;
-    if (!usernameRegex.test(username)) {
-        return alert('❌ Tên đăng nhập không hợp lệ! Không được chứa khoảng trắng, dấu Tiếng Việt hoặc ký tự đặc biệt (chỉ chấp nhận a-z, 0-9 và _).');
+    if (!username || !password || !name) {
+        return alert(
+            '⚠️ Vui lòng điền đủ Tên đăng nhập, Mật khẩu và Họ tên!'
+        );
     }
-    if (username.length < 2) return alert('⚠️ Tên đăng nhập phải có ít nhất 2 ký tự!');
 
-    // 2. Kiểm tra Mật khẩu an toàn
-    if (password.length < 6) return alert('🔒 Mật khẩu quá ngắn! Cần ít nhất 6 ký tự để đảm bảo an toàn.');
+    // Kiểm tra tên đăng nhập
+    const usernameRegex = /^[a-zA-Z0-9_]+$/;
 
-    // 3. (Tùy chọn) Kiểm tra Họ tên không chứa số
+    if (!usernameRegex.test(username)) {
+        return alert(
+            '❌ Tên đăng nhập không hợp lệ! ' +
+            'Không được chứa khoảng trắng, dấu Tiếng Việt ' +
+            'hoặc ký tự đặc biệt. Chỉ chấp nhận a-z, 0-9 và _.'
+        );
+    }
+
+    if (username.length < 2) {
+        return alert(
+            '⚠️ Tên đăng nhập phải có ít nhất 2 ký tự!'
+        );
+    }
+
+    // Kiểm tra mật khẩu
+    if (password.length < 6) {
+        return alert(
+            '🔒 Mật khẩu quá ngắn! Cần ít nhất 6 ký tự.'
+        );
+    }
+
+    // Kiểm tra họ tên
     const nameHasNumbers = /\d/.test(name);
-    if (nameHasNumbers) return alert('⚠️ Họ tên học sinh không được chứa chữ số!');
-    // ==========================================
 
-    const fakeEmail = username + "@hethong.edu.vn"; // Tạo email giả cho Auth
+    if (nameHasNumbers) {
+        return alert(
+            '⚠️ Họ tên học sinh không được chứa chữ số!'
+        );
+    }
+
+    // Kiểm tra ngày sinh nếu giáo viên có nhập
+    if (
+        birthDate &&
+        !isValidStudentBirthDate(birthDate)
+    ) {
+        return alert(
+            '🎂 Ngày sinh không hợp lệ, nằm trong tương lai hoặc trước năm 1900!'
+        );
+    }
+
+    const fakeEmail =
+        username + '@hethong.edu.vn';
 
     try {
-        // 1. Tạo tài khoản trên hệ thống Auth bằng App phụ (Secondary App)
-        const userCredential = await secondaryApp.auth().createUserWithEmailAndPassword(fakeEmail, password);
-        const newUid = userCredential.user.uid;
+        // Tạo tài khoản Firebase Authentication bằng app phụ
+        const userCredential =
+            await secondaryApp
+                .auth()
+                .createUserWithEmailAndPassword(
+                    fakeEmail,
+                    password
+                );
 
-        // 2. Lưu thông tin vào Database với khóa chính (key) là UID vừa sinh ra
-        await db.ref('users/' + newUid).set({
+        const newUid =
+            userCredential.user.uid;
+
+        // Dữ liệu học sinh cần lưu
+        const studentData = {
             username,
-            password, // Auth đã quản lý pass, bạn có thể xóa dòng này nếu muốn bảo mật tuyệt đối
+            password,
             name,
             role: 'student',
             isLocked: false,
             classInfo,
             hobbies,
             motto
-        });
+        };
 
-        // 3. Đăng xuất app phụ ngay lập tức để không ảnh hưởng app chính
-        await secondaryApp.auth().signOut();
+        // Chỉ thêm birthdayProfile khi giáo viên có nhập ngày sinh
+        if (birthDate) {
+            studentData.birthdayProfile = {
+                date: birthDate,
 
-        // Dọn dẹp Form sau khi thành công
-        document.getElementById('newStudentUsername').value = '';
-        document.getElementById('newStudentPassword').value = '';
-        document.getElementById('newStudentName').value = '';
-        document.getElementById('newStudentClass').value = '';
-        document.getElementById('newStudentHobbies').value = '';
-        document.getElementById('newStudentMotto').value = '';
+                enteredBy: 'teacher',
+
+                enteredAt:
+                    firebase.database
+                        .ServerValue
+                        .TIMESTAMP,
+
+                updatedBy: 'teacher',
+
+                updatedAt:
+                    firebase.database
+                        .ServerValue
+                        .TIMESTAMP
+            };
+        }
+
+        // Lưu thông tin học sinh vào Database
+        await db
+            .ref('users/' + newUid)
+            .set(studentData);
+
+        // Đăng xuất app phụ
+        await secondaryApp
+            .auth()
+            .signOut();
+
+        // ==========================================
+        // XÓA DỮ LIỆU TRONG FORM SAU KHI TẠO XONG
+        // ==========================================
+
+        document
+            .getElementById('newStudentUsername')
+            .value = '';
+
+        document
+            .getElementById('newStudentPassword')
+            .value = '';
+
+        document
+            .getElementById('newStudentName')
+            .value = '';
+
+        document
+            .getElementById('newStudentClass')
+            .value = '';
+
+        document
+            .getElementById('newStudentBirthDate')
+            .value = '';
+
+        document
+            .getElementById('newStudentHobbies')
+            .value = '';
+
+        document
+            .getElementById('newStudentMotto')
+            .value = '';
 
         closeStudentModal();
-        alert('✅ Đã tạo tài khoản học sinh thành công!');
 
-        // Tùy chọn: Tải lại danh sách học sinh ngay lập tức
-        if (typeof loadStudentsList === 'function') loadStudentsList();
+        alert(
+            '✅ Đã tạo tài khoản học sinh thành công!'
+        );
+
+        // Tải lại danh sách học sinh
+        if (
+            typeof loadStudentsList ===
+            'function'
+        ) {
+            loadStudentsList();
+        }
 
     } catch (error) {
-        // Bắt lỗi trùng lặp từ Auth thay vì phải tải toàn bộ bảng Users về để check
-        if (error.code === 'auth/email-already-in-use') {
-            alert('❌ Tên đăng nhập này đã tồn tại trên hệ thống! Vui lòng chọn tên khác.');
+        console.error(
+            'Lỗi tạo học sinh:',
+            error
+        );
+
+        // Đăng xuất app phụ khi xảy ra lỗi
+        try {
+            await secondaryApp
+                .auth()
+                .signOut();
+        } catch (signOutError) {
+            console.warn(
+                'Không thể đăng xuất app phụ:',
+                signOutError
+            );
+        }
+
+        if (
+            error.code ===
+            'auth/email-already-in-use'
+        ) {
+            alert(
+                '❌ Tên đăng nhập này đã tồn tại trên hệ thống! ' +
+                'Vui lòng chọn tên khác.'
+            );
         } else {
-            alert('❌ Lỗi tạo tài khoản: ' + error.message);
+            alert(
+                '❌ Lỗi tạo tài khoản: ' +
+                error.message
+            );
         }
     }
 }
@@ -4120,7 +4556,21 @@ window.closeMaterialModal = function () {
 };
 // ================= HÀM ĐÓNG / MỞ POPUP THÊM HỌC SINH =================
 window.openStudentModal = function () {
-    document.getElementById('studentModal').classList.add('active');
+    const dateInput =
+        document.getElementById(
+            'newStudentBirthDate'
+        );
+
+    if (dateInput) {
+        dateInput.max =
+            new Date()
+                .toISOString()
+                .slice(0, 10);
+    }
+
+    document
+        .getElementById('studentModal')
+        .classList.add('active');
 };
 window.closeStudentModal = function () {
     document.getElementById('studentModal').classList.remove('active');
@@ -4957,6 +5407,21 @@ window.openEditStudentModal = async function (fbKey) {
     document.getElementById('editStudentName').value = st.name || '';
     document.getElementById('editStudentPassword').value = '';
     document.getElementById('editStudentClass').value = st.classInfo || '';
+    document.getElementById(
+        'editStudentBirthDate'
+    ).value = getStudentBirthDateValue(st);
+
+    const birthDateInput =
+        document.getElementById(
+            'editStudentBirthDate'
+        );
+
+    if (birthDateInput) {
+        birthDateInput.max =
+            new Date()
+                .toISOString()
+                .slice(0, 10);
+    }
     document.getElementById('editStudentHobbies').value = st.hobbies || '';
     document.getElementById('editStudentMotto').value = st.motto || '';
 
@@ -4969,12 +5434,64 @@ window.saveStudentEdit = async function () {
     const name = document.getElementById('editStudentName').value.trim();
     const password = document.getElementById('editStudentPassword').value.trim();
     const classInfo = document.getElementById('editStudentClass').value.trim();
+    const birthDate = document
+        .getElementById('editStudentBirthDate')
+        .value.trim();
     const hobbies = document.getElementById('editStudentHobbies').value.trim();
     const motto = document.getElementById('editStudentMotto').value.trim();
 
     if (!name) return alert('Họ tên không được để trống!');
 
+    if (
+        birthDate &&
+        !isValidStudentBirthDate(birthDate)
+    ) {
+        return alert(
+            '🎂 Ngày sinh không hợp lệ, nằm trong tương lai hoặc trước năm 1900!'
+        );
+    }
+
+    const users = await getDB('users');
+
+    const st = users.find(
+        user => user._fbKey === fbKey
+    );
+
+    if (!st) {
+        return alert(
+            'Không tìm thấy tài khoản học sinh!'
+        );
+    }
+
     const updateObj = { name, classInfo, hobbies, motto };
+
+    if (birthDate) {
+        const oldProfile =
+            st.birthdayProfile || {};
+
+        updateObj.birthdayProfile = {
+            date: birthDate,
+
+            enteredBy:
+                oldProfile.enteredBy ||
+                'teacher',
+
+            enteredAt:
+                oldProfile.enteredAt ||
+                firebase.database.ServerValue.TIMESTAMP,
+
+            updatedBy: 'teacher',
+
+            updatedAt:
+                firebase.database.ServerValue.TIMESTAMP
+        };
+
+        // Xóa trường ngày sinh kiểu cũ.
+        updateObj.birthDate = null;
+    } else {
+        updateObj.birthdayProfile = null;
+        updateObj.birthDate = null;
+    }
 
     // NẾU GIÁO VIÊN CÓ NHẬP MẬT KHẨU MỚI
     if (password) {
@@ -6008,9 +6525,97 @@ window.deleteSurvey = async function (fbKey) {
 };
 
 // ================= HỆ THỐNG GỬI QUÀ & THƯ (GIÁO VIÊN) =================
+// =============================================================
+// XU ĐẶC BIỆT - VẬT PHẨM TAG SINH NHẬT
+// =============================================================
 
+function normalizeSpecialBirthdayGiftTag(value) {
+    return String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/đ/g, 'd')
+        .replace(/Đ/g, 'D')
+        .trim()
+        .toLowerCase();
+}
+
+function isSpecialBirthdayGiftItem(item) {
+    if (
+        !item ||
+        item.specialBirthdayCoinEligible === false
+    ) {
+        return false;
+    }
+
+    const normalizedTag =
+        normalizeSpecialBirthdayGiftTag(
+            item.tag
+        );
+
+    return (
+        normalizedTag === 'sinh nhat' ||
+        normalizedTag.startsWith(
+            'sinh nhat '
+        )
+    );
+}
+
+window.syncSpecialBirthdayItemCatalog =
+    async function () {
+        if (
+            typeof StoreConfig === 'undefined' ||
+            !Array.isArray(StoreConfig.items)
+        ) {
+            return;
+        }
+
+        const catalog = {};
+
+        StoreConfig.items
+            .filter(isSpecialBirthdayGiftItem)
+            .forEach(item => {
+                const record = {
+                    enabled: true,
+
+                    tag:
+                        String(
+                            item.tag ||
+                            'Sinh nhật'
+                        ),
+
+                    updatedAt:
+                        firebase.database
+                            .ServerValue
+                            .TIMESTAMP
+                };
+
+                const birthdayYear =
+                    Number(item.birthdayYear);
+
+                if (
+                    Number.isInteger(
+                        birthdayYear
+                    )
+                ) {
+                    record.birthdayYear =
+                        birthdayYear;
+                }
+
+                catalog[String(item.id)] =
+                    record;
+            });
+
+        await db
+            .ref(
+                'special_birthday_item_catalog'
+            )
+            .set(catalog);
+    };
 // Hàm tự động tải danh sách Học sinh và Vật phẩm vào mục Gửi quà
 async function initGiftDropdowns() {
+    await window
+        .syncSpecialBirthdayItemCatalog();
+
     const users = await getDB('users');
     const stuSelect = document.getElementById('giftTargetStudent');
     if (stuSelect) {
@@ -6679,34 +7284,93 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 window.toggleGiftInput = function () {
-    const type = document.getElementById('giftType').value;
-    const area = document.getElementById('giftValueInputArea');
-    const numInput = document.getElementById('giftValueNumber');
-    const itemInput = document.getElementById('giftValueItem');
-    const expiryArea = document.getElementById('giftExpiryInputArea');
-    const targetArea = document.getElementById('giftDiscountTargetArea'); // Lấy thẻ ẩn/hiện mục chọn áp dụng
+    const type =
+        document
+            .getElementById('giftType')
+            .value;
 
-    if (expiryArea) expiryArea.style.display = 'none';
-    if (targetArea) targetArea.style.display = 'none'; // Ẩn mặc định
+    const area =
+        document.getElementById(
+            'giftValueInputArea'
+        );
+
+    const numInput =
+        document.getElementById(
+            'giftValueNumber'
+        );
+
+    const itemInput =
+        document.getElementById(
+            'giftValueItem'
+        );
+
+    const expiryArea =
+        document.getElementById(
+            'giftExpiryInputArea'
+        );
+
+    const targetArea =
+        document.getElementById(
+            'giftDiscountTargetArea'
+        );
+
+    if (expiryArea) {
+        expiryArea.style.display = 'none';
+    }
+
+    if (targetArea) {
+        targetArea.style.display = 'none';
+    }
 
     if (type === 'none') {
         area.style.display = 'none';
-    } else {
-        area.style.display = 'block';
-        if (type === 'coin' || type === 'money' || type === 'ticket' || type === 'discount') {
-            numInput.style.display = 'block';
-            itemInput.style.display = 'none';
-            if (type === 'discount') {
-                numInput.placeholder = "Nhập % giảm giá (10 - 100)...";
-                if (expiryArea) expiryArea.style.display = 'block';
-                if (targetArea) targetArea.style.display = 'block'; // Hiển thị ô chọn vật phẩm áp dụng khi chọn Thẻ giảm giá
-            } else {
-                numInput.placeholder = "Nhập số lượng...";
+        return;
+    }
+
+    area.style.display = 'block';
+
+    const numericTypes = [
+        'coin',
+        'money',
+        'ticket',
+        'discount',
+        'special_birthday_coin'
+    ];
+
+    if (numericTypes.includes(type)) {
+        numInput.style.display = 'block';
+        itemInput.style.display = 'none';
+
+        if (type === 'discount') {
+            numInput.placeholder =
+                'Nhập % giảm giá (10 - 100)...';
+
+            if (expiryArea) {
+                expiryArea.style.display =
+                    'block';
             }
-        } else if (type === 'item') {
-            numInput.style.display = 'none';
-            itemInput.style.display = 'block';
+
+            if (targetArea) {
+                targetArea.style.display =
+                    'block';
+            }
+        } else if (
+            type ===
+            'special_birthday_coin'
+        ) {
+            numInput.placeholder =
+                'Nhập số Xu Đặc Biệt (1 - 50)...';
+        } else {
+            numInput.placeholder =
+                'Nhập số lượng...';
         }
+
+        return;
+    }
+
+    if (type === 'item') {
+        numInput.style.display = 'none';
+        itemInput.style.display = 'block';
     }
 };
 
@@ -6767,7 +7431,8 @@ window.sendGiftMessage = async function () {
             type === 'coin' ||
             type === 'money' ||
             type === 'ticket' ||
-            type === 'discount'
+            type === 'discount' ||
+            type === 'special_birthday_coin'
         ) {
             value = parseInt(
                 document.getElementById('giftValueNumber').value,
@@ -6778,6 +7443,17 @@ window.sendGiftMessage = async function () {
                 alert(
                     'Vui lòng nhập số lượng hợp lệ lớn hơn 0!'
                 );
+                return;
+            }
+            if (
+                type ===
+                'special_birthday_coin' &&
+                value > 50
+            ) {
+                alert(
+                    '✨ Mỗi lần chỉ được tặng tối đa 50 Xu Đặc Biệt!'
+                );
+
                 return;
             }
 
@@ -6980,10 +7656,39 @@ window.sendGiftMessage = async function () {
                 firebase.database.ServerValue.TIMESTAMP,
             timeString:
                 new Date(now).toLocaleString('vi-VN'),
+            /*
+ * Xu Đặc Biệt:
+ * thư không hết hạn trước khi nhận.
+ * Hạn 5 ngày bắt đầu sau khi
+ * học sinh nhận vào Túi đồ.
+ */
             expiry:
-                now + 5 * 24 * 60 * 60 * 1000,
+                type ===
+                    'special_birthday_coin'
+                    ? null
+                    : now +
+                    5 *
+                    24 *
+                    60 *
+                    60 *
+                    1000,
+
             source: 'teacher_gift'
         };
+
+        if (
+            type ===
+            'special_birthday_coin'
+        ) {
+            payload.specialCoinName =
+                'Xu Đặc Biệt';
+
+            payload.specialCoinValidityDays =
+                5;
+
+            payload.specialCoinScope =
+                'birthday_all_years';
+        }
 
         if (discountExpiry) {
             payload.discountExpiry = discountExpiry;

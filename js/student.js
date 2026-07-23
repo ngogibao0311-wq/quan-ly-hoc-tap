@@ -408,6 +408,99 @@ if (!currentUser || currentUser.role !== 'student') window.location.href = 'inde
 
 // 1. KHỞI TẠO BIẾN TOÀN CỤC NGAY LẬP TỨC ĐỂ TRÁNH LỖI
 window.studentSubmitDTs = {};
+window.studentBirthdayCoins =
+    window.studentBirthdayCoins || {};
+
+window.studentBirthdayWallets =
+    window.studentBirthdayWallets || {};
+
+// Xu Đặc Biệt do giáo viên tặng.
+window.studentSpecialBirthdayCoinGrants =
+    window
+        .studentSpecialBirthdayCoinGrants ||
+    {};
+
+window.studentSpecialBirthdayCoinCount =
+    Number(
+        window
+            .studentSpecialBirthdayCoinCount
+    ) || 0;
+
+function getUsableSpecialBirthdayCoinCount(
+    grants,
+    now = Date.now()
+) {
+    return Object.values(grants || {})
+        .reduce((total, grant) => {
+            if (
+                !grant ||
+                typeof grant !== 'object'
+            ) {
+                return total;
+            }
+
+            const remaining =
+                Number(
+                    grant.remaining
+                ) || 0;
+
+            const expiresAt =
+                Number(
+                    grant.expiresAt
+                ) || 0;
+
+            if (
+                remaining <= 0 ||
+                !expiresAt ||
+                now >= expiresAt
+            ) {
+                return total;
+            }
+
+            return total + remaining;
+        }, 0);
+}
+
+window
+    .getUsableSpecialBirthdayCoinCount =
+    getUsableSpecialBirthdayCoinCount;
+
+function getBirthdayCoinBalance(entry) {
+    if (typeof entry === 'number') {
+        return Number.isFinite(entry)
+            ? entry
+            : 0;
+    }
+
+    if (
+        entry &&
+        typeof entry === 'object'
+    ) {
+        const balance =
+            Number(entry.balance);
+
+        return Number.isFinite(balance)
+            ? balance
+            : 0;
+    }
+
+    return 0;
+}
+
+function normalizeBirthdayCoinBalances(wallets) {
+    const balances = {};
+
+    Object.entries(wallets || {})
+        .forEach(([year, entry]) => {
+            balances[String(year)] =
+                getBirthdayCoinBalance(entry);
+        });
+
+    return balances;
+}
+
+window.getBirthdayCoinBalance =
+    getBirthdayCoinBalance;
 let cacheAssignmentsSt = "";
 let cacheSubmissionsSt = "";
 
@@ -771,6 +864,167 @@ window.onload = async function () {
         if (typeof loadStoreItems === 'function') loadStoreItems();
         if (typeof applyEquippedItems === 'function') applyEquippedItems();
     });
+
+    // Ví Xu Sinh Nhật được tách riêng theo từng năm.
+    listenFirebase(
+        db.ref(
+            'birthday_coins/' +
+            currentUser.username
+        ),
+        'value',
+        snapshot => {
+            const wallets =
+                snapshot.val() || {};
+
+            window.studentBirthdayWallets =
+                wallets;
+
+            window.studentBirthdayCoins =
+                normalizeBirthdayCoinBalances(
+                    wallets
+                );
+
+            if (
+                typeof window
+                    .recoverBirthdayRedeemedItems ===
+                'function'
+            ) {
+                window
+                    .recoverBirthdayRedeemedItems(
+                        wallets
+                    );
+            }
+
+            if (
+                typeof window.filterStore ===
+                'function'
+            ) {
+                window.filterStore(
+                    window.currentStoreFilterType ||
+                    'all'
+                );
+            }
+
+            const bagModal =
+                document.getElementById(
+                    'studentBagModal'
+                );
+
+            if (
+                bagModal &&
+                bagModal.classList.contains(
+                    'active'
+                ) &&
+                typeof window
+                    .renderStudentBag ===
+                'function'
+            ) {
+                window.renderStudentBag();
+            }
+        }
+    );
+
+    // Ví Xu Đặc Biệt.
+    listenFirebase(
+        db.ref(
+            'student_special_birthday_coins/' +
+            currentUser.username
+        ),
+
+        'value',
+
+        snapshot => {
+            const grants =
+                snapshot.val() || {};
+
+            window
+                .studentSpecialBirthdayCoinGrants =
+                grants;
+
+            window
+                .studentSpecialBirthdayCoinCount =
+                getUsableSpecialBirthdayCoinCount(
+                    grants
+                );
+
+            /*
+ * Không chạy phục hồi đúng lúc một giao dịch
+ * đổi Xu Đặc Biệt đang thực hiện.
+ */
+            if (
+                !window
+                    .__specialBirthdayRedeemProcessing &&
+                typeof window
+                    .recoverSpecialBirthdayRedeemedItems ===
+                'function'
+            ) {
+                window
+                    .recoverSpecialBirthdayRedeemedItems(
+                        grants
+                    );
+            }
+
+            if (
+                typeof window.filterStore ===
+                'function'
+            ) {
+                window.filterStore(
+                    window
+                        .currentStoreFilterType ||
+                    'all'
+                );
+            }
+
+            const bagModal =
+                document.getElementById(
+                    'studentBagModal'
+                );
+
+            if (
+                bagModal &&
+                bagModal.classList.contains(
+                    'active'
+                ) &&
+                typeof window
+                    .renderStudentBag ===
+                'function'
+            ) {
+                window.renderStudentBag();
+            }
+        }
+    );
+
+    // Kiểm tra hết hạn mỗi phút.
+    setInterval(() => {
+        const nextCount =
+            getUsableSpecialBirthdayCoinCount(
+                window
+                    .studentSpecialBirthdayCoinGrants
+            );
+
+        if (
+            nextCount ===
+            window
+                .studentSpecialBirthdayCoinCount
+        ) {
+            return;
+        }
+
+        window
+            .studentSpecialBirthdayCoinCount =
+            nextCount;
+
+        if (
+            typeof window.filterStore ===
+            'function'
+        ) {
+            window.filterStore(
+                window
+                    .currentStoreFilterType ||
+                'all'
+            );
+        }
+    }, 60000);
 
     // LẮNG NGHE THÔNG BÁO TOÀN TRƯỜNG
     listenFirebase(db.ref('global_notifications'), 'value', (snapshot) => {
@@ -4320,6 +4574,315 @@ window.switchTab = function (tabId, btnElement) {
     }
 };
 
+// =============================================================
+// NGÀY SINH HỌC SINH - CHỈ TỰ NHẬP MỘT LẦN
+// =============================================================
+
+function getCurrentStudentBirthdayProfile() {
+    const profile =
+        currentUser?.birthdayProfile;
+
+    if (
+        profile &&
+        typeof profile === 'object'
+    ) {
+        return profile;
+    }
+
+    // Hỗ trợ dữ liệu cũ.
+    if (currentUser?.birthDate) {
+        return {
+            date: String(
+                currentUser.birthDate
+            ),
+            enteredBy: 'legacy'
+        };
+    }
+
+    return null;
+}
+
+function isValidBirthdayDateInput(value) {
+    const text =
+        String(value || '').trim();
+
+    if (
+        !/^\d{4}-\d{2}-\d{2}$/.test(text)
+    ) {
+        return false;
+    }
+
+    const [year, month, day] =
+        text.split('-').map(Number);
+
+    const date =
+        new Date(year, month - 1, day);
+
+    if (
+        date.getFullYear() !== year ||
+        date.getMonth() !== month - 1 ||
+        date.getDate() !== day
+    ) {
+        return false;
+    }
+
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+
+    return (
+        year >= 1900 &&
+        date.getTime() <= today.getTime()
+    );
+}
+
+function formatBirthdayDateVN(value) {
+    if (
+        !isValidBirthdayDateInput(value)
+    ) {
+        return 'Chưa cập nhật';
+    }
+
+    const [year, month, day] =
+        value.split('-');
+
+    return `${day}/${month}/${year}`;
+}
+
+window.renderStudentBirthdayProfile =
+    function () {
+        const profile =
+            getCurrentStudentBirthdayProfile();
+
+        const display =
+            document.getElementById(
+                'infoModalBirthDate'
+            );
+
+        const inputArea =
+            document.getElementById(
+                'studentBirthDateInputArea'
+            );
+
+        const input =
+            document.getElementById(
+                'studentBirthDateInput'
+            );
+
+        const saveButton =
+            document.getElementById(
+                'saveStudentBirthDateBtn'
+            );
+
+        const note =
+            document.getElementById(
+                'studentBirthDateNote'
+            );
+
+        if (
+            !display ||
+            !inputArea ||
+            !input ||
+            !saveButton
+        ) {
+            return;
+        }
+
+        input.max =
+            new Date()
+                .toISOString()
+                .slice(0, 10);
+
+        if (
+            profile &&
+            isValidBirthdayDateInput(
+                profile.date
+            )
+        ) {
+            display.style.display = 'block';
+
+            display.textContent =
+                `${formatBirthdayDateVN(profile.date)} · ` +
+                'Đã khóa chỉnh sửa phía học sinh';
+
+            inputArea.style.display = 'none';
+            input.disabled = true;
+            saveButton.disabled = true;
+        } else {
+            display.style.display = 'none';
+            inputArea.style.display = 'block';
+            input.disabled = false;
+            saveButton.disabled = false;
+            input.value = '';
+
+            if (note) {
+                note.textContent =
+                    'Lưu ý: học sinh chỉ được tự nhập ' +
+                    'ngày sinh 1 lần duy nhất. ' +
+                    'Hãy kiểm tra thật kỹ trước khi lưu.';
+            }
+        }
+    };
+
+window.saveStudentBirthDateOnce =
+    async function () {
+        if (currentUser.isLocked) {
+            return alert(
+                '🔒 Tài khoản đang bị khóa!'
+            );
+        }
+
+        if (
+            getCurrentStudentBirthdayProfile()
+        ) {
+            window
+                .renderStudentBirthdayProfile();
+
+            return alert(
+                '🎂 Ngày sinh đã được lưu trước đó. ' +
+                'Học sinh không thể sửa lại.'
+            );
+        }
+
+        const input =
+            document.getElementById(
+                'studentBirthDateInput'
+            );
+
+        const saveButton =
+            document.getElementById(
+                'saveStudentBirthDateBtn'
+            );
+
+        const birthDate =
+            String(input?.value || '').trim();
+
+        if (
+            !isValidBirthdayDateInput(
+                birthDate
+            )
+        ) {
+            return alert(
+                '🎂 Ngày sinh không hợp lệ, ' +
+                'nằm trong tương lai hoặc trước năm 1900!'
+            );
+        }
+
+        const formatted =
+            formatBirthdayDateVN(birthDate);
+
+        if (
+            !confirm(
+                `Bạn xác nhận ngày sinh là ${formatted}?\n\n` +
+                'Học sinh chỉ được tự nhập đúng 1 lần ' +
+                'và không thể sửa lại.'
+            )
+        ) {
+            return;
+        }
+
+        if (saveButton) {
+            saveButton.disabled = true;
+            saveButton.textContent =
+                '⏳ Đang lưu...';
+        }
+
+        try {
+            const uid =
+                firebase.auth().currentUser?.uid ||
+                currentUser._fbKey;
+
+            if (!uid) {
+                throw new Error(
+                    'Không xác định được UID học sinh.'
+                );
+            }
+
+            const profileRef = db.ref(
+                `users/${uid}/birthdayProfile`
+            );
+
+            const transaction =
+                await profileRef.transaction(
+                    current => {
+                        // Đã tồn tại thì hủy.
+                        if (current !== null) {
+                            return;
+                        }
+
+                        return {
+                            date: birthDate,
+                            enteredBy: 'student',
+                            enteredAt:
+                                firebase.database
+                                    .ServerValue
+                                    .TIMESTAMP
+                        };
+                    }
+                );
+
+            if (!transaction.committed) {
+                throw new Error(
+                    'BIRTHDAY_ALREADY_EXISTS'
+                );
+            }
+
+            currentUser.birthdayProfile =
+                transaction.snapshot.val() || {
+                    date: birthDate,
+                    enteredBy: 'student',
+                    enteredAt: Date.now()
+                };
+
+            localStorage.setItem(
+                'currentUser',
+                JSON.stringify(currentUser)
+            );
+
+            window
+                .renderStudentBirthdayProfile();
+
+            alert(
+                `✅ Đã lưu ngày sinh ${formatted}.\n` +
+                'Đến đúng ngày sinh, hệ thống sẽ gửi ' +
+                '1 Xu Sinh Nhật của năm đó qua Hộp thư.'
+            );
+        } catch (error) {
+            console.error(
+                'Lỗi lưu ngày sinh:',
+                error
+            );
+
+            if (
+                error.message ===
+                'BIRTHDAY_ALREADY_EXISTS' ||
+                error.code ===
+                'PERMISSION_DENIED'
+            ) {
+                alert(
+                    '🎂 Ngày sinh đã được lưu trước đó ' +
+                    'hoặc tài khoản không còn quyền tự sửa.'
+                );
+            } else {
+                alert(
+                    '❌ Không lưu được ngày sinh: ' +
+                    (
+                        error.message ||
+                        'lỗi không xác định'
+                    )
+                );
+            }
+        } finally {
+            if (
+                saveButton &&
+                !getCurrentStudentBirthdayProfile()
+            ) {
+                saveButton.disabled = false;
+                saveButton.textContent =
+                    '🎁 Lưu ngày sinh';
+            }
+        }
+    };
+
 window.openStudentInfoModal = function () {
     if (window.currentActiveExamId) {
         window.showExamLockWarning(
@@ -4473,6 +5036,7 @@ window.openStudentInfoModal = function () {
             "Chưa cập nhật";
     }
 
+    window.renderStudentBirthdayProfile();
     modal.classList.add("active");
 };
 
@@ -4633,17 +5197,27 @@ window.saveNewAvatar = async function () {
         /*
          * Chỉ lưu URL, không lưu Base64.
          */
-        await updateDB(
-            'users',
-            currentUser._fbKey,
-            {
-                avatar:
-                    uploaded.url,
+        const userKey =
+            firebase.auth().currentUser?.uid ||
+            currentUser._fbKey;
 
-                avatarStorage:
-                    uploaded
-            }
-        );
+        if (!userKey) {
+            throw new Error(
+                'Không xác định được UID học sinh.'
+            );
+        }
+
+        const avatarUpdates = {};
+
+        avatarUpdates[
+            `users/${userKey}/avatar`
+        ] = uploaded.url;
+
+        avatarUpdates[
+            `users/${userKey}/avatarStorage`
+        ] = uploaded;
+
+        await db.ref().update(avatarUpdates);
 
         currentUser.avatar =
             uploaded.url;
@@ -6169,15 +6743,95 @@ StoreManager.unapplyItem = async function (itemId) {
         EffectManager.clearEffects(true);
     }
     if (item.type === 'pet') {
-        const petContainer = document.getElementById('virtual-pet-container');
-        if (petContainer) petContainer.style.display = 'none';
+        const petContainer =
+            document.getElementById('virtual-pet-container');
 
-        // Dọn dẹp vòng lặp thú cưng để tránh lỗi "ké" tương tác khi tháo
-        if (typeof PetInteractionManager !== 'undefined' && PetInteractionManager.loopInterval) {
-            clearInterval(PetInteractionManager.loopInterval);
-            PetInteractionManager.loopInterval = null;
-            PetInteractionManager.setSleepState(false);
+        /*
+         * Dọn hiệu ứng Sinh Nhật 2026.
+         * Có tác dụng cả với hiệu ứng còn sót từ phiên bản cũ.
+         */
+        if (
+            typeof PetManager !== 'undefined' &&
+            typeof PetManager.clearBirthday2026Realm === 'function'
+        ) {
+            PetManager.clearBirthday2026Realm();
         }
+
+        /*
+         * Dọn dự phòng trong trường hợp PetManager
+         * chưa được tải hoặc hiệu ứng cũ bị tách khỏi manager.
+         */
+        const birthdayRealm =
+            document.getElementById('birthday-2026-realm');
+
+        if (birthdayRealm) {
+            birthdayRealm.remove();
+        }
+
+        document.documentElement.classList.remove(
+            'birthday-2026-equipped'
+        );
+
+        /*
+         * Hủy listener kéo, chạm và tương tác của thú cưng.
+         */
+        if (
+            typeof PetManager !== 'undefined' &&
+            PetManager.interactionAbortController
+        ) {
+            PetManager.interactionAbortController.abort();
+            PetManager.interactionAbortController = null;
+        }
+
+        if (
+            typeof PetInteractionManager !== 'undefined' &&
+            typeof PetInteractionManager.detachEvents === 'function'
+        ) {
+            PetInteractionManager.detachEvents({
+                keepLoop: false,
+                removeHungerBar: true
+            });
+        } else if (
+            typeof PetInteractionManager !== 'undefined' &&
+            PetInteractionManager.loopInterval
+        ) {
+            clearInterval(
+                PetInteractionManager.loopInterval
+            );
+
+            PetInteractionManager.loopInterval = null;
+
+            if (
+                typeof PetInteractionManager.setSleepState ===
+                'function'
+            ) {
+                PetInteractionManager.setSleepState(false);
+            }
+        }
+
+        /*
+         * Xóa hoàn toàn thú cưng khỏi giao diện,
+         * không chỉ ẩn ảnh.
+         */
+        if (petContainer) {
+            petContainer.style.display = 'none';
+            petContainer.innerHTML = '';
+
+            petContainer.classList.remove(
+                'pet-birthday-serpent-2026-stage',
+                'pet-idle',
+                'pet-dragging'
+            );
+
+            petContainer.onmouseenter = null;
+            petContainer.onmouseleave = null;
+        }
+
+        /*
+         * Xóa thú cưng đang hoạt động khỏi bộ nhớ trình duyệt.
+         * Ngăn hệ thống tương tác hiểu rằng pet vẫn còn.
+         */
+        localStorage.removeItem('active_pet');
     }
 
     if (
@@ -6310,9 +6964,45 @@ window.applyEquippedItems = function () {
             mustSuspendVisualItems ? 'none' : '';
     }
 
+    /*
+ * Luôn dọn thú cưng cũ trước khi đọc lại kho.
+ * Nếu có thú cưng đang trang bị, vòng lặp phía dưới
+ * sẽ tạo lại đúng thú cưng đó.
+ */
+    if (
+        typeof PetManager !== 'undefined' &&
+        typeof PetManager.clearBirthday2026Realm === 'function'
+    ) {
+        PetManager.clearBirthday2026Realm();
+    }
+
+    const staleBirthdayRealm =
+        document.getElementById('birthday-2026-realm');
+
+    if (staleBirthdayRealm) {
+        staleBirthdayRealm.remove();
+    }
+
+    document.documentElement.classList.remove(
+        'birthday-2026-equipped'
+    );
+
     if (petContainer) {
         petContainer.style.display = 'none';
+        petContainer.innerHTML = '';
+
+        petContainer.classList.remove(
+            'pet-birthday-serpent-2026-stage',
+            'pet-idle',
+            'pet-dragging'
+        );
     }
+
+    /*
+     * Xóa trạng thái cũ.
+     * PetManager.spawnPet() sẽ ghi lại nếu kho vẫn có pet được trang bị.
+     */
+    localStorage.removeItem('active_pet');
 
     if (
         typeof myInventory === 'undefined' ||
@@ -7049,7 +7739,19 @@ async function submitCashRequest() {
 
     // Chạy hàm load khi mở bảng quy đổi
     loadCashRequestsStudent(); currentUser.routeMoney -= amount;
-    updateDB('users', currentUser._fbKey, { routeMoney: currentUser.routeMoney });
+    const userKey =
+        firebase.auth().currentUser?.uid ||
+        currentUser._fbKey;
+
+    if (userKey) {
+        await db
+            .ref(
+                `users/${userKey}/routeMoney`
+            )
+            .set(
+                currentUser.routeMoney
+            );
+    }
 
     alert("Gửi yêu cầu thành công! Vui lòng chờ giáo viên xác nhận.");
     amountInput.value = '';
@@ -7092,7 +7794,54 @@ window.renderStudentInbox = function () {
         if (msg.giftType !== 'none') {
             let giftDisplay = '';
             if (msg.giftType === 'coin') giftDisplay = `🪙 ${parseInt(msg.giftValue).toLocaleString('vi-VN')} Coin`;
+            else if (
+                msg.giftType === 'birthday_coin'
+            ) {
+                const birthdayYear =
+                    Number(
+                        msg.birthdayYear ||
+                        msg.giftValue
+                    );
+
+                giftDisplay =
+                    `🎂 1 Xu Sinh Nhật ${birthdayYear}` +
+                    `<br>` +
+                    `<span style="
+            font-size:0.82em;
+            color:#be185d;
+            font-weight:600;
+        ">` +
+                    `Chỉ đổi được 1 vật phẩm tag ` +
+                    `Sinh nhật ${birthdayYear}` +
+                    `</span>`;
+            }
             else if (msg.giftType === 'money') giftDisplay = `💵 ${parseInt(msg.giftValue).toLocaleString('vi-VN')} đ (Tiền Lộ trình)`;
+            else if (
+                msg.giftType ===
+                'special_birthday_coin'
+            ) {
+                const quantity =
+                    Math.max(
+                        1,
+                        parseInt(
+                            msg.giftValue,
+                            10
+                        ) || 1
+                    );
+
+                giftDisplay =
+                    `✨ ${quantity} Xu Đặc Biệt` +
+                    `<br>` +
+                    `<span style="
+            font-size:0.82em;
+            color:#7c3aed;
+            font-weight:600;
+        ">` +
+                    `Đổi vật phẩm tag Sinh nhật, ` +
+                    `không phân biệt năm. ` +
+                    `Hạn 5 ngày kể từ lúc nhận vào túi.` +
+                    `</span>`;
+            }
             else if (msg.giftType === 'ticket') giftDisplay = `🎫 ${parseInt(msg.giftValue).toLocaleString('vi-VN')} Vé quay may mắn`;
             else if (msg.giftType === 'discount') {
                 let expStr = msg.discountExpiry ? `\n(HSD: ${new Date(msg.discountExpiry).toLocaleString('vi-VN')})` : ' (Vĩnh viễn)';
@@ -7190,9 +7939,53 @@ window.renderStudentInbox = function () {
             if (isExpiredDiscountInInbox) {
                 btnHTML = `<button onclick="deleteMessage('${msg._fbKey}')" style="background: rgba(225, 29, 72, 0.1); color: #e11d48; width: 100%; padding: 10px; border-radius: 8px; font-weight: bold; border: 1px solid #e11d48; cursor: pointer;">🗑️ Thẻ đã hết hạn (Xóa thư)</button>`;
             } else {
-                btnHTML = `<button onclick="claimGift('${msg._fbKey}', '${msg.giftType}', '${msg.giftValue}')" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); width: 100%; padding: 10px; border-radius: 8px; font-weight: bold; border: none; color: white; cursor: pointer; box-shadow: 0 4px 10px rgba(17, 153, 142, 0.3);">🧧 Mở quà & Nhận vào túi</button>`;
+                const claimButtonText =
+                    msg.giftType ===
+                        'birthday_coin'
+                        ? '🎂 Nhận Xu Sinh Nhật vào túi'
+
+                        : msg.giftType ===
+                            'special_birthday_coin'
+                            ? '✨ Nhận Xu Đặc Biệt vào túi'
+
+                            : '🧧 Mở quà & Nhận vào túi';
+                btnHTML = `
+    <button
+        onclick="
+            claimGift(
+                '${msg._fbKey}',
+                '${msg.giftType}',
+                '${msg.giftValue}'
+            )
+        "
+        style="
+            background:
+                linear-gradient(
+                    135deg,
+                    #11998e 0%,
+                    #38ef7d 100%
+                );
+            width:100%;
+            padding:10px;
+            border-radius:8px;
+            font-weight:bold;
+            border:none;
+            color:white;
+            cursor:pointer;
+            box-shadow:
+                0 4px 10px
+                rgba(17,153,142,0.3);
+        "
+    >
+        ${claimButtonText}
+    </button>
+`;
             }
         } else {
+            const claimButtonText =
+                msg.giftType === 'birthday_coin'
+                    ? '🎂 Nhận Xu Sinh Nhật vào túi'
+                    : '🧧 Mở quà & Nhận vào túi';
             btnHTML = `<button onclick="deleteMessage('${msg._fbKey}')" style="background: rgba(0,0,0,0.05); color: #666; width: 100%; padding: 10px; border-radius: 8px; font-weight: bold; border: none; cursor: pointer;">🗑️ Đã đọc & Xóa thư</button>`;
         }
 
@@ -7234,6 +8027,173 @@ window.claimGift = async function (msgKey, clientGiftType, clientGiftValue) {
             await coinRef.set((snap.val() || 0) + parseInt(giftValue));
             alert(`🎉 Bạn đã nhận được ${parseInt(giftValue).toLocaleString('vi-VN')} Coin!`);
 
+        } else if (
+            giftType === 'birthday_coin'
+        ) {
+            const birthdayYear =
+                Number(
+                    msgData.birthdayYear ||
+                    giftValue
+                );
+
+            if (
+                !Number.isInteger(
+                    birthdayYear
+                ) ||
+                birthdayYear < 2026 ||
+                birthdayYear > 9999
+            ) {
+                throw new Error(
+                    'INVALID_BIRTHDAY_YEAR'
+                );
+            }
+
+            const birthdayCoinRef = db.ref(
+                `birthday_coins/` +
+                `${currentUser.username}/` +
+                `${birthdayYear}`
+            );
+
+            const coinTx =
+                await birthdayCoinRef.transaction(
+                    current => {
+                        // Một năm chỉ tạo một ví xu.
+                        if (current !== null) {
+                            return;
+                        }
+
+                        return {
+                            year:
+                                String(birthdayYear),
+
+                            balance: 1,
+
+                            status:
+                                'available',
+
+                            claimedAt:
+                                firebase.database
+                                    .ServerValue
+                                    .TIMESTAMP,
+
+                            sourceMessageId:
+                                msgKey
+                        };
+                    }
+                );
+
+            if (!coinTx.committed) {
+                alert(
+                    `🎂 Xu Sinh Nhật ${birthdayYear} ` +
+                    'đã được nhận trước đó.'
+                );
+            } else {
+                window.studentBirthdayWallets[
+                    String(birthdayYear)
+                ] = coinTx.snapshot.val();
+
+                window.studentBirthdayCoins[
+                    String(birthdayYear)
+                ] = 1;
+
+                alert(
+                    `🎉 Bạn đã nhận 1 Xu Sinh Nhật ${birthdayYear}!\n` +
+                    'Xu đã được lưu trong Túi đồ và chỉ đổi được ' +
+                    `vật phẩm Sinh nhật ${birthdayYear}.`
+                );
+            }
+        } else if (
+            giftType ===
+            'special_birthday_coin'
+        ) {
+            const quantity =
+                parseInt(giftValue, 10);
+
+            if (
+                !Number.isInteger(quantity) ||
+                quantity < 1 ||
+                quantity > 50
+            ) {
+                throw new Error(
+                    'INVALID_SPECIAL_BIRTHDAY_COIN_QUANTITY'
+                );
+            }
+
+            /*
+             * Bắt đầu tính hạn từ lúc
+             * học sinh nhấn nhận.
+             */
+            const claimedAt =
+                Date.now();
+
+            const expiresAt =
+                claimedAt +
+                5 *
+                24 *
+                60 *
+                60 *
+                1000;
+
+            const grantRef = db.ref(
+                `student_special_birthday_coins/` +
+                `${currentUser.username}/` +
+                `${msgKey}`
+            );
+
+            const grantTx =
+                await grantRef.transaction(
+                    current => {
+                        // Chặn nhận trùng cùng một thư.
+                        if (current !== null) {
+                            return;
+                        }
+
+                        return {
+                            id: msgKey,
+                            quantity,
+                            remaining:
+                                quantity,
+
+                            status:
+                                'available',
+
+                            claimedAt,
+                            expiresAt,
+
+                            source:
+                                'teacher_gift',
+
+                            sourceMessageId:
+                                msgKey
+                        };
+                    }
+                );
+
+            if (!grantTx.committed) {
+                alert(
+                    '✨ Xu Đặc Biệt trong thư này đã được nhận trước đó.'
+                );
+            } else {
+                window
+                    .studentSpecialBirthdayCoinGrants[
+                    msgKey
+                ] =
+                    grantTx.snapshot.val();
+
+                window
+                    .studentSpecialBirthdayCoinCount =
+                    getUsableSpecialBirthdayCoinCount(
+                        window
+                            .studentSpecialBirthdayCoinGrants
+                    );
+
+                alert(
+                    `✨ Bạn đã nhận ${quantity} Xu Đặc Biệt!\n` +
+                    `Hạn dùng đến: ` +
+                    `${new Date(expiresAt).toLocaleString('vi-VN')}\n` +
+                    `Có thể đổi vật phẩm tag Sinh nhật không phân biệt năm.`
+                );
+            }
         } else if (giftType === 'money') {
             const offsetRef = db.ref('student_money_offset/' + currentUser.username);
             const snap = await offsetRef.once('value');
@@ -7301,7 +8261,20 @@ window.claimGift = async function (msgKey, clientGiftType, clientGiftValue) {
 
     } catch (error) {
         console.error(error);
-        alert("❌ Có lỗi xảy ra khi nhận quà. Vui lòng thử lại mạng!");
+
+        if (
+            error.message ===
+            'INVALID_BIRTHDAY_YEAR'
+        ) {
+            alert(
+                '❌ Thư Xu Sinh Nhật có mã năm không hợp lệ.'
+            );
+        } else {
+            alert(
+                '❌ Có lỗi xảy ra khi nhận quà. ' +
+                'Vui lòng thử lại mạng!'
+            );
+        }
     }
 };
 
@@ -9282,6 +10255,1177 @@ window.showSelectedDiscountInfo = function () {
     );
 };
 
+// =============================================================
+// ĐỔI XU SINH NHẬT THEO ĐÚNG NĂM
+// =============================================================
+
+function normalizeBirthdayTag(value) {
+    return String(value || '')
+        .normalize('NFD')
+        .replace(
+            /[\u0300-\u036f]/g,
+            ''
+        )
+        .replace(/đ/g, 'd')
+        .replace(/Đ/g, 'D')
+        .trim()
+        .toLowerCase();
+}
+
+function getBirthdayRewardItemsForYear(
+    year
+) {
+    const numericYear =
+        Number(year);
+
+    if (
+        !Number.isInteger(numericYear)
+    ) {
+        return [];
+    }
+
+    const expectedTag =
+        normalizeBirthdayTag(
+            `Sinh nhật ${numericYear}`
+        );
+
+    if (
+        typeof StoreConfig ===
+        'undefined' ||
+        !Array.isArray(
+            StoreConfig.items
+        )
+    ) {
+        return [];
+    }
+
+    return StoreConfig.items.filter(
+        item => {
+            return (
+                item &&
+                item.rewardSource ===
+                'birthday_coin' &&
+                Number(
+                    item.birthdayYear
+                ) === numericYear &&
+                normalizeBirthdayTag(
+                    item.tag
+                ) === expectedTag
+            );
+        }
+    );
+}
+
+// =============================================================
+// ĐỔI XU ĐẶC BIỆT
+// =============================================================
+
+function isSpecialBirthdayCoinEligibleItem(
+    item
+) {
+    if (
+        !item ||
+        item.specialBirthdayCoinEligible ===
+        false
+    ) {
+        return false;
+    }
+
+    const normalizedTag =
+        normalizeBirthdayTag(item.tag);
+
+    return (
+        normalizedTag ===
+        'sinh nhat' ||
+        normalizedTag.startsWith(
+            'sinh nhat '
+        )
+    );
+}
+
+window
+    .isSpecialBirthdayCoinEligibleItem =
+    isSpecialBirthdayCoinEligibleItem;
+
+window.openSpecialBirthdayStoreFromBag =
+    function () {
+        window.closeStudentBag();
+
+        const storeButton =
+            document.querySelector(
+                'button[onclick*="tab-store"]'
+            );
+
+        if (storeButton) {
+            storeButton.click();
+        }
+
+        if (
+            typeof window.filterStore ===
+            'function'
+        ) {
+            setTimeout(() => {
+                window.filterStore('all');
+            }, 0);
+        }
+    };
+
+async function addSpecialBirthdayItemToInventory(
+    username,
+    item,
+    grantId,
+    redemptionId
+) {
+    const inventoryRef = db.ref(
+        `student_inventory/` +
+        `${username}/` +
+        `${item.id}`
+    );
+
+    const inventoryTx =
+        await inventoryRef.transaction(
+            current => {
+                if (current !== null) {
+                    return;
+                }
+
+                return {
+                    id: item.id,
+
+                    purchaseTime:
+                        firebase.database
+                            .ServerValue
+                            .TIMESTAMP,
+
+                    isTrial: null,
+                    trialExpiry: null,
+                    isEquipped: false,
+
+                    source:
+                        'special_birthday_coin',
+
+                    specialCoinGrantId:
+                        grantId,
+
+                    specialCoinRedemptionId:
+                        redemptionId
+                };
+            }
+        );
+
+    if (inventoryTx.committed) {
+        return true;
+    }
+
+    return (
+        await inventoryRef.once(
+            'value'
+        )
+    ).exists();
+}
+
+window
+    .recoverSpecialBirthdayRedeemedItems =
+    async function (grants = null) {
+        if (
+            window
+                .__specialBirthdayRedeemProcessing ||
+            window
+                .__specialBirthdayRecoveryRunning
+        ) {
+            return;
+        }
+
+        window
+            .__specialBirthdayRecoveryRunning =
+            true;
+
+        try {
+            const grantData =
+                grants ||
+                (
+                    await db.ref(
+                        `student_special_birthday_coins/` +
+                        `${currentUser.username}`
+                    ).once('value')
+                ).val() ||
+                {};
+
+            for (
+                const [grantId, grant]
+                of Object.entries(grantData)
+            ) {
+                const redemptions =
+                    grant?.redemptions || {};
+
+                for (
+                    const [
+                        redemptionId,
+                        redemption
+                    ]
+                    of Object.entries(
+                        redemptions
+                    )
+                ) {
+                    const item =
+                        StoreManager.getItemById(
+                            redemption?.itemId
+                        );
+
+                    if (
+                        !item ||
+                        !isSpecialBirthdayCoinEligibleItem(
+                            item
+                        )
+                    ) {
+                        continue;
+                    }
+
+                    try {
+                        await addSpecialBirthdayItemToInventory(
+                            currentUser.username,
+                            item,
+                            grantId,
+                            redemptionId
+                        );
+                    } catch (error) {
+                        console.warn(
+                            'Chưa thể phục hồi vật phẩm Xu Đặc Biệt:',
+                            error
+                        );
+                    }
+                }
+            }
+        } finally {
+            window
+                .__specialBirthdayRecoveryRunning =
+                false;
+        }
+    };
+
+window.redeemSpecialBirthdayItem =
+    async function (itemId) {
+        if (
+            window
+                .__specialBirthdayRedeemProcessing
+        ) {
+            return;
+        }
+
+        const item =
+            StoreManager.getItemById(
+                itemId
+            );
+
+        if (
+            !item ||
+            !isSpecialBirthdayCoinEligibleItem(
+                item
+            )
+        ) {
+            return alert(
+                '❌ Vật phẩm này không được đổi bằng Xu Đặc Biệt.'
+            );
+        }
+
+        const username =
+            currentUser.username;
+
+        const inventoryRef = db.ref(
+            `student_inventory/` +
+            `${username}/` +
+            `${itemId}`
+        );
+
+        if (
+            (
+                await inventoryRef.once(
+                    'value'
+                )
+            ).exists()
+        ) {
+            return alert(
+                '🎁 Bạn đã sở hữu vật phẩm này.'
+            );
+        }
+
+        const grantsRef = db.ref(
+            `student_special_birthday_coins/` +
+            `${username}`
+        );
+
+        const grantsSnapshot =
+            await grantsRef.once(
+                'value'
+            );
+
+        /*
+ * Dùng giờ Firebase để không bị permission_denied
+ * khi đồng hồ máy học sinh lệch giờ.
+ */
+        const offsetSnapshot =
+            await db.ref(
+                '.info/serverTimeOffset'
+            ).once('value');
+
+        const serverOffset =
+            Number(
+                offsetSnapshot.val()
+            ) || 0;
+
+        const now =
+            Date.now() +
+            serverOffset;
+
+        // Ưu tiên dùng xu sắp hết hạn trước.
+        const candidates =
+            Object.entries(
+                grantsSnapshot.val() || {}
+            )
+                .filter(([, grant]) => {
+                    return (
+                        grant &&
+                        Number(
+                            grant.remaining
+                        ) > 0 &&
+                        Number(
+                            grant.expiresAt
+                        ) > now
+                    );
+                })
+                .sort((a, b) => {
+                    return (
+                        Number(
+                            a[1].expiresAt
+                        ) -
+                        Number(
+                            b[1].expiresAt
+                        )
+                    );
+                });
+
+        if (candidates.length === 0) {
+            return alert(
+                '✨ Bạn không có Xu Đặc Biệt còn hạn.'
+            );
+        }
+
+        if (
+            !confirm(
+                `Dùng 1 Xu Đặc Biệt để đổi “${item.name}”?`
+            )
+        ) {
+            return;
+        }
+
+        window
+            .__specialBirthdayRedeemProcessing =
+            true;
+
+        let committedGrantId = '';
+        let redemptionId = '';
+
+        try {
+            for (
+                const [grantId]
+                of candidates
+            ) {
+                const grantRef =
+                    grantsRef.child(
+                        grantId
+                    );
+
+                const nextRedemptionId =
+                    grantRef
+                        .child(
+                            'redemptions'
+                        )
+                        .push()
+                        .key;
+
+                const redeemedAt =
+                    Date.now() +
+                    serverOffset;
+
+                const grantTx =
+                    await grantRef.transaction(
+                        current => {
+                            if (
+                                !current ||
+                                Number(
+                                    current.remaining
+                                ) <= 0 ||
+                                Number(
+                                    current.expiresAt
+                                ) <= redeemedAt
+                            ) {
+                                return;
+                            }
+
+                            const remaining =
+                                Number(
+                                    current.remaining
+                                ) - 1;
+
+                            return {
+                                ...current,
+
+                                remaining,
+
+                                status:
+                                    remaining > 0
+                                        ? 'available'
+                                        : 'depleted',
+
+                                lastRedemptionId:
+                                    nextRedemptionId,
+
+                                redemptions: {
+                                    ...(
+                                        current.redemptions ||
+                                        {}
+                                    ),
+
+                                    [nextRedemptionId]: {
+                                        itemId,
+                                        redeemedAt
+                                    }
+                                }
+                            };
+                        }
+                    );
+
+                if (grantTx.committed) {
+                    committedGrantId =
+                        grantId;
+
+                    redemptionId =
+                        nextRedemptionId;
+
+                    break;
+                }
+            }
+
+            if (!committedGrantId) {
+                throw new Error(
+                    'NO_AVAILABLE_SPECIAL_COIN'
+                );
+            }
+
+            const inventoryAdded =
+                await addSpecialBirthdayItemToInventory(
+                    username,
+                    item,
+                    committedGrantId,
+                    redemptionId
+                );
+
+            if (!inventoryAdded) {
+                throw new Error(
+                    'INVENTORY_PENDING'
+                );
+            }
+
+            if (
+                typeof window.loadStoreItems ===
+                'function'
+            ) {
+                await window.loadStoreItems();
+            }
+
+            if (
+                typeof window.renderStudentBag ===
+                'function'
+            ) {
+                await window
+                    .renderStudentBag();
+            }
+
+            alert(
+                `🎉 Đã đổi thành công “${item.name}” bằng 1 Xu Đặc Biệt!`
+            );
+        } catch (error) {
+            console.error(
+                'Lỗi đổi Xu Đặc Biệt:',
+                error
+            );
+
+            if (committedGrantId) {
+                alert(
+                    '⚠️ Xu đã được ghi nhận là đã dùng. Hệ thống sẽ tự phục hồi vật phẩm khi mạng ổn định.'
+                );
+            } else {
+                const errorText =
+                    String(
+                        error?.code ||
+                        error?.message ||
+                        error
+                    ).toLowerCase();
+
+                if (
+                    errorText.includes(
+                        'permission_denied'
+                    ) ||
+                    errorText.includes(
+                        'permission-denied'
+                    )
+                ) {
+                    alert(
+                        '❌ Firebase từ chối giao dịch.\n' +
+                        'Hãy kiểm tra danh mục vật phẩm ' +
+                        'Xu Đặc Biệt và dữ liệu của xu.'
+                    );
+                } else {
+                    alert(
+                        '❌ Không còn Xu Đặc Biệt khả dụng ' +
+                        'hoặc xu đã hết hạn.'
+                    );
+                }
+            }
+        } finally {
+            window
+                .__specialBirthdayRedeemProcessing =
+                false;
+        }
+    };
+
+window.closeBirthdayRedeemModal =
+    function () {
+        const modal =
+            document.getElementById(
+                'birthdayRedeemModal'
+            );
+
+        if (modal) {
+            modal.remove();
+        }
+    };
+
+window.redeemBirthdayCoinFromBag =
+    function (year) {
+        const items =
+            getBirthdayRewardItemsForYear(
+                year
+            );
+
+        if (items.length === 0) {
+            return alert(
+                `🎂 Hiện chưa có vật phẩm ` +
+                `mang tag Sinh nhật ${year}.`
+            );
+        }
+
+        if (items.length === 1) {
+            window.closeBagItemPopup();
+
+            return window
+                .redeemBirthdayItem(
+                    items[0].id,
+                    Number(year)
+                );
+        }
+
+        window.closeBirthdayRedeemModal();
+
+        const itemButtons =
+            items.map(item => {
+                const icon =
+                    item.isIcon
+                        ? `
+                        <span style="font-size:3em;">
+                            ${item.value || '🎁'}
+                        </span>
+                    `
+                        : `
+                        <img
+                            src="${item.value}"
+                            alt="${item.name}"
+                            style="
+                                width:72px;
+                                height:72px;
+                                object-fit:contain;
+                            "
+                        >
+                    `;
+
+                return `
+                <button
+                    onclick="
+                        window.redeemBirthdayItem(
+                            '${item.id}',
+                            ${Number(year)}
+                        )
+                    "
+                    style="
+                        background:white;
+                        border:1px solid #f9a8d4;
+                        border-radius:12px;
+                        padding:12px;
+                        cursor:pointer;
+                        text-align:center;
+                    "
+                >
+                    ${icon}
+
+                    <strong style="
+                        display:block;
+                        margin-top:8px;
+                        color:#9d174d;
+                    ">
+                        ${item.name}
+                    </strong>
+                </button>
+            `;
+            }).join('');
+
+        document.body.insertAdjacentHTML(
+            'beforeend',
+            `
+        <div
+            id="birthdayRedeemModal"
+            class="
+                modal-overlay
+                active
+                ui-theme-immune
+            "
+            style="z-index:1000001;"
+        >
+            <div
+                class="
+                    modal-content
+                    form-container
+                "
+                style="
+                    max-width:520px;
+                    border-top:
+                        6px solid #ec4899;
+                "
+            >
+                <button
+                    class="close-btn"
+                    onclick="
+                        closeBirthdayRedeemModal()
+                    "
+                >
+                    ✖
+                </button>
+
+                <h3 style="
+                    color:#be185d;
+                    margin-bottom:8px;
+                ">
+                    🎂 Đổi Xu Sinh Nhật
+                    ${Number(year)}
+                </h3>
+
+                <p style="
+                    color:#64748b;
+                    margin-bottom:15px;
+                ">
+                    Chọn đúng 1 vật phẩm.
+                    Sau khi đổi, xu
+                    ${Number(year)}
+                    sẽ được sử dụng hết.
+                </p>
+
+                <div style="
+                    display:grid;
+                    grid-template-columns:
+                        repeat(
+                            auto-fit,
+                            minmax(150px,1fr)
+                        );
+                    gap:12px;
+                ">
+                    ${itemButtons}
+                </div>
+            </div>
+        </div>
+        `
+        );
+    };
+
+async function addBirthdayItemToInventory(
+    username,
+    item,
+    numericYear
+) {
+    const inventoryRef = db.ref(
+        `student_inventory/` +
+        `${username}/` +
+        `${item.id}`
+    );
+
+    const inventoryTx =
+        await inventoryRef.transaction(
+            current => {
+                if (current !== null) {
+                    return;
+                }
+
+                return {
+                    id: item.id,
+
+                    purchaseTime:
+                        firebase.database
+                            .ServerValue
+                            .TIMESTAMP,
+
+                    isTrial: null,
+                    trialExpiry: null,
+                    isEquipped: false,
+
+                    source:
+                        'birthday_coin',
+
+                    birthdayYear:
+                        String(
+                            numericYear
+                        )
+                };
+            }
+        );
+
+    if (inventoryTx.committed) {
+        return true;
+    }
+
+    return (
+        await inventoryRef.once(
+            'value'
+        )
+    ).exists();
+}
+
+window.recoverBirthdayRedeemedItems =
+    async function (wallets = null) {
+        if (
+            window
+                .__birthdayRecoveryRunning
+        ) {
+            return;
+        }
+
+        window.__birthdayRecoveryRunning =
+            true;
+
+        try {
+            const walletData =
+                wallets ||
+                (
+                    await db.ref(
+                        `birthday_coins/` +
+                        `${currentUser.username}`
+                    ).once('value')
+                ).val() ||
+                {};
+
+            for (
+                const [year, wallet]
+                of Object.entries(
+                    walletData
+                )
+            ) {
+                if (
+                    !wallet ||
+                    typeof wallet !== 'object'
+                ) {
+                    continue;
+                }
+
+                if (
+                    wallet.status !==
+                    'redeemed' ||
+                    !wallet.itemId
+                ) {
+                    continue;
+                }
+
+                const numericYear =
+                    Number(year);
+
+                const item =
+                    StoreManager.getItemById(
+                        wallet.itemId
+                    );
+
+                const isEligible =
+                    getBirthdayRewardItemsForYear(
+                        numericYear
+                    ).some(
+                        candidate =>
+                            candidate.id ===
+                            wallet.itemId
+                    );
+
+                if (
+                    !item ||
+                    !isEligible
+                ) {
+                    continue;
+                }
+
+                try {
+                    await addBirthdayItemToInventory(
+                        currentUser.username,
+                        item,
+                        numericYear
+                    );
+                } catch (error) {
+                    console.warn(
+                        `Chưa thể phục hồi vật phẩm sinh nhật ${year}:`,
+                        error
+                    );
+                }
+            }
+        } finally {
+            window
+                .__birthdayRecoveryRunning =
+                false;
+        }
+    };
+
+window.redeemBirthdayItem =
+    async function (itemId, year) {
+        if (
+            window
+                .__birthdayRedeemProcessing
+        ) {
+            return;
+        }
+
+        const numericYear =
+            Number(year);
+
+        const item =
+            StoreManager.getItemById(
+                itemId
+            );
+
+        const eligibleItems =
+            getBirthdayRewardItemsForYear(
+                numericYear
+            );
+
+        const isEligible =
+            eligibleItems.some(
+                candidate =>
+                    candidate.id === itemId
+            );
+
+        if (
+            !item ||
+            !isEligible
+        ) {
+            return alert(
+                `❌ Vật phẩm này không thuộc ` +
+                `tag Sinh nhật ${numericYear}.`
+            );
+        }
+
+        const username =
+            currentUser.username;
+
+        const walletRef = db.ref(
+            `birthday_coins/` +
+            `${username}/` +
+            `${numericYear}`
+        );
+
+        const inventoryRef = db.ref(
+            `student_inventory/` +
+            `${username}/` +
+            `${itemId}`
+        );
+
+        const existingItemSnap =
+            await inventoryRef.once(
+                'value'
+            );
+
+        if (existingItemSnap.exists()) {
+            return alert(
+                '🎁 Bạn đã sở hữu vật phẩm này.'
+            );
+        }
+
+        const walletSnap =
+            await walletRef.once(
+                'value'
+            );
+
+        const wallet =
+            walletSnap.val();
+
+        /*
+         * Xu đã bị trừ nhưng mất mạng
+         * trước khi thêm vật phẩm.
+         */
+        if (
+            wallet &&
+            typeof wallet === 'object' &&
+            wallet.status === 'redeemed'
+        ) {
+            if (
+                wallet.itemId !== itemId
+            ) {
+                return alert(
+                    `🎂 Xu Sinh Nhật ${numericYear} ` +
+                    'đã được dùng cho vật phẩm khác.'
+                );
+            }
+
+            try {
+                await addBirthdayItemToInventory(
+                    username,
+                    item,
+                    numericYear
+                );
+
+                window
+                    .closeBirthdayRedeemModal();
+
+                window
+                    .closeBagItemPopup();
+
+                if (
+                    typeof window
+                        .loadStoreItems ===
+                    'function'
+                ) {
+                    await window
+                        .loadStoreItems();
+                }
+
+                if (
+                    typeof window
+                        .renderStudentBag ===
+                    'function'
+                ) {
+                    await window
+                        .renderStudentBag();
+                }
+
+                return alert(
+                    `🎉 Đã phục hồi “${item.name}” ` +
+                    'vào Túi đồ!'
+                );
+            } catch (error) {
+                console.error(
+                    'Lỗi phục hồi vật phẩm:',
+                    error
+                );
+
+                return alert(
+                    '❌ Giao dịch đã được ghi nhận ' +
+                    'nhưng chưa thể thêm vật phẩm. ' +
+                    'Hãy tải lại trang khi mạng ổn định.'
+                );
+            }
+        }
+
+        if (
+            getBirthdayCoinBalance(
+                wallet
+            ) !== 1
+        ) {
+            return alert(
+                `🎂 Bạn không có Xu Sinh Nhật ` +
+                `${numericYear} khả dụng.`
+            );
+        }
+
+        if (
+            !confirm(
+                `Dùng 1 Xu Sinh Nhật ${numericYear} ` +
+                `để đổi “${item.name}”?\n\n` +
+                `Xu của năm ${numericYear} ` +
+                'chỉ được dùng đúng 1 lần.'
+            )
+        ) {
+            return;
+        }
+
+        window
+            .__birthdayRedeemProcessing =
+            true;
+
+        let walletConsumed = false;
+
+        try {
+            const walletTx =
+                await walletRef.transaction(
+                    current => {
+                        // Hỗ trợ dữ liệu số cũ.
+                        if (
+                            typeof current ===
+                            'number'
+                        ) {
+                            if (
+                                Number(current) !==
+                                1
+                            ) {
+                                return;
+                            }
+
+                            return {
+                                year:
+                                    String(
+                                        numericYear
+                                    ),
+
+                                balance: 0,
+
+                                status:
+                                    'redeemed',
+
+                                itemId,
+
+                                claimedAt:
+                                    Date.now(),
+
+                                redeemedAt:
+                                    firebase.database
+                                        .ServerValue
+                                        .TIMESTAMP
+                            };
+                        }
+
+                        if (
+                            !current ||
+                            typeof current !==
+                            'object' ||
+                            Number(
+                                current.balance
+                            ) !== 1 ||
+                            current.status !==
+                            'available' ||
+                            String(
+                                current.year
+                            ) !==
+                            String(
+                                numericYear
+                            )
+                        ) {
+                            return;
+                        }
+
+                        return {
+                            ...current,
+
+                            year:
+                                String(
+                                    numericYear
+                                ),
+
+                            balance: 0,
+
+                            status:
+                                'redeemed',
+
+                            itemId,
+
+                            redeemedAt:
+                                firebase.database
+                                    .ServerValue
+                                    .TIMESTAMP
+                        };
+                    }
+                );
+
+            if (!walletTx.committed) {
+                throw new Error(
+                    'BIRTHDAY_ALREADY_REDEEMED'
+                );
+            }
+
+            walletConsumed = true;
+
+            const inventoryAdded =
+                await addBirthdayItemToInventory(
+                    username,
+                    item,
+                    numericYear
+                );
+
+            if (!inventoryAdded) {
+                throw new Error(
+                    'BIRTHDAY_INVENTORY_PENDING'
+                );
+            }
+
+            window.studentBirthdayWallets[
+                String(numericYear)
+            ] = walletTx.snapshot.val();
+
+            window.studentBirthdayCoins[
+                String(numericYear)
+            ] = 0;
+
+            window
+                .closeBirthdayRedeemModal();
+
+            window.closeBagItemPopup();
+
+            if (
+                typeof window
+                    .loadStoreItems ===
+                'function'
+            ) {
+                await window.loadStoreItems();
+            }
+
+            if (
+                typeof window
+                    .renderStudentBag ===
+                'function'
+            ) {
+                await window
+                    .renderStudentBag();
+            }
+
+            alert(
+                `🎉 Đổi thành công “${item.name}” ` +
+                `bằng Xu Sinh Nhật ${numericYear}!`
+            );
+        } catch (error) {
+            console.error(
+                'Lỗi đổi Xu Sinh Nhật:',
+                error
+            );
+
+            if (
+                error.message ===
+                'BIRTHDAY_ALREADY_REDEEMED'
+            ) {
+                alert(
+                    `🎂 Xu Sinh Nhật ${numericYear} ` +
+                    'đã được dùng hoặc đang được ' +
+                    'xử lý ở tab khác.'
+                );
+            } else if (
+                walletConsumed ||
+                error.message ===
+                'BIRTHDAY_INVENTORY_PENDING'
+            ) {
+                alert(
+                    '⚠️ Xu đã được ghi nhận là đã dùng. ' +
+                    'Hệ thống sẽ tự phục hồi vật phẩm ' +
+                    'vào Túi đồ khi kết nối ổn định.'
+                );
+            } else {
+                alert(
+                    '❌ Không thể đổi Xu Sinh Nhật. ' +
+                    'Vui lòng kiểm tra mạng và thử lại.'
+                );
+            }
+        } finally {
+            window
+                .__birthdayRedeemProcessing =
+                false;
+        }
+    };
+
 // ================= HỆ THỐNG TÚI ĐỒ NÂNG CẤP (GRID INVENTORY) =================
 let bagHoldTimeout = null;
 let isBagPopupOpen = false;
@@ -9353,7 +11497,94 @@ window.showBagItemPopup = function (item) {
                 ♻️ Bán thẻ hết hạn nhận lại +${item.sellPrice} Coin
             </button>
         `;
-    } else if (item.type === 'chest') {
+
+    } else if (
+        item.type === 'birthday_coin'
+    ) {
+        actionButtonHtml = `
+        <button
+            onclick="
+                redeemBirthdayCoinFromBag(
+                    ${Number(item.year)}
+                )
+            "
+            style="
+                margin-top:15px;
+                width:100%;
+                background:
+                    linear-gradient(
+                        135deg,
+                        #ec4899 0%,
+                        #f97316 100%
+                    );
+                border:none;
+                padding:10px;
+                border-radius:8px;
+                font-weight:bold;
+                color:white;
+                cursor:pointer;
+                box-shadow:
+                    0 4px 10px
+                    rgba(236,72,153,0.35);
+                font-size:0.95em;
+            "
+        >
+            🎂 Dùng Xu Sinh Nhật
+            ${Number(item.year)}
+        </button>
+    `;
+    }
+    else if (
+        item.type ===
+        'special_birthday_coin'
+    ) {
+        actionButtonHtml =
+            item.isExpired
+                ? `
+                <button
+                    disabled
+                    style="
+                        margin-top:15px;
+                        width:100%;
+                        background:#cbd5e1;
+                        border:none;
+                        padding:10px;
+                        border-radius:8px;
+                        font-weight:bold;
+                        color:#64748b;
+                        cursor:not-allowed;
+                    "
+                >
+                    ⌛ Xu đã hết hạn
+                </button>
+            `
+                : `
+                <button
+                    onclick="
+                        openSpecialBirthdayStoreFromBag()
+                    "
+                    style="
+                        margin-top:15px;
+                        width:100%;
+                        background:
+                            linear-gradient(
+                                135deg,
+                                #8b5cf6,
+                                #ec4899
+                            );
+                        border:none;
+                        padding:10px;
+                        border-radius:8px;
+                        font-weight:bold;
+                        color:white;
+                        cursor:pointer;
+                    "
+                >
+                    ✨ Mở cửa hàng Sinh nhật
+                </button>
+            `;
+    }
+    else if (item.type === 'chest') {
         actionButtonHtml = `
             <button onclick="openHoiHoaChest('${item.firebaseKey}')" 
                 style="margin-top: 15px; width: 100%; background: linear-gradient(135deg, #f6d365 0%, #fda085 100%); border: none; padding: 10px; border-radius: 8px; font-weight: bold; color: #c0392b; cursor: pointer; box-shadow: 0 4px 10px rgba(246, 211, 101, 0.4); font-size: 0.95em; transition: 0.2s;">
@@ -9406,10 +11637,35 @@ window.renderStudentBag = async function () {
 
     try {
         // [ĐÃ SỬA LỖI] Gọi thẳng hàm window.calculateTotalTickets() để tính chính xác Vé thưởng + Vé làm bài - Vé đã quay
-        const [ticketData, discountSnap, invSnap] = await Promise.all([
+        const [
+            ticketData,
+            discountSnap,
+            invSnap,
+            birthdayCoinSnap,
+            specialBirthdayCoinSnap
+        ] = await Promise.all([
             window.calculateTotalTickets(),
-            db.ref('student_discounts/' + currentUser.username).once('value'),
-            db.ref('student_inventory/' + currentUser.username).once('value') // THÊM DÒNG NÀY
+
+            db.ref(
+                'student_discounts/' +
+                currentUser.username
+            ).once('value'),
+
+            db.ref(
+                'student_inventory/' +
+                currentUser.username
+            ).once('value'),
+
+            db.ref(
+                'birthday_coins/' +
+                currentUser.username
+            ).once('value')
+            ,
+
+            db.ref(
+                'student_special_birthday_coins/' +
+                currentUser.username
+            ).once('value')
         ]);
 
         let slotsData = [];
@@ -9432,6 +11688,130 @@ window.renderStudentBag = async function () {
             });
             totalTickets -= count;
         }
+
+        // --- 2. XỬ LÝ XU ĐẶC BIỆT ---
+        const specialBirthdayGrants =
+            specialBirthdayCoinSnap.val() || {};
+
+        window
+            .studentSpecialBirthdayCoinGrants =
+            specialBirthdayGrants;
+
+        window
+            .studentSpecialBirthdayCoinCount =
+            getUsableSpecialBirthdayCoinCount(
+                specialBirthdayGrants,
+                now
+            );
+
+        Object.entries(
+            specialBirthdayGrants
+        )
+            .sort((a, b) => {
+                return (
+                    Number(
+                        a[1]?.expiresAt || 0
+                    ) -
+                    Number(
+                        b[1]?.expiresAt || 0
+                    )
+                );
+            })
+            .forEach(([grantId, grant]) => {
+                const quantity =
+                    Number(
+                        grant?.remaining
+                    ) || 0;
+
+                if (quantity <= 0) {
+                    return;
+                }
+
+                const expiry =
+                    Number(
+                        grant?.expiresAt
+                    ) || 0;
+
+                const isExpired =
+                    !expiry ||
+                    now >= expiry;
+
+                slotsData.push({
+                    type:
+                        'special_birthday_coin',
+
+                    name:
+                        'Xu Đặc Biệt',
+
+                    icon: '✨',
+                    isImg: false,
+                    quantity,
+                    grantId,
+                    expiry,
+                    isExpired,
+
+                    description:
+                        `<b>Xu Đặc Biệt do giáo viên tặng.</b><br>` +
+                        `🎯 Đổi hầu hết vật phẩm tag Sinh nhật, ` +
+                        `không phân biệt năm.<br>` +
+                        `⌛ Hạn dùng: ` +
+                        `<b>${new Date(expiry).toLocaleString('vi-VN')}</b>`
+                });
+            });
+
+        // --- 2. XỬ LÝ XU SINH NHẬT THEO TỪNG NĂM ---
+        const birthdayWallets =
+            birthdayCoinSnap.val() || {};
+
+        const birthdayCoins =
+            normalizeBirthdayCoinBalances(
+                birthdayWallets
+            );
+
+        window.studentBirthdayWallets =
+            birthdayWallets;
+
+        window.studentBirthdayCoins =
+            birthdayCoins;
+
+        Object.entries(birthdayCoins)
+            .sort(
+                (a, b) =>
+                    Number(b[0]) -
+                    Number(a[0])
+            )
+            .forEach(([year, amount]) => {
+                const quantity =
+                    Number(amount) || 0;
+
+                if (quantity <= 0) {
+                    return;
+                }
+
+                slotsData.push({
+                    type: 'birthday_coin',
+
+                    name:
+                        `Xu Sinh Nhật ${year}`,
+
+                    icon: '🎂',
+
+                    isImg: false,
+
+                    quantity,
+
+                    year: Number(year),
+
+                    isExpired: false,
+
+                    description:
+                        `🎁 <b>Xu tặng sinh nhật năm ${year}</b><br>` +
+                        `🎯 Chỉ đổi được 1 vật phẩm mang tag ` +
+                        `<b>Sinh nhật ${year}</b>.<br>` +
+                        `⚠️ Không thể dùng cho vật phẩm sinh nhật ` +
+                        `của năm khác.`
+                });
+            });
 
         // --- 2. XỬ LÝ GỘP Ô: THẺ GIẢM GIÁ (HIỂN THỊ CẢ THẺ HẾT HẠN) ---
         const discounts = discountSnap.val() || {};

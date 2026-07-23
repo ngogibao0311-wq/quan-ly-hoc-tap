@@ -1071,6 +1071,7 @@
                             style="background: white; margin-bottom: 15px; font-weight: bold; color: #d35400;">
                             <option value="none">Chỉ gửi thư (Không kèm quà)</option>
                             <option value="coin">🪙 Tặng Coin</option>
+                            <option value="special_birthday_coin">✨ Tặng Xu Đặc Biệt</option>
                             <option value="money">💵 Tặng Tiền Lộ Trình (đ)</option>
                             <option value="item">📦 Tặng Vật Phẩm Cửa Hàng</option>
                             <option value="ticket">🎫 Tặng Vé Quay May Mắn</option>
@@ -1283,6 +1284,14 @@
                                     id="newStudentClass" placeholder="VD: 10A1"></div>
                         </div>
 
+                        <label><strong>Ngày sinh:</strong></label>
+                        <input type="date" id="newStudentBirthDate">
+
+                        <small style="display:block; margin:-8px 0 14px; color:#64748b; line-height:1.45;">
+                            Có thể để trống để học sinh tự nhập sau.
+                            Khi học sinh tự lưu, học sinh chỉ được nhập đúng 1 lần.
+                        </small>
+
                         <label><strong>Sở thích:</strong></label>
                         <input type="text" id="newStudentHobbies" placeholder="VD: Đọc sách, Nghe nhạc...">
 
@@ -1316,6 +1325,13 @@
                             <div class="form-group"><label><strong>Lớp:</strong></label><input type="text"
                                     id="editStudentClass"></div>
                         </div>
+                        <label><strong>Ngày sinh:</strong></label>
+                        <input type="date" id="editStudentBirthDate">
+
+                        <small style="display:block; margin:-8px 0 14px; color:#64748b; line-height:1.45;">
+                            Giáo viên có thể cập nhật ngày sinh khi cần.
+                            Việc sửa ngày sinh không tạo thêm xu nếu năm đó đã được tặng.
+                        </small>
                         <label><strong>Mật khẩu (để trống nếu không đổi):</strong></label>
                         <input type="text" id="editStudentPassword" placeholder="Nhập mật khẩu mới...">
 
