@@ -228,6 +228,33 @@
                         </div>
                     </div>
 
+                    <div id="examTimeLimitOption"
+                        style="display: none; margin-top: 12px; padding: 12px; border-radius: 12px; background: rgba(225, 29, 72, 0.07); border: 1px dashed rgba(225, 29, 72, 0.45);">
+
+                        <label for="enableExamTimeLimit"
+                            style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin: 0;">
+
+                            <input type="checkbox" id="enableExamTimeLimit" onchange="toggleExamTimeLimitInput()"
+                                style="width: 20px; height: 20px; margin: 0; cursor: pointer;">
+
+                            <strong>⏱️ Giới hạn thời gian làm bài</strong>
+                        </label>
+
+                        <div id="examTimeLimitInputWrap"
+                            style="display: none; align-items: center; gap: 8px; margin-top: 10px;">
+
+                            <input type="number" id="examTimeLimitMinutes" min="1" step="1" placeholder="VD: 120"
+                                style="width: 150px; margin: 0; background: white;">
+
+                            <strong>phút</strong>
+                        </div>
+
+                        <small style="display: block; margin-top: 8px; color: #64748b; line-height: 1.45;">
+                            Thời gian bắt đầu tính từ lúc học sinh nhấn bắt đầu thi và vào chế độ toàn màn hình.
+                            Hết giờ, hệ thống tự động thu bài nhưng không đánh dấu vi phạm.
+                        </small>
+                    </div>
+
                     <button type="button" onclick="createAssignment()" style="margin-top: 20px;">
                         Phát hành bài tập
                     </button>
@@ -1502,6 +1529,34 @@
                                         (Ẩn ô
                                         viết chữ phía học sinh)</strong>
                                 </label>
+                            </div>
+
+                            <div id="editExamTimeLimitOption"
+                                style="display: none; background: rgba(225, 29, 72, 0.07); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px dashed rgba(225, 29, 72, 0.45);">
+
+                                <label for="editEnableExamTimeLimit"
+                                    style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin: 0;">
+
+                                    <input type="checkbox" id="editEnableExamTimeLimit"
+                                        onchange="toggleEditExamTimeLimitInput()"
+                                        style="width: 20px; height: 20px; margin: 0; cursor: pointer;">
+
+                                    <strong>⏱️ Giới hạn thời gian làm bài</strong>
+                                </label>
+
+                                <div id="editExamTimeLimitInputWrap"
+                                    style="display: none; align-items: center; gap: 8px; margin-top: 10px;">
+
+                                    <input type="number" id="editExamTimeLimitMinutes" min="1" step="1"
+                                        placeholder="VD: 120" style="width: 150px; margin: 0; background: white;">
+
+                                    <strong>phút</strong>
+                                </div>
+
+                                <small style="display: block; margin-top: 8px; color: #64748b; line-height: 1.45;">
+                                    Tính từ lúc học sinh bắt đầu thi trong toàn màn hình.
+                                    Hết giờ sẽ tự động thu bài, không tính là vi phạm.
+                                </small>
                             </div>
 
                             <div id="editTracNghiemSection"

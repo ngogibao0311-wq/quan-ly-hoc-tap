@@ -801,6 +801,52 @@ window.updateEditExamFields = function () {
     }
 };
 
+window.toggleExamTimeLimitInput = function () {
+    const checkbox =
+        document.getElementById('enableExamTimeLimit');
+
+    const wrap =
+        document.getElementById('examTimeLimitInputWrap');
+
+    const input =
+        document.getElementById('examTimeLimitMinutes');
+
+    const enabled = !!checkbox?.checked;
+
+    if (wrap) {
+        wrap.style.display = enabled ? 'flex' : 'none';
+    }
+
+    if (input) {
+        input.disabled = !enabled;
+
+        if (enabled) {
+            input.focus();
+        }
+    }
+};
+
+window.toggleEditExamTimeLimitInput = function () {
+    const checkbox =
+        document.getElementById('editEnableExamTimeLimit');
+
+    const wrap =
+        document.getElementById('editExamTimeLimitInputWrap');
+
+    const input =
+        document.getElementById('editExamTimeLimitMinutes');
+
+    const enabled = !!checkbox?.checked;
+
+    if (wrap) {
+        wrap.style.display = enabled ? 'flex' : 'none';
+    }
+
+    if (input) {
+        input.disabled = !enabled;
+    }
+};
+
 window.toggleAssessmentFields = function () {
     const type =
         document.getElementById('assessmentType').value;
@@ -821,6 +867,38 @@ window.toggleAssessmentFields = function () {
         document.getElementById(
             'fileOnlyOptionLabel'
         );
+
+    const examTimeLimitOption =
+        document.getElementById(
+            'examTimeLimitOption'
+        );
+
+    if (examTimeLimitOption) {
+        examTimeLimitOption.style.display =
+            type === 'thi' ? 'block' : 'none';
+    }
+
+    if (type !== 'thi') {
+        const limitCheckbox =
+            document.getElementById(
+                'enableExamTimeLimit'
+            );
+
+        const limitInput =
+            document.getElementById(
+                'examTimeLimitMinutes'
+            );
+
+        if (limitCheckbox) {
+            limitCheckbox.checked = false;
+        }
+
+        if (limitInput) {
+            limitInput.value = '';
+        }
+
+        window.toggleExamTimeLimitInput();
+    }
 
     if (fileOnlyOption) {
         fileOnlyOption.style.display =
@@ -1353,6 +1431,10 @@ async function createAssignment() {
     let desc = '', videoLink = '', attachedFile = null, questions = [];
     let mcWeight = null, essayWeight = null;
     let hideEssayText = false;
+
+    let examTimeLimitEnabled = false;
+    let examTimeLimitMinutes = null;
+
     let videoSummaryEnabled = false;
     let videoSummary = '';
 
@@ -1475,6 +1557,32 @@ async function createAssignment() {
         }
     }
 
+    // Cấu hình giới hạn thời gian riêng cho loại Thi
+    if (type === 'thi') {
+        examTimeLimitEnabled =
+            !!document.getElementById(
+                'enableExamTimeLimit'
+            )?.checked;
+
+        if (examTimeLimitEnabled) {
+            examTimeLimitMinutes = Number(
+                document.getElementById(
+                    'examTimeLimitMinutes'
+                )?.value
+            );
+
+            if (
+                !Number.isFinite(examTimeLimitMinutes) ||
+                examTimeLimitMinutes <= 0 ||
+                !Number.isInteger(examTimeLimitMinutes)
+            ) {
+                return alert(
+                    '⚠️ Thời gian làm bài phải là số phút nguyên lớn hơn 0!'
+                );
+            }
+        }
+    }
+
     // BƯỚC 2: XỬ LÝ DỮ LIỆU TỰ LUẬN
     const hasEssay = type === 'tu_luan' || type === 'ket_hop' || (type === 'thi' && essayWeight > 0);
     if (hasEssay) {
@@ -1541,6 +1649,14 @@ async function createAssignment() {
         mcWeight: mcWeight, essayWeight: essayWeight,
         hideEssayText: hideEssayText,
 
+        examTimeLimitEnabled:
+            examTimeLimitEnabled,
+
+        examTimeLimitMinutes:
+            examTimeLimitEnabled
+                ? examTimeLimitMinutes
+                : null,
+
         videoSummaryEnabled:
             videoSummaryEnabled,
 
@@ -1556,6 +1672,28 @@ async function createAssignment() {
     document.getElementById('videoLink').value = ''; document.getElementById('fileInput').value = '';
     document.getElementById('questionsContainer').innerHTML = ''; questionCount = 0;
     if (document.getElementById('hideEssayText')) document.getElementById('hideEssayText').checked = false; // Reset checkbox
+
+    if (
+        document.getElementById(
+            'enableExamTimeLimit'
+        )
+    ) {
+        document.getElementById(
+            'enableExamTimeLimit'
+        ).checked = false;
+    }
+
+    if (
+        document.getElementById(
+            'examTimeLimitMinutes'
+        )
+    ) {
+        document.getElementById(
+            'examTimeLimitMinutes'
+        ).value = '';
+    }
+
+    window.toggleExamTimeLimitInput();
     if (
         document.getElementById(
             'enableVideoSummary'
@@ -4928,6 +5066,49 @@ window.openEditAssignmentModal = async function (fbKey) {
         }
 
         if (assign.assessmentType === 'thi') window.updateEditExamFields();
+        // Hiện và nạp giới hạn thời gian khi sửa bài
+        const editTimeLimitOption =
+            document.getElementById(
+                'editExamTimeLimitOption'
+            );
+
+        const editTimeLimitCheckbox =
+            document.getElementById(
+                'editEnableExamTimeLimit'
+            );
+
+        const editTimeLimitInput =
+            document.getElementById(
+                'editExamTimeLimitMinutes'
+            );
+
+        const hasExamTimeLimit =
+            assign.assessmentType === 'thi' &&
+            assign.examTimeLimitEnabled === true &&
+            Number(assign.examTimeLimitMinutes) > 0;
+
+        if (editTimeLimitOption) {
+            editTimeLimitOption.style.display =
+                assign.assessmentType === 'thi'
+                    ? 'block'
+                    : 'none';
+        }
+
+        if (editTimeLimitCheckbox) {
+            editTimeLimitCheckbox.checked =
+                hasExamTimeLimit;
+        }
+
+        if (editTimeLimitInput) {
+            editTimeLimitInput.value =
+                hasExamTimeLimit
+                    ? String(
+                        assign.examTimeLimitMinutes
+                    )
+                    : '';
+        }
+
+        window.toggleEditExamTimeLimitInput();
         // Đổ dữ liệu thời gian vào form sửa và cho phép Edit
         const editDay = document.getElementById('editCondDay');
         const editHour = document.getElementById('editCondHour');
@@ -5197,6 +5378,42 @@ window.saveAssignmentEdit = async function () {
         watchCondition:
             watchCondition
     };
+
+    // Lưu giới hạn thời gian khi sửa bài Thi
+    if (assign.assessmentType === 'thi') {
+        const timeLimitEnabled =
+            document.getElementById(
+                'editEnableExamTimeLimit'
+            )?.checked === true;
+
+        let timeLimitMinutes = null;
+
+        if (timeLimitEnabled) {
+            timeLimitMinutes = Number(
+                document.getElementById(
+                    'editExamTimeLimitMinutes'
+                )?.value
+            );
+
+            if (
+                !Number.isFinite(timeLimitMinutes) ||
+                timeLimitMinutes <= 0 ||
+                !Number.isInteger(timeLimitMinutes)
+            ) {
+                return alert(
+                    '⚠️ Thời gian làm bài phải là số phút nguyên lớn hơn 0!'
+                );
+            }
+        }
+
+        updateObj.examTimeLimitEnabled =
+            timeLimitEnabled;
+
+        updateObj.examTimeLimitMinutes =
+            timeLimitEnabled
+                ? timeLimitMinutes
+                : null;
+    }
 
     // Thu thập dữ liệu Tự Luận
     if (assign.assessmentType === 'tu_luan' || assign.assessmentType === 'ket_hop' || !assign.assessmentType) {
