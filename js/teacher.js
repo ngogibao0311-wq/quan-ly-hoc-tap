@@ -458,6 +458,316 @@ function typesetMathSafe(target, retryCount = 0) {
     }
 }
 
+// ======================================================
+// DANH SÁCH FILE TẠM CỦA GIÁO VIÊN
+// File chưa được tải lên Cloudflare.
+// ======================================================
+
+function formatPendingUploadFileSize(size) {
+    const bytes = Number(size) || 0;
+
+    if (bytes < 1024) {
+        return `${bytes} B`;
+    }
+
+    if (bytes < 1024 * 1024) {
+        return `${(bytes / 1024).toFixed(1)} KB`;
+    }
+
+    return `${(
+        bytes /
+        (1024 * 1024)
+    ).toFixed(2)} MB`;
+}
+
+function renderPendingUploadFiles(
+    input,
+    files,
+    containerId,
+    onRemove
+) {
+    if (!input) return;
+
+    let container =
+        document.getElementById(containerId);
+
+    if (!container) {
+        container =
+            document.createElement('div');
+
+        container.id = containerId;
+
+        container.style.cssText = `
+            display: none;
+            margin: 8px 0 15px;
+            padding: 10px;
+            border: 1px dashed rgba(102,126,234,.45);
+            border-radius: 10px;
+            background: rgba(255,255,255,.45);
+        `;
+
+        input.insertAdjacentElement(
+            'afterend',
+            container
+        );
+    }
+
+    container.innerHTML = '';
+
+    if (!files.length) {
+        container.style.display = 'none';
+        return;
+    }
+
+    container.style.display = 'block';
+
+    const heading =
+        document.createElement('div');
+
+    heading.textContent =
+        `☁️ ${files.length} file đang chờ tải lên`;
+
+    heading.style.cssText = `
+        font-weight: 700;
+        margin-bottom: 8px;
+        color: #475569;
+        font-size: .9em;
+    `;
+
+    container.appendChild(heading);
+
+    files.forEach((file, index) => {
+        const row =
+            document.createElement('div');
+
+        row.style.cssText = `
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 8px 0;
+            border-top: 1px solid rgba(0,0,0,.07);
+        `;
+
+        const info =
+            document.createElement('div');
+
+        info.style.cssText = `
+            min-width: 0;
+            flex: 1;
+        `;
+
+        const name =
+            document.createElement('div');
+
+        name.textContent =
+            `📎 ${file.name || `File ${index + 1}`}`;
+
+        name.title = file.name || '';
+
+        name.style.cssText = `
+            font-weight: 600;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        `;
+
+        const meta =
+            document.createElement('small');
+
+        meta.textContent =
+            formatPendingUploadFileSize(
+                file.size
+            );
+
+        meta.style.color = '#64748b';
+
+        info.append(name, meta);
+
+        const removeButton =
+            document.createElement('button');
+
+        removeButton.type = 'button';
+        removeButton.textContent = '✖ Xóa';
+
+        removeButton.style.cssText = `
+            width: auto;
+            margin: 0;
+            padding: 6px 10px;
+            border: none;
+            border-radius: 7px;
+            background: #e11d48;
+            color: white;
+            font-weight: 700;
+            cursor: pointer;
+            flex-shrink: 0;
+        `;
+
+        removeButton.addEventListener(
+            'click',
+            event => {
+                event.preventDefault();
+                event.stopPropagation();
+
+                onRemove(index);
+            }
+        );
+
+        row.append(
+            info,
+            removeButton
+        );
+
+        container.appendChild(row);
+    });
+}
+
+// ======================================================
+// ĐÍNH KÈM TÀI LIỆU KHI GIAO BÀI
+// ======================================================
+
+window.renderTeacherAssignmentPendingFiles =
+    function () {
+        const input =
+            document.getElementById(
+                'fileInput'
+            );
+
+        const files =
+            Array.from(
+                dtTeacherAssign.files || []
+            );
+
+        renderPendingUploadFiles(
+            input,
+            files,
+            'pending-assignment-files',
+            window.removeTeacherAssignmentPendingFile
+        );
+    };
+
+window.removeTeacherAssignmentPendingFile =
+    function (fileIndex) {
+        const input =
+            document.getElementById(
+                'fileInput'
+            );
+
+        const files =
+            Array.from(
+                dtTeacherAssign.files || []
+            );
+
+        dtTeacherAssign.items.clear();
+
+        files.forEach((file, index) => {
+            if (
+                index !== Number(fileIndex)
+            ) {
+                dtTeacherAssign.items.add(
+                    file
+                );
+            }
+        });
+
+        if (input) {
+            input.files =
+                dtTeacherAssign.files;
+
+            if (
+                dtTeacherAssign.files
+                    .length === 0
+            ) {
+                input.value = '';
+            }
+        }
+
+        window
+            .renderTeacherAssignmentPendingFiles();
+    };
+
+// ======================================================
+// FILE CHỮA BÀI KHI CHẤM ĐIỂM
+// ======================================================
+
+window.renderTeacherGradePendingFiles =
+    function (subId) {
+        const input =
+            document.getElementById(
+                `teacherFile-${subId}`
+            );
+
+        const dataTransfer =
+            window.teacherGradeDTs[subId];
+
+        const files =
+            dataTransfer
+                ? Array.from(
+                    dataTransfer.files || []
+                )
+                : [];
+
+        renderPendingUploadFiles(
+            input,
+            files,
+            `pending-teacher-grade-files-${subId}`,
+            index => {
+                window
+                    .removeTeacherGradePendingFile(
+                        subId,
+                        index
+                    );
+            }
+        );
+    };
+
+window.removeTeacherGradePendingFile =
+    function (subId, fileIndex) {
+        const input =
+            document.getElementById(
+                `teacherFile-${subId}`
+            );
+
+        const dataTransfer =
+            window.teacherGradeDTs[subId];
+
+        if (!dataTransfer) return;
+
+        const files =
+            Array.from(
+                dataTransfer.files || []
+            );
+
+        dataTransfer.items.clear();
+
+        files.forEach((file, index) => {
+            if (
+                index !== Number(fileIndex)
+            ) {
+                dataTransfer.items.add(
+                    file
+                );
+            }
+        });
+
+        if (input) {
+            input.files =
+                dataTransfer.files;
+
+            if (
+                dataTransfer.files
+                    .length === 0
+            ) {
+                input.value = '';
+            }
+        }
+
+        window
+            .renderTeacherGradePendingFiles(
+                subId
+            );
+    };
+
 window.handleTeacherFileAccumulate = function (input, subId) {
     if (!window.teacherGradeDTs[subId]) window.teacherGradeDTs[subId] = new DataTransfer();
     const existingFiles = Array.from(window.teacherGradeDTs[subId].files).map(f => f.name + '_' + f.size);
@@ -481,6 +791,10 @@ window.handleTeacherFileAccumulate = function (input, subId) {
     if (hasOversize && window.teacherGradeDTs[subId].files.length === 0) {
         input.value = '';
     }
+
+    window.renderTeacherGradePendingFiles(
+        subId
+    );
 };
 
 window.onload = async function () {
@@ -1711,6 +2025,9 @@ async function createAssignment() {
     );
     dtTeacherAssign.items.clear(); attachedFileData = null;
 
+    window
+        .renderTeacherAssignmentPendingFiles();
+
     // Xóa bản nháp đi để lần sau mở form lên là form trống
     localStorage.removeItem('draft_teacher_title');
     localStorage.removeItem('draft_teacher_desc');
@@ -2619,6 +2936,8 @@ function initFileListener() {
         if (hasOversize && dtTeacherAssign.files.length === 0) {
             fInput.value = '';
         }
+        window
+            .renderTeacherAssignmentPendingFiles();
     });
 }
 
@@ -3484,9 +3803,32 @@ async function gradeSubmission(subId) {
         if (sub) {
             const updateObj = { grade: grade, teacherComment: commentVal, isRegrading: false };
             if (fileDataArray) updateObj.teacherFile = fileDataArray;
-            await updateDB('submissions', sub._fbKey, updateObj);
+            await updateDB(
+                'submissions',
+                sub._fbKey,
+                updateObj
+            );
 
-            alert("Đã chấm điểm và lưu nhận xét thành công!");
+            // Xóa bộ đệm file sau khi lưu thành công
+            if (
+                window.teacherGradeDTs[subId]
+            ) {
+                delete window
+                    .teacherGradeDTs[subId];
+            }
+
+            if (fileInput) {
+                fileInput.value = '';
+            }
+
+            window
+                .renderTeacherGradePendingFiles(
+                    subId
+                );
+
+            alert(
+                "Đã chấm điểm và lưu nhận xét thành công!"
+            );
 
             await loadSubmissions();
 

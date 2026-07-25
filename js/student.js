@@ -512,6 +512,294 @@ if (nameElement) {
 // 2. GỌI HÀM GIAO DIỆN SAU KHI CÁC BIẾN QUAN TRỌNG ĐÃ SẴN SÀNG
 updateAvatarDisplay(currentUser.avatar);
 
+// ======================================================
+// DANH SÁCH FILE BÀI LÀM TẠM
+// File chưa được tải lên Cloudflare.
+// ======================================================
+
+function formatStudentPendingFileSize(
+    size
+) {
+    const bytes = Number(size) || 0;
+
+    if (bytes < 1024) {
+        return `${bytes} B`;
+    }
+
+    if (bytes < 1024 * 1024) {
+        return `${(
+            bytes / 1024
+        ).toFixed(1)} KB`;
+    }
+
+    return `${(
+        bytes /
+        (1024 * 1024)
+    ).toFixed(2)} MB`;
+}
+
+window.renderStudentPendingFiles =
+    function (assignId) {
+        const input =
+            document.getElementById(
+                `studentFile-${assignId}`
+            );
+
+        if (!input) return;
+
+        const dataTransfer =
+            window.studentSubmitDTs[
+            assignId
+            ];
+
+        const files =
+            dataTransfer
+                ? Array.from(
+                    dataTransfer.files || []
+                )
+                : [];
+
+        const containerId =
+            `pending-student-files-${assignId}`;
+
+        let container =
+            document.getElementById(
+                containerId
+            );
+
+        if (!container) {
+            container =
+                document.createElement(
+                    'div'
+                );
+
+            container.id =
+                containerId;
+
+            container.style.cssText = `
+                display: none;
+                margin: -5px 0 15px;
+                padding: 10px;
+                border: 1px dashed
+                    rgba(102,126,234,.45);
+                border-radius: 10px;
+                background:
+                    rgba(255,255,255,.45);
+            `;
+
+            input.insertAdjacentElement(
+                'afterend',
+                container
+            );
+        }
+
+        container.innerHTML = '';
+
+        if (!files.length) {
+            container.style.display =
+                'none';
+
+            return;
+        }
+
+        container.style.display =
+            'block';
+
+        const heading =
+            document.createElement(
+                'div'
+            );
+
+        heading.textContent =
+            `☁️ ${files.length} file đang chờ nộp`;
+
+        heading.style.cssText = `
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #475569;
+            font-size: .9em;
+        `;
+
+        container.appendChild(
+            heading
+        );
+
+        files.forEach(
+            (file, index) => {
+                const row =
+                    document.createElement(
+                        'div'
+                    );
+
+                row.style.cssText = `
+                    display: flex;
+                    align-items: center;
+                    justify-content:
+                        space-between;
+                    gap: 10px;
+                    padding: 8px 0;
+                    border-top:
+                        1px solid
+                        rgba(0,0,0,.07);
+                `;
+
+                const info =
+                    document.createElement(
+                        'div'
+                    );
+
+                info.style.cssText = `
+                    min-width: 0;
+                    flex: 1;
+                `;
+
+                const name =
+                    document.createElement(
+                        'div'
+                    );
+
+                name.textContent =
+                    `📎 ${file.name ||
+                    `File ${index + 1}`
+                    }`;
+
+                name.title =
+                    file.name || '';
+
+                name.style.cssText = `
+                    font-weight: 600;
+                    overflow: hidden;
+                    text-overflow:
+                        ellipsis;
+                    white-space: nowrap;
+                `;
+
+                const meta =
+                    document.createElement(
+                        'small'
+                    );
+
+                meta.textContent =
+                    formatStudentPendingFileSize(
+                        file.size
+                    );
+
+                meta.style.color =
+                    '#64748b';
+
+                info.append(
+                    name,
+                    meta
+                );
+
+                const removeButton =
+                    document.createElement(
+                        'button'
+                    );
+
+                removeButton.type =
+                    'button';
+
+                removeButton.textContent =
+                    '✖ Xóa';
+
+                removeButton.style.cssText = `
+                    width: auto;
+                    margin: 0;
+                    padding: 6px 10px;
+                    border: none;
+                    border-radius: 7px;
+                    background: #e11d48;
+                    color: white;
+                    font-weight: 700;
+                    cursor: pointer;
+                    flex-shrink: 0;
+                `;
+
+                removeButton.addEventListener(
+                    'click',
+                    event => {
+                        event
+                            .preventDefault();
+
+                        event
+                            .stopPropagation();
+
+                        window
+                            .removeStudentPendingFile(
+                                assignId,
+                                index
+                            );
+                    }
+                );
+
+                row.append(
+                    info,
+                    removeButton
+                );
+
+                container.appendChild(
+                    row
+                );
+            }
+        );
+    };
+
+window.removeStudentPendingFile =
+    function (
+        assignId,
+        fileIndex
+    ) {
+        const input =
+            document.getElementById(
+                `studentFile-${assignId}`
+            );
+
+        const dataTransfer =
+            window.studentSubmitDTs[
+            assignId
+            ];
+
+        if (!dataTransfer) return;
+
+        const files =
+            Array.from(
+                dataTransfer.files || []
+            );
+
+        dataTransfer.items.clear();
+
+        files.forEach(
+            (file, index) => {
+                if (
+                    index !==
+                    Number(fileIndex)
+                ) {
+                    dataTransfer
+                        .items
+                        .add(file);
+                }
+            }
+        );
+
+        if (input) {
+            input.files =
+                dataTransfer.files;
+
+            if (
+                dataTransfer.files
+                    .length === 0
+            ) {
+                input.value = '';
+            }
+        }
+
+        window
+            .renderStudentPendingFiles(
+                assignId
+            );
+    };
+
 window.handleStudentFileAccumulate = function (input, assignId) {
     if (!window.studentSubmitDTs[assignId]) window.studentSubmitDTs[assignId] = new DataTransfer();
     const existingFiles = Array.from(window.studentSubmitDTs[assignId].files).map(f => f.name + '_' + f.size);
@@ -536,6 +824,10 @@ window.handleStudentFileAccumulate = function (input, assignId) {
     if (hasOversize && window.studentSubmitDTs[assignId].files.length === 0) {
         input.value = '';
     }
+
+    window.renderStudentPendingFiles(
+        assignId
+    );
 };
 // ==============================================================
 
