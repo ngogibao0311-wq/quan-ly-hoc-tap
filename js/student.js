@@ -5762,9 +5762,9 @@ window.spinWheel = async function () {
         else targetSlice = 4;
         finalRewardStr = "Chúc may mắn lần sau";
     }
-    else if (rand < (cumulative += p.c100)) { targetSlice = 1; finalRewardStr = "100 Coin"; }
-    else if (rand < (cumulative += p.c150)) { targetSlice = 3; finalRewardStr = "150 Coin"; }
-    else if (rand < (cumulative += p.c500)) { targetSlice = 5; finalRewardStr = "500 Coin"; }
+    else if (rand < (cumulative += p.c100)) { targetSlice = 1; finalRewardStr = "50 Coin"; }
+    else if (rand < (cumulative += p.c150)) { targetSlice = 3; finalRewardStr = "70 Coin"; }
+    else if (rand < (cumulative += p.c500)) { targetSlice = 5; finalRewardStr = "200 Coin"; }
     else { targetSlice = 6; finalRewardStr = "Quà bí ẩn"; }
 
     const sliceAngle = 360 / 7;
@@ -5785,9 +5785,9 @@ window.spinWheel = async function () {
         let wonCoins = 0;
 
         // Xử lý kết quả quay
-        if (finalRewardStr === "100 Coin") wonCoins = 100;
-        else if (finalRewardStr === "150 Coin") wonCoins = 150;
-        else if (finalRewardStr === "500 Coin") wonCoins = 500;
+        if (finalRewardStr === "50 Coin") wonCoins = 50;
+        else if (finalRewardStr === "70 Coin") wonCoins = 70;
+        else if (finalRewardStr === "200 Coin") wonCoins = 200;
         else if (finalRewardStr === "Quà bí ẩn") {
             const cotichItems = (typeof StoreConfig !== 'undefined') ? StoreConfig.items.filter(i => i.tag && i.tag.toLowerCase() === 'cổ tích') : [];
             if (cotichItems.length > 0) {
@@ -5933,9 +5933,9 @@ window.spinMultipleWheel = async function () {
         let cumulative = 0;
 
         if (rand < (cumulative += p.miss)) { missCount++; }
-        else if (rand < (cumulative += p.c100)) { totalCoinsWon += 100; }
-        else if (rand < (cumulative += p.c150)) { totalCoinsWon += 150; }
-        else if (rand < (cumulative += p.c500)) { totalCoinsWon += 500; }
+        else if (rand < (cumulative += p.c100)) { totalCoinsWon += 50; }
+        else if (rand < (cumulative += p.c150)) { totalCoinsWon += 70; }
+        else if (rand < (cumulative += p.c500)) { totalCoinsWon += 200; }
         else {
             // Trúng Quà bí ẩn
             if (cotichItems.length > 0) {

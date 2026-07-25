@@ -2803,6 +2803,154 @@ function appendSubmissionCardWithoutDuplicate(list, newCard) {
     }
 }
 
+// ======================================================
+// GIÁO VIÊN XÓA TỪNG FILE HỌC SINH ĐÃ NỘP
+// Xóa file Cloudflare R2 trước, sau đó mới sửa Firebase.
+// ======================================================
+
+let deletingStudentSubmissionFile = false;
+
+window.deleteStudentSubmissionFile = async function (
+    submissionKey,
+    fileIndex
+) {
+    if (deletingStudentSubmissionFile) {
+        alert('⏳ Hệ thống đang xử lý một file khác.');
+        return;
+    }
+
+    const confirmed = confirm(
+        'Bạn có chắc chắn muốn xóa file học sinh đã nộp không?\n\n' +
+        'File sẽ bị xóa vĩnh viễn khỏi Cloudflare và không thể khôi phục.'
+    );
+
+    if (!confirmed) {
+        return;
+    }
+
+    deletingStudentSubmissionFile = true;
+
+    const button = document.getElementById(
+        `delete-student-file-${submissionKey}-${fileIndex}`
+    );
+
+    const oldButtonHTML = button
+        ? button.innerHTML
+        : '';
+
+    if (button) {
+        button.disabled = true;
+        button.innerHTML = '⏳ Đang xóa...';
+        button.style.opacity = '0.65';
+        button.style.cursor = 'not-allowed';
+    }
+
+    try {
+        const submissionRef = db.ref(
+            `submissions/${submissionKey}`
+        );
+
+        const snapshot = await submissionRef.once('value');
+
+        if (!snapshot.exists()) {
+            throw new Error(
+                'Bài nộp không còn tồn tại.'
+            );
+        }
+
+        const submission = snapshot.val() || {};
+
+        const currentFiles = Array.isArray(submission.file)
+            ? [...submission.file]
+            : (
+                submission.file
+                    ? [submission.file]
+                    : []
+            );
+
+        const normalizedFileIndex = Number(fileIndex);
+
+        if (
+            !Number.isInteger(normalizedFileIndex) ||
+            normalizedFileIndex < 0 ||
+            normalizedFileIndex >= currentFiles.length
+        ) {
+            throw new Error(
+                'Không tìm thấy file cần xóa.'
+            );
+        }
+
+        const fileToDelete =
+            currentFiles[normalizedFileIndex];
+
+        /*
+         * Bắt buộc xóa file thật trên Cloudflare trước.
+         * Nếu Cloudflare báo lỗi thì không sửa Firebase.
+         */
+        await deleteStoredFilesBeforeFirebase(
+            fileToDelete,
+            'file học sinh đã nộp'
+        );
+
+        currentFiles.splice(
+            normalizedFileIndex,
+            1
+        );
+
+        /*
+         * Giữ tương thích cấu trúc dữ liệu cũ:
+         * - Không còn file: xóa trường file.
+         * - Còn một file: lưu object.
+         * - Còn nhiều file: lưu array.
+         */
+        if (currentFiles.length === 0) {
+            await submissionRef
+                .child('file')
+                .remove();
+        } else if (currentFiles.length === 1) {
+            await submissionRef
+                .child('file')
+                .set(currentFiles[0]);
+        } else {
+            await submissionRef
+                .child('file')
+                .set(currentFiles);
+        }
+
+        alert(
+            '✅ Đã xóa file học sinh khỏi Cloudflare và bài nộp.'
+        );
+
+        /*
+         * Tải lại danh sách, không ảnh hưởng điểm,
+         * bài viết, nhận xét và file chữa bài.
+         */
+        if (typeof loadSubmissions === 'function') {
+            await loadSubmissions(false);
+        }
+    } catch (error) {
+        console.error(
+            'Lỗi xóa file học sinh:',
+            error
+        );
+
+        alert(
+            '❌ Không thể xóa file học sinh: ' +
+            error.message
+        );
+
+        if (button) {
+            button.disabled = false;
+            button.innerHTML =
+                oldButtonHTML || '🗑️ Xóa file';
+            button.style.opacity = '1';
+            button.style.cursor = 'pointer';
+        }
+    } finally {
+        deletingStudentSubmissionFile = false;
+    }
+};
+
 async function loadSubmissions(isLoadMore = false) {
     const list = document.getElementById('submissionsList');
     if (!list) return;
@@ -2890,12 +3038,69 @@ async function loadSubmissions(isLoadMore = false) {
                 ? sub.file
                 : [sub.file];
 
-            sFiles.forEach(f => {
-                studentFileHTML += window.buildFilePreviewHTML(
-                    f,
+            const submissionFirebaseKey =
+                String(sub._fbKey || sub.id || '');
+
+            sFiles.forEach((file, fileIndex) => {
+                const fileName =
+                    file?.name ||
+                    file?.fileName ||
+                    `File ${fileIndex + 1}`;
+
+                studentFileHTML += `
+            <div
+                id="student-submission-file-${submissionFirebaseKey}-${fileIndex}"
+                style="
+                    position: relative;
+                    background: rgba(124, 58, 237, 0.06);
+                    border: 1px solid rgba(124, 58, 237, 0.18);
+                    border-radius: 10px;
+                    padding: 10px;
+                    margin-top: 10px;
+                "
+            >
+                ${window.buildFilePreviewHTML(
+                    file,
                     '📎 File HS',
-                    { tone: 'purple' }
-                );
+                    {
+                        tone: 'purple'
+                    }
+                )}
+
+                <div style="
+                    display: flex;
+                    justify-content: flex-end;
+                    margin-top: 8px;
+                ">
+                    <button
+                        type="button"
+                        id="delete-student-file-${submissionFirebaseKey}-${fileIndex}"
+                        onclick="event.stopPropagation(); deleteStudentSubmissionFile('${submissionFirebaseKey}', ${fileIndex})"
+                        title="Xóa vĩnh viễn ${fileName.replace(/"/g, '&quot;')}"
+                        style="
+                            width: auto;
+                            margin: 0;
+                            padding: 7px 12px;
+                            border: none;
+                            border-radius: 7px;
+                            background: linear-gradient(
+                                135deg,
+                                #ef4444,
+                                #be123c
+                            );
+                            color: white;
+                            font-size: 0.85em;
+                            font-weight: 700;
+                            cursor: pointer;
+                            box-shadow: 0 3px 8px
+                                rgba(190, 18, 60, 0.2);
+                        "
+                    >
+                        🗑️ Xóa file
+                    </button>
+                </div>
+            </div>
+        `;
             });
         }
 
