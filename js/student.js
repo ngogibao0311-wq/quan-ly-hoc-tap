@@ -9649,219 +9649,887 @@ async function renderStudentRoadmapCore() {
     }
 }
 
-// ================= HÀM ĐÓNG / MỞ VÀ XỬ LÝ QUY ĐỔI COIN ĐỘNG =================
-window.currentConvertDir = 'M2C'; // Mặc định là Tiền đổi sang Coin
+// ================= QUY ĐỔI TIỀN VÀ COIN =================
+// Tiền → Coin: 1 lần/tháng, tối đa 500đ.
+// Coin → Tiền: 1 lần/tuần, tối đa 500 Coin.
+// Tuần bắt đầu từ thứ Hai, tính theo múi giờ Việt Nam UTC+7.
+
+const STUDENT_CONVERSION_RULES = Object.freeze({
+    M2C: Object.freeze({
+        maxAmount: 500,
+        periodType: 'month',
+        limitMessage:
+            '* Lưu ý: Chỉ được đổi 1 lần/tháng, tối đa 500đ sang Coin.'
+    }),
+
+    C2M: Object.freeze({
+        maxAmount: 500,
+        periodType: 'week',
+        limitMessage:
+            '* Lưu ý: Chỉ được đổi 1 lần/tuần, tối đa 500 Coin sang Tiền lộ trình.'
+    })
+});
+
+function getStudentConversionRule(direction) {
+    return STUDENT_CONVERSION_RULES[
+        direction === 'C2M' ? 'C2M' : 'M2C'
+    ];
+}
+
+// Lấy thời gian gần với máy chủ Firebase,
+// tránh việc học sinh đổi ngày giờ trên máy.
+async function getStudentConversionServerNow() {
+    try {
+        const snapshot = await db
+            .ref('.info/serverTimeOffset')
+            .once('value');
+
+        return Date.now() + (Number(snapshot.val()) || 0);
+    } catch (error) {
+        console.warn(
+            'Không lấy được giờ Firebase, tạm dùng giờ thiết bị:',
+            error
+        );
+
+        return Date.now();
+    }
+}
+
+function getVietnamCalendarParts(timestamp) {
+    const VIETNAM_OFFSET = 7 * 60 * 60 * 1000;
+
+    const date = new Date(
+        Number(timestamp || Date.now()) +
+        VIETNAM_OFFSET
+    );
+
+    return {
+        year: date.getUTCFullYear(),
+        month: date.getUTCMonth() + 1,
+        day: date.getUTCDate()
+    };
+}
+
+function padStudentConversionDatePart(value) {
+    return String(value).padStart(2, '0');
+}
+
+// M2C tạo khóa tháng: 2026-07
+// C2M tạo khóa ngày thứ Hai đầu tuần: 2026-07-27
+function getStudentConversionPeriodKey(
+    direction,
+    timestamp = Date.now()
+) {
+    const rule = getStudentConversionRule(direction);
+    const parts = getVietnamCalendarParts(timestamp);
+
+    if (rule.periodType === 'month') {
+        return (
+            `${parts.year}-` +
+            `${padStudentConversionDatePart(parts.month)}`
+        );
+    }
+
+    const date = new Date(Date.UTC(
+        parts.year,
+        parts.month - 1,
+        parts.day
+    ));
+
+    // Chủ nhật được đổi thành 7.
+    const dayOfWeek = date.getUTCDay() || 7;
+
+    // Lùi về thứ Hai đầu tuần.
+    date.setUTCDate(
+        date.getUTCDate() - dayOfWeek + 1
+    );
+
+    return [
+        date.getUTCFullYear(),
+        padStudentConversionDatePart(
+            date.getUTCMonth() + 1
+        ),
+        padStudentConversionDatePart(
+            date.getUTCDate()
+        )
+    ].join('-');
+}
+
+function getStudentConversionUsagePath(
+    direction,
+    timestamp = Date.now()
+) {
+    const normalizedDirection =
+        direction === 'C2M' ? 'C2M' : 'M2C';
+
+    const periodKey = getStudentConversionPeriodKey(
+        normalizedDirection,
+        timestamp
+    );
+
+    return (
+        `student_conversion_usage/` +
+        `${currentUser.username}/` +
+        `${normalizedDirection}/` +
+        `${periodKey}`
+    );
+}
+
+function getStudentConversionUsedMessage(direction) {
+    if (direction === 'C2M') {
+        return (
+            '⛔ Bạn đã dùng lượt đổi Coin → Tiền của tuần này. ' +
+            'Mỗi tuần chỉ được đổi 1 lần.'
+        );
+    }
+
+    return (
+        '⛔ Bạn đã dùng lượt đổi Tiền → Coin của tháng này. ' +
+        'Mỗi tháng chỉ được đổi 1 lần.'
+    );
+}
+
+// Giữ lượt trước khi cộng/trừ tiền.
+// Firebase Transaction ngăn hai tab cùng đổi một lúc.
+async function reserveStudentConversionUsage(
+    direction,
+    amount,
+    serverNow
+) {
+    const normalizedDirection =
+        direction === 'C2M' ? 'C2M' : 'M2C';
+
+    const periodKey = getStudentConversionPeriodKey(
+        normalizedDirection,
+        serverNow
+    );
+
+    const usagePath = getStudentConversionUsagePath(
+        normalizedDirection,
+        serverNow
+    );
+
+    const reservationId = [
+        serverNow,
+        Math.random().toString(36).slice(2, 12)
+    ].join('_');
+
+    const transactionResult = await db
+        .ref(usagePath)
+        .transaction(currentValue => {
+            // Đã tồn tại bản ghi nghĩa là đã dùng hoặc đang giữ lượt.
+            if (currentValue) {
+                return;
+            }
+
+            return {
+                used: true,
+                status: 'reserved',
+                direction: normalizedDirection,
+                amount: amount,
+                periodKey: periodKey,
+                reservationId: reservationId,
+                createdAt: serverNow
+            };
+        });
+
+    if (!transactionResult.committed) {
+        const error = new Error(
+            'CONVERSION_LIMIT_ALREADY_USED'
+        );
+
+        error.code =
+            'CONVERSION_LIMIT_ALREADY_USED';
+
+        throw error;
+    }
+
+    return {
+        direction: normalizedDirection,
+        periodKey: periodKey,
+        usagePath: usagePath,
+        reservationId: reservationId,
+        serverNow: serverNow
+    };
+}
+
+// Chuyển lượt từ reserved sang completed.
+async function completeStudentConversionUsage(reservation) {
+    if (!reservation) return;
+
+    await db
+        .ref(reservation.usagePath)
+        .transaction(currentValue => {
+            if (
+                !currentValue ||
+                currentValue.status !== 'reserved' ||
+                currentValue.reservationId !==
+                    reservation.reservationId
+            ) {
+                return;
+            }
+
+            return {
+                ...currentValue,
+                status: 'completed',
+                completedAt: reservation.serverNow
+            };
+        });
+}
+
+// Giao dịch lỗi thì xóa lượt đang giữ.
+async function releaseStudentConversionUsage(reservation) {
+    if (!reservation) return;
+
+    try {
+        await db
+            .ref(reservation.usagePath)
+            .transaction(currentValue => {
+                if (
+                    !currentValue ||
+                    currentValue.status !== 'reserved' ||
+                    currentValue.reservationId !==
+                        reservation.reservationId
+                ) {
+                    return;
+                }
+
+                return null;
+            });
+    } catch (error) {
+        console.warn(
+            'Không thể giải phóng lượt quy đổi:',
+            error
+        );
+    }
+}
+
+// Kiểm tra và hiển thị học sinh đã dùng lượt hay chưa.
+window.refreshStudentConversionLimitNotice =
+    async function (
+        direction = window.currentConvertDir
+    ) {
+        const normalizedDirection =
+            direction === 'C2M' ? 'C2M' : 'M2C';
+
+        const limitText = document.getElementById(
+            'convertLimitText'
+        );
+
+        if (!limitText) return;
+
+        const rule = getStudentConversionRule(
+            normalizedDirection
+        );
+
+        limitText.style.display = 'block';
+        limitText.innerText = rule.limitMessage;
+
+        try {
+            const serverNow =
+                await getStudentConversionServerNow();
+
+            const snapshot = await db
+                .ref(
+                    getStudentConversionUsagePath(
+                        normalizedDirection,
+                        serverNow
+                    )
+                )
+                .once('value');
+
+            // Người dùng đã bấm sang hướng khác thì không ghi đè.
+            if (
+                window.currentConvertDir !==
+                normalizedDirection
+            ) {
+                return;
+            }
+
+            if (snapshot.exists()) {
+                limitText.innerText =
+                    getStudentConversionUsedMessage(
+                        normalizedDirection
+                    );
+            }
+        } catch (error) {
+            console.warn(
+                'Không kiểm tra được lượt quy đổi:',
+                error
+            );
+        }
+    };
+
+window.currentConvertDir = 'M2C';
 
 window.openCoinConversionModal = function () {
-    // THÊM ĐOẠN CHẶN NÀY
     if (window.isConversionEnabled === false) {
-        alert("🔒 Chức năng Bảng quy đổi hiện đang bị Giáo viên tạm khóa!");
+        alert(
+            '🔒 Chức năng Bảng quy đổi hiện đang bị Giáo viên tạm khóa!'
+        );
         return;
     }
 
     if (window.currentActiveExamId) {
-        window.showExamLockWarning("⚠️ Bảng quy đổi Coin tạm khóa khi thi!");
+        window.showExamLockWarning(
+            '⚠️ Bảng quy đổi Coin tạm khóa khi thi!'
+        );
         return;
     }
-    document.getElementById('convertAmount').value = '';
-    document.getElementById('convertResult').value = '';
-    setConvertDir('M2C'); // Reset về mặc định
-    document.getElementById('coinConversionModal').classList.add('active');
-    window.initCashWithdrawInterface();
+
+    const amountInput =
+        document.getElementById('convertAmount');
+
+    const resultInput =
+        document.getElementById('convertResult');
+
+    if (amountInput) {
+        amountInput.value = '';
+    }
+
+    if (resultInput) {
+        resultInput.value = '';
+    }
+
+    setConvertDir('M2C');
+
+    document
+        .getElementById('coinConversionModal')
+        ?.classList.add('active');
+
+    if (
+        typeof window.initCashWithdrawInterface ===
+        'function'
+    ) {
+        window.initCashWithdrawInterface();
+    }
 };
 
 window.closeCoinConversionModal = function () {
-    document.getElementById('coinConversionModal').classList.remove('active');
+    document
+        .getElementById('coinConversionModal')
+        ?.classList.remove('active');
 };
 
-// Đổi giao diện và chế độ tùy theo hướng mũi tên
-window.setConvertDir = function (dir) {
-    window.currentConvertDir = dir;
-    const btnM2C = document.getElementById('btnDirM2C');
-    const btnC2M = document.getElementById('btnDirC2M');
-    const lblSource = document.getElementById('lblConvertSource');
-    const lblTarget = document.getElementById('lblConvertTarget');
-    const limitText = document.getElementById('convertLimitText');
-    const resultInput = document.getElementById('convertResult');
+window.setConvertDir = function (direction) {
+    const normalizedDirection =
+        direction === 'C2M' ? 'C2M' : 'M2C';
 
-    if (dir === 'M2C') {
-        btnM2C.style.background = '#059669'; btnM2C.style.color = 'white'; btnM2C.style.border = 'none';
-        btnC2M.style.background = 'transparent'; btnC2M.style.color = '#d35400'; btnC2M.style.border = '2px solid #d35400';
+    window.currentConvertDir = normalizedDirection;
 
-        lblSource.innerText = 'Tiền Lộ Trình (đ):'; lblTarget.innerText = 'Nhận được (Coin):';
-        limitText.style.display = 'none'; resultInput.style.color = '#059669';
-    } else {
-        btnC2M.style.background = '#d35400'; btnC2M.style.color = 'white'; btnC2M.style.border = 'none';
-        btnM2C.style.background = 'transparent'; btnM2C.style.color = '#059669'; btnM2C.style.border = '2px solid #059669';
+    const btnM2C =
+        document.getElementById('btnDirM2C');
 
-        lblSource.innerText = 'Số dư Coin (🪙):'; lblTarget.innerText = 'Nhận được (đ):';
-        limitText.style.display = 'block'; resultInput.style.color = '#d35400';
-    }
-    updateConvertPreview();
-};
+    const btnC2M =
+        document.getElementById('btnDirC2M');
 
-// Đồng bộ hóa 2 ô nhập liệu
-window.updateConvertPreview = function () {
-    const amount = document.getElementById('convertAmount').value;
-    document.getElementById('convertResult').value = amount ? amount : '';
-};
+    const lblSource =
+        document.getElementById('lblConvertSource');
 
-// Thực thi giao dịch với cơ sở dữ liệu
-window.executeConversion = async function () {
-    const amountInput = document.getElementById('convertAmount');
-    const amount = parseInt(amountInput.value);
+    const lblTarget =
+        document.getElementById('lblConvertTarget');
 
-    if (isNaN(amount) || amount <= 0) return alert("⚠️ Vui lòng nhập số lượng hợp lệ!");
+    const limitText =
+        document.getElementById('convertLimitText');
 
-    // 1. Lấy dữ liệu Coin hiện tại
-    const coinSnap = await db.ref('student_coins/' + currentUser.username).once('value');
-    let currentCoins = coinSnap.val() || 0;
+    const resultInput =
+        document.getElementById('convertResult');
 
-    // 2. Tính dữ liệu Tiền Lộ Trình Gốc (Theo điểm)
-    const [assignments, submissions] = await Promise.all([
-        getDB('assignments'),
-        getDB('submissions')
-    ]);
+    const amountInput =
+        document.getElementById('convertAmount');
 
-    const baseRoadmapMoney = calculateRoadmapBaseMoney(
-        assignments,
-        submissions,
-        currentUser.username
+    const rule = getStudentConversionRule(
+        normalizedDirection
     );
 
-    // 3. Lấy biến động tiền do lịch sử quy đổi trước đây (Offset)
-    const offsetSnap = await db.ref('student_money_offset/' + currentUser.username).once('value');
-    let currentOffset = Number(offsetSnap.val()) || 0;
+    if (amountInput) {
+        amountInput.value = '';
+        amountInput.min = '1';
+        amountInput.max = String(rule.maxAmount);
+        amountInput.step = '1';
 
-    let currentMoney = baseRoadmapMoney + currentOffset;
-    if (currentMoney < 0) currentMoney = 0;
+        amountInput.placeholder =
+            normalizedDirection === 'M2C'
+                ? 'Nhập số tiền (tối đa 500đ)'
+                : 'Nhập số Coin (tối đa 500)';
+    }
 
-    let successMessage = "";
-    const coinPath = `student_coins/${currentUser.username}`;
-    const offsetPath = `student_money_offset/${currentUser.username}`;
+    if (resultInput) {
+        resultInput.value = '';
+    }
 
-    let auditCoinDelta = 0;
-    let auditOffsetDelta = 0;
-    let auditDirection = '';
+    if (limitText) {
+        limitText.style.display = 'block';
+        limitText.innerText = rule.limitMessage;
+    }
+
+    if (normalizedDirection === 'M2C') {
+        if (btnM2C) {
+            btnM2C.style.background = '#059669';
+            btnM2C.style.color = 'white';
+            btnM2C.style.border = 'none';
+        }
+
+        if (btnC2M) {
+            btnC2M.style.background = 'transparent';
+            btnC2M.style.color = '#d35400';
+            btnC2M.style.border =
+                '2px solid #d35400';
+        }
+
+        if (lblSource) {
+            lblSource.innerText =
+                'Tiền Lộ Trình (đ):';
+        }
+
+        if (lblTarget) {
+            lblTarget.innerText =
+                'Nhận được (Coin):';
+        }
+
+        if (resultInput) {
+            resultInput.style.color = '#059669';
+        }
+    } else {
+        if (btnC2M) {
+            btnC2M.style.background = '#d35400';
+            btnC2M.style.color = 'white';
+            btnC2M.style.border = 'none';
+        }
+
+        if (btnM2C) {
+            btnM2C.style.background = 'transparent';
+            btnM2C.style.color = '#059669';
+            btnM2C.style.border =
+                '2px solid #059669';
+        }
+
+        if (lblSource) {
+            lblSource.innerText =
+                'Số dư Coin (🪙):';
+        }
+
+        if (lblTarget) {
+            lblTarget.innerText =
+                'Nhận được (đ):';
+        }
+
+        if (resultInput) {
+            resultInput.style.color = '#d35400';
+        }
+    }
+
+    updateConvertPreview();
+
+    window
+        .refreshStudentConversionLimitNotice(
+            normalizedDirection
+        )
+        .catch(error => {
+            console.warn(
+                'Không cập nhật được giới hạn:',
+                error
+            );
+        });
+};
+
+// Đồng bộ kết quả theo tỉ lệ 1:1.
+window.updateConvertPreview = function () {
+    const amountInput =
+        document.getElementById('convertAmount');
+
+    const resultInput =
+        document.getElementById('convertResult');
+
+    if (!amountInput || !resultInput) return;
+
+    const rawAmount =
+        String(amountInput.value || '').trim();
+
+    const amount = Number(rawAmount);
+
+    const rule = getStudentConversionRule(
+        window.currentConvertDir
+    );
+
+    // Tự động kéo về 500 nếu nhập lớn hơn giới hạn.
+    if (
+        rawAmount &&
+        Number.isFinite(amount) &&
+        amount > rule.maxAmount
+    ) {
+        amountInput.value =
+            String(rule.maxAmount);
+
+        resultInput.value =
+            String(rule.maxAmount);
+
+        return;
+    }
+
+    resultInput.value = rawAmount;
+};
+
+// Thực hiện quy đổi.
+window.executeConversion = async function () {
+    const amountInput =
+        document.getElementById('convertAmount');
+
+    if (!amountInput) return;
+
+    const rawAmount =
+        String(amountInput.value || '').trim();
+
+    const amount = Number(rawAmount);
+
+    const direction =
+        window.currentConvertDir === 'C2M'
+            ? 'C2M'
+            : 'M2C';
+
+    const rule =
+        getStudentConversionRule(direction);
+
+    if (
+        !rawAmount ||
+        !Number.isInteger(amount) ||
+        amount <= 0
+    ) {
+        alert(
+            '⚠️ Vui lòng nhập số nguyên dương hợp lệ!'
+        );
+        return;
+    }
+
+    if (amount > rule.maxAmount) {
+        alert(
+            direction === 'M2C'
+                ? '❌ Mỗi tháng chỉ được đổi tối đa 500đ sang Coin.'
+                : '❌ Mỗi tuần chỉ được đổi tối đa 500 Coin sang Tiền lộ trình.'
+        );
+        return;
+    }
+
+    const coinPath =
+        `student_coins/${currentUser.username}`;
+
+    const offsetPath =
+        `student_money_offset/${currentUser.username}`;
+
+    let reservation = null;
+    let conversionSucceeded = false;
+
+    // Khi hoàn tác thất bại thì không xóa lượt,
+    // tránh học sinh thực hiện lại và bị cộng/trừ hai lần.
+    let mayReleaseReservation = true;
 
     try {
-        if (window.currentConvertDir === 'M2C') {
-            // Đổi TIỀN LỘ TRÌNH lấy COIN
-            // Transaction trên offset để kiểm tra số tiền mới nhất
-            const offsetTx = await db.ref(offsetPath).transaction(currentOffsetValue => {
-                const latestOffset = Number(currentOffsetValue) || 0;
-                const latestMoney = Math.max(0, baseRoadmapMoney + latestOffset);
+        const [
+            coinSnapshot,
+            assignments,
+            submissions,
+            offsetSnapshot,
+            serverNow
+        ] = await Promise.all([
+            db.ref(coinPath).once('value'),
+            getDB('assignments'),
+            getDB('submissions'),
+            db.ref(offsetPath).once('value'),
+            getStudentConversionServerNow()
+        ]);
 
-                if (amount > latestMoney) {
-                    return; // abort
-                }
+        const currentCoins =
+            Number(coinSnapshot.val()) || 0;
 
-                return latestOffset - amount;
-            });
+        const baseRoadmapMoney =
+            calculateRoadmapBaseMoney(
+                assignments,
+                submissions,
+                currentUser.username
+            );
 
-            if (!offsetTx.committed) {
-                return alert(`❌ Không đủ tiền lộ trình! Số dư có thể đã thay đổi ở tab khác.`);
+        const currentOffset =
+            Number(offsetSnapshot.val()) || 0;
+
+        const currentMoney = Math.max(
+            0,
+            baseRoadmapMoney + currentOffset
+        );
+
+        // Kiểm tra nhanh số dư trước khi giữ lượt.
+        if (
+            direction === 'M2C' &&
+            amount > currentMoney
+        ) {
+            alert('❌ Không đủ tiền lộ trình!');
+            return;
+        }
+
+        if (
+            direction === 'C2M' &&
+            amount > currentCoins
+        ) {
+            alert('❌ Không đủ Coin!');
+            return;
+        }
+
+        reservation =
+            await reserveStudentConversionUsage(
+                direction,
+                amount,
+                serverNow
+            );
+
+        let auditCoinDelta = 0;
+        let auditOffsetDelta = 0;
+        let successMessage = '';
+
+        if (direction === 'M2C') {
+            // Trừ tiền lộ trình theo số mới nhất.
+            const offsetTransaction = await db
+                .ref(offsetPath)
+                .transaction(currentValue => {
+                    const latestOffset =
+                        Number(currentValue) || 0;
+
+                    const latestMoney = Math.max(
+                        0,
+                        baseRoadmapMoney +
+                            latestOffset
+                    );
+
+                    if (amount > latestMoney) {
+                        return;
+                    }
+
+                    return latestOffset - amount;
+                });
+
+            if (!offsetTransaction.committed) {
+                throw new Error(
+                    'INSUFFICIENT_ROADMAP_MONEY'
+                );
             }
 
             try {
-                await incrementNumberTx(coinPath, amount);
-            } catch (e) {
-                // Rollback offset nếu cộng coin lỗi
-                await incrementNumberTx(offsetPath, amount);
-                throw e;
+                await incrementNumberTx(
+                    coinPath,
+                    amount
+                );
+            } catch (conversionError) {
+                try {
+                    // Cộng lại tiền nếu cộng Coin thất bại.
+                    await incrementNumberTx(
+                        offsetPath,
+                        amount
+                    );
+                } catch (rollbackError) {
+                    mayReleaseReservation = false;
+                    conversionError.rollbackError =
+                        rollbackError;
+                }
+
+                throw conversionError;
             }
 
             auditCoinDelta = amount;
             auditOffsetDelta = -amount;
-            auditDirection = 'M2C';
 
-            successMessage = `✅ Quy đổi thành công!\nBạn đã dùng ${amount.toLocaleString('vi-VN')} đ để nhận lại ${amount.toLocaleString('vi-VN')} Coin 🪙.`;
-
+            successMessage =
+                `✅ Quy đổi thành công!\n` +
+                `Bạn đã dùng ` +
+                `${amount.toLocaleString('vi-VN')}đ ` +
+                `để nhận ` +
+                `${amount.toLocaleString('vi-VN')} Coin 🪙.\n` +
+                `Lượt Tiền → Coin của tháng này đã được sử dụng.`;
         } else {
-            // Đổi COIN lấy TIỀN LỘ TRÌNH
-            if (amount > 500) {
-                return alert(`❌ Vượt quá giới hạn! Mỗi lần chỉ được đổi tối đa 500 Coin sang Tiền lộ trình.`);
-            }
-
-            // Transaction trừ coin theo số mới nhất
-            await decrementNumberTx(coinPath, amount);
+            // Trừ Coin.
+            await decrementNumberTx(
+                coinPath,
+                amount
+            );
 
             try {
-                await incrementNumberTx(offsetPath, amount);
-            } catch (e) {
-                // Rollback coin nếu cộng offset lỗi
-                await incrementNumberTx(coinPath, amount);
-                throw e;
+                // Cộng tiền lộ trình.
+                await incrementNumberTx(
+                    offsetPath,
+                    amount
+                );
+            } catch (conversionError) {
+                try {
+                    // Hoàn lại Coin nếu cộng tiền thất bại.
+                    await incrementNumberTx(
+                        coinPath,
+                        amount
+                    );
+                } catch (rollbackError) {
+                    mayReleaseReservation = false;
+                    conversionError.rollbackError =
+                        rollbackError;
+                }
+
+                throw conversionError;
             }
 
             auditCoinDelta = -amount;
             auditOffsetDelta = amount;
-            auditDirection = 'C2M';
 
-            successMessage = `✅ Quy đổi thành công!\nBạn đã dùng ${amount.toLocaleString('vi-VN')} Coin 🪙 để nhận lại ${amount.toLocaleString('vi-VN')} đ.`;
+            successMessage =
+                `✅ Quy đổi thành công!\n` +
+                `Bạn đã dùng ` +
+                `${amount.toLocaleString('vi-VN')} Coin 🪙 ` +
+                `để nhận ` +
+                `${amount.toLocaleString('vi-VN')}đ.\n` +
+                `Lượt Coin → Tiền của tuần này đã được sử dụng.`;
         }
 
-        if (
-            window.TransactionHistory &&
-            auditDirection
-        ) {
-            await window.TransactionHistory.recordSafe({
-                type: 'coin_conversion',
+        conversionSucceeded = true;
 
-                summary:
-                    auditDirection === 'M2C'
-                        ? `Đổi ${amount} đồng thành ${amount} Coin`
-                        : `Đổi ${amount} Coin thành ${amount} đồng`,
+        try {
+            await completeStudentConversionUsage(
+                reservation
+            );
+        } catch (usageError) {
+            // Bản ghi reserved vẫn chặn được lượt tiếp theo.
+            console.warn(
+                'Đã quy đổi nhưng chưa chuyển lượt sang completed:',
+                usageError
+            );
+        }
 
-                source: 'student_conversion',
+        // Ghi nhật ký giao dịch nếu hệ thống có hỗ trợ.
+        if (window.TransactionHistory) {
+            try {
+                await window.TransactionHistory.recordSafe({
+                    type: 'coin_conversion',
 
-                targetUsername:
-                    currentUser.username,
+                    summary:
+                        direction === 'M2C'
+                            ? `Đổi ${amount} đồng thành ${amount} Coin`
+                            : `Đổi ${amount} Coin thành ${amount} đồng`,
 
-                targetName:
-                    currentUser.name ||
-                    currentUser.username,
+                    source: 'student_conversion',
 
-                amount: auditCoinDelta,
-                unit: 'Coin',
+                    targetUsername:
+                        currentUser.username,
 
-                reversible: true,
+                    targetName:
+                        currentUser.name ||
+                        currentUser.username,
 
-                details: {
-                    coinPath: coinPath,
-                    offsetPath: offsetPath,
+                    amount: auditCoinDelta,
+                    unit: 'Coin',
+                    reversible: true,
 
-                    coinDelta:
-                        auditCoinDelta,
+                    details: {
+                        coinPath: coinPath,
+                        offsetPath: offsetPath,
+                        coinDelta: auditCoinDelta,
+                        offsetDelta: auditOffsetDelta,
+                        direction: direction,
+                        amount: amount,
 
-                    offsetDelta:
-                        auditOffsetDelta,
+                        conversionUsagePath:
+                            reservation.usagePath,
 
-                    direction:
-                        auditDirection,
+                        conversionPeriodKey:
+                            reservation.periodKey,
 
-                    amount: amount
-                }
-            });
+                        conversionReservationId:
+                            reservation.reservationId
+                    }
+                });
+            } catch (historyError) {
+                console.warn(
+                    'Quy đổi thành công nhưng không ghi được nhật ký:',
+                    historyError
+                );
+            }
         }
 
         alert(successMessage);
+
         closeCoinConversionModal();
-        renderStudentRoadmap();
 
-    } catch (e) {
-        console.error(e);
-
-        if (e.message === 'INSUFFICIENT_BALANCE') {
-            alert("❌ Không đủ Coin! Số dư có thể đã thay đổi ở tab khác.");
-        } else {
-            alert("❌ Lỗi kết nối mạng, giao dịch quy đổi đã bị hủy hoặc đã được hoàn tác tốt nhất có thể.");
+        if (
+            typeof renderStudentRoadmap ===
+            'function'
+        ) {
+            await Promise.resolve(
+                renderStudentRoadmap()
+            );
         }
-    }
+    } catch (error) {
+        console.error(
+            'Lỗi quy đổi:',
+            error
+        );
 
-    // 5. Cập nhật và đóng giao diện
-    closeCoinConversionModal();
-    renderStudentRoadmap(); // Render lại bảng để tiền nhảy về số dư mới ngay lập tức
+        if (
+            reservation &&
+            !conversionSucceeded &&
+            mayReleaseReservation
+        ) {
+            await releaseStudentConversionUsage(
+                reservation
+            );
+        }
+
+        if (
+            error.code ===
+                'CONVERSION_LIMIT_ALREADY_USED' ||
+            error.message ===
+                'CONVERSION_LIMIT_ALREADY_USED'
+        ) {
+            alert(
+                getStudentConversionUsedMessage(
+                    direction
+                )
+            );
+        } else if (
+            error.message ===
+            'INSUFFICIENT_ROADMAP_MONEY'
+        ) {
+            alert(
+                '❌ Không đủ tiền lộ trình! Số dư có thể đã thay đổi ở tab khác.'
+            );
+        } else if (
+            error.message ===
+            'INSUFFICIENT_BALANCE'
+        ) {
+            alert(
+                '❌ Không đủ Coin! Số dư có thể đã thay đổi ở tab khác.'
+            );
+        } else if (!mayReleaseReservation) {
+            alert(
+                '❌ Giao dịch gặp lỗi nghiêm trọng khi hoàn tác. ' +
+                'Lượt quy đổi đã được khóa để tránh cộng hoặc trừ lặp. ' +
+                'Hãy báo giáo viên kiểm tra nhật ký.'
+            );
+        } else if (
+            String(error.code || '').includes(
+                'PERMISSION_DENIED'
+            ) ||
+            String(error.message || '').includes(
+                'PERMISSION_DENIED'
+            )
+        ) {
+            alert(
+                '❌ Firebase Rules chưa cho phép truy cập student_conversion_usage.'
+            );
+        } else {
+            alert(
+                '❌ Giao dịch bị hủy do lỗi kết nối hoặc lỗi Firebase. ' +
+                'Số dư đã được hoàn tác tốt nhất có thể.'
+            );
+        }
+
+        window
+            .refreshStudentConversionLimitNotice(
+                direction
+            )
+            .catch(() => {});
+    }
 };
 
 // Hàm tải lịch sử yêu cầu rút tiền của học sinh
