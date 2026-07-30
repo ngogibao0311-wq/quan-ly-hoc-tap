@@ -596,7 +596,7 @@ const StoreConfig = {
             rewardLabel: 'Xu Sinh Nhật',
             birthdayYear: 2026,
             tag: 'Sinh nhật 2026',
-            value: 'assets/pet/sinh nhật/sinh nhật 2026.png',
+            value: 'assets/pet/sinh nhật/2026/sinh nhật 2026.png',
             isIcon: false,
             petEffect: 'birthday-serpent-2026-magic'
         },
@@ -643,7 +643,89 @@ const StoreConfig = {
                 'effect_sinh_nhat_than_an_phuc_loc_2026',
 
             customIcon: '✦'
-        }
+        },
+        {
+            id: 'pet_he_mat_troi_sao_tho',
+            name: 'Linh Thú Sao Thổ',
+            type: 'pet',
+            price: 550,
+            isNonCoin: false,
+            tag: 'Hệ Mặt Trời',
+            value: 'assets/pet/Sao Thổ.png',
+            isIcon: false,
+            petEffect: 'saturn-cassini-magic',
+            disableClickEffect: true
+        },
+        {
+            id: 'theme_he_mat_troi_vanh_dai_cassini',
+            name: 'Đài Quan Sát Cassini',
+            type: 'theme',
+            price: 550,
+            isNonCoin: false,
+            tag: 'Hệ Mặt Trời',
+            value: 'theme-saturn-observatory',
+            customIcon: '🪐',
+            annualSaleIcon: '🪐',
+            annualSaleTitle:
+                'Mở bán duy nhất ngày 30/07 hằng năm',
+            annualSale: {
+                startMonth: 7,
+                startDay: 30,
+                endMonth: 7,
+                endDay: 30
+            }
+        },
+        {
+            id: 'effect_he_mat_troi_dai_trieu_cassini',
+            name: 'Đại Triều Vành Đai Cassini',
+            type: 'effect',
+            price: 600,
+            isNonCoin: false,
+            tag: 'Hệ Mặt Trời',
+            value: 'effect_he_mat_troi_dai_trieu_cassini',
+            customIcon: '◉',
+            annualSaleIcon: '🪐',
+            annualSaleTitle:
+                'Mở bán duy nhất ngày 30/07 hằng năm',
+            annualSale: {
+                startMonth: 7,
+                startDay: 30,
+                endMonth: 7,
+                endDay: 30
+            }
+        },
+        {
+            id: 'pet_doisong_conmua',
+            name: 'Mèo Nhỏ Ngày Mưa',
+            type: 'pet',
+            price: 750,
+            isNonCoin: false,
+            tag: 'Cơn mưa',
+            value: 'assets/pet/đời sống/thời tiết/mưa.png',
+            isIcon: false,
+            petEffect: 'rainy-day-cat-magic',
+            disableClickEffect: true // Dùng hiệu ứng nhấn riêng, không gọi hiệu ứng cũ
+        },
+        {
+            id: 'theme_doisong_mua_sao',
+            name: 'Đài Quan Trắc Mưa Sao',
+            type: 'theme',
+            price: 700,
+            isNonCoin: false,
+            tag: 'Cơn mưa',
+            value: 'theme-rain-cosmos',
+            customIcon: '🛰️'
+        },
+        {
+            id: 'effect_doisong_mua_ngoai_o_cua',
+            name: 'Mưa Ngoài Ô Cửa',
+            type: 'effect',
+            price: 600,
+            isNonCoin: false,
+            tag: 'Cơn mưa',
+            value: 'effect_doisong_mua_ngoai_o_cua',
+            customIcon: '🌧️'
+        },
     ]
 };
 
@@ -723,9 +805,17 @@ class StoreManager {
             ].join('/');
         };
 
+        const isSingleSaleDay =
+            schedule.startMonth === schedule.endMonth &&
+            schedule.startDay === schedule.endDay;
+
         const windowLabel =
-            `${padNumber(schedule.startDay)}/${padNumber(schedule.startMonth)}` +
-            `–${padNumber(schedule.endDay)}/${padNumber(schedule.endMonth)}`;
+            isSingleSaleDay
+                ? `${padNumber(schedule.startDay)}/${padNumber(schedule.startMonth)}`
+                : (
+                    `${padNumber(schedule.startDay)}/${padNumber(schedule.startMonth)}` +
+                    `–${padNumber(schedule.endDay)}/${padNumber(schedule.endMonth)}`
+                );
 
         return {
             hasAnnualSale: true,
@@ -873,6 +963,12 @@ class StoreManager {
             annualSaleState.hasAnnualSale &&
             !annualSaleState.isOpen &&
             !isOwned;
+        const annualSaleIcon =
+            item.annualSaleIcon || '📅';
+
+        const annualSaleTitle =
+            item.annualSaleTitle ||
+            'Vật phẩm giới hạn hằng năm';
         const tagClassMap = {
             'Lord of the Mysteries': 'tag-lotm',
             'Truyền thuyết': 'tag-truyen-thuyet',
@@ -886,6 +982,7 @@ class StoreManager {
             'Thất Đại Tội': 'tag-that-dai-toi',
             'Hệ Mặt Trời': 'tag-he-mat-troi',
             'Sinh nhật 2026': 'tag-sinh-nhat-2026',
+            'Cơn mưa': 'tag-con-mua',
         };
 
         let tagClass = tagClassMap[item.tag] || 'tag-normal';
@@ -954,12 +1051,12 @@ class StoreManager {
 
             actionButton = `
         <button
-            class="btn-equip active annual-sale-locked"
-            disabled
-            title="Vật phẩm giới hạn Ngày Trái Đất"
-        >
-            🌍 Mở lại ${annualSaleState.nextOpenLabel}
-        </button>
+    class="btn-equip active annual-sale-locked"
+    disabled
+    title="${annualSaleTitle}"
+>
+    ${annualSaleIcon} Mở lại ${annualSaleState.nextOpenLabel}
+</button>
     `;
         }
 

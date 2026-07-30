@@ -1,6 +1,375 @@
 const loginForm = document.getElementById('loginForm');
 let lockoutInterval = null;
 
+// ======================================================
+// KHUNG MEDIA ĐĂNG NHẬP: TỰ NHẬN ẢNH HOẶC VIDEO
+// ======================================================
+(function initLoginSceneMedia() {
+    const panel = document.getElementById('loginScenePanel');
+
+    // common.js dùng cho nhiều trang.
+    // Chỉ chạy đoạn này khi đang ở màn hình đăng nhập.
+    if (!panel) return;
+
+    const imagePattern =
+        /\.(avif|bmp|gif|jpe?g|png|svg|webp)(?:[?#].*)?$/i;
+
+    const videoPattern =
+        /\.(m4v|mov|mp4|og[gv]|webm)(?:[?#].*)?$/i;
+
+    function detectMediaType(source, requestedType) {
+        const normalizedType =
+            String(requestedType || 'auto').toLowerCase();
+
+        // Cho phép ép kiểu thủ công nếu cần.
+        if (
+            normalizedType === 'image' ||
+            normalizedType === 'video'
+        ) {
+            return normalizedType;
+        }
+
+        // Tự nhận loại tệp theo phần mở rộng.
+        if (videoPattern.test(source)) {
+            return 'video';
+        }
+
+        if (imagePattern.test(source)) {
+            return 'image';
+        }
+
+        // URL không có đuôi tệp thì mặc định dùng ảnh.
+        return 'image';
+    }
+
+    function createImage(source, objectPosition) {
+        const image = document.createElement('img');
+
+        image.id = 'loginBackgroundImage';
+        image.className = 'scene-video scene-media';
+        image.src = source;
+        image.alt = '';
+        image.loading = 'eager';
+        image.decoding = 'async';
+        image.draggable = false;
+        image.style.objectPosition = objectPosition;
+
+        return image;
+    }
+
+    function createVideo(
+        source,
+        objectPosition,
+        fallbackImage
+    ) {
+        const video = document.createElement('video');
+
+        video.id = 'loginBackgroundVideo';
+        video.className = 'scene-video scene-media';
+
+        video.autoplay = true;
+        video.muted = true;
+        video.loop = true;
+        video.playsInline = true;
+        video.preload = 'auto';
+
+        video.src = source;
+        video.style.objectPosition = objectPosition;
+
+        video.setAttribute('aria-hidden', 'true');
+
+        // Nếu video tải lỗi thì chuyển sang ảnh dự phòng.
+        if (fallbackImage) {
+            video.addEventListener(
+                'error',
+                function () {
+                    renderLoginScene(
+                        fallbackImage,
+                        'image'
+                    );
+                },
+                { once: true }
+            );
+        }
+
+        video.addEventListener(
+            'canplay',
+            function () {
+                const playPromise = video.play();
+
+                if (
+                    playPromise &&
+                    typeof playPromise.catch === 'function'
+                ) {
+                    playPromise.catch(function () {
+                        // Trình duyệt có thể chặn tự phát video.
+                        // Không ảnh hưởng đến form đăng nhập.
+                    });
+                }
+            },
+            { once: true }
+        );
+
+        return video;
+    }
+
+    function renderLoginScene(
+        source,
+        requestedType
+    ) {
+        const cleanSource =
+            String(source || '').trim();
+
+        // Không có đường dẫn thì để trống phần bên trái.
+        if (!cleanSource) {
+            panel.replaceChildren();
+            return false;
+        }
+
+        const objectPosition =
+            String(
+                panel.dataset.objectPosition || 'center'
+            ).trim() || 'center';
+
+        const fallbackImage =
+            String(
+                panel.dataset.fallbackImage || ''
+            ).trim();
+
+        const mediaType = detectMediaType(
+            cleanSource,
+            requestedType
+        );
+
+        const mediaElement =
+            mediaType === 'video'
+                ? createVideo(
+                    cleanSource,
+                    objectPosition,
+                    fallbackImage
+                )
+                : createImage(
+                    cleanSource,
+                    objectPosition
+                );
+
+        // Chỉ thay nội dung trong khung bên trái.
+        panel.replaceChildren(mediaElement);
+
+        panel.dataset.mediaSrc = cleanSource;
+        panel.dataset.mediaType = mediaType;
+
+        return true;
+    }
+
+    // Hàm thay ảnh/video trong lúc trang đang chạy.
+    window.setLoginSceneMedia = function (
+        source,
+        type
+    ) {
+        return renderLoginScene(
+            source,
+            type || 'auto'
+        );
+    };
+
+    // Hiển thị media được khai báo trong index.html.
+    renderLoginScene(
+        panel.dataset.mediaSrc,
+        panel.dataset.mediaType || 'auto'
+    );
+})();
+
+// ======================================================
+// ÁP DỤNG BỐ CỤC TRANG ĐĂNG NHẬP
+// Chỉ chạy khi tồn tại #loginScenePanel.
+// ======================================================
+(function initLoginPageLayout() {
+    const loginScenePanel =
+        document.getElementById('loginScenePanel');
+
+    // common.js còn dùng ở trang giáo viên và học sinh.
+    // Không có panel thì không chạy phần này.
+    if (!loginScenePanel) return;
+
+    const STORAGE_KEY = 'loginPageLayout';
+
+    const FIREBASE_PATH =
+        'system_settings/loginPageLayout';
+
+    function normalizeLayout(value) {
+        return String(value || '').trim() === 'centered'
+            ? 'centered'
+            : 'split';
+    }
+
+    function applyLayout(value, saveToStorage = true) {
+        const layout = normalizeLayout(value);
+
+        document.body.classList.remove(
+            'login-layout-split',
+            'login-layout-centered'
+        );
+
+        document.body.classList.add(
+            layout === 'centered'
+                ? 'login-layout-centered'
+                : 'login-layout-split'
+        );
+
+        document.body.dataset.loginLayout =
+            layout;
+
+        if (saveToStorage) {
+            try {
+                localStorage.setItem(
+                    STORAGE_KEY,
+                    layout
+                );
+            } catch (error) {
+                // Không để lỗi lưu bộ nhớ ảnh hưởng đăng nhập.
+            }
+        }
+
+        return layout;
+    }
+
+    // Cho phép gọi thủ công khi cần.
+    window.applyLoginPageLayout = applyLayout;
+
+    // Áp dụng bản lưu trước để tránh giao diện nháy.
+    let cachedLayout = 'split';
+
+    try {
+        cachedLayout =
+            localStorage.getItem(STORAGE_KEY) ||
+            'split';
+    } catch (error) {
+        cachedLayout = 'split';
+    }
+
+    applyLayout(cachedLayout, false);
+
+    // Tải cấu hình chung từ Firebase.
+    try {
+        if (
+            typeof db !== 'undefined' &&
+            db &&
+            typeof db.ref === 'function'
+        ) {
+            const layoutRef =
+                db.ref(FIREBASE_PATH);
+
+            const handleLayoutValue =
+                function (snapshot) {
+                    applyLayout(
+                        snapshot.val() || 'split'
+                    );
+                };
+
+            const handleLayoutError =
+                function (error) {
+                    console.warn(
+                        'Không thể tải bố cục đăng nhập:',
+                        error && error.code
+                            ? error.code
+                            : error
+                    );
+                };
+
+            layoutRef.on(
+                'value',
+                handleLayoutValue,
+                handleLayoutError
+            );
+
+            // Gỡ listener khi rời trang.
+            window.addEventListener(
+                'beforeunload',
+                function () {
+                    layoutRef.off(
+                        'value',
+                        handleLayoutValue
+                    );
+                },
+                { once: true }
+            );
+        }
+    } catch (error) {
+        console.warn(
+            'Không thể khởi tạo bố cục đăng nhập:',
+            error
+        );
+    }
+})();
+
+// ======================================================
+// HÀM CHỐNG CHÈN HTML / XSS DÙNG CHUNG
+// ======================================================
+
+window.escapeHTML = function (value) {
+    return String(
+        value === null || value === undefined
+            ? ''
+            : value
+    )
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+};
+
+window.sanitizeRichHTML = function (value) {
+    const raw = String(
+        value === null || value === undefined
+            ? ''
+            : value
+    );
+
+    const source =
+        /<\/?[a-z][\s\S]*>/i.test(raw)
+            ? raw
+            : window
+                .escapeHTML(raw)
+                .replace(/\n/g, '<br>');
+
+    if (
+        !window.DOMPurify ||
+        typeof window.DOMPurify.sanitize !==
+        'function'
+    ) {
+        console.error(
+            'DOMPurify chưa được nạp trước common.js.'
+        );
+
+        return window
+            .escapeHTML(raw)
+            .replace(/\n/g, '<br>');
+    }
+
+    return window.DOMPurify.sanitize(
+        source,
+        {
+            USE_PROFILES: {
+                html: true
+            },
+
+            FORBID_TAGS: [
+                'script',
+                'iframe',
+                'object',
+                'embed',
+                'form'
+            ],
+
+            FORBID_ATTR: [
+                'srcdoc'
+            ]
+        }
+    );
+};
+
 // ==========================================
 // HỆ THỐNG BẢO MẬT: DẤU VÂN TAY THIẾT BỊ
 // ==========================================
@@ -39,27 +408,43 @@ function setLockoutData(key, value, expireSeconds) {
 async function clearAllLockouts() {
     localStorage.removeItem('_sys_df');
     localStorage.removeItem('_sys_dl');
-    document.cookie = '_sys_df=; max-age=0; path=/';
-    document.cookie = '_sys_dl=; max-age=0; path=/';
 
-    // Xóa án phạt trên Server Firebase
-    if (typeof db !== 'undefined') {
-        try {
-            await db.ref('device_locks/' + DEVICE_ID).remove();
-        } catch (e) { }
-    }
+    document.cookie =
+        '_sys_df=; max-age=0; path=/';
+
+    document.cookie =
+        '_sys_dl=; max-age=0; path=/';
 }
 
 if (loginForm) {
     loginForm.addEventListener('submit', async function (e) {
         e.preventDefault();
-        const userVal = document.getElementById('username').value.trim();
-        if (userVal.includes(' ')) {
-            errorMsg.innerHTML = '❌ Tên đăng nhập không được chứa khoảng trắng!';
+        const usernameInput = document.getElementById('username');
+        const passwordInput = document.getElementById('password');
+        const errorMsg = document.getElementById('errorMsg');
+
+        if (!usernameInput || !passwordInput || !errorMsg) {
+            console.error('Không tìm thấy thành phần của form đăng nhập.');
             return;
         }
-        const passVal = document.getElementById('password').value.trim();
-        const errorMsg = document.getElementById('errorMsg');
+
+        const userVal = usernameInput.value.trim();
+        const passVal = passwordInput.value;
+
+        // Dùng \s để chặn cả dấu cách, tab và xuống dòng.
+        if (/\s/.test(userVal)) {
+            errorMsg.textContent =
+                '❌ Tên đăng nhập không được chứa khoảng trắng!';
+            errorMsg.style.color = 'red';
+            return;
+        }
+
+        if (!userVal || !passVal) {
+            errorMsg.textContent =
+                '❌ Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu!';
+            errorMsg.style.color = 'red';
+            return;
+        }
 
         if (lockoutInterval) {
             clearInterval(lockoutInterval);
@@ -70,23 +455,16 @@ if (loginForm) {
         errorMsg.style.color = 'blue';
 
         const now = Date.now();
-        let serverLockoutTime = 0;
 
-        // 1. KIỂM TRA ÁN PHẠT TRÊN SERVER FIREBASE (Chống xóa Cache tuyệt đối)
-        try {
-            const snap = await db.ref('device_locks/' + DEVICE_ID).once('value');
-            if (snap.exists()) {
-                serverLockoutTime = parseInt(snap.val());
-            }
-        } catch (err) {
-            console.log("Không thể kết nối Server kiểm tra an ninh.");
-        }
+        const localLockoutTime = Number(
+            getLockoutData('_sys_dl') || 0
+        );
 
-        const localLockout = parseInt(getLockoutData('_sys_dl') || '0');
-        const finalLockoutTime = Math.max(serverLockoutTime, localLockout);
-
-        if (finalLockoutTime > now) {
-            startLockoutCountdown(finalLockoutTime, errorMsg);
+        if (localLockoutTime > now) {
+            startLockoutCountdown(
+                localLockoutTime,
+                errorMsg
+            );
             return;
         }
 
@@ -126,32 +504,138 @@ if (loginForm) {
             }
 
         } catch (error) {
-            let currentFails = parseInt(getLockoutData('_sys_df') || '0') + 1;
-            let forceLock = false;
+            let errorCode =
+                error && error.code
+                    ? String(error.code)
+                    : 'auth/unknown-error';
 
-            // Bắt lỗi brute-force native từ Firebase
-            if (error.code === 'auth/too-many-requests') {
-                forceLock = true;
+            const rawAuthErrorMessage =
+                error && error.message
+                    ? String(error.message)
+                    : '';
+
+            // Firebase SDK v8 cũ không nhận diện mã mới này.
+            if (
+                errorCode === 'auth/internal-error' &&
+                rawAuthErrorMessage.includes(
+                    'INVALID_LOGIN_CREDENTIALS'
+                )
+            ) {
+                errorCode = 'auth/invalid-credential';
             }
+
+            console.error(
+                'Firebase Auth đăng nhập thất bại:',
+                {
+                    code: errorCode,
+                    originalCode: error?.code,
+                    message: rawAuthErrorMessage,
+                    email: fakeEmail
+                }
+            );
+
+            // Phần code xử lý lỗi phía dưới giữ nguyên.
+
+            const messages = {
+                'auth/invalid-credential':
+                    'Tên đăng nhập hoặc mật khẩu không chính xác.',
+
+                'auth/invalid-login-credentials':
+                    'Tên đăng nhập hoặc mật khẩu không chính xác.',
+
+                'auth/user-not-found':
+                    'Tài khoản chưa tồn tại trong Firebase Authentication.',
+
+                'auth/wrong-password':
+                    'Mật khẩu không chính xác.',
+
+                'auth/invalid-email':
+                    'Tên đăng nhập tạo ra email không hợp lệ.',
+
+                'auth/user-disabled':
+                    'Tài khoản đã bị vô hiệu hóa.',
+
+                'auth/operation-not-allowed':
+                    'Firebase chưa bật đăng nhập Email/Password.',
+
+                'auth/network-request-failed':
+                    'Không thể kết nối Firebase Authentication.',
+
+                'auth/too-many-requests':
+                    'Firebase tạm chặn vì đăng nhập sai quá nhiều lần.',
+
+                'auth/invalid-api-key':
+                    'Firebase API key không hợp lệ hoặc sai dự án.',
+
+                'auth/app-not-authorized':
+                    'Tên miền hiện tại chưa được Firebase cho phép.'
+            };
+
+            const displayMessage =
+                messages[errorCode] ||
+                `Đăng nhập thất bại: ${errorCode}`;
+
+            const credentialErrors = new Set([
+                'auth/invalid-credential',
+                'auth/invalid-login-credentials',
+                'auth/user-not-found',
+                'auth/wrong-password'
+            ]);
+
+            const forceLock =
+                errorCode === 'auth/too-many-requests';
+
+            // Không tính lỗi mạng/cấu hình là nhập sai mật khẩu.
+            if (
+                !credentialErrors.has(errorCode) &&
+                !forceLock
+            ) {
+                errorMsg.textContent =
+                    `❌ ${displayMessage}`;
+
+                errorMsg.style.color = 'red';
+                return;
+            }
+
+            const currentFails =
+                Number(getLockoutData('_sys_df') || 0) + 1;
 
             if (currentFails >= 5 || forceLock) {
-                const lockTime = Date.now() + (15 * 60 * 1000); // Phạt 15 phút
+                const lockTime =
+                    Date.now() + 15 * 60 * 1000;
 
-                // Lưu cục bộ
-                setLockoutData('_sys_dl', lockTime, 15 * 60);
-                setLockoutData('_sys_df', '0', 0);
+                setLockoutData(
+                    '_sys_dl',
+                    lockTime,
+                    15 * 60
+                );
 
-                // LƯU LÊN SERVER FIREBASE (Khóa cứng thiết bị)
-                try {
-                    await db.ref('device_locks/' + DEVICE_ID).set(lockTime);
-                } catch (e) { }
+                setLockoutData(
+                    '_sys_df',
+                    '0',
+                    0
+                );
 
-                startLockoutCountdown(lockTime, errorMsg);
-            } else {
-                setLockoutData('_sys_df', currentFails, 24 * 60 * 60);
-                errorMsg.innerHTML = `❌ Sai Tên đăng nhập hoặc Mật khẩu! Thiết bị này còn <b>${5 - currentFails}</b> lần thử.`;
-                errorMsg.style.color = 'red';
+                startLockoutCountdown(
+                    lockTime,
+                    errorMsg
+                );
+
+                return;
             }
+
+            setLockoutData(
+                '_sys_df',
+                currentFails,
+                24 * 60 * 60
+            );
+
+            errorMsg.innerHTML =
+                `❌ ${displayMessage}<br>` +
+                `Thiết bị này còn ` +
+                `<b>${5 - currentFails}</b> lần thử.`;
+
+            errorMsg.style.color = 'red';
         }
     });
 }
@@ -178,7 +662,7 @@ function startLockoutCountdown(lockoutUntil, errorElement) {
 
         const minutes = Math.floor(remain / 60000);
         const seconds = Math.floor((remain % 60000) / 1000);
-        errorElement.innerHTML = `⏳ Cảnh báo An ninh: Thiết bị nhập sai quá nhiều lần.<br>Khóa đăng nhập từ Server trong: <b style="color:red;">${minutes} phút ${seconds} giây</b>`;
+        errorElement.innerHTML = `⏳ Cảnh báo An ninh: Thiết bị nhập sai quá nhiều lần.<br>Khóa đăng nhập trên thiết bị trong: <b style="color:red;">${minutes} phút ${seconds} giây</b>`;
         errorElement.style.color = '#e67e22';
     }
 
@@ -233,16 +717,41 @@ window.addEventListener('beforeunload', function () {
     }
 });
 
-window.logout = function () {
-    if (confirm("Bạn có chắc chắn muốn đăng xuất?")) {
-        // --- BẮT ĐẦU: Dọn dẹp Firebase Realtime trước khi thoát ---
-        if (typeof cleanupFirebaseListeners === 'function') {
-            cleanupFirebaseListeners();
-        }
-        // --- KẾT THÚC ---
+window.logout = async function () {
+    const accepted = confirm(
+        'Bạn có chắc chắn muốn đăng xuất?'
+    );
 
+    if (!accepted) return;
+
+    try {
+        // Gỡ các listener Realtime Database.
+        if (
+            typeof window.cleanupFirebaseListeners ===
+            'function'
+        ) {
+            window.cleanupFirebaseListeners();
+        }
+
+        // Đăng xuất Firebase Authentication.
+        if (
+            typeof firebase !== 'undefined' &&
+            typeof firebase.auth === 'function'
+        ) {
+            await firebase.auth().signOut();
+        }
+    } catch (error) {
+        console.error(
+            'Không thể đăng xuất Firebase Authentication:',
+            error
+        );
+    } finally {
+        // Không xóa toàn bộ localStorage vì còn giao diện,
+        // cài đặt và dữ liệu không liên quan đến đăng nhập.
         localStorage.removeItem('currentUser');
-        window.location.href = 'index.html';
+
+        // replace để người dùng không bấm Back quay lại trang cũ.
+        window.location.replace('index.html');
     }
 };
 
@@ -977,9 +1486,9 @@ window.clearAutoSave = function (storageKey) {
 
                 <p>
                     ${escapeHTML(
-                        text ||
-                        'Đang mở tài liệu...'
-                    )}
+            text ||
+            'Đang mở tài liệu...'
+        )}
                 </p>
             </div>
         `;
@@ -1113,9 +1622,9 @@ window.clearAutoSave = function (storageKey) {
                 <div class="preview-file-info">
                     <strong>
                         ${escapeHTML(
-                            label ||
-                            '📎 Tài liệu'
-                        )}
+            label ||
+            '📎 Tài liệu'
+        )}
                     </strong>
 
                     <span title="${escapeHTML(name)}">
@@ -1214,7 +1723,7 @@ window.clearAutoSave = function (storageKey) {
 
             download.style.display =
                 item.allowDownload &&
-                isDownloadableData
+                    isDownloadableData
                     ? 'inline-flex'
                     : 'none';
 

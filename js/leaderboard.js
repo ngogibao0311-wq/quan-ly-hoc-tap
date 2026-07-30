@@ -317,8 +317,8 @@ function initLeaderboardSystem() {
 
         <!-- RƯƠNG KHO BÁU -->
         <div
-            id="treasureChestModal ui-theme-immune"
-            class="modal-overlay"
+            id="treasureChestModal"
+class="modal-overlay ui-theme-immune"
             style="z-index:999999;"
             role="dialog"
             aria-modal="true"
@@ -1873,6 +1873,53 @@ window.claimChestReward = async function (
                 amount
             );
 
+            if (window.TransactionHistory) {
+                await window.TransactionHistory.recordSafe({
+                    type:
+                        'leaderboard_reward',
+
+                    summary:
+                        `Mở Rương Thi Đua và nhận ` +
+                        `${amount.toLocaleString('vi-VN')} Coin`,
+
+                    source:
+                        'leaderboard_chest',
+
+                    targetUsername:
+                        currentUser.username,
+
+                    targetName:
+                        currentUser.name ||
+                        currentUser.username,
+
+                    amount:
+                        amount,
+
+                    unit:
+                        'Coin',
+
+                    reversible:
+                        false,
+
+                    nonReversibleReason:
+                        'Phần thưởng ngẫu nhiên từ Rương Thi Đua.',
+
+                    details: {
+                        rewardType:
+                            'coin',
+
+                        chestType:
+                            'leaderboard',
+
+                        coinPath:
+                            `student_coins/${currentUser.username}`,
+
+                        amount:
+                            amount
+                    }
+                });
+            }
+
 
             alert(
                 `🎉 CHÚC MỪNG! ` +
@@ -1991,6 +2038,60 @@ window.claimChestReward = async function (
                     (coinSnap.val() || 0) + 200
                 );
 
+                if (window.TransactionHistory) {
+                    await window.TransactionHistory.recordSafe({
+                        type:
+                            'leaderboard_reward',
+
+                        summary:
+                            `Nhận bù 200 Coin vì vật phẩm ` +
+                            `${duplicateItem.name} bị trùng`,
+
+                        source:
+                            'leaderboard_chest_duplicate',
+
+                        targetUsername:
+                            currentUser.username,
+
+                        targetName:
+                            currentUser.name ||
+                            currentUser.username,
+
+                        amount:
+                            200,
+
+                        unit:
+                            'Coin',
+
+                        reversible:
+                            false,
+
+                        nonReversibleReason:
+                            'Coin bồi thường do vật phẩm trong rương bị trùng.',
+
+                        details: {
+                            rewardType:
+                                'duplicate_compensation',
+
+                            chestType:
+                                'leaderboard',
+
+                            amount:
+                                200,
+
+                            itemId:
+                                duplicateItem.id,
+
+                            itemName:
+                                duplicateItem.name,
+
+                            itemTag:
+                                duplicateItem.tag ||
+                                ''
+                        }
+                    });
+                }
+
 
                 alert(
                     `♻️ Vật phẩm [${duplicateItem.tag}] ` +
@@ -2027,6 +2128,52 @@ window.claimChestReward = async function (
                 await coinRef.set(
                     (coinSnap.val() || 0) + 500
                 );
+
+                if (window.TransactionHistory) {
+                    await window.TransactionHistory.recordSafe({
+                        type:
+                            'leaderboard_reward',
+
+                        summary:
+                            'Nhận bù 500 Coin vì đã sở hữu toàn bộ vật phẩm',
+
+                        source:
+                            'leaderboard_chest_all_owned',
+
+                        targetUsername:
+                            currentUser.username,
+
+                        targetName:
+                            currentUser.name ||
+                            currentUser.username,
+
+                        amount:
+                            500,
+
+                        unit:
+                            'Coin',
+
+                        reversible:
+                            false,
+
+                        nonReversibleReason:
+                            'Coin bồi thường từ Rương Thi Đua.',
+
+                        details: {
+                            rewardType:
+                                'all_items_owned_compensation',
+
+                            chestType:
+                                'leaderboard',
+
+                            amount:
+                                500,
+
+                            coinPath:
+                                `student_coins/${currentUser.username}`
+                        }
+                    });
+                }
 
 
                 alert(
@@ -2131,12 +2278,80 @@ window.claimChestReward = async function (
                     `${selectedItem.id}`
                 )
                 .update({
-                    id: selectedItem.id,
-                    purchaseTime: Date.now(),
-                    isTrial: null,
-                    trialExpiry: null,
-                    isEquipped: false
+                    id:
+                        selectedItem.id,
+
+                    purchaseTime:
+                        Date.now(),
+
+                    source:
+                        'leaderboard_chest',
+
+                    isTrial:
+                        null,
+
+                    trialExpiry:
+                        null,
+
+                    isEquipped:
+                        false
                 });
+
+            if (window.TransactionHistory) {
+                await window.TransactionHistory.recordSafe({
+                    type:
+                        'leaderboard_reward',
+
+                    summary:
+                        `Mở Rương Thi Đua và nhận ` +
+                        `vật phẩm ${selectedItem.name}`,
+
+                    source:
+                        'leaderboard_chest',
+
+                    targetUsername:
+                        currentUser.username,
+
+                    targetName:
+                        currentUser.name ||
+                        currentUser.username,
+
+                    amount:
+                        null,
+
+                    unit:
+                        '',
+
+                    reversible:
+                        false,
+
+                    nonReversibleReason:
+                        'Vật phẩm ngẫu nhiên từ Rương Thi Đua.',
+
+                    details: {
+                        rewardType:
+                            'item',
+
+                        chestType:
+                            'leaderboard',
+
+                        itemId:
+                            selectedItem.id,
+
+                        itemName:
+                            selectedItem.name,
+
+                        itemTag:
+                            selectedItem.tag ||
+                            '',
+
+                        itemPath:
+                            `student_inventory/` +
+                            `${currentUser.username}/` +
+                            `${selectedItem.id}`
+                    }
+                });
+            }
 
 
             const paintingNotice =

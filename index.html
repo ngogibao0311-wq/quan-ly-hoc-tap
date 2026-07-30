@@ -10,13 +10,11 @@
     <link rel="icon" type="image/png" href="assets/icon.png">
 </head>
 
-<body class="login-page">
+<body class="login-page login-layout-split">
     <main class="login-shell" aria-label="Khu vực đăng nhập hệ thống">
-        <section class="login-brand-panel login-scene-panel" aria-hidden="true">
-            <video id="loginBackgroundVideo" class="scene-video" autoplay muted loop playsinline preload="auto">
-                <source src="assets/Hãy_chuyển_ảnh_này_thành_video.mp4" type="video/mp4">
-            </video>
-        </section>
+        <section id="loginScenePanel" class="login-brand-panel login-scene-panel" aria-hidden="true"
+            data-media-src="assets/ChatGPT Image 22_01_25 26 thg 7, 2026.png" data-media-type="auto" data-fallback-image=""
+            data-object-position="center"></section>
 
         <section class="login-container">
             <div class="login-mobile-brand" aria-hidden="true">
@@ -75,7 +73,7 @@
     <script src="js/common.js?v=3.5"></script>
 
     <!-- 4. Logic đăng nhập và bảo mật -->
-    <script src="js/security.js?v=3.5"></script>
+
 </body>
 
 </html>

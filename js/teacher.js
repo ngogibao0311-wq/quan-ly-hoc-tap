@@ -623,6 +623,198 @@ function renderPendingUploadFiles(
 }
 
 // ======================================================
+// HỖ TRỢ FILE ÂM THANH TRONG BÀI TẬP
+// ======================================================
+
+const ASSIGNMENT_ATTACHMENT_ACCEPT =
+    '.docx,.pdf,image/*,audio/*,' +
+    '.mp3,.wav,.m4a,.aac,.ogg,.oga,.opus,.flac,.webm';
+
+function attachmentSafeHTML(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function getAttachmentName(fileData) {
+    if (typeof fileData === 'string') {
+        try {
+            const pathname =
+                new URL(fileData).pathname;
+
+            return decodeURIComponent(
+                pathname.split('/').pop() ||
+                'File âm thanh'
+            );
+        } catch (error) {
+            return 'File âm thanh';
+        }
+    }
+
+    return String(
+        fileData?.name ||
+        fileData?.fileName ||
+        fileData?.originalName ||
+        'File âm thanh'
+    );
+}
+
+function getAttachmentURL(fileData) {
+    const value =
+        typeof fileData === 'string'
+            ? fileData
+            : (
+                fileData?.secureUrl ||
+                fileData?.url ||
+                fileData?.href ||
+                ''
+            );
+
+    const url = String(value || '').trim();
+
+    return /^https?:\/\//i.test(url)
+        ? url
+        : '';
+}
+
+function isAudioAttachment(fileData) {
+    const type = String(
+        typeof fileData === 'object' &&
+            fileData
+            ? (
+                fileData.type ||
+                fileData.mimeType ||
+                fileData.contentType ||
+                ''
+            )
+            : ''
+    ).toLowerCase();
+
+    if (type.startsWith('audio/')) {
+        return true;
+    }
+
+    const source = [
+        getAttachmentName(fileData),
+        getAttachmentURL(fileData)
+    ].join(' ');
+
+    return /\.(mp3|wav|m4a|aac|ogg|oga|opus|flac|webm)(?:$|[?#\s])/i
+        .test(source);
+}
+
+window.buildAttachmentPreviewHTML = function (
+    fileData,
+    label = '📎 File đính kèm',
+    options = {}
+) {
+    /*
+     * File không phải âm thanh:
+     * giữ nguyên trình hiển thị cũ.
+     */
+    if (!isAudioAttachment(fileData)) {
+        return window.buildFilePreviewHTML(
+            fileData,
+            label,
+            options
+        );
+    }
+
+    const audioURL =
+        getAttachmentURL(fileData);
+
+    /*
+     * File cũ không có URL hợp lệ:
+     * tiếp tục sử dụng trình hiển thị cũ.
+     */
+    if (!audioURL) {
+        return window.buildFilePreviewHTML(
+            fileData,
+            label,
+            options
+        );
+    }
+
+    const safeURL =
+        attachmentSafeHTML(audioURL);
+
+    const safeName =
+        attachmentSafeHTML(
+            getAttachmentName(fileData)
+        );
+
+    const safeLabel =
+        attachmentSafeHTML(
+            String(
+                label || '🎵 File âm thanh'
+            ).replace(/^📎\s*/, '🎵 ')
+        );
+
+    return `
+        <div
+            class="r2-audio-attachment"
+            style="
+                margin: 10px 0;
+                padding: 12px;
+                border: 1px solid rgba(102,126,234,.35);
+                border-radius: 10px;
+                background: rgba(255,255,255,.62);
+            "
+        >
+            <div
+                style="
+                    font-weight: 700;
+                    margin-bottom: 6px;
+                "
+            >
+                ${safeLabel}
+            </div>
+
+            <div
+                title="${safeName}"
+                style="
+                    margin-bottom: 8px;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                "
+            >
+                🎧 ${safeName}
+            </div>
+
+            <audio
+                controls
+                preload="metadata"
+                src="${safeURL}"
+                style="
+                    display: block;
+                    width: 100%;
+                    max-width: 520px;
+                "
+            >
+                Trình duyệt không hỗ trợ phát âm thanh.
+            </audio>
+
+            <a
+                href="${safeURL}"
+                target="_blank"
+                rel="noopener noreferrer"
+                style="
+                    display: inline-block;
+                    margin-top: 8px;
+                    font-weight: 600;
+                "
+            >
+                ⬇️ Mở hoặc tải file âm thanh
+            </a>
+        </div>
+    `;
+};
+
+// ======================================================
 // ĐÍNH KÈM TÀI LIỆU KHI GIAO BÀI
 // ======================================================
 
@@ -797,6 +989,192 @@ window.handleTeacherFileAccumulate = function (input, subId) {
     );
 };
 
+// ======================================================
+// XÓA ĐỊNH DẠNG QUILL CÒN SÓT KHI ĐÃ XÓA HẾT NỘI DUNG
+// Chỉ tác động khi ô soạn thảo hoàn toàn trống.
+// ======================================================
+function installEmptyQuillFormatReset(quill) {
+    if (
+        !quill ||
+        quill.__emptyFormatResetInstalled
+    ) {
+        return;
+    }
+
+    quill.__emptyFormatResetInstalled = true;
+
+    let isResetting = false;
+
+    const resetFormatIfEmpty = function () {
+        if (isResetting) return;
+
+        const plainText = quill
+            .getText()
+            .replace(/\u200B/g, '')
+            .trim();
+
+        const hasEmbeddedContent =
+            quill.root.querySelector(
+                'img, video, iframe, .ql-formula'
+            );
+
+        // Vẫn còn chữ, ảnh, video hoặc công thức thì không sửa.
+        if (plainText || hasEmbeddedContent) {
+            return;
+        }
+
+        isResetting = true;
+
+        /*
+         * Tạo lại một dòng trống sạch.
+         * Việc này xóa span màu, gạch chân, màu nền...
+         * còn sót lại sau khi dán rồi xóa.
+         */
+        quill.setContents(
+            [{ insert: '\n' }],
+            'silent'
+        );
+
+        quill.setSelection(
+            0,
+            0,
+            'silent'
+        );
+
+        const formatsToClear = [
+            'bold',
+            'italic',
+            'underline',
+            'strike',
+            'color',
+            'background',
+            'link',
+            'script',
+            'header',
+            'blockquote',
+            'code-block',
+            'list',
+            'indent',
+            'align',
+            'direction',
+            'size',
+            'font'
+        ];
+
+        formatsToClear.forEach(formatName => {
+            quill.format(
+                formatName,
+                false,
+                'silent'
+            );
+        });
+
+        isResetting = false;
+    };
+
+    quill.on(
+        'text-change',
+        function (delta, oldDelta, source) {
+            if (source !== 'user') return;
+
+            requestAnimationFrame(
+                resetFormatIfEmpty
+            );
+        }
+    );
+
+    quill.root.addEventListener(
+        'keyup',
+        function (event) {
+            if (
+                event.key === 'Backspace' ||
+                event.key === 'Delete'
+            ) {
+                requestAnimationFrame(
+                    resetFormatIfEmpty
+                );
+            }
+        }
+    );
+}
+
+// ======================================================
+// HIỂN THỊ CHÍNH XÁC CÂU TRẮC NGHIỆM ĐANG BỊ LỖI
+// ======================================================
+window.showTeacherQuestionError = function (
+    block,
+    questionNumber,
+    missingItems,
+    focusSelector = ''
+) {
+    document
+        .querySelectorAll(
+            '.question-block, .edit-question-block'
+        )
+        .forEach(item => {
+            item.style.outline = '';
+            item.style.boxShadow = '';
+        });
+
+    if (block) {
+        block.style.outline =
+            '3px solid #e11d48';
+
+        block.style.boxShadow =
+            '0 0 0 5px rgba(225, 29, 72, 0.15)';
+    }
+
+    alert(
+        `⚠️ Câu ${questionNumber} còn thiếu:\n` +
+        missingItems
+            .map(item => `• ${item}`)
+            .join('\n')
+    );
+
+    setTimeout(() => {
+        if (!block) return;
+
+        block.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+        });
+
+        const focusElement =
+            focusSelector
+                ? block.querySelector(
+                    focusSelector
+                )
+                : null;
+
+        if (focusElement) {
+            focusElement.focus();
+        }
+
+        const clearErrorStyle = function () {
+            block.style.outline = '';
+            block.style.boxShadow = '';
+        };
+
+        block
+            .querySelectorAll(
+                'input, textarea, select'
+            )
+            .forEach(element => {
+                element.addEventListener(
+                    'input',
+                    clearErrorStyle,
+                    { once: true }
+                );
+
+                element.addEventListener(
+                    'change',
+                    clearErrorStyle,
+                    { once: true }
+                );
+            });
+    }, 0);
+};
+
 window.onload = async function () {
     const quillToolbarOptions = [
         ['bold', 'italic', 'underline', 'strike'],        // Định dạng chữ cơ bản
@@ -817,6 +1195,15 @@ window.onload = async function () {
         theme: 'snow',
         modules: { toolbar: quillToolbarOptions }
     });
+
+    // Tự làm sạch định dạng khi xóa hết nội dung.
+    installEmptyQuillFormatReset(
+        window.quillDesc
+    );
+
+    installEmptyQuillFormatReset(
+        window.quillEditDesc
+    );
 
     // --- THÊM CHỨC NĂNG AUTO-SAVE CHO GIÁO VIÊN SOẠN BÀI ---
     const titleInput = document.getElementById('title');
@@ -842,13 +1229,36 @@ window.onload = async function () {
     const savedDesc = localStorage.getItem('draft_teacher_desc');
     if (savedDesc) window.quillDesc.root.innerHTML = savedDesc;
 
-    window.quillDesc.on('text-change', function () {
-        let timeoutDesc;
-        clearTimeout(timeoutDesc);
-        timeoutDesc = setTimeout(() => {
-            localStorage.setItem('draft_teacher_desc', window.quillDesc.root.innerHTML);
-        }, 1000);
-    });
+    let timeoutDesc = null;
+
+    const saveTeacherDescriptionDraft = function () {
+        localStorage.setItem(
+            'draft_teacher_desc',
+            window.quillDesc.root.innerHTML
+        );
+    };
+
+    window.quillDesc.on(
+        'text-change',
+        function () {
+            clearTimeout(timeoutDesc);
+
+            timeoutDesc = setTimeout(
+                saveTeacherDescriptionDraft,
+                1000
+            );
+        }
+    );
+
+    // Khi rời khỏi trình soạn thảo thì lưu ngay,
+    // không phải chờ timer.
+    window.quillDesc.root.addEventListener(
+        'blur',
+        function () {
+            clearTimeout(timeoutDesc);
+            saveTeacherDescriptionDraft();
+        }
+    );
     // ------------------------------------------------------
 
     // === FIX LỖI BẢO MẬT: Chờ và xác thực qua Firebase Auth ===
@@ -1043,6 +1453,20 @@ window.onload = async function () {
             closeCoinConversionModal();
         }
     });
+
+    // ======================================================
+    // ĐỒNG BỘ BỐ CỤC TRANG ĐĂNG NHẬP
+    // Chỉ đọc một node riêng, không tác động cài đặt khác.
+    // ======================================================
+    listenFirebase(
+        db.ref('system_settings/loginPageLayout'),
+        'value',
+        function (snapshot) {
+            setLoginLayoutSettingControls(
+                snapshot.val() || 'split'
+            );
+        }
+    );
 
     // Lắng nghe giáo viên nhập điểm (Giữ nguyên)
     const mcInput = document.getElementById('mcWeight');
@@ -1300,6 +1724,7 @@ window.addQuestion = function () {
             </div>
         </div>
     `;
+    div.dataset.questionId = `q_${Date.now()}_${qId}`;
     container.appendChild(div);
 };
 
@@ -1926,6 +2351,41 @@ async function createAssignment() {
             const correctVal = correctRadio ? correctRadio.value : (oldCorrectSelect ? oldCorrectSelect.value : '');
 
             questions.push({
+                questionId:
+                    block.dataset.questionId ||
+                    `q_${Date.now()}_${questions.length}`,
+
+                bankQuestionId:
+                    block.dataset.bankQuestionId || '',
+
+                subject:
+                    block.dataset.subject ||
+                    document.getElementById(
+                        'assignmentQuestionSubject'
+                    )?.value.trim() ||
+                    '',
+
+                grade:
+                    block.dataset.grade ||
+                    document.getElementById(
+                        'assignmentQuestionGrade'
+                    )?.value.trim() ||
+                    '',
+
+                lesson:
+                    block.dataset.lesson ||
+                    document.getElementById(
+                        'assignmentQuestionLesson'
+                    )?.value.trim() ||
+                    '',
+
+                difficulty:
+                    block.dataset.difficulty ||
+                    document.getElementById(
+                        'assignmentQuestionDifficulty'
+                    )?.value ||
+                    'Nhận biết',
+
                 qText: block.querySelector('.q-text').value.trim(),
                 A: block.querySelector('.q-optA').value.trim(),
                 B: block.querySelector('.q-optB').value.trim(),
@@ -1934,9 +2394,100 @@ async function createAssignment() {
                 correct: correctVal
             });
         });
-        if (questions.length === 0) return alert("Vui lòng thêm ít nhất 1 câu hỏi trắc nghiệm!");
-        for (let q of questions) {
-            if (!q.qText || !q.A || !q.B || !q.C || !q.D || !q.correct) return alert("Vui lòng điền đầy đủ và chọn đáp án trắc nghiệm!");
+        if (questions.length === 0) {
+            return alert(
+                'Vui lòng thêm ít nhất 1 câu hỏi trắc nghiệm!'
+            );
+        }
+
+        const createQuestionBlocks =
+            document.querySelectorAll(
+                '.question-block'
+            );
+
+        for (
+            let questionIndex = 0;
+            questionIndex < questions.length;
+            questionIndex++
+        ) {
+            const question =
+                questions[questionIndex];
+
+            const missingItems = [];
+
+            let focusSelector = '';
+
+            if (!question.qText) {
+                missingItems.push(
+                    'Nội dung câu hỏi'
+                );
+
+                focusSelector = '.q-text';
+            }
+
+            if (!question.A) {
+                missingItems.push(
+                    'Đáp án A'
+                );
+
+                if (!focusSelector) {
+                    focusSelector = '.q-optA';
+                }
+            }
+
+            if (!question.B) {
+                missingItems.push(
+                    'Đáp án B'
+                );
+
+                if (!focusSelector) {
+                    focusSelector = '.q-optB';
+                }
+            }
+
+            if (!question.C) {
+                missingItems.push(
+                    'Đáp án C'
+                );
+
+                if (!focusSelector) {
+                    focusSelector = '.q-optC';
+                }
+            }
+
+            if (!question.D) {
+                missingItems.push(
+                    'Đáp án D'
+                );
+
+                if (!focusSelector) {
+                    focusSelector = '.q-optD';
+                }
+            }
+
+            if (!question.correct) {
+                missingItems.push(
+                    'Chưa chọn đáp án đúng'
+                );
+
+                if (!focusSelector) {
+                    focusSelector =
+                        '.q-correct-radio';
+                }
+            }
+
+            if (missingItems.length > 0) {
+                window.showTeacherQuestionError(
+                    createQuestionBlocks[
+                    questionIndex
+                    ],
+                    questionIndex + 1,
+                    missingItems,
+                    focusSelector
+                );
+
+                return;
+            }
         }
     }
 
@@ -1949,6 +2500,17 @@ async function createAssignment() {
         watchCondition = d * 86400 + h * 3600 + m * 60 + s;
     }
 
+    const randomExamConfig = hasMC
+        ? window.collectRandomExamConfig(
+            false,
+            questions.length
+        )
+        : window.getDisabledRandomExamConfig();
+
+    if (randomExamConfig.error) {
+        return alert(randomExamConfig.error);
+    }
+
     await pushDB('assignments', {
         id: Date.now().toString(), title, desc,
         startDate: startDate
@@ -1959,7 +2521,9 @@ async function createAssignment() {
             ? endDate.replace("T", " ")
             : '',
         targetStudent, file: attachedFile, videoLink: videoLink,
-        assessmentType: type, questions: questions,
+        assessmentType: type,
+        questions: questions,
+        randomExamConfig: randomExamConfig,
         mcWeight: mcWeight, essayWeight: essayWeight,
         hideEssayText: hideEssayText,
 
@@ -1985,6 +2549,7 @@ async function createAssignment() {
     document.getElementById('startDate').value = ''; document.getElementById('endDate').value = '';
     document.getElementById('videoLink').value = ''; document.getElementById('fileInput').value = '';
     document.getElementById('questionsContainer').innerHTML = ''; questionCount = 0;
+    window.resetRandomExamConfigForm(false);
     if (document.getElementById('hideEssayText')) document.getElementById('hideEssayText').checked = false; // Reset checkbox
 
     if (
@@ -2252,7 +2817,7 @@ async function loadAssignedList(isLoadMore = false) {
                 : [assign.file];
 
             files.forEach(f => {
-                fileHTML += window.buildFilePreviewHTML(
+                fileHTML += window.buildAttachmentPreviewHTML(
                     f,
                     '📎 File đính kèm',
                     { tone: 'orange' }
@@ -2596,7 +3161,7 @@ async function loadMaterialsListTeacher() {
         let fileHTML = '';
 
         if (mat.docLink) {
-            fileHTML += window.buildFilePreviewHTML(
+            fileHTML += window.buildAttachmentPreviewHTML(
                 mat.docLink,
                 '📎 Link tài liệu',
                 {
@@ -2613,7 +3178,7 @@ async function loadMaterialsListTeacher() {
                 : [mat.file];
 
             materialFiles.forEach(file => {
-                fileHTML += window.buildFilePreviewHTML(
+                fileHTML += window.buildAttachmentPreviewHTML(
                     file,
                     '📎 Tài liệu đính kèm',
                     { tone: 'green' }
@@ -2905,6 +3470,10 @@ window.deleteAssignment =
 function initFileListener() {
     const fInput = document.getElementById('fileInput');
     if (!fInput) return;
+    fInput.setAttribute(
+        'accept',
+        ASSIGNMENT_ATTACHMENT_ACCEPT
+    );
 
     fInput.addEventListener('change', function (e) {
         const MAX_SIZE_BYTES = 5 * 1024 * 1024; // Giới hạn an toàn: 5MB
@@ -3378,7 +3947,7 @@ async function loadSubmissions(isLoadMore = false) {
                     margin-top: 10px;
                 "
             >
-                ${window.buildFilePreviewHTML(
+                ${window.buildAttachmentPreviewHTML(
                     file,
                     '📎 File HS',
                     {
@@ -3431,7 +4000,7 @@ async function loadSubmissions(isLoadMore = false) {
                 : [sub.teacherFile];
 
             tFiles.forEach(f => {
-                previousTeacherFile += window.buildFilePreviewHTML(
+                previousTeacherFile += window.buildAttachmentPreviewHTML(
                     f,
                     '✅ File chữa bài đã gửi',
                     { tone: 'green' }
@@ -3540,9 +4109,18 @@ async function loadSubmissions(isLoadMore = false) {
         }
 
         // Kiểm tra bài tập có phần trắc nghiệm hay không
+        const submissionQuestions =
+            Array.isArray(sub.questionSnapshot) &&
+                sub.questionSnapshot.length > 0
+                ? sub.questionSnapshot
+                : (
+                    Array.isArray(assign.questions)
+                        ? assign.questions
+                        : []
+                );
+
         const hasMultipleChoicePart =
-            Array.isArray(assign.questions) &&
-            assign.questions.length > 0 &&
+            submissionQuestions.length > 0 &&
             (
                 assign.assessmentType === 'trac_nghiem' ||
                 assign.assessmentType === 'ket_hop' ||
@@ -3567,10 +4145,9 @@ async function loadSubmissions(isLoadMore = false) {
 
         if (
             hasStoredMultipleChoiceAnswers &&
-            Array.isArray(assign.questions) &&
-            assign.questions.length > 0
+            submissionQuestions.length > 0
         ) {
-            const reconstructedLines = assign.questions.map(
+            const reconstructedLines = submissionQuestions.map(
                 (question, questionIndex) => {
                     const selectedAnswer =
                         sub.mcAnswers[questionIndex] ??
@@ -3633,6 +4210,11 @@ async function loadSubmissions(isLoadMore = false) {
         const hasWrittenAnswer =
             writtenAnswer.trim() !== '';
 
+        const safeWrittenAnswer =
+            window.sanitizeRichHTML(
+                writtenAnswer
+            );
+
         const submissionHeading =
             isFileOnlySubmission
                 ? '📁 Tệp học sinh đã nộp:'
@@ -3660,7 +4242,7 @@ style="
 "
     >
         ${hasWrittenAnswer
-                    ? writtenAnswer
+                    ? safeWrittenAnswer
                         .replace(
                             /\[PHẦN TRẮC NGHIỆM\]/g,
                             `<div style="
@@ -3801,13 +4383,62 @@ async function gradeSubmission(subId) {
     const processGrading = async (fileDataArray) => {
         const submissions = await getDB('submissions'); const sub = submissions.find(s => s.id === subId);
         if (sub) {
-            const updateObj = { grade: grade, teacherComment: commentVal, isRegrading: false };
+            const gradeBefore = {
+                grade: sub.grade ?? null,
+                teacherComment: sub.teacherComment ?? null,
+                isRegrading: sub.isRegrading ?? false
+            };
+
+            const updateObj = {
+                grade: grade,
+                teacherComment: commentVal,
+                isRegrading: false
+            };
             if (fileDataArray) updateObj.teacherFile = fileDataArray;
             await updateDB(
                 'submissions',
                 sub._fbKey,
                 updateObj
             );
+
+            if (window.TransactionHistory) {
+                await window.TransactionHistory.recordSafe({
+                    type: 'grade_change',
+
+                    summary:
+                        `Đổi điểm từ ` +
+                        `${gradeBefore.grade ?? 'chưa chấm'} ` +
+                        `thành ${grade}`,
+
+                    source: 'teacher_grading',
+
+                    targetUsername:
+                        getCompatSubmissionUsername(sub),
+
+                    targetName:
+                        sub.studentName ||
+                        sub.name ||
+                        getCompatSubmissionUsername(sub),
+
+                    before: gradeBefore.grade,
+                    after: grade,
+
+                    reversible: true,
+
+                    details: {
+                        submissionPath:
+                            `submissions/${sub._fbKey}`,
+
+                        before: gradeBefore,
+
+                        after: {
+                            grade: grade,
+                            teacherComment: commentVal,
+                            isRegrading: false
+                        }
+                    }
+                });
+            }
 
             // Xóa bộ đệm file sau khi lưu thành công
             if (
@@ -4762,22 +5393,233 @@ async function updateProfile() {
 }
 function switchTab(tabId, btnElement) {
     // 1. Reset trạng thái active của các tab
-    document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-    document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(
+        tab => tab.classList.remove('active')
+    );
+
+    document.querySelectorAll('.nav-item').forEach(
+        btn => btn.classList.remove('active')
+    );
 
     // 2. Kích hoạt tab mới
-    document.getElementById(tabId).classList.add('active');
-    btnElement.classList.add('active');
+    const selectedTab =
+        document.getElementById(tabId);
 
-    // 3. Xóa vị trí cuộn cũ, cuộn mượt mà lên vị trí cao nhất
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (selectedTab) {
+        selectedTab.classList.add('active');
+    }
 
-    // Nếu bạn đang dùng scroll trên thẻ div .content, thì dòng này sẽ xử lý nó
-    const contentArea = document.querySelector('.content');
+    if (btnElement) {
+        btnElement.classList.add('active');
+    }
+
+    // 3. Cuộn lên đầu trang
+    window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+    });
+
+    const contentArea =
+        document.querySelector('.content');
+
     if (contentArea) {
-        contentArea.scrollTo({ top: 0, behavior: 'smooth' });
+        contentArea.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
+    }
+
+    // 4. Tự tải nhật ký khi mở tab
+    if (
+        tabId === 'tab-transactions' &&
+        window.TransactionHistory
+    ) {
+        window.TransactionHistory
+            .openTeacherTab()
+            .catch(error => {
+                console.error(
+                    'Không tải được nhật ký giao dịch:',
+                    error
+                );
+            });
     }
 }
+
+// ======================================================
+// CÀI ĐẶT BỐ CỤC TRANG ĐĂNG NHẬP
+// Chỉ cập nhật system_settings/loginPageLayout.
+// ======================================================
+
+function normalizeLoginPageLayout(value) {
+    return String(value || '').trim() === 'centered'
+        ? 'centered'
+        : 'split';
+}
+
+function getSelectedLoginPageLayout() {
+    const selected = document.querySelector(
+        'input[name="loginPageLayout"]:checked'
+    );
+
+    return normalizeLoginPageLayout(
+        selected ? selected.value : 'split'
+    );
+}
+
+window.updateLoginLayoutNotice = function (value) {
+    const layout = normalizeLoginPageLayout(value);
+
+    const warning = document.getElementById(
+        'loginLayoutSizeWarning'
+    );
+
+    // Tô viền lựa chọn đang được chọn.
+    document
+        .querySelectorAll('.login-layout-choice')
+        .forEach(function (choice) {
+            const radio = choice.querySelector(
+                'input[name="loginPageLayout"]'
+            );
+
+            choice.classList.toggle(
+                'is-selected',
+                Boolean(radio && radio.checked)
+            );
+        });
+
+    if (!warning) return;
+
+    if (layout === 'centered') {
+        warning.innerHTML = `
+        <strong>
+            ⚠️ Kích thước ảnh cho bố cục phủ toàn bộ khung đăng nhập
+        </strong>
+
+        <span>
+            Nên dùng ảnh ngang <b>16:10</b>,
+            tối thiểu <b>1920 × 1200 px</b>;
+            đẹp hơn ở <b>2560 × 1600 px</b>.
+
+            <br><br>
+
+            Ảnh chỉ phủ chiếc khung lớn bo góc,
+            không phủ toàn bộ màn hình trình duyệt.
+
+            <br><br>
+
+            Trên điện thoại, hai cạnh trái và phải của ảnh
+            có thể bị cắt. Hãy đặt nhân vật, chữ và nội dung
+            quan trọng trong vùng trung tâm của ảnh.
+        </span>
+    `;
+    } else {
+        warning.innerHTML = `
+            <strong>
+                ⚠️ Kích thước ảnh cho bố cục hai cột
+            </strong>
+
+            <span>
+                Nên dùng ảnh dọc <b>4:5</b>,
+                khoảng <b>1600 × 2000 px</b> hoặc
+                <b>2000 × 2500 px</b>.
+
+                <br><br>
+
+                Trên điện thoại, phần ảnh được ẩn để ưu tiên
+                không gian nhập tài khoản.
+            </span>
+        `;
+    }
+};
+
+function setLoginLayoutSettingControls(value) {
+    const layout = normalizeLoginPageLayout(value);
+
+    document
+        .querySelectorAll(
+            'input[name="loginPageLayout"]'
+        )
+        .forEach(function (radio) {
+            radio.checked =
+                radio.value === layout;
+        });
+
+    window.updateLoginLayoutNotice(layout);
+}
+
+window.saveLoginLayoutSetting = async function () {
+    // Giữ đúng quyền giáo viên.
+    if (!window.isVerifiedTeacher) {
+        alert(
+            '⛔ Chỉ giáo viên đã xác thực mới được đổi bố cục đăng nhập.'
+        );
+        return;
+    }
+
+    const layout = getSelectedLoginPageLayout();
+
+    const button = document.getElementById(
+        'saveLoginLayoutButton'
+    );
+
+    if (button) {
+        button.disabled = true;
+
+        button.dataset.originalText =
+            button.textContent;
+
+        button.textContent =
+            '⏳ Đang lưu bố cục...';
+    }
+
+    try {
+        // Chỉ ghi đúng node bố cục đăng nhập.
+        await db
+            .ref('system_settings/loginPageLayout')
+            .set(layout);
+
+        // Lưu dự phòng trên thiết bị hiện tại.
+        try {
+            localStorage.setItem(
+                'loginPageLayout',
+                layout
+            );
+        } catch (storageError) {
+            console.warn(
+                'Không thể lưu bố cục vào localStorage:',
+                storageError
+            );
+        }
+
+        alert(
+            layout === 'centered'
+                ? '✅ Đã dùng bố cục ảnh phủ toàn bộ khung đăng nhập, form nằm ở giữa.'
+                : '✅ Đã dùng bố cục hiện tại: ảnh bên trái, đăng nhập bên phải.'
+        );
+    } catch (error) {
+        console.error(
+            'Không thể lưu bố cục đăng nhập:',
+            error
+        );
+
+        alert(
+            '❌ Không thể lưu bố cục đăng nhập: ' +
+            (
+                error && error.message
+                    ? error.message
+                    : 'Lỗi không xác định'
+            )
+        );
+    } finally {
+        if (button) {
+            button.disabled = false;
+
+            button.textContent =
+                button.dataset.originalText ||
+                '💾 Lưu bố cục trang đăng nhập';
+        }
+    }
+};
 
 window.requestRedo = async function (subKey) {
     if (confirm("Cấp quyền cho học sinh làm lại bài?...")) {
@@ -5609,6 +6451,9 @@ window.openEditAssignmentModal = async function (fbKey) {
                 if (assign.questions && assign.questions.length > 0) {
                     assign.questions.forEach(q => addEditQuestionBlock(q));
                 }
+                window.applyRandomExamConfigToEditForm(
+                    assign.randomExamConfig || {}
+                );
             }
         }
 
@@ -5706,6 +6551,25 @@ window.addEditQuestionBlock = function (qData = null) {
     let optD = qData ? qData.D.replace(/"/g, '&quot;') : '';
     let correct = qData ? qData.correct : '';
     let qId = Date.now() + Math.random();
+
+    div.dataset.questionId =
+        qData?.questionId ||
+        `q_${Date.now()}_${editQuestionCount}`;
+
+    div.dataset.bankQuestionId =
+        qData?.bankQuestionId || '';
+
+    div.dataset.subject =
+        qData?.subject || '';
+
+    div.dataset.grade =
+        qData?.grade || '';
+
+    div.dataset.lesson =
+        qData?.lesson || '';
+
+    div.dataset.difficulty =
+        qData?.difficulty || 'Nhận biết';
 
     div.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
@@ -6003,6 +6867,25 @@ window.saveAssignmentEdit = async function () {
             const correctVal = correctRadio ? correctRadio.value : (oldCorrectSelect ? oldCorrectSelect.value : '');
 
             editedQuestions.push({
+                questionId:
+                    block.dataset.questionId ||
+                    `q_${Date.now()}_${editedQuestions.length}`,
+
+                bankQuestionId:
+                    block.dataset.bankQuestionId || '',
+
+                subject:
+                    block.dataset.subject || '',
+
+                grade:
+                    block.dataset.grade || '',
+
+                lesson:
+                    block.dataset.lesson || '',
+
+                difficulty:
+                    block.dataset.difficulty || 'Nhận biết',
+
                 qText: block.querySelector('.eq-text').value.trim(),
                 A: block.querySelector('.eq-optA').value.trim(),
                 B: block.querySelector('.eq-optB').value.trim(),
@@ -6012,15 +6895,118 @@ window.saveAssignmentEdit = async function () {
             });
         });
 
-        if (editedQuestions.length === 0) return alert("Vui lòng để lại ít nhất 1 câu hỏi trắc nghiệm!");
-        for (let q of editedQuestions) {
-            if (!q.qText || !q.A || !q.B || !q.C || !q.D || !q.correct) {
-                return alert("Vui lòng điền đầy đủ nội dung và chọn đáp án đúng cho TẤT CẢ câu hỏi trắc nghiệm!");
+        if (editedQuestions.length === 0) {
+            return alert(
+                'Vui lòng để lại ít nhất 1 câu hỏi trắc nghiệm!'
+            );
+        }
+
+        const editQuestionBlocks =
+            document.querySelectorAll(
+                '.edit-question-block'
+            );
+
+        for (
+            let questionIndex = 0;
+            questionIndex < editedQuestions.length;
+            questionIndex++
+        ) {
+            const question =
+                editedQuestions[questionIndex];
+
+            const missingItems = [];
+
+            let focusSelector = '';
+
+            if (!question.qText) {
+                missingItems.push(
+                    'Nội dung câu hỏi'
+                );
+
+                focusSelector = '.eq-text';
+            }
+
+            if (!question.A) {
+                missingItems.push(
+                    'Đáp án A'
+                );
+
+                if (!focusSelector) {
+                    focusSelector = '.eq-optA';
+                }
+            }
+
+            if (!question.B) {
+                missingItems.push(
+                    'Đáp án B'
+                );
+
+                if (!focusSelector) {
+                    focusSelector = '.eq-optB';
+                }
+            }
+
+            if (!question.C) {
+                missingItems.push(
+                    'Đáp án C'
+                );
+
+                if (!focusSelector) {
+                    focusSelector = '.eq-optC';
+                }
+            }
+
+            if (!question.D) {
+                missingItems.push(
+                    'Đáp án D'
+                );
+
+                if (!focusSelector) {
+                    focusSelector = '.eq-optD';
+                }
+            }
+
+            if (!question.correct) {
+                missingItems.push(
+                    'Chưa chọn đáp án đúng'
+                );
+
+                if (!focusSelector) {
+                    focusSelector =
+                        '.eq-correct-radio';
+                }
+            }
+
+            if (missingItems.length > 0) {
+                window.showTeacherQuestionError(
+                    editQuestionBlocks[
+                    questionIndex
+                    ],
+                    questionIndex + 1,
+                    missingItems,
+                    focusSelector
+                );
+
+                return;
             }
         }
         updateObj.questions = editedQuestions;
+        const editedRandomConfig =
+            window.collectRandomExamConfig(
+                true,
+                editedQuestions.length
+            );
+
+        if (editedRandomConfig.error) {
+            return alert(editedRandomConfig.error);
+        }
+
+        updateObj.randomExamConfig =
+            editedRandomConfig;
     } else if (assign.assessmentType === 'thi') {
         updateObj.questions = [];
+        updateObj.randomExamConfig =
+            window.getDisabledRandomExamConfig();
     }
 
     // Đẩy lên Firebase
@@ -7045,54 +8031,296 @@ window.sendGlobalNotification = async function (customMsg = null) {
 
 // Mở lịch sử và thống kê người xem
 window.openNotificationHistory = async function () {
-    document.getElementById('notificationHistoryModal').classList.add('active');
-    const listContainer = document.getElementById('notificationHistoryList');
-    listContainer.innerHTML = '<p style="text-align: center; color: #666;">Đang tải dữ liệu...</p>';
+    const modal =
+        document.getElementById(
+            'notificationHistoryModal'
+        );
 
-    const notifications = await getDB('global_notifications');
-    const users = await getDB('users');
-    const students = users.filter(u => u.role === 'student');
-    const totalStudents = students.length;
+    const listContainer =
+        document.getElementById(
+            'notificationHistoryList'
+        );
 
-    if (notifications.length === 0) {
-        listContainer.innerHTML = '<p style="color: #666; font-style: italic; text-align: center;">Chưa có thông báo nào được gửi.</p>';
+    if (!modal || !listContainer) {
+        console.error(
+            'Không tìm thấy giao diện lịch sử thông báo.'
+        );
         return;
     }
 
-    let html = '';
-    // Xếp thông báo mới nhất lên đầu
-    [...notifications].reverse().forEach(noti => {
-        const receiversObj = noti.receivers || {};
-        const receivedCount = Object.keys(receiversObj).length;
+    modal.classList.add('active');
 
-        // Trích xuất danh sách học sinh đã xem / chưa xem
-        let viewedStudentsHTML = '';
-        students.forEach(st => {
-            const hasViewed = receiversObj[st.username];
-            const color = hasViewed ? '#059669' : '#e11d48';
-            const icon = hasViewed ? '✅' : '⏳';
-            viewedStudentsHTML += `<span style="display:inline-block; margin: 3px 8px 3px 0; font-size:0.85em; color:${color}; font-weight:bold; background: rgba(0,0,0,0.04); padding: 4px 8px; border-radius: 6px;">${icon} ${st.name}</span>`;
-        });
+    listContainer.textContent =
+        'Đang tải dữ liệu...';
 
-        html += `
-        <div class="glass-alert" style="margin-bottom: 20px; border-left-color: #f6d365;">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-                <span style="font-size: 0.85em; color: #666;">🕒 Gửi lúc: ${noti.timeString || 'Không rõ'}</span>
-                <span style="font-size: 0.85em; font-weight: bold; color: #764ba2; background: rgba(118, 75, 162, 0.1); padding: 4px 10px; border-radius: 12px;">Đã xem: ${receivedCount} / ${totalStudents}</span>
-            </div>
-            <p style="margin: 0 0 10px 0; font-weight: bold; color: #2c3e50; white-space: pre-wrap; font-size: 1.05em;">${noti.message}</p>
-            
-            <div style="background: rgba(255,255,255,0.8); padding: 10px; border-radius: 8px; margin-bottom: 12px; max-height: 100px; overflow-y: auto; border: 1px inset rgba(0,0,0,0.05);">
-                ${viewedStudentsHTML}
-            </div>
-            
-            <div style="display: flex; gap: 10px;">
-                <button onclick="sendGlobalNotification('${noti.message.replace(/'/g, "\\'").replace(/\n/g, "\\n").replace(/\r/g, "")}')" style="flex: 1; padding: 8px; font-size: 0.9em; background: rgba(102, 126, 234, 0.1); color: #667eea; border: 2px dashed #667eea; box-shadow: none; border-radius: 8px; font-weight: bold;">🔄 Gửi lại tin này</button>
-                <button onclick="deleteNotification('${noti._fbKey}')" style="width: auto; padding: 8px 15px; font-size: 0.9em; background: rgba(225, 29, 72, 0.1); color: #e11d48; border: none; border-radius: 8px; font-weight: bold;">🗑 Xóa</button>
-            </div>
-        </div>`;
-    });
-    listContainer.innerHTML = html;
+    const notifications =
+        await getDB('global_notifications');
+
+    const users =
+        await getDB('users');
+
+    const students =
+        users.filter(
+            user => user.role === 'student'
+        );
+
+    const totalStudents =
+        students.length;
+
+    if (!notifications.length) {
+        listContainer.innerHTML = `
+            <p style="
+                color:#666;
+                font-style:italic;
+                text-align:center;
+            ">
+                Chưa có thông báo nào được gửi.
+            </p>
+        `;
+
+        return;
+    }
+
+    // Xóa nội dung cũ.
+    listContainer.replaceChildren();
+
+    const orderedNotifications =
+        [...notifications].reverse();
+
+    orderedNotifications.forEach(
+        notification => {
+            const receivers =
+                notification.receivers || {};
+
+            const receivedCount =
+                Object.keys(receivers).length;
+
+            const card =
+                document.createElement('div');
+
+            card.className = 'glass-alert';
+
+            card.style.cssText = `
+                margin-bottom:20px;
+                border-left-color:#f6d365;
+            `;
+
+            // =========================
+            // PHẦN THỜI GIAN VÀ LƯỢT XEM
+            // =========================
+            const header =
+                document.createElement('div');
+
+            header.style.cssText = `
+                display:flex;
+                justify-content:space-between;
+                align-items:flex-start;
+                gap:10px;
+                margin-bottom:8px;
+            `;
+
+            const timeElement =
+                document.createElement('span');
+
+            timeElement.style.cssText = `
+                font-size:0.85em;
+                color:#666;
+            `;
+
+            timeElement.textContent =
+                '🕒 Gửi lúc: ' +
+                (
+                    notification.timeString ||
+                    'Không rõ'
+                );
+
+            const countElement =
+                document.createElement('span');
+
+            countElement.style.cssText = `
+                font-size:0.85em;
+                font-weight:bold;
+                color:#764ba2;
+                background:rgba(118,75,162,0.1);
+                padding:4px 10px;
+                border-radius:12px;
+                white-space:nowrap;
+            `;
+
+            countElement.textContent =
+                `Đã xem: ${receivedCount} / ` +
+                `${totalStudents}`;
+
+            header.append(
+                timeElement,
+                countElement
+            );
+
+            // =========================
+            // NỘI DUNG THÔNG BÁO
+            // =========================
+            const messageElement =
+                document.createElement('p');
+
+            messageElement.style.cssText = `
+                margin:0 0 10px 0;
+                font-weight:bold;
+                color:#2c3e50;
+                white-space:pre-wrap;
+                font-size:1.05em;
+            `;
+
+            // textContent chống chèn HTML/XSS.
+            messageElement.textContent =
+                String(
+                    notification.message || ''
+                );
+
+            // =========================
+            // DANH SÁCH HỌC SINH
+            // =========================
+            const viewedContainer =
+                document.createElement('div');
+
+            viewedContainer.style.cssText = `
+                background:rgba(255,255,255,0.8);
+                padding:10px;
+                border-radius:8px;
+                margin-bottom:12px;
+                max-height:100px;
+                overflow-y:auto;
+                border:1px inset rgba(0,0,0,0.05);
+            `;
+
+            students.forEach(student => {
+                const hasViewed =
+                    Boolean(
+                        receivers[
+                        student.username
+                        ]
+                    );
+
+                const studentElement =
+                    document.createElement('span');
+
+                studentElement.style.cssText = `
+                    display:inline-block;
+                    margin:3px 8px 3px 0;
+                    font-size:0.85em;
+                    font-weight:bold;
+                    background:rgba(0,0,0,0.04);
+                    padding:4px 8px;
+                    border-radius:6px;
+                    color:${hasViewed
+                        ? '#059669'
+                        : '#e11d48'
+                    };
+                `;
+
+                studentElement.textContent =
+                    (
+                        hasViewed
+                            ? '✅ '
+                            : '⏳ '
+                    ) +
+                    (
+                        student.name ||
+                        student.username ||
+                        'Học sinh'
+                    );
+
+                viewedContainer.appendChild(
+                    studentElement
+                );
+            });
+
+            // =========================
+            // CÁC NÚT THAO TÁC
+            // =========================
+            const actionContainer =
+                document.createElement('div');
+
+            actionContainer.style.cssText = `
+                display:flex;
+                gap:10px;
+            `;
+
+            const resendButton =
+                document.createElement('button');
+
+            resendButton.type = 'button';
+
+            resendButton.textContent =
+                '🔄 Gửi lại tin này';
+
+            resendButton.style.cssText = `
+                flex:1;
+                padding:8px;
+                font-size:0.9em;
+                background:rgba(102,126,234,0.1);
+                color:#667eea;
+                border:2px dashed #667eea;
+                box-shadow:none;
+                border-radius:8px;
+                font-weight:bold;
+            `;
+
+            // Không dùng onclick chứa dữ liệu Firebase.
+            resendButton.addEventListener(
+                'click',
+                () => {
+                    sendGlobalNotification(
+                        String(
+                            notification.message ||
+                            ''
+                        )
+                    );
+                }
+            );
+
+            const deleteButton =
+                document.createElement('button');
+
+            deleteButton.type = 'button';
+
+            deleteButton.textContent =
+                '🗑 Xóa';
+
+            deleteButton.style.cssText = `
+                width:auto;
+                padding:8px 15px;
+                font-size:0.9em;
+                background:rgba(225,29,72,0.1);
+                color:#e11d48;
+                border:none;
+                border-radius:8px;
+                font-weight:bold;
+            `;
+
+            deleteButton.addEventListener(
+                'click',
+                () => {
+                    deleteNotification(
+                        notification._fbKey
+                    );
+                }
+            );
+
+            actionContainer.append(
+                resendButton,
+                deleteButton
+            );
+
+            card.append(
+                header,
+                messageElement,
+                viewedContainer,
+                actionContainer
+            );
+
+            listContainer.appendChild(card);
+        }
+    );
 };
 
 window.closeNotificationHistory = function () {
@@ -8468,11 +9696,168 @@ window.sendGiftMessage = async function () {
                     : 'selected_coin_items';
         }
 
+        let giftDescription = '';
+
+        if (type === 'coin') {
+            giftDescription =
+                `${Number(value).toLocaleString('vi-VN')} Coin`;
+
+        } else if (type === 'money') {
+            giftDescription =
+                `${Number(value).toLocaleString('vi-VN')} đồng Tiền lộ trình`;
+
+        } else if (type === 'ticket') {
+            giftDescription =
+                `${Number(value)} Vé quay may mắn`;
+
+        } else if (type === 'discount') {
+            giftDescription =
+                `Thẻ giảm giá ${Number(value)}%`;
+
+        } else if (type === 'special_birthday_coin') {
+            giftDescription =
+                `${Number(value)} Xu Đặc Biệt`;
+
+        } else if (type === 'item') {
+            const selectedGiftItem =
+                StoreConfig.items.find(
+                    item =>
+                        String(item.id) ===
+                        String(value)
+                );
+
+            giftDescription =
+                `vật phẩm ${selectedGiftItem?.name ||
+                value
+                }`;
+
+        } else {
+            giftDescription =
+                'lời nhắn';
+        }
+
+        const numericGiftTypes = [
+            'coin',
+            'money',
+            'ticket',
+            'discount',
+            'special_birthday_coin'
+        ];
+
+        const giftUnitMap = {
+            coin: 'Coin',
+            money: 'đồng',
+            ticket: 'Vé',
+            discount: '%',
+            special_birthday_coin:
+                'Xu Đặc Biệt'
+        };
+
         for (const username of recipients) {
-            await pushDB(
-                `inbox_messages/${username}`,
-                payload
-            );
+            /*
+             * Tạo trước mã thư để:
+             * - Lưu đúng đường dẫn thư.
+             * - Liên kết thư với nhật ký.
+             * - Cho phép giáo viên thu hồi nếu chưa nhận.
+             */
+            const messageRef =
+                db.ref(
+                    `inbox_messages/${username}`
+                ).push();
+
+            const messageId =
+                messageRef.key;
+
+            const messagePath =
+                `inbox_messages/${username}/${messageId}`;
+
+            await messageRef.set({
+                ...payload,
+
+                messageId:
+                    messageId
+            });
+
+            /*
+             * Chỉ ghi nhật ký giao dịch khi
+             * thư thực sự có quà.
+             */
+            if (
+                type !== 'none' &&
+                window.TransactionHistory
+            ) {
+                const targetStudent =
+                    students.find(
+                        student =>
+                            String(
+                                student.username
+                            ) ===
+                            String(username)
+                    );
+
+                await window
+                    .TransactionHistory
+                    .recordSafe({
+                        type:
+                            'gift_sent',
+
+                        summary:
+                            `Gửi ${giftDescription} ` +
+                            `cho ${targetStudent?.name ||
+                            username
+                            }`,
+
+                        source:
+                            'teacher_gift',
+
+                        targetUsername:
+                            username,
+
+                        targetName:
+                            targetStudent?.name ||
+                            username,
+
+                        amount:
+                            numericGiftTypes
+                                .includes(type)
+                                ? Number(value)
+                                : null,
+
+                        unit:
+                            giftUnitMap[type] ||
+                            '',
+
+                        /*
+                         * Chỉ hoàn tác được nếu
+                         * thư vẫn còn trong hộp thư.
+                         */
+                        reversible:
+                            true,
+
+                        details: {
+                            messageId:
+                                messageId,
+
+                            messagePath:
+                                messagePath,
+
+                            giftType:
+                                type,
+
+                            giftValue:
+                                value,
+
+                            giftDescription:
+                                giftDescription,
+
+                            message:
+                                message,
+
+                            sentAtClient:
+                                now
+                        }
+                    });
+            }
         }
 
         alert(
@@ -9669,6 +11054,2359 @@ window.changeTeacherPassword = async function () {
         }
     }
 };
+
+// ==========================================================
+// NGÂN HÀNG CÂU HỎI VÀ ĐỀ NGẪU NHIÊN
+// ==========================================================
+(function initQuestionBankModule() {
+    const QB_PATH = 'questionBank';
+    const LETTERS = ['A', 'B', 'C', 'D'];
+
+    window.questionBankCache =
+        window.questionBankCache || [];
+
+    window.questionBankPage =
+        window.questionBankPage || 1;
+
+    window.questionBankPageSize =
+        window.questionBankPageSize || 5;
+
+    window.questionBankFilterKey =
+        window.questionBankFilterKey || '';
+
+    function text(value) {
+        return String(value ?? '').trim();
+    }
+
+    function escapeHTML(value) {
+        return String(value ?? '').replace(
+            /[&<>'"]/g,
+            char => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                "'": '&#039;',
+                '"': '&quot;'
+            })[char]
+        );
+    }
+
+    function token(value) {
+        return text(value)
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/đ/g, 'd')
+            .replace(/Đ/g, 'D')
+            .toLowerCase()
+            .replace(/\s+/g, ' ');
+    }
+
+    function fingerprint(question) {
+        return [
+            question.qText,
+            question.A,
+            question.B,
+            question.C,
+            question.D,
+            question.correct
+        ]
+            .map(token)
+            .join('|');
+    }
+
+    function normalizeQuestion(raw, firebaseKey = '') {
+        const q = raw || {};
+
+        return {
+            _fbKey:
+                firebaseKey ||
+                q._fbKey ||
+                '',
+
+            id: text(
+                q.id ||
+                q.questionId ||
+                firebaseKey
+            ),
+
+            questionId: text(
+                q.questionId ||
+                q.id ||
+                firebaseKey
+            ),
+
+            subject: text(
+                q.subject ||
+                'Chưa phân loại'
+            ),
+
+            grade: text(
+                q.grade ||
+                'Chưa phân loại'
+            ),
+
+            lesson: text(
+                q.lesson ||
+                'Chưa phân loại'
+            ),
+
+            difficulty: text(
+                q.difficulty ||
+                'Nhận biết'
+            ),
+
+            qText: text(
+                q.qText ||
+                q.text
+            ),
+
+            A: text(q.A),
+            B: text(q.B),
+            C: text(q.C),
+            D: text(q.D),
+
+            correct: text(q.correct)
+                .toUpperCase(),
+
+            explanation: text(q.explanation),
+
+            usageCount:
+                Number(q.usageCount) || 0,
+
+            attemptedCount:
+                Number(q.attemptedCount) || 0,
+
+            wrongCount:
+                Number(q.wrongCount) || 0,
+
+            createdAt:
+                Number(q.createdAt) || 0,
+
+            updatedAt:
+                Number(q.updatedAt) || 0
+        };
+    }
+
+    function readForm() {
+        return normalizeQuestion({
+            subject:
+                document.getElementById(
+                    'qbSubject'
+                )?.value,
+
+            grade:
+                document.getElementById(
+                    'qbGrade'
+                )?.value,
+
+            lesson:
+                document.getElementById(
+                    'qbLesson'
+                )?.value,
+
+            difficulty:
+                document.getElementById(
+                    'qbDifficulty'
+                )?.value,
+
+            qText:
+                document.getElementById(
+                    'qbText'
+                )?.value,
+
+            A:
+                document.getElementById(
+                    'qbA'
+                )?.value,
+
+            B:
+                document.getElementById(
+                    'qbB'
+                )?.value,
+
+            C:
+                document.getElementById(
+                    'qbC'
+                )?.value,
+
+            D:
+                document.getElementById(
+                    'qbD'
+                )?.value,
+
+            correct:
+                document.getElementById(
+                    'qbCorrect'
+                )?.value,
+
+            explanation:
+                document.getElementById(
+                    'qbExplanation'
+                )?.value
+        });
+    }
+
+    function validateQuestion(q) {
+        if (
+            !q.subject ||
+            q.subject === 'Chưa phân loại'
+        ) {
+            return 'Vui lòng nhập môn học.';
+        }
+
+        if (
+            !q.grade ||
+            q.grade === 'Chưa phân loại'
+        ) {
+            return 'Vui lòng nhập lớp.';
+        }
+
+        if (
+            !q.lesson ||
+            q.lesson === 'Chưa phân loại'
+        ) {
+            return 'Vui lòng nhập bài/chủ đề.';
+        }
+
+        if (
+            !q.qText ||
+            !q.A ||
+            !q.B ||
+            !q.C ||
+            !q.D ||
+            !LETTERS.includes(q.correct)
+        ) {
+            return (
+                'Vui lòng nhập đủ nội dung, ' +
+                '4 lựa chọn và đáp án đúng.'
+            );
+        }
+
+        return '';
+    }
+
+    window.resetQuestionBankForm = function () {
+        [
+            'qbEditingKey',
+            'qbSubject',
+            'qbGrade',
+            'qbLesson',
+            'qbText',
+            'qbA',
+            'qbB',
+            'qbC',
+            'qbD',
+            'qbExplanation'
+        ].forEach(id => {
+            const element =
+                document.getElementById(id);
+
+            if (element) {
+                element.value = '';
+            }
+        });
+
+        const difficulty =
+            document.getElementById(
+                'qbDifficulty'
+            );
+
+        const correct =
+            document.getElementById(
+                'qbCorrect'
+            );
+
+        if (difficulty) {
+            difficulty.value = 'Nhận biết';
+        }
+
+        if (correct) {
+            correct.value = 'A';
+        }
+    };
+
+    window.saveQuestionBankItem =
+        async function () {
+            const item = readForm();
+            const error =
+                validateQuestion(item);
+
+            if (error) {
+                return alert('⚠️ ' + error);
+            }
+
+            const editingKey = text(
+                document.getElementById(
+                    'qbEditingKey'
+                )?.value
+            );
+
+            const now = Date.now();
+
+            const duplicate =
+                window.questionBankCache.find(
+                    q =>
+                        fingerprint(q) ===
+                        fingerprint(item) &&
+                        q._fbKey !== editingKey
+                );
+
+            if (duplicate) {
+                return alert(
+                    '⚠️ Câu hỏi này đã có trong ngân hàng.'
+                );
+            }
+
+            const oldItem =
+                window.questionBankCache.find(
+                    q => q._fbKey === editingKey
+                );
+
+            const payload = {
+                ...item,
+
+                id: editingKey
+                    ? (
+                        oldItem?.id ||
+                        editingKey
+                    )
+                    : `qb_${now}`,
+
+                questionId: editingKey
+                    ? (
+                        oldItem?.questionId ||
+                        editingKey
+                    )
+                    : `qb_${now}`,
+
+                updatedAt: now,
+
+                updatedBy:
+                    currentUser.username ||
+                    currentUser.name ||
+                    'teacher'
+            };
+
+            if (editingKey) {
+                await db
+                    .ref(
+                        `${QB_PATH}/${editingKey}`
+                    )
+                    .update(payload);
+            } else {
+                payload.createdAt = now;
+
+                payload.createdBy =
+                    currentUser.username ||
+                    currentUser.name ||
+                    'teacher';
+
+                payload.usageCount = 0;
+                payload.attemptedCount = 0;
+                payload.wrongCount = 0;
+
+                await db
+                    .ref(QB_PATH)
+                    .push(payload);
+            }
+
+            window.resetQuestionBankForm();
+
+            await window.loadQuestionBank(
+                true
+            );
+
+            alert(
+                editingKey
+                    ? '✅ Đã cập nhật câu hỏi.'
+                    : '✅ Đã lưu câu hỏi vào ngân hàng.'
+            );
+        };
+
+    window.loadQuestionBank =
+        async function (force = false) {
+            if (
+                !force &&
+                window.questionBankCache.length > 0
+            ) {
+                window.renderQuestionBank();
+                return;
+            }
+
+            const snapshot = await db
+                .ref(QB_PATH)
+                .once('value');
+
+            const rows = [];
+
+            snapshot.forEach(child => {
+                rows.push(
+                    normalizeQuestion(
+                        child.val(),
+                        child.key
+                    )
+                );
+            });
+
+            rows.sort(
+                (a, b) =>
+                    (
+                        b.updatedAt ||
+                        b.createdAt
+                    ) -
+                    (
+                        a.updatedAt ||
+                        a.createdAt
+                    )
+            );
+
+            window.questionBankCache = rows;
+            window.questionBankLoaded = true;
+
+            window.renderQuestionBank();
+        };
+
+    window.renderQuestionBank = function () {
+        const list =
+            document.getElementById(
+                'questionBankList'
+            );
+
+        const pagination =
+            document.getElementById(
+                'qbPagination'
+            );
+
+        if (!list) {
+            return;
+        }
+
+        const search = token(
+            document.getElementById(
+                'qbSearch'
+            )?.value
+        );
+
+        const subject = token(
+            document.getElementById(
+                'qbFilterSubject'
+            )?.value
+        );
+
+        const grade = token(
+            document.getElementById(
+                'qbFilterGrade'
+            )?.value
+        );
+
+        const lesson = token(
+            document.getElementById(
+                'qbFilterLesson'
+            )?.value
+        );
+
+        const difficulty = text(
+            document.getElementById(
+                'qbFilterDifficulty'
+            )?.value
+        );
+
+        const filtered =
+            window.questionBankCache.filter(
+                q => {
+                    const haystack = token([
+                        q.qText,
+                        q.A,
+                        q.B,
+                        q.C,
+                        q.D,
+                        q.subject,
+                        q.grade,
+                        q.lesson
+                    ].join(' '));
+
+                    return (
+                        (
+                            !search ||
+                            haystack.includes(search)
+                        ) &&
+                        (
+                            !subject ||
+                            token(q.subject)
+                                .includes(subject)
+                        ) &&
+                        (
+                            !grade ||
+                            token(q.grade)
+                                .includes(grade)
+                        ) &&
+                        (
+                            !lesson ||
+                            token(q.lesson)
+                                .includes(lesson)
+                        ) &&
+                        (
+                            !difficulty ||
+                            q.difficulty ===
+                            difficulty
+                        )
+                    );
+                }
+            );
+
+        const filterKey = [
+            search,
+            subject,
+            grade,
+            lesson,
+            difficulty
+        ].join('|');
+
+        /*
+         * Khi thay đổi tìm kiếm hoặc bộ lọc,
+         * tự động quay lại trang đầu.
+         */
+        if (
+            window.questionBankFilterKey !==
+            filterKey
+        ) {
+            window.questionBankFilterKey =
+                filterKey;
+
+            window.questionBankPage = 1;
+        }
+
+        const pageSize =
+            Number(
+                document.getElementById(
+                    'qbPageSize'
+                )?.value ||
+                window.questionBankPageSize ||
+                5
+            ) || 5;
+
+        window.questionBankPageSize =
+            pageSize;
+
+        const totalPages =
+            Math.max(
+                1,
+                Math.ceil(
+                    filtered.length /
+                    pageSize
+                )
+            );
+
+        window.questionBankPage =
+            Math.min(
+                totalPages,
+                Math.max(
+                    1,
+                    Number(
+                        window.questionBankPage ||
+                        1
+                    )
+                )
+            );
+
+        const startIndex =
+            (
+                window.questionBankPage -
+                1
+            ) * pageSize;
+
+        const pageItems =
+            filtered.slice(
+                startIndex,
+                startIndex + pageSize
+            );
+
+        const count =
+            document.getElementById(
+                'qbCount'
+            );
+
+        if (count) {
+            count.textContent =
+                filtered.length === 0
+                    ? (
+                        'Không có câu hỏi phù hợp ' +
+                        `trong ${window.questionBankCache.length} câu.`
+                    )
+                    : (
+                        `Hiển thị ${startIndex + 1}–` +
+                        `${startIndex + pageItems.length}/` +
+                        `${filtered.length} câu phù hợp ` +
+                        `(tổng ${window.questionBankCache.length}).`
+                    );
+        }
+
+        if (filtered.length === 0) {
+            list.innerHTML =
+                '<div class="glass-alert">' +
+                '<p style="margin:0;">' +
+                'Chưa có câu hỏi phù hợp.' +
+                '</p></div>';
+
+            if (pagination) {
+                pagination.innerHTML = '';
+            }
+
+            return;
+        }
+
+        list.innerHTML = pageItems.map(q => {
+            const rate =
+                q.attemptedCount > 0
+                    ? Math.round(
+                        q.wrongCount /
+                        q.attemptedCount *
+                        100
+                    )
+                    : 0;
+
+            return `
+                <article style="
+                    background:rgba(255,255,255,.72);
+                    border:1px solid rgba(15,23,42,.09);
+                    border-radius:12px;
+                    padding:14px;
+                ">
+                    <div style="
+                        display:flex;
+                        justify-content:space-between;
+                        gap:12px;
+                        align-items:flex-start;
+                        flex-wrap:wrap;
+                    ">
+                        <div style="flex:1;min-width:240px;">
+                            <div style="
+                                display:flex;
+                                flex-wrap:wrap;
+                                gap:6px;
+                                margin-bottom:8px;
+                            ">
+                                <span style="
+                                    background:#e0e7ff;
+                                    color:#3730a3;
+                                    padding:3px 8px;
+                                    border-radius:999px;
+                                    font-size:.78em;
+                                    font-weight:700;
+                                ">
+                                    ${escapeHTML(q.subject)}
+                                </span>
+
+                                <span style="
+                                    background:#dcfce7;
+                                    color:#166534;
+                                    padding:3px 8px;
+                                    border-radius:999px;
+                                    font-size:.78em;
+                                    font-weight:700;
+                                ">
+                                    Lớp ${escapeHTML(q.grade)}
+                                </span>
+
+                                <span style="
+                                    background:#fef3c7;
+                                    color:#92400e;
+                                    padding:3px 8px;
+                                    border-radius:999px;
+                                    font-size:.78em;
+                                    font-weight:700;
+                                ">
+                                    ${escapeHTML(q.lesson)}
+                                </span>
+
+                                <span style="
+                                    background:#ffe4e6;
+                                    color:#9f1239;
+                                    padding:3px 8px;
+                                    border-radius:999px;
+                                    font-size:.78em;
+                                    font-weight:700;
+                                ">
+                                    ${escapeHTML(q.difficulty)}
+                                </span>
+                            </div>
+
+                            <p style="
+                                font-weight:800;
+                                color:#172033;
+                                line-height:1.55;
+                                margin:0 0 8px;
+                            ">
+                                ${escapeHTML(q.qText)}
+                            </p>
+
+                            <div style="
+                                color:#475569;
+                                line-height:1.7;
+                                font-size:.92em;
+                            ">
+                                A. ${escapeHTML(q.A)}<br>
+                                B. ${escapeHTML(q.B)}<br>
+                                C. ${escapeHTML(q.C)}<br>
+                                D. ${escapeHTML(q.D)}
+                            </div>
+
+                            <p style="
+                                margin:8px 0 0;
+                                font-size:.85em;
+                                color:#64748b;
+                            ">
+                                Đúng:
+                                <strong style="color:#059669;">
+                                    ${q.correct}
+                                </strong>
+                                · Đã dùng: ${q.usageCount}
+                                · Sai:
+                                ${q.wrongCount}/${q.attemptedCount}
+                                (${rate}%)
+                            </p>
+                        </div>
+
+                        <div style="
+                            display:flex;
+                            flex-direction:column;
+                            gap:7px;
+                            min-width:150px;
+                        ">
+                            <button type="button"
+                                onclick="reuseQuestionBankItem('${q._fbKey}')"
+                                style="background:#059669;color:white;padding:8px;">
+                                ➕ Đưa vào bài soạn
+                            </button>
+
+                            <button type="button"
+                                onclick="editQuestionBankItem('${q._fbKey}')"
+                                style="background:#4f46e5;color:white;padding:8px;">
+                                ✏️ Sửa
+                            </button>
+
+                            <button type="button"
+                                onclick="deleteQuestionBankItem('${q._fbKey}')"
+                                style="background:#e11d48;color:white;padding:8px;">
+                                🗑️ Xóa
+                            </button>
+                        </div>
+                    </div>
+                </article>
+            `;
+        }).join('');
+
+        if (pagination) {
+            pagination.innerHTML =
+                totalPages <= 1
+                    ? ''
+                    : `
+                <button
+                    type="button"
+                    onclick="changeQuestionBankPage(
+                        ${window.questionBankPage - 1}
+                    )"
+                    ${window.questionBankPage === 1
+                        ? 'disabled'
+                        : ''
+                    }
+                    style="
+                        width:auto;
+                        margin:0;
+                        padding:8px 12px;
+                    "
+                >
+                    ◀ Trước
+                </button>
+
+                <strong style="
+                    padding:8px 12px;
+                    color:#334155;
+                ">
+                    Trang
+                    ${window.questionBankPage}/
+                    ${totalPages}
+                </strong>
+
+                <button
+                    type="button"
+                    onclick="changeQuestionBankPage(
+                        ${window.questionBankPage + 1}
+                    )"
+                    ${window.questionBankPage === totalPages
+                        ? 'disabled'
+                        : ''
+                    }
+                    style="
+                        width:auto;
+                        margin:0;
+                        padding:8px 12px;
+                    "
+                >
+                    Sau ▶
+                </button>
+            `;
+        }
+    };
+
+    window.changeQuestionBankPage =
+        function (page) {
+            window.questionBankPage =
+                Math.max(
+                    1,
+                    Number(page) || 1
+                );
+
+            window.renderQuestionBank();
+
+            const list =
+                document.getElementById(
+                    'questionBankList'
+                );
+
+            if (list) {
+                list.scrollTop = 0;
+            }
+
+            document.getElementById(
+                'qbCount'
+            )?.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center'
+            });
+        };
+
+    window.changeQuestionBankPageSize =
+        function (size) {
+            window.questionBankPageSize =
+                Math.max(
+                    1,
+                    Number(size) || 5
+                );
+
+            window.questionBankPage = 1;
+            window.renderQuestionBank();
+
+            const list =
+                document.getElementById(
+                    'questionBankList'
+                );
+
+            if (list) {
+                list.scrollTop = 0;
+            }
+        };
+
+    window.editQuestionBankItem =
+        function (firebaseKey) {
+            const q =
+                window.questionBankCache.find(
+                    item =>
+                        item._fbKey === firebaseKey
+                );
+
+            if (!q) {
+                return;
+            }
+
+            const values = {
+                qbEditingKey: firebaseKey,
+                qbSubject: q.subject,
+                qbGrade: q.grade,
+                qbLesson: q.lesson,
+                qbDifficulty: q.difficulty,
+                qbText: q.qText,
+                qbA: q.A,
+                qbB: q.B,
+                qbC: q.C,
+                qbD: q.D,
+                qbCorrect: q.correct,
+                qbExplanation: q.explanation
+            };
+
+            Object.entries(values)
+                .forEach(([id, value]) => {
+                    const element =
+                        document.getElementById(id);
+
+                    if (element) {
+                        element.value = value;
+                    }
+                });
+
+            document.getElementById(
+                'tab-question-bank'
+            )?.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+            });
+        };
+
+    window.deleteQuestionBankItem =
+        async function (firebaseKey) {
+            const q =
+                window.questionBankCache.find(
+                    item =>
+                        item._fbKey === firebaseKey
+                );
+
+            if (!q) {
+                return;
+            }
+
+            if (
+                !confirm(
+                    `Xóa câu hỏi “${q.qText}”? ` +
+                    'Bài tập đã tạo trước đó không bị ảnh hưởng.'
+                )
+            ) {
+                return;
+            }
+
+            await db
+                .ref(
+                    `${QB_PATH}/${firebaseKey}`
+                )
+                .remove();
+
+            await window.loadQuestionBank(true);
+        };
+
+    function fillCreateQuestionBlock(
+        block,
+        q
+    ) {
+        if (!block) {
+            return;
+        }
+
+        block.dataset.questionId =
+            q.questionId ||
+            q.id ||
+            `qb_${Date.now()}`;
+
+        block.dataset.bankQuestionId =
+            q._fbKey ||
+            q.bankQuestionId ||
+            q.id ||
+            '';
+
+        block.dataset.subject =
+            q.subject || '';
+
+        block.dataset.grade =
+            q.grade || '';
+
+        block.dataset.lesson =
+            q.lesson || '';
+
+        block.dataset.difficulty =
+            q.difficulty || 'Nhận biết';
+
+        const map = {
+            '.q-text': q.qText,
+            '.q-optA': q.A,
+            '.q-optB': q.B,
+            '.q-optC': q.C,
+            '.q-optD': q.D
+        };
+
+        Object.entries(map)
+            .forEach(([selector, value]) => {
+                const element =
+                    block.querySelector(selector);
+
+                if (element) {
+                    element.value = value || '';
+                }
+            });
+
+        const radio = block.querySelector(
+            `.q-correct-radio[value="${q.correct}"]`
+        );
+
+        if (radio) {
+            radio.checked = true;
+        }
+
+        block.style.borderColor =
+            'rgba(5,150,105,.55)';
+
+        block.title =
+            `Từ ngân hàng: ${q.subject} · ` +
+            `Lớp ${q.grade} · ${q.lesson}`;
+    }
+
+    window.reuseQuestionBankItem =
+        function (firebaseKey) {
+            const q =
+                window.questionBankCache.find(
+                    item =>
+                        item._fbKey === firebaseKey
+                );
+
+            if (!q) {
+                return alert(
+                    'Không tìm thấy câu hỏi.'
+                );
+            }
+
+            const createButton =
+                document.querySelector(
+                    '.nav-item[onclick*="tab-create"]'
+                );
+
+            if (
+                typeof switchTab === 'function'
+            ) {
+                switchTab(
+                    'tab-create',
+                    createButton
+                );
+            }
+
+            const type =
+                document.getElementById(
+                    'assessmentType'
+                );
+
+            if (
+                type &&
+                type.value === 'tu_luan'
+            ) {
+                type.value = 'trac_nghiem';
+                window.toggleAssessmentFields();
+            }
+
+            window.addQuestion();
+
+            const blocks =
+                document.querySelectorAll(
+                    '#questionsContainer .question-block'
+                );
+
+            fillCreateQuestionBlock(
+                blocks[blocks.length - 1],
+                q
+            );
+
+            const usageRef = db.ref(
+                `${QB_PATH}/${firebaseKey}/usageCount`
+            );
+
+            usageRef.transaction(
+                current =>
+                    (Number(current) || 0) + 1
+            );
+
+            document.getElementById(
+                'questionsContainer'
+            )?.scrollIntoView({
+                behavior: 'smooth',
+                block: 'end'
+            });
+        };
+
+    window.saveDraftQuestionsToBank =
+        async function () {
+            const blocks = [
+                ...document.querySelectorAll(
+                    '#questionsContainer .question-block'
+                )
+            ];
+
+            if (blocks.length === 0) {
+                return alert(
+                    'Chưa có câu hỏi nào đang soạn.'
+                );
+            }
+
+            const subject = text(
+                document.getElementById(
+                    'assignmentQuestionSubject'
+                )?.value
+            );
+
+            const grade = text(
+                document.getElementById(
+                    'assignmentQuestionGrade'
+                )?.value
+            );
+
+            const lesson = text(
+                document.getElementById(
+                    'assignmentQuestionLesson'
+                )?.value
+            );
+
+            const difficulty = text(
+                document.getElementById(
+                    'assignmentQuestionDifficulty'
+                )?.value ||
+                'Nhận biết'
+            );
+
+            if (
+                !subject ||
+                !grade ||
+                !lesson
+            ) {
+                return alert(
+                    'Vui lòng nhập Môn, Lớp ' +
+                    'và Bài/chủ đề trước khi lưu.'
+                );
+            }
+
+            await window.loadQuestionBank();
+
+            const fingerprints = new Set(
+                window.questionBankCache.map(
+                    fingerprint
+                )
+            );
+
+            const updates = {};
+            let added = 0;
+
+            for (const block of blocks) {
+                const correct =
+                    block.querySelector(
+                        '.q-correct-radio:checked'
+                    )?.value || '';
+
+                const q = normalizeQuestion({
+                    subject,
+                    grade,
+                    lesson,
+                    difficulty,
+
+                    qText:
+                        block.querySelector(
+                            '.q-text'
+                        )?.value,
+
+                    A:
+                        block.querySelector(
+                            '.q-optA'
+                        )?.value,
+
+                    B:
+                        block.querySelector(
+                            '.q-optB'
+                        )?.value,
+
+                    C:
+                        block.querySelector(
+                            '.q-optC'
+                        )?.value,
+
+                    D:
+                        block.querySelector(
+                            '.q-optD'
+                        )?.value,
+
+                    correct
+                });
+
+                if (
+                    validateQuestion(q) ||
+                    fingerprints.has(
+                        fingerprint(q)
+                    )
+                ) {
+                    continue;
+                }
+
+                const ref =
+                    db.ref(QB_PATH).push();
+
+                const now =
+                    Date.now() + added;
+
+                const bankId = ref.key;
+
+                updates[bankId] = {
+                    ...q,
+
+                    id: `qb_${now}`,
+                    questionId: `qb_${now}`,
+
+                    createdAt: now,
+                    updatedAt: now,
+
+                    createdBy:
+                        currentUser.username ||
+                        'teacher',
+
+                    usageCount: 1,
+                    attemptedCount: 0,
+                    wrongCount: 0
+                };
+
+                block.dataset.bankQuestionId =
+                    bankId;
+
+                block.dataset.questionId =
+                    `qb_${now}`;
+
+                block.dataset.subject =
+                    subject;
+
+                block.dataset.grade =
+                    grade;
+
+                block.dataset.lesson =
+                    lesson;
+
+                block.dataset.difficulty =
+                    difficulty;
+
+                fingerprints.add(
+                    fingerprint(q)
+                );
+
+                added++;
+            }
+
+            if (added > 0) {
+                await db
+                    .ref(QB_PATH)
+                    .update(updates);
+            }
+
+            await window.loadQuestionBank(
+                true
+            );
+
+            alert(
+                `✅ Đã thêm ${added} câu mới; ` +
+                'câu trùng hoặc thiếu dữ liệu được bỏ qua.'
+            );
+        };
+
+    window.importQuestionsFromAssignmentsToBank =
+        async function () {
+            if (
+                !confirm(
+                    'Quét toàn bộ bài tập cũ và đưa ' +
+                    'các câu chưa có vào ngân hàng?'
+                )
+            ) {
+                return;
+            }
+
+            const [
+                assignSnap,
+                bankSnap
+            ] = await Promise.all([
+                db.ref('assignments')
+                    .once('value'),
+
+                db.ref(QB_PATH)
+                    .once('value')
+            ]);
+
+            const existing = new Set();
+
+            bankSnap.forEach(child => {
+                existing.add(
+                    fingerprint(
+                        normalizeQuestion(
+                            child.val(),
+                            child.key
+                        )
+                    )
+                );
+            });
+
+            const updates = {};
+            let added = 0;
+
+            assignSnap.forEach(
+                assignChild => {
+                    const assign =
+                        assignChild.val() || {};
+
+                    const questions =
+                        Array.isArray(
+                            assign.questions
+                        )
+                            ? assign.questions
+                            : [];
+
+                    questions.forEach(
+                        (raw, index) => {
+                            const q =
+                                normalizeQuestion({
+                                    ...raw,
+
+                                    subject:
+                                        raw.subject ||
+                                        assign.subject ||
+                                        'Chưa phân loại',
+
+                                    grade:
+                                        raw.grade ||
+                                        assign.grade ||
+                                        'Chưa phân loại',
+
+                                    lesson:
+                                        raw.lesson ||
+                                        assign.lesson ||
+                                        assign.title ||
+                                        'Bài cũ'
+                                });
+
+                            if (
+                                !q.qText ||
+                                !q.A ||
+                                !q.B ||
+                                !q.C ||
+                                !q.D ||
+                                !LETTERS.includes(
+                                    q.correct
+                                )
+                            ) {
+                                return;
+                            }
+
+                            const fp =
+                                fingerprint(q);
+
+                            if (
+                                existing.has(fp)
+                            ) {
+                                return;
+                            }
+
+                            const key =
+                                db.ref(QB_PATH)
+                                    .push()
+                                    .key;
+
+                            const now =
+                                Date.now() +
+                                added;
+
+                            updates[key] = {
+                                ...q,
+
+                                id:
+                                    q.questionId ||
+                                    `qb_${now}`,
+
+                                questionId:
+                                    q.questionId ||
+                                    `qb_${now}`,
+
+                                sourceAssignmentId:
+                                    assign.id ||
+                                    assignChild.key,
+
+                                sourceAssignmentTitle:
+                                    assign.title ||
+                                    '',
+
+                                sourceQuestionIndex:
+                                    index,
+
+                                createdAt: now,
+                                updatedAt: now,
+
+                                createdBy:
+                                    currentUser.username ||
+                                    'teacher',
+
+                                usageCount: 1,
+                                attemptedCount: 0,
+                                wrongCount: 0
+                            };
+
+                            existing.add(fp);
+                            added++;
+                        }
+                    );
+                }
+            );
+
+            if (added > 0) {
+                await db
+                    .ref(QB_PATH)
+                    .update(updates);
+            }
+
+            await window.loadQuestionBank(
+                true
+            );
+
+            alert(
+                `✅ Đã nhập ${added} câu hỏi ` +
+                'mới từ các bài cũ.'
+            );
+        };
+
+    window.getDisabledRandomExamConfig =
+        function () {
+            return {
+                enabled: false,
+                questionCount: null,
+                versionCount: 1,
+                shuffleQuestions: false,
+                shuffleAnswers: false
+            };
+        };
+
+    window.collectRandomExamConfig =
+        function (
+            isEdit = false,
+            totalQuestions = 0
+        ) {
+            const prefix =
+                isEdit ? 'edit' : '';
+
+            const id = suffix =>
+                prefix
+                    ? `edit${suffix[0].toUpperCase()
+                    }${suffix.slice(1)}`
+                    : suffix;
+
+            const enabled =
+                document.getElementById(
+                    id('enableRandomExam')
+                )?.checked === true;
+
+            if (!enabled) {
+                return window
+                    .getDisabledRandomExamConfig();
+            }
+
+            const rawCount = Number(
+                document.getElementById(
+                    id('randomQuestionCount')
+                )?.value
+            );
+
+            const questionCount =
+                Number.isInteger(rawCount) &&
+                    rawCount > 0
+                    ? rawCount
+                    : totalQuestions;
+
+            const versionCount = Number(
+                document.getElementById(
+                    id('examVersionCount')
+                )?.value
+            ) || 1;
+
+            if (
+                !Number.isInteger(questionCount) ||
+                questionCount <= 0
+            ) {
+                return {
+                    error:
+                        'Số câu lấy phải là số nguyên lớn hơn 0.'
+                };
+            }
+
+            if (
+                questionCount > totalQuestions
+            ) {
+                return {
+                    error:
+                        `Số câu lấy (${questionCount}) ` +
+                        `không được lớn hơn số câu ` +
+                        `trong bộ (${totalQuestions}).`
+                };
+            }
+
+            if (
+                !Number.isInteger(versionCount) ||
+                versionCount < 1 ||
+                versionCount > 50
+            ) {
+                return {
+                    error:
+                        'Số mã đề phải từ 1 đến 50.'
+                };
+            }
+
+            return {
+                enabled: true,
+                questionCount,
+                versionCount,
+
+                shuffleQuestions:
+                    document.getElementById(
+                        id('shuffleQuestionOrder')
+                    )?.checked !== false,
+
+                shuffleAnswers:
+                    document.getElementById(
+                        id('shuffleAnswerOrder')
+                    )?.checked !== false,
+
+                generatedAt: Date.now()
+            };
+        };
+
+    window.toggleRandomExamConfig =
+        function () {
+            const enabled =
+                document.getElementById(
+                    'enableRandomExam'
+                )?.checked === true;
+
+            const fields =
+                document.getElementById(
+                    'randomExamConfigFields'
+                );
+
+            if (fields) {
+                fields.style.display =
+                    enabled
+                        ? 'block'
+                        : 'none';
+            }
+
+            const total =
+                document.querySelectorAll(
+                    '#questionsContainer .question-block'
+                ).length;
+
+            const summary =
+                document.getElementById(
+                    'randomExamSummary'
+                );
+
+            if (summary) {
+                summary.textContent =
+                    enabled
+                        ? (
+                            `Hiện có ${total} câu trong bộ. ` +
+                            'Mỗi học sinh được gán ổn định một mã đề.'
+                        )
+                        : '';
+            }
+        };
+
+    window.toggleEditRandomExamConfig =
+        function () {
+            const enabled =
+                document.getElementById(
+                    'editEnableRandomExam'
+                )?.checked === true;
+
+            const fields =
+                document.getElementById(
+                    'editRandomExamConfigFields'
+                );
+
+            if (fields) {
+                fields.style.display =
+                    enabled
+                        ? 'block'
+                        : 'none';
+            }
+        };
+
+    window.resetRandomExamConfigForm =
+        function (isEdit = false) {
+            const prefix =
+                isEdit ? 'edit' : '';
+
+            const id = suffix =>
+                prefix
+                    ? `edit${suffix[0].toUpperCase()
+                    }${suffix.slice(1)}`
+                    : suffix;
+
+            const enabled =
+                document.getElementById(
+                    id('enableRandomExam')
+                );
+
+            const count =
+                document.getElementById(
+                    id('randomQuestionCount')
+                );
+
+            const versions =
+                document.getElementById(
+                    id('examVersionCount')
+                );
+
+            const shuffleQuestions =
+                document.getElementById(
+                    id('shuffleQuestionOrder')
+                );
+
+            const shuffleAnswers =
+                document.getElementById(
+                    id('shuffleAnswerOrder')
+                );
+
+            if (enabled) {
+                enabled.checked = false;
+            }
+
+            if (count) {
+                count.value = '';
+            }
+
+            if (versions) {
+                versions.value = '4';
+            }
+
+            if (shuffleQuestions) {
+                shuffleQuestions.checked = true;
+            }
+
+            if (shuffleAnswers) {
+                shuffleAnswers.checked = true;
+            }
+
+            if (isEdit) {
+                window.toggleEditRandomExamConfig();
+            } else {
+                window.toggleRandomExamConfig();
+            }
+        };
+
+    window.applyRandomExamConfigToEditForm =
+        function (config) {
+            const c = config || {};
+            const enabled =
+                c.enabled === true;
+
+            const map = {
+                editEnableRandomExam:
+                    enabled,
+
+                editRandomQuestionCount:
+                    enabled && c.questionCount
+                        ? c.questionCount
+                        : '',
+
+                editExamVersionCount:
+                    enabled && c.versionCount
+                        ? c.versionCount
+                        : 4,
+
+                editShuffleQuestionOrder:
+                    c.shuffleQuestions !== false,
+
+                editShuffleAnswerOrder:
+                    c.shuffleAnswers !== false
+            };
+
+            Object.entries(map)
+                .forEach(([id, value]) => {
+                    const element =
+                        document.getElementById(id);
+
+                    if (!element) {
+                        return;
+                    }
+
+                    if (
+                        element.type ===
+                        'checkbox'
+                    ) {
+                        element.checked =
+                            Boolean(value);
+                    } else {
+                        element.value = value;
+                    }
+                });
+
+            window.toggleEditRandomExamConfig();
+        };
+
+    function hashSeed(value) {
+        let hash = 2166136261;
+        const input = String(value);
+
+        for (
+            let index = 0;
+            index < input.length;
+            index++
+        ) {
+            hash ^= input.charCodeAt(index);
+            hash = Math.imul(
+                hash,
+                16777619
+            );
+        }
+
+        return hash >>> 0;
+    }
+
+    function randomFromSeed(seed) {
+        let state = seed >>> 0;
+
+        return function () {
+            state += 0x6D2B79F5;
+
+            let result = state;
+
+            result = Math.imul(
+                result ^ (result >>> 15),
+                result | 1
+            );
+
+            result ^=
+                result +
+                Math.imul(
+                    result ^
+                    (result >>> 7),
+                    result | 61
+                );
+
+            return (
+                (
+                    result ^
+                    (result >>> 14)
+                ) >>> 0
+            ) / 4294967296;
+        };
+    }
+
+    function shuffle(items, seed) {
+        const result = items.slice();
+
+        const random =
+            randomFromSeed(
+                hashSeed(seed)
+            );
+
+        for (
+            let index =
+                result.length - 1;
+            index > 0;
+            index--
+        ) {
+            const randomIndex =
+                Math.floor(
+                    random() *
+                    (index + 1)
+                );
+
+            [
+                result[index],
+                result[randomIndex]
+            ] = [
+                    result[randomIndex],
+                    result[index]
+                ];
+        }
+
+        return result;
+    }
+
+    function versionLabel(index) {
+        return index < 26
+            ? String.fromCharCode(65 + index)
+            : `A${index + 1}`;
+    }
+
+    function makePreviewVersion(
+        questions,
+        config,
+        versionIndex
+    ) {
+        const base = questions.map(
+            (q, index) => ({
+                ...q,
+                _sourceIndex: index
+            })
+        );
+
+        const selected =
+            config.questionCount < base.length
+                ? shuffle(
+                    base,
+                    `preview|${versionIndex}|select`
+                ).slice(
+                    0,
+                    config.questionCount
+                )
+                : base;
+
+        const ordered =
+            config.shuffleQuestions
+                ? shuffle(
+                    selected,
+                    `preview|${versionIndex}|questions`
+                )
+                : selected
+                    .slice()
+                    .sort(
+                        (a, b) =>
+                            a._sourceIndex -
+                            b._sourceIndex
+                    );
+
+        return ordered.map(
+            (q, index) => {
+                if (
+                    !config.shuffleAnswers
+                ) {
+                    return q;
+                }
+
+                const options =
+                    LETTERS.map(letter => ({
+                        letter,
+                        text: q[letter]
+                    }));
+
+                const shuffled =
+                    shuffle(
+                        options,
+                        `preview|${versionIndex}|answer|` +
+                        `${q.questionId || q.qText}|${index}`
+                    );
+
+                const output = {
+                    ...q
+                };
+
+                shuffled.forEach(
+                    (
+                        option,
+                        optionIndex
+                    ) => {
+                        output[
+                            LETTERS[optionIndex]
+                        ] = option.text;
+
+                        if (
+                            option.letter ===
+                            q.correct
+                        ) {
+                            output.correct =
+                                LETTERS[
+                                optionIndex
+                                ];
+                        }
+                    }
+                );
+
+                return output;
+            }
+        );
+    }
+
+    window.previewRandomExamVersions =
+        function () {
+            const blocks = [
+                ...document.querySelectorAll(
+                    '#questionsContainer .question-block'
+                )
+            ];
+
+            const questions =
+                blocks.map(
+                    (block, index) => ({
+                        questionId:
+                            block.dataset
+                                .questionId ||
+                            `q_${index}`,
+
+                        qText: text(
+                            block.querySelector(
+                                '.q-text'
+                            )?.value
+                        ),
+
+                        A: text(
+                            block.querySelector(
+                                '.q-optA'
+                            )?.value
+                        ),
+
+                        B: text(
+                            block.querySelector(
+                                '.q-optB'
+                            )?.value
+                        ),
+
+                        C: text(
+                            block.querySelector(
+                                '.q-optC'
+                            )?.value
+                        ),
+
+                        D: text(
+                            block.querySelector(
+                                '.q-optD'
+                            )?.value
+                        ),
+
+                        correct: text(
+                            block.querySelector(
+                                '.q-correct-radio:checked'
+                            )?.value
+                        )
+                    })
+                );
+
+            const config =
+                window.collectRandomExamConfig(
+                    false,
+                    questions.length
+                );
+
+            if (config.error) {
+                return alert(config.error);
+            }
+
+            if (!config.enabled) {
+                return alert(
+                    'Hãy bật “Tạo nhiều mã đề ngẫu nhiên”.'
+                );
+            }
+
+            if (
+                questions.some(
+                    q =>
+                        !q.qText ||
+                        !q.A ||
+                        !q.B ||
+                        !q.C ||
+                        !q.D ||
+                        !q.correct
+                )
+            ) {
+                return alert(
+                    'Vui lòng hoàn thiện các câu hỏi ' +
+                    'trước khi xem thử.'
+                );
+            }
+
+            let modal =
+                document.getElementById(
+                    'randomExamPreviewModal'
+                );
+
+            if (!modal) {
+                modal =
+                    document.createElement(
+                        'div'
+                    );
+
+                modal.id =
+                    'randomExamPreviewModal';
+
+                modal.className =
+                    'modal-overlay';
+
+                document.body
+                    .appendChild(modal);
+            }
+
+            const maxPreview =
+                Math.min(
+                    config.versionCount,
+                    6
+                );
+
+            const body =
+                Array.from(
+                    {
+                        length: maxPreview
+                    },
+                    (_, versionIndex) => {
+                        const version =
+                            makePreviewVersion(
+                                questions,
+                                config,
+                                versionIndex
+                            );
+
+                        return `
+                            <section style="
+                                background:#f8fafc;
+                                border:1px solid #e2e8f0;
+                                border-radius:10px;
+                                padding:12px;
+                                margin-bottom:12px;
+                            ">
+                                <h4 style="
+                                    margin:0 0 8px;
+                                    color:#4338ca;
+                                ">
+                                    Mã đề ${versionLabel(versionIndex)}
+                                </h4>
+
+                                ${version.map(
+                            (q, index) => `
+                                        <div style="margin-bottom:8px;">
+                                            <strong>
+                                                Câu ${index + 1}:
+                                            </strong>
+                                            ${escapeHTML(q.qText)}
+                                            <br>
+                                            <small>
+                                                A. ${escapeHTML(q.A)}
+                                                · B. ${escapeHTML(q.B)}
+                                                · C. ${escapeHTML(q.C)}
+                                                · D. ${escapeHTML(q.D)}
+                                            </small>
+                                        </div>
+                                    `
+                        ).join('')}
+                            </section>
+                        `;
+                    }
+                ).join('');
+
+            modal.innerHTML = `
+                <div class="modal-content form-container"
+                    style="
+                        max-width:900px;
+                        max-height:90vh;
+                        overflow:auto;
+                    ">
+
+                    <button class="close-btn"
+                        onclick="
+                            document
+                                .getElementById(
+                                    'randomExamPreviewModal'
+                                )
+                                .classList.remove('active')
+                        ">
+                        ✖
+                    </button>
+
+                    <h3>
+                        🎲 Xem thử
+                        ${maxPreview}/${config.versionCount}
+                        mã đề
+                    </h3>
+
+                    ${body}
+                </div>
+            `;
+
+            modal.classList.add('active');
+        };
+
+    window.calculateQuestionBankStatistics =
+        async function (
+            showMessage = true
+        ) {
+            const statsContainer =
+                document.getElementById(
+                    'questionBankStats'
+                );
+
+            if (!statsContainer) {
+                return;
+            }
+
+            statsContainer.innerHTML =
+                '<p>⏳ Đang tổng hợp dữ liệu...</p>';
+
+            if (
+                window.questionBankLoaded !==
+                true
+            ) {
+                await window.loadQuestionBank(
+                    true
+                );
+            }
+
+            const [
+                submissionSnap,
+                assignmentSnap
+            ] = await Promise.all([
+                db.ref('submissions')
+                    .once('value'),
+
+                db.ref('assignments')
+                    .once('value')
+            ]);
+
+            const assignments = {};
+
+            assignmentSnap.forEach(child => {
+                const assignment =
+                    child.val() || {};
+
+                assignments[
+                    String(
+                        assignment.id ||
+                        child.key
+                    )
+                ] = assignment;
+            });
+
+            const stats = new Map(
+                window.questionBankCache.map(
+                    q => [
+                        q._fbKey,
+                        {
+                            q,
+                            attempts: 0,
+                            wrong: 0
+                        }
+                    ]
+                )
+            );
+
+            submissionSnap.forEach(child => {
+                const submission =
+                    child.val() || {};
+
+                if (
+                    Array.isArray(
+                        submission.questionResults
+                    ) &&
+                    submission.questionResults
+                        .length > 0
+                ) {
+                    submission.questionResults
+                        .forEach(result => {
+                            const bankId = text(
+                                result.bankQuestionId
+                            );
+
+                            if (
+                                !bankId ||
+                                !stats.has(bankId)
+                            ) {
+                                return;
+                            }
+
+                            const row =
+                                stats.get(bankId);
+
+                            row.attempts++;
+
+                            if (
+                                result.isCorrect !==
+                                true
+                            ) {
+                                row.wrong++;
+                            }
+                        });
+
+                    return;
+                }
+
+                const assignment =
+                    assignments[
+                    text(
+                        submission
+                            .assignmentId
+                    )
+                    ];
+
+                const questions =
+                    Array.isArray(
+                        submission.questionSnapshot
+                    ) &&
+                        submission.questionSnapshot
+                            .length > 0
+                        ? submission
+                            .questionSnapshot
+                        : (
+                            Array.isArray(
+                                assignment?.questions
+                            )
+                                ? assignment.questions
+                                : []
+                        );
+
+                questions.forEach(
+                    (question, index) => {
+                        const bankId = text(
+                            question.bankQuestionId
+                        );
+
+                        if (
+                            !bankId ||
+                            !stats.has(bankId)
+                        ) {
+                            return;
+                        }
+
+                        const selected =
+                            submission.mcAnswers
+                            ?.[index] ??
+                            submission.mcAnswers
+                            ?.[String(index)];
+
+                        if (!selected) {
+                            return;
+                        }
+
+                        const row =
+                            stats.get(bankId);
+
+                        row.attempts++;
+
+                        if (
+                            String(selected) !==
+                            String(question.correct)
+                        ) {
+                            row.wrong++;
+                        }
+                    }
+                );
+            });
+
+            const rows = [
+                ...stats.values()
+            ]
+                .filter(
+                    row =>
+                        row.attempts > 0
+                )
+                .map(row => ({
+                    ...row,
+                    rate:
+                        row.wrong /
+                        row.attempts
+                }))
+                .sort(
+                    (a, b) =>
+                        b.rate -
+                        a.rate ||
+                        b.wrong -
+                        a.wrong ||
+                        b.attempts -
+                        a.attempts
+                );
+
+            const updates = {};
+            const statsUpdatedAt =
+                Date.now();
+
+            [
+                ...stats.values()
+            ].forEach(row => {
+                updates[
+                    `${row.q._fbKey}/attemptedCount`
+                ] = row.attempts;
+
+                updates[
+                    `${row.q._fbKey}/wrongCount`
+                ] = row.wrong;
+
+                updates[
+                    `${row.q._fbKey}/statsUpdatedAt`
+                ] = statsUpdatedAt;
+
+                row.q.attemptedCount =
+                    row.attempts;
+
+                row.q.wrongCount =
+                    row.wrong;
+            });
+
+            if (
+                Object.keys(updates)
+                    .length > 0
+            ) {
+                await db
+                    .ref(QB_PATH)
+                    .update(updates);
+            }
+
+            if (rows.length === 0) {
+                statsContainer.innerHTML =
+                    '<div class="glass-alert">' +
+                    '<p style="margin:0;">' +
+                    'Chưa có dữ liệu trả lời gắn ' +
+                    'với ngân hàng câu hỏi.' +
+                    '</p></div>';
+            } else {
+                statsContainer.innerHTML = `
+                    <div style="overflow:auto;">
+                        <table style="
+                            width:100%;
+                            border-collapse:collapse;
+                            min-width:720px;
+                        ">
+                            <thead>
+                                <tr style="background:#fff1f2;">
+                                    <th style="
+                                        padding:10px;
+                                        text-align:left;
+                                    ">
+                                        Câu hỏi
+                                    </th>
+                                    <th>Môn/Lớp/Bài</th>
+                                    <th>Lượt làm</th>
+                                    <th>Sai</th>
+                                    <th>Tỉ lệ sai</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                ${rows.map(row => `
+                                    <tr style="
+                                        border-top:1px solid #e2e8f0;
+                                    ">
+                                        <td style="
+                                            padding:10px;
+                                            font-weight:700;
+                                        ">
+                                            ${escapeHTML(row.q.qText)}
+                                        </td>
+
+                                        <td style="padding:10px;">
+                                            ${escapeHTML(row.q.subject)}
+                                            /
+                                            ${escapeHTML(row.q.grade)}
+                                            /
+                                            ${escapeHTML(row.q.lesson)}
+                                        </td>
+
+                                        <td style="text-align:center;">
+                                            ${row.attempts}
+                                        </td>
+
+                                        <td style="
+                                            text-align:center;
+                                            color:#be123c;
+                                            font-weight:800;
+                                        ">
+                                            ${row.wrong}
+                                        </td>
+
+                                        <td style="
+                                            text-align:center;
+                                            font-weight:900;
+                                            color:${row.rate >= .5
+                        ? '#be123c'
+                        : '#d97706'
+                    };
+                                        ">
+                                            ${Math.round(
+                        row.rate * 100
+                    )}%
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }
+
+            window.renderQuestionBank();
+
+            if (showMessage) {
+                alert(
+                    '✅ Đã cập nhật thống kê câu hỏi.'
+                );
+            }
+        };
+})();
 
 // Khởi chạy tải danh sách khi giáo viên mở trang
 loadTeacherCashRequests();

@@ -112,6 +112,18 @@ class ThemeManager {
             background: '#fff7e9',
             className: 'theme-birthday-sweet-2026'
         },
+        'theme_he_mat_troi_vanh_dai_cassini': {
+            primary: '#c9a875',
+            secondary: '#efe0be',
+            background: '#100d0b',
+            className: 'theme-saturn-observatory'
+        },
+        'theme_doisong_mua_sao': {
+            primary: '#7fcbe6',
+            secondary: '#8b83d6',
+            background: '#071421',
+            className: 'theme-rain-cosmos'
+        },
     };
 
     // Những popup phải giữ giao diện riêng,

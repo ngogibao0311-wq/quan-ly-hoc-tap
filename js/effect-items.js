@@ -211,6 +211,12 @@ class EffectManager {
             case 'effect_sinh_nhat_than_an_phuc_loc_2026':
                 this.createBirthdayMythicBlessingEffect();
                 break;
+            case 'effect_he_mat_troi_dai_trieu_cassini':
+                this.createSaturnCassiniFieldEffect();
+                break;
+            case 'effect_doisong_mua_ngoai_o_cua':
+                this.createRainWindowEffect();
+                break;
         }
         localStorage.setItem('active_effect', effectId);
     }
@@ -2236,6 +2242,210 @@ class EffectManager {
         });
     }
 
+    static createSaturnCassiniFieldEffect() {
+        this.stopIntervals();
+
+        if (!this.container) return;
+
+        const stage =
+            document.createElement('div');
+
+        stage.className =
+            'effect-saturn-cassini-field';
+
+        stage.setAttribute(
+            'aria-hidden',
+            'true'
+        );
+
+        stage.innerHTML = `
+        <div class="saturn-field-wash"></div>
+        <div class="saturn-field-terminator"></div>
+
+        <div class="saturn-field-planet">
+            <span class="saturn-field-planet-light"></span>
+            <span class="saturn-field-planet-shadow"></span>
+            <span class="saturn-field-atmosphere"></span>
+        </div>
+
+        <div class="
+            saturn-field-ring-system
+            ring-system-back
+        ">
+            <span class="saturn-field-ring ring-a"></span>
+            <span class="saturn-field-ring ring-b"></span>
+            <span class="saturn-field-ring ring-c"></span>
+            <span class="saturn-field-cassini-division"></span>
+        </div>
+
+        <div class="
+            saturn-field-ring-system
+            ring-system-front
+        ">
+            <span class="saturn-field-ring ring-a"></span>
+            <span class="saturn-field-ring ring-b"></span>
+            <span class="saturn-field-ring ring-c"></span>
+            <span class="saturn-field-cassini-division"></span>
+            <span class="saturn-field-ring-sweep"></span>
+        </div>
+
+        <div class="saturn-field-orbit-map">
+            <span class="saturn-field-orbit orbit-a"></span>
+            <span class="saturn-field-orbit orbit-b"></span>
+            <span class="saturn-field-orbit orbit-c"></span>
+        </div>
+
+        <div class="saturn-field-moon-field"></div>
+        <div class="saturn-field-dust-field"></div>
+        <div class="saturn-field-spectral-scan"></div>
+    `;
+
+        const moonField =
+            stage.querySelector(
+                '.saturn-field-moon-field'
+            );
+
+        const moonColors = [
+            '#fff4d7',
+            '#d9c29a',
+            '#b7966a',
+            '#eadbbd',
+            '#8d755b'
+        ];
+
+        const moonCount =
+            IS_MOBILE_EFFECT ? 5 : 9;
+
+        for (
+            let index = 0;
+            index < moonCount;
+            index++
+        ) {
+            const moon =
+                document.createElement('span');
+
+            const duration =
+                10 + Math.random() * 9;
+
+            moon.className =
+                'saturn-field-moon';
+
+            moon.style.setProperty(
+                '--saturn-field-moon-x',
+                `${4 + Math.random() * 92}%`
+            );
+
+            moon.style.setProperty(
+                '--saturn-field-moon-y',
+                `${8 + Math.random() * 78}%`
+            );
+
+            moon.style.setProperty(
+                '--saturn-field-moon-size',
+                `${5 + Math.random() * 9}px`
+            );
+
+            moon.style.setProperty(
+                '--saturn-field-moon-color',
+                moonColors[
+                index % moonColors.length
+                ]
+            );
+
+            moon.style.setProperty(
+                '--saturn-field-moon-drift-x',
+                `${-70 + Math.random() * 140}px`
+            );
+
+            moon.style.setProperty(
+                '--saturn-field-moon-drift-y',
+                `${-28 + Math.random() * 56}px`
+            );
+
+            moon.style.setProperty(
+                '--saturn-field-moon-duration',
+                `${duration}s`
+            );
+
+            moon.style.setProperty(
+                '--saturn-field-moon-delay',
+                `${-Math.random() * duration}s`
+            );
+
+            moonField.appendChild(moon);
+        }
+
+        const dustField =
+            stage.querySelector(
+                '.saturn-field-dust-field'
+            );
+
+        const dustCount =
+            IS_MOBILE_EFFECT ? 20 : 44;
+
+        for (
+            let index = 0;
+            index < dustCount;
+            index++
+        ) {
+            const grain =
+                document.createElement('span');
+
+            const duration =
+                7 + Math.random() * 10;
+
+            grain.className =
+                index % 5 === 0
+                    ? 'saturn-field-grain grain-ice'
+                    : 'saturn-field-grain';
+
+            grain.style.setProperty(
+                '--saturn-field-grain-x',
+                `${Math.random() * 100}%`
+            );
+
+            grain.style.setProperty(
+                '--saturn-field-grain-y',
+                `${Math.random() * 100}%`
+            );
+
+            grain.style.setProperty(
+                '--saturn-field-grain-size',
+                `${1.5 + Math.random() * 4.5}px`
+            );
+
+            grain.style.setProperty(
+                '--saturn-field-grain-drift-x',
+                `${-95 + Math.random() * 190}px`
+            );
+
+            grain.style.setProperty(
+                '--saturn-field-grain-drift-y',
+                `${-65 - Math.random() * 130}px`
+            );
+
+            grain.style.setProperty(
+                '--saturn-field-grain-duration',
+                `${duration}s`
+            );
+
+            grain.style.setProperty(
+                '--saturn-field-grain-delay',
+                `${-Math.random() * duration}s`
+            );
+
+            dustField.appendChild(grain);
+        }
+
+        this.container.appendChild(stage);
+
+        requestAnimationFrame(() => {
+            stage.classList.add(
+                'is-visible'
+            );
+        });
+    }
+
     static createBirthdayMythicBlessingEffect() {
         this.stopIntervals();
 
@@ -2427,6 +2637,243 @@ class EffectManager {
                 'is-visible'
             );
         });
+    }
+
+    static createRainWindowEffect() {
+        this.stopIntervals();
+
+        if (!this.container) return;
+
+        const stage = document.createElement('div');
+
+        stage.className =
+            'effect-rain-window-stage';
+
+        stage.setAttribute(
+            'aria-hidden',
+            'true'
+        );
+
+        stage.innerHTML = `
+        <div class="rain-window-cloud-bank"></div>
+        <div class="rain-window-horizon"></div>
+        <div class="rain-window-bead-field"></div>
+        <div class="rain-window-drop-field"></div>
+        <div class="rain-window-ripple-field"></div>
+    `;
+
+        const beadField =
+            stage.querySelector(
+                '.rain-window-bead-field'
+            );
+
+        const dropField =
+            stage.querySelector(
+                '.rain-window-drop-field'
+            );
+
+        const rippleField =
+            stage.querySelector(
+                '.rain-window-ripple-field'
+            );
+
+        /*
+         * Giọt nước bám trên “mặt kính”.
+         * Chỉ tạo một lần, không sinh liên tục.
+         */
+        const beadCount =
+            IS_MOBILE_EFFECT ? 8 : 16;
+
+        for (
+            let index = 0;
+            index < beadCount;
+            index++
+        ) {
+            const bead =
+                document.createElement('span');
+
+            const duration =
+                5 + Math.random() * 7;
+
+            bead.className =
+                'rain-window-bead';
+
+            bead.style.setProperty(
+                '--rain-window-bead-x',
+                `${3 + Math.random() * 94}%`
+            );
+
+            bead.style.setProperty(
+                '--rain-window-bead-y',
+                `${4 + Math.random() * 78}%`
+            );
+
+            bead.style.setProperty(
+                '--rain-window-bead-size',
+                `${4 + Math.random() * 9}px`
+            );
+
+            bead.style.setProperty(
+                '--rain-window-bead-slide',
+                `${18 + Math.random() * 54}px`
+            );
+
+            bead.style.setProperty(
+                '--rain-window-bead-duration',
+                `${duration}s`
+            );
+
+            bead.style.setProperty(
+                '--rain-window-bead-delay',
+                `${-Math.random() * duration}s`
+            );
+
+            beadField.appendChild(bead);
+        }
+
+        this.container.appendChild(stage);
+
+        requestAnimationFrame(() => {
+            stage.classList.add('is-visible');
+        });
+
+        let tick = 0;
+
+        /*
+         * Tạo từng vệt mưa riêng.
+         * Không sử dụng class hoặc animation của hiệu ứng cũ.
+         */
+        const spawnStreak = () => {
+            if (!stage.isConnected) return;
+
+            const viewport =
+                this.getViewport();
+
+            const streak =
+                document.createElement('span');
+
+            const length =
+                34 + Math.random() * 68;
+
+            const duration =
+                0.72 + Math.random() * 0.86;
+
+            streak.className =
+                'rain-window-streak';
+
+            streak.style.left =
+                `${Math.round(
+                    viewport.offsetLeft +
+                    Math.random() * viewport.width
+                )}px`;
+
+            streak.style.top =
+                `${Math.round(
+                    viewport.offsetTop -
+                    length -
+                    26
+                )}px`;
+
+            streak.style.setProperty(
+                '--rain-window-streak-width',
+                `${1 + Math.random() * 1.4}px`
+            );
+
+            streak.style.setProperty(
+                '--rain-window-streak-length',
+                `${length}px`
+            );
+
+            streak.style.setProperty(
+                '--rain-window-streak-drift',
+                `${28 + Math.random() * 46}px`
+            );
+
+            streak.style.setProperty(
+                '--rain-window-streak-fall',
+                `${Math.round(
+                    viewport.height +
+                    length +
+                    130
+                )}px`
+            );
+
+            streak.style.setProperty(
+                '--rain-window-streak-duration',
+                `${duration}s`
+            );
+
+            streak.style.setProperty(
+                '--rain-window-streak-opacity',
+                `${0.34 + Math.random() * 0.46}`
+            );
+
+            dropField.appendChild(streak);
+
+            window.setTimeout(() => {
+                streak.remove();
+            }, duration * 1000 + 180);
+        };
+
+        /*
+         * Gợn nước xuất hiện ở phần dưới màn hình.
+         */
+        const spawnRipple = () => {
+            if (!stage.isConnected) return;
+
+            const ripple =
+                document.createElement('span');
+
+            ripple.className =
+                'rain-window-ripple';
+
+            ripple.style.left =
+                `${6 + Math.random() * 88}%`;
+
+            ripple.style.bottom =
+                `${3 + Math.random() * 17}%`;
+
+            ripple.style.setProperty(
+                '--rain-window-ripple-width',
+                `${42 + Math.random() * 68}px`
+            );
+
+            ripple.style.setProperty(
+                '--rain-window-ripple-duration',
+                `${1.4 + Math.random() * 1.1}s`
+            );
+
+            rippleField.appendChild(ripple);
+
+            window.setTimeout(() => {
+                ripple.remove();
+            }, 2800);
+        };
+
+        this.currentInterval = window.setInterval(
+            () => {
+                tick++;
+
+                const streakCount =
+                    IS_MOBILE_EFFECT ? 2 : 4;
+
+                for (
+                    let index = 0;
+                    index < streakCount;
+                    index++
+                ) {
+                    spawnStreak();
+                }
+
+                const rippleStep =
+                    IS_MOBILE_EFFECT ? 10 : 7;
+
+                if (tick % rippleStep === 0) {
+                    spawnRipple();
+                }
+            },
+            IS_MOBILE_EFFECT ? 190 : 115
+        );
     }
 }
 

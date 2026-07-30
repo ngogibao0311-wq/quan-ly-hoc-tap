@@ -4812,3 +4812,2060 @@ body.theme-solar-biosphere .gaia-heliotide-light-front {
     height: 94px !important;
     object-fit: contain;
 }
+/* =========================================================
+   LINH THÚ SAO THỔ — CỘNG HƯỞNG CASSINI
+   Chỉ hoạt động quanh virtual-pet-container.
+   Không tạo hiệu ứng toàn màn hình.
+========================================================= */
+
+.pet-saturn-cassini-stage {
+    position: relative;
+    isolation: isolate;
+}
+
+/* Pet nằm giữa hai lớp vành đai */
+#virtual-pet-img.saturn-cassini-magic {
+    position: relative;
+    z-index: 6;
+    transform-origin: 50% 72%;
+    animation: saturnAxialDrift 6.4s ease-in-out infinite;
+    will-change: transform, filter;
+}
+
+/* Mặt phẳng vành đai */
+.saturn-cassini-plane {
+    position: absolute;
+    left: 50%;
+    top: 54%;
+    width: 196px;
+    height: 70px;
+    transform:
+        translate(-50%, -50%)
+        rotate(-13deg);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+/* Phần vành nằm sau pet */
+.saturn-cassini-plane-back {
+    z-index: 2;
+    animation:
+        saturnCassiniBackPrecession
+        8.8s
+        ease-in-out
+        infinite;
+}
+
+/* Phần vành nằm trước pet */
+.saturn-cassini-plane-front {
+    z-index: 8;
+    clip-path: inset(50% -8px -12px -8px);
+    animation:
+        saturnCassiniFrontPrecession
+        8.8s
+        ease-in-out
+        infinite;
+}
+
+.saturn-ring-band,
+.saturn-cassini-gap,
+.saturn-ring-sheen {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+}
+
+/* Vành ngoài màu đất vàng */
+.saturn-ring-amber {
+    border:
+        9px solid
+        rgba(194, 145, 82, 0.60);
+
+    box-shadow:
+        0 0 13px rgba(190, 134, 70, 0.28),
+        inset 0 0 10px rgba(255, 232, 196, 0.22);
+}
+
+/* Vành trong màu kem */
+.saturn-ring-ivory {
+    inset: 7px 15px;
+
+    border:
+        5px solid
+        rgba(239, 218, 180, 0.76);
+
+    box-shadow:
+        0 0 8px rgba(255, 239, 210, 0.26),
+        inset 0 0 7px rgba(93, 68, 44, 0.18);
+}
+
+/* Khe Cassini tối giữa các vành */
+.saturn-cassini-gap {
+    inset: 13px 27px;
+
+    border:
+        3px solid
+        rgba(48, 39, 32, 0.58);
+
+    box-shadow:
+        0 0 0 1px rgba(251, 235, 205, 0.16),
+        inset 0 0 7px rgba(19, 16, 14, 0.42);
+}
+
+/* Ánh sáng chạy dọc vành */
+.saturn-ring-sheen {
+    inset: 5px 13px;
+
+    background:
+        conic-gradient(
+            from 190deg,
+            transparent 0deg 118deg,
+            rgba(255, 250, 229, 0.78) 138deg,
+            transparent 158deg 360deg
+        );
+
+    -webkit-mask:
+        radial-gradient(
+            ellipse at center,
+            transparent 0 54%,
+            #000 56% 70%,
+            transparent 72%
+        );
+
+    mask:
+        radial-gradient(
+            ellipse at center,
+            transparent 0 54%,
+            #000 56% 70%,
+            transparent 72%
+        );
+
+    animation:
+        saturnRingSheenTransit
+        4.9s
+        linear
+        infinite;
+}
+
+/* Cơn bão lục giác phía trên pet */
+.saturn-polar-hexagon {
+    position: absolute;
+    left: 50%;
+    top: 8px;
+    width: 46px;
+    height: 46px;
+    transform: translateX(-50%);
+    z-index: 9;
+    pointer-events: none;
+    animation:
+        saturnPolarHexTurn
+        7.5s
+        linear
+        infinite;
+}
+
+.saturn-hexagon-line {
+    position: absolute;
+    inset: 7px;
+
+    background:
+        rgba(96, 72, 47, 0.18);
+
+    border:
+        2px solid
+        rgba(222, 183, 119, 0.72);
+
+    clip-path:
+        polygon(
+            25% 6.7%,
+            75% 6.7%,
+            100% 50%,
+            75% 93.3%,
+            25% 93.3%,
+            0 50%
+        );
+
+    box-shadow:
+        0 0 12px
+        rgba(206, 159, 91, 0.34);
+}
+
+.saturn-storm-eye {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 8px;
+    height: 8px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: #4a392d;
+
+    box-shadow:
+        0 0 0 4px rgba(215, 174, 111, 0.22),
+        0 0 12px rgba(244, 218, 175, 0.54);
+
+    animation:
+        saturnStormEyePulse
+        2.7s
+        ease-in-out
+        infinite;
+}
+
+/* Vùng chứa các vệ tinh */
+.saturn-shepherd-moons {
+    position: absolute;
+    left: 50%;
+    top: 54%;
+    width: 1px;
+    height: 1px;
+    z-index: 10;
+    transform: rotate(-13deg);
+    pointer-events: none;
+}
+
+.saturn-shepherd-moon {
+    position: absolute;
+    left: 0;
+    top: 0;
+
+    width:
+        var(--saturn-moon-size);
+
+    height:
+        var(--saturn-moon-size);
+
+    margin:
+        calc(var(--saturn-moon-size) / -2)
+        0
+        0
+        calc(var(--saturn-moon-size) / -2);
+
+    border-radius: 50%;
+
+    background:
+        var(--saturn-moon-color);
+
+    box-shadow:
+        0 0 6px rgba(255, 241, 216, 0.68),
+        0 0 12px rgba(180, 132, 77, 0.26);
+
+    animation:
+        saturnMoonShepherd
+        6.6s
+        linear
+        infinite;
+
+    animation-delay:
+        var(--saturn-moon-delay);
+}
+
+/* =========================================================
+   TAG SAO THỔ
+
+   Tag vẫn ghi Hệ Mặt Trời.
+   Chỉ đổi màu tag của đúng pet Sao Thổ.
+   Không chỉnh hoặc tạo kiểu card riêng.
+========================================================= */
+
+.store-item-card[data-item-id="pet_he_mat_troi_sao_tho"]
+.item-tag.tag-he-mat-troi,
+.store-item-card[data-item-id="theme_he_mat_troi_vanh_dai_cassini"]
+.item-tag.tag-he-mat-troi,
+.store-item-card[data-item-id="effect_he_mat_troi_dai_trieu_cassini"]
+.item-tag.tag-he-mat-troi {
+    background:
+        linear-gradient(
+            90deg,
+            #4c4036 0%,
+            #8c6f4c 34%,
+            #c9a875 67%,
+            #efe0be 100%
+        );
+
+    color: #fff9eb;
+
+    border-bottom:
+        2px solid
+        rgba(255, 244, 217, 0.82);
+
+    box-shadow:
+        0 4px 14px rgba(95, 69, 42, 0.36),
+        0 0 10px rgba(215, 180, 124, 0.24);
+
+    text-shadow:
+        0 1px 3px
+        rgba(38, 28, 20, 0.72);
+
+    letter-spacing: 0.6px;
+}
+
+/* Chuyển động nổi nhẹ theo trục nghiêng */
+@keyframes saturnAxialDrift {
+    0%,
+    100% {
+        transform:
+            translateY(0)
+            rotate(-1.2deg)
+            scale(1);
+
+        filter:
+            drop-shadow(
+                0 9px 14px
+                rgba(35, 27, 20, 0.28)
+            )
+            drop-shadow(
+                0 0 9px
+                rgba(207, 166, 105, 0.18)
+            );
+    }
+
+    50% {
+        transform:
+            translateY(-8px)
+            rotate(1.2deg)
+            scale(1.025);
+
+        filter:
+            drop-shadow(
+                0 14px 20px
+                rgba(35, 27, 20, 0.32)
+            )
+            drop-shadow(
+                0 0 14px
+                rgba(235, 205, 157, 0.30)
+            );
+    }
+}
+
+/* Chuyển động của nửa vành phía sau */
+@keyframes saturnCassiniBackPrecession {
+    0%,
+    100% {
+        transform:
+            translate(-50%, -50%)
+            rotate(-13deg)
+            scaleX(0.97);
+
+        opacity: 0.78;
+    }
+
+    50% {
+        transform:
+            translate(-50%, -50%)
+            rotate(-9deg)
+            scaleX(1.04);
+
+        opacity: 1;
+    }
+}
+
+/* Chuyển động của nửa vành phía trước */
+@keyframes saturnCassiniFrontPrecession {
+    0%,
+    100% {
+        transform:
+            translate(-50%, -50%)
+            rotate(-13deg)
+            scaleX(0.97);
+
+        opacity: 0.92;
+    }
+
+    50% {
+        transform:
+            translate(-50%, -50%)
+            rotate(-9deg)
+            scaleX(1.04);
+
+        opacity: 1;
+    }
+}
+
+/* Luồng sáng chạy dọc vành */
+@keyframes saturnRingSheenTransit {
+    from {
+        transform: rotate(0deg);
+        opacity: 0.35;
+    }
+
+    50% {
+        opacity: 0.9;
+    }
+
+    to {
+        transform: rotate(360deg);
+        opacity: 0.35;
+    }
+}
+
+/* Cơn bão lục giác xoay chậm */
+@keyframes saturnPolarHexTurn {
+    from {
+        transform:
+            translateX(-50%)
+            rotate(0deg);
+    }
+
+    to {
+        transform:
+            translateX(-50%)
+            rotate(360deg);
+    }
+}
+
+@keyframes saturnStormEyePulse {
+    0%,
+    100% {
+        transform:
+            translate(-50%, -50%)
+            scale(0.78);
+
+        opacity: 0.58;
+    }
+
+    50% {
+        transform:
+            translate(-50%, -50%)
+            scale(1.18);
+
+        opacity: 1;
+    }
+}
+
+/* Vệ tinh chuyển động trên quỹ đạo riêng */
+@keyframes saturnMoonShepherd {
+    0% {
+        transform:
+            rotate(
+                var(--saturn-moon-phase)
+            )
+            translateX(
+                var(--saturn-moon-track)
+            )
+            scale(0.72);
+
+        opacity: 0.25;
+    }
+
+    22% {
+        opacity: 0.95;
+    }
+
+    50% {
+        transform:
+            rotate(
+                calc(
+                    var(--saturn-moon-phase)
+                    + 180deg
+                )
+            )
+            translateX(
+                calc(
+                    var(--saturn-moon-track)
+                    + 8px
+                )
+            )
+            scale(1.08);
+
+        opacity: 0.72;
+    }
+
+    78% {
+        opacity: 0.95;
+    }
+
+    100% {
+        transform:
+            rotate(
+                calc(
+                    var(--saturn-moon-phase)
+                    + 360deg
+                )
+            )
+            translateX(
+                var(--saturn-moon-track)
+            )
+            scale(0.72);
+
+        opacity: 0.25;
+    }
+}
+
+/* Thu nhỏ hiệu ứng trên điện thoại */
+@media (max-width: 768px) {
+    .saturn-cassini-plane {
+        width: 174px;
+        height: 62px;
+    }
+
+    .saturn-polar-hexagon {
+        top: 11px;
+        width: 40px;
+        height: 40px;
+    }
+}
+
+/* Tôn trọng cài đặt giảm chuyển động */
+@media (prefers-reduced-motion: reduce) {
+    #virtual-pet-img.saturn-cassini-magic,
+    .pet-saturn-cassini-stage
+    .saturn-cassini-plane,
+    .pet-saturn-cassini-stage
+    .saturn-ring-sheen,
+    .pet-saturn-cassini-stage
+    .saturn-polar-hexagon,
+    .pet-saturn-cassini-stage
+    .saturn-storm-eye,
+    .pet-saturn-cassini-stage
+    .saturn-shepherd-moon {
+        animation-duration:
+            0.001ms !important;
+
+        animation-iteration-count:
+            1 !important;
+    }
+}
+/* =========================================================
+   ĐÀI QUAN SÁT CASSINI — GIAO DIỆN SAO THỔ
+
+   Thiết kế hoàn toàn mới:
+   - Đài quan sát thiên văn bằng đồng
+   - Hệ thống vành đai Cassini
+   - Popup dạng mái vòm
+   - Sidebar dạng cung hành tinh
+   - Slider dạng dải vành đai
+   - Không sử dụng class hoặc keyframe theme cũ
+========================================================= */
+
+body.theme-saturn-observatory {
+    --saturn-void: #100d0b;
+    --saturn-night: #17120f;
+    --saturn-panel: #211a15;
+    --saturn-panel-soft: #2c231c;
+
+    --saturn-brown: #4c4036;
+    --saturn-bronze-dark: #705638;
+    --saturn-bronze: #8c6f4c;
+    --saturn-gold: #c9a875;
+    --saturn-cream: #efe0be;
+    --saturn-light: #fff9eb;
+
+    --saturn-text: #f4ead5;
+    --saturn-muted: #b9a98f;
+    --saturn-line: rgba(201, 168, 117, 0.46);
+
+    min-height: 100vh;
+
+    color: var(--saturn-text);
+
+    font-family:
+        "Aptos",
+        "Century Gothic",
+        "Segoe UI",
+        sans-serif;
+
+    /*
+     * Bản đồ quỹ đạo Cassini:
+     * Dải nghiêng ở giữa là mặt phẳng vành đai.
+     * Các đường ellipse là đường đo quỹ đạo.
+     */
+    background:
+        repeating-radial-gradient(
+            ellipse at 79% 13%,
+            transparent 0 74px,
+            rgba(239, 224, 190, 0.09) 75px 76px,
+            transparent 77px 112px
+        ),
+        linear-gradient(
+            12deg,
+            transparent 0 46.8%,
+            rgba(76, 64, 54, 0.16) 47% 47.5%,
+            rgba(201, 168, 117, 0.28) 47.6% 48%,
+            rgba(24, 19, 16, 0.9) 48.1% 48.45%,
+            rgba(239, 224, 190, 0.24) 48.55% 48.8%,
+            transparent 49% 100%
+        ),
+        radial-gradient(
+            ellipse at 79% 13%,
+            rgba(255, 249, 235, 0.96) 0 19px,
+            rgba(201, 168, 117, 0.92) 20px 39px,
+            rgba(112, 86, 56, 0.82) 40px 54px,
+            rgba(76, 64, 54, 0.25) 55px 78px,
+            transparent 79px
+        ),
+        radial-gradient(
+            ellipse at 18% 92%,
+            rgba(140, 111, 76, 0.18),
+            transparent 39%
+        ),
+        linear-gradient(
+            145deg,
+            #0d0a08 0%,
+            #17110e 38%,
+            #211811 68%,
+            #100d0b 100%
+        ) !important;
+
+    background-attachment: fixed !important;
+}
+
+
+/* =========================================================
+   PHÔNG CHỮ
+========================================================= */
+
+.theme-saturn-observatory,
+.theme-saturn-observatory input,
+.theme-saturn-observatory select,
+.theme-saturn-observatory textarea,
+.theme-saturn-observatory button {
+    font-family:
+        "Aptos",
+        "Century Gothic",
+        "Segoe UI",
+        sans-serif;
+}
+
+.theme-saturn-observatory h1,
+.theme-saturn-observatory h2,
+.theme-saturn-observatory h3,
+.theme-saturn-observatory h4,
+.theme-saturn-observatory h5,
+.theme-saturn-observatory h6,
+.theme-saturn-observatory .item-name {
+    color: var(--saturn-cream) !important;
+
+    font-family:
+        "Copperplate Gothic",
+        "Palatino Linotype",
+        Georgia,
+        serif;
+
+    font-weight: 700;
+    letter-spacing: 1.1px;
+
+    text-shadow:
+        0 2px 3px rgba(0, 0, 0, 0.86),
+        0 0 18px rgba(201, 168, 117, 0.18);
+}
+
+.theme-saturn-observatory label,
+.theme-saturn-observatory small,
+.theme-saturn-observatory .helper-text,
+.theme-saturn-observatory .item-type-label {
+    color: var(--saturn-muted);
+}
+
+
+/* =========================================================
+   Ô VÀ PANEL — MÁI VÒM ĐÀI QUAN SÁT
+========================================================= */
+
+.theme-saturn-observatory
+.card:not(.ui-theme-immune),
+
+.theme-saturn-observatory
+.store-item-card:not(.ui-theme-immune),
+
+.theme-saturn-observatory
+.submit-box:not(.ui-theme-immune),
+
+.theme-saturn-observatory
+.content-box:not(.ui-theme-immune),
+
+.theme-saturn-observatory
+.panel:not(.ui-theme-immune),
+
+.theme-saturn-observatory
+.question-card:not(.ui-theme-immune),
+
+.theme-saturn-observatory
+.quiz-card:not(.ui-theme-immune),
+
+.theme-saturn-observatory
+.result-card:not(.ui-theme-immune),
+
+.theme-saturn-observatory
+.table-container:not(.ui-theme-immune),
+
+.theme-saturn-observatory
+.settings-section:not(.ui-theme-immune) {
+    position: relative;
+
+    color: var(--saturn-text);
+
+    background:
+        linear-gradient(
+            180deg,
+            rgba(55, 43, 33, 0.94) 0%,
+            rgba(32, 25, 20, 0.96) 34%,
+            rgba(18, 14, 12, 0.98) 100%
+        ) !important;
+
+    border:
+        1px solid var(--saturn-line) !important;
+
+    border-top:
+        4px double rgba(239, 224, 190, 0.72) !important;
+
+    /*
+     * Hai góc trên tạo mái vòm.
+     * Phần đáy vuông hơn như chân đài quan sát.
+     */
+    border-radius:
+        62px 62px 16px 16px /
+        30px 30px 16px 16px !important;
+
+    box-shadow:
+        0 20px 42px rgba(0, 0, 0, 0.46),
+        inset 0 1px 0 rgba(255, 249, 235, 0.1),
+        inset 0 -20px 35px rgba(0, 0, 0, 0.22) !important;
+
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+}
+
+.theme-saturn-observatory
+.store-item-card:not(.ui-theme-immune):hover {
+    border-color:
+        rgba(239, 224, 190, 0.76) !important;
+
+    box-shadow:
+        0 24px 48px rgba(0, 0, 0, 0.52),
+        0 0 0 1px rgba(201, 168, 117, 0.2),
+        inset 0 1px rgba(255, 249, 235, 0.12) !important;
+}
+
+
+/* =========================================================
+   POPUP — CỬA SỔ QUAN SÁT HÌNH VÒM
+========================================================= */
+
+.theme-saturn-observatory
+.modal-content:not(.ui-theme-immune),
+
+.theme-saturn-observatory
+.popup-content:not(.ui-theme-immune),
+
+.theme-saturn-observatory
+.dialog-content:not(.ui-theme-immune),
+
+.theme-saturn-observatory
+#viewQuestionsModal > div:not(.ui-theme-immune) {
+    color: var(--saturn-text) !important;
+
+    background:
+        radial-gradient(
+            ellipse at 50% -18%,
+            rgba(239, 224, 190, 0.17),
+            transparent 44%
+        ),
+        linear-gradient(
+            180deg,
+            rgba(54, 42, 32, 0.99),
+            rgba(18, 14, 12, 0.99)
+        ) !important;
+
+    border:
+        4px double rgba(201, 168, 117, 0.76) !important;
+
+    border-bottom-color:
+        rgba(112, 86, 56, 0.9) !important;
+
+    border-radius:
+        100px 100px 26px 26px /
+        54px 54px 26px 26px !important;
+
+    box-shadow:
+        0 28px 75px rgba(0, 0, 0, 0.68),
+        inset 0 2px rgba(255, 249, 235, 0.1),
+        inset 0 -24px 38px rgba(0, 0, 0, 0.28) !important;
+
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+}
+
+.theme-saturn-observatory
+.modal:not(.ui-theme-immune),
+
+.theme-saturn-observatory
+.popup:not(.ui-theme-immune),
+
+.theme-saturn-observatory
+.dialog:not(.ui-theme-immune) {
+    background:
+        rgba(10, 8, 7, 0.74) !important;
+
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+}
+
+.theme-saturn-observatory
+.close,
+
+.theme-saturn-observatory
+.modal-close,
+
+.theme-saturn-observatory
+.close-btn {
+    color: var(--saturn-cream) !important;
+
+    background:
+        rgba(76, 64, 54, 0.52) !important;
+
+    border:
+        1px solid rgba(239, 224, 190, 0.45) !important;
+
+    border-radius: 50% !important;
+}
+
+
+/* =========================================================
+   SIDEBAR — CUNG NGOÀI HÀNH TINH
+========================================================= */
+
+.theme-saturn-observatory .sidebar,
+.theme-saturn-observatory .nav-bar {
+    color: var(--saturn-text);
+
+    background:
+        radial-gradient(
+            ellipse at 100% 14%,
+            rgba(201, 168, 117, 0.24),
+            transparent 130px
+        ),
+        linear-gradient(
+            180deg,
+            rgba(37, 29, 23, 0.98),
+            rgba(15, 12, 10, 0.99)
+        ) !important;
+
+    border-right:
+        4px double rgba(201, 168, 117, 0.7);
+
+    border-radius:
+        0 112px 112px 0 /
+        0 58px 58px 0;
+
+    box-shadow:
+        16px 0 38px rgba(0, 0, 0, 0.48),
+        inset -1px 0 rgba(255, 249, 235, 0.1);
+}
+
+.theme-saturn-observatory .sidebar a,
+.theme-saturn-observatory .sidebar .nav-item,
+.theme-saturn-observatory .nav-bar a {
+    color: #ded0b9 !important;
+
+    background:
+        transparent !important;
+
+    border:
+        1px solid transparent;
+
+    border-radius:
+        4px 999px 999px 4px;
+
+    transition:
+        background 0.22s ease,
+        color 0.22s ease,
+        border-color 0.22s ease,
+        box-shadow 0.22s ease,
+        transform 0.22s ease;
+}
+
+.theme-saturn-observatory .sidebar a:hover,
+.theme-saturn-observatory .sidebar .nav-item:hover,
+.theme-saturn-observatory .nav-bar a:hover,
+.theme-saturn-observatory .sidebar .active,
+.theme-saturn-observatory .nav-bar .active {
+    color: #211810 !important;
+
+    background:
+        linear-gradient(
+            90deg,
+            #8c6f4c,
+            #c9a875,
+            #efe0be
+        ) !important;
+
+    border-color:
+        rgba(255, 249, 235, 0.64);
+
+    transform:
+        translateX(5px);
+
+    box-shadow:
+        0 8px 22px rgba(140, 111, 76, 0.28);
+}
+
+
+/* =========================================================
+   Ô NHẬP LIỆU
+========================================================= */
+
+.theme-saturn-observatory
+input:not([type="range"]):not([type="checkbox"]):not([type="radio"]),
+
+.theme-saturn-observatory select,
+.theme-saturn-observatory textarea {
+    color: var(--saturn-light) !important;
+
+    background:
+        linear-gradient(
+            180deg,
+            rgba(15, 12, 10, 0.94),
+            rgba(38, 29, 22, 0.9)
+        ) !important;
+
+    border:
+        3px double rgba(201, 168, 117, 0.54) !important;
+
+    border-radius:
+        999px !important;
+
+    outline: none;
+
+    box-shadow:
+        inset 0 4px 11px rgba(0, 0, 0, 0.38);
+}
+
+.theme-saturn-observatory textarea {
+    border-radius:
+        28px 28px 12px 12px !important;
+}
+
+.theme-saturn-observatory
+input:not([type="range"]):focus,
+
+.theme-saturn-observatory select:focus,
+.theme-saturn-observatory textarea:focus {
+    border-color:
+        var(--saturn-cream) !important;
+
+    box-shadow:
+        0 0 0 3px rgba(201, 168, 117, 0.15),
+        inset 0 4px 11px rgba(0, 0, 0, 0.32) !important;
+}
+
+.theme-saturn-observatory input::placeholder,
+.theme-saturn-observatory textarea::placeholder {
+    color:
+        rgba(185, 169, 143, 0.62);
+}
+
+
+/* =========================================================
+   NÚT BẤM — MẢNH VÀNH ĐAI
+========================================================= */
+
+.theme-saturn-observatory
+.store-item-card:not(.ui-theme-immune)
+.btn-buy,
+
+.theme-saturn-observatory
+.store-item-card:not(.ui-theme-immune)
+.btn-equip,
+
+.theme-saturn-observatory
+.store-item-card:not(.ui-theme-immune)
+.btn-preview,
+
+.theme-saturn-observatory
+.btn-approve,
+
+.theme-saturn-observatory
+.btn-primary,
+
+.theme-saturn-observatory
+.btn-submit,
+
+.theme-saturn-observatory
+.submit-btn {
+    color: #211810 !important;
+
+    background:
+        linear-gradient(
+            105deg,
+            #705638 0%,
+            #c9a875 42%,
+            #efe0be 70%,
+            #8c6f4c 100%
+        ) !important;
+
+    border:
+        3px double rgba(255, 249, 235, 0.76) !important;
+
+    border-radius:
+        999px !important;
+
+    font-weight: 800;
+
+    box-shadow:
+        0 7px 18px rgba(0, 0, 0, 0.34),
+        inset 0 -5px 9px rgba(76, 64, 54, 0.22) !important;
+}
+
+.theme-saturn-observatory
+button:not(:disabled):hover {
+    filter:
+        brightness(1.08);
+
+    box-shadow:
+        0 9px 24px rgba(0, 0, 0, 0.42),
+        0 0 0 3px rgba(201, 168, 117, 0.13) !important;
+}
+
+.theme-saturn-observatory
+button:disabled {
+    filter:
+        grayscale(0.48)
+        brightness(0.74);
+
+    opacity: 0.72;
+}
+
+
+/* =========================================================
+   SLIDER — KHE CASSINI
+========================================================= */
+
+.theme-saturn-observatory
+input[type="range"] {
+    appearance: none;
+    -webkit-appearance: none;
+
+    height: 12px;
+
+    background:
+        linear-gradient(
+            90deg,
+            #4c4036 0%,
+            #8c6f4c 24%,
+            #efe0be 41%,
+            #17120f 43% 48%,
+            #c9a875 50% 72%,
+            #705638 100%
+        ) !important;
+
+    border:
+        2px solid rgba(239, 224, 190, 0.48);
+
+    border-radius:
+        999px;
+
+    box-shadow:
+        inset 0 3px 7px rgba(0, 0, 0, 0.5),
+        0 0 12px rgba(201, 168, 117, 0.12);
+}
+
+.theme-saturn-observatory
+input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    -webkit-appearance: none;
+
+    width: 24px;
+    height: 24px;
+
+    background:
+        linear-gradient(
+            135deg,
+            #fff9eb,
+            #c9a875 52%,
+            #705638
+        );
+
+    border:
+        2px solid #fff4dc;
+
+    border-radius: 0;
+
+    clip-path:
+        polygon(
+            25% 6%,
+            75% 6%,
+            100% 50%,
+            75% 94%,
+            25% 94%,
+            0 50%
+        );
+
+    cursor: pointer;
+
+    box-shadow:
+        0 0 0 5px rgba(201, 168, 117, 0.13),
+        0 0 16px rgba(239, 224, 190, 0.34);
+}
+
+.theme-saturn-observatory
+input[type="range"]::-moz-range-thumb {
+    width: 22px;
+    height: 22px;
+
+    background:
+        linear-gradient(
+            135deg,
+            #fff9eb,
+            #c9a875,
+            #705638
+        );
+
+    border:
+        2px solid #fff4dc;
+
+    border-radius: 0;
+
+    clip-path:
+        polygon(
+            25% 6%,
+            75% 6%,
+            100% 50%,
+            75% 94%,
+            25% 94%,
+            0 50%
+        );
+
+    cursor: pointer;
+}
+
+
+/* =========================================================
+   BẢNG DỮ LIỆU
+========================================================= */
+
+.theme-saturn-observatory table {
+    color: var(--saturn-text);
+
+    background:
+        rgba(18, 14, 12, 0.72);
+
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.theme-saturn-observatory th {
+    color: #211810 !important;
+
+    background:
+        linear-gradient(
+            90deg,
+            #8c6f4c,
+            #c9a875,
+            #efe0be
+        ) !important;
+
+    border-bottom:
+        3px double #705638 !important;
+}
+
+.theme-saturn-observatory td {
+    border-bottom:
+        1px solid rgba(201, 168, 117, 0.17) !important;
+}
+
+.theme-saturn-observatory tr:hover td {
+    background:
+        rgba(140, 111, 76, 0.12);
+}
+
+
+/* =========================================================
+   THANH CUỘN
+========================================================= */
+
+.theme-saturn-observatory
+::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+}
+
+.theme-saturn-observatory
+::-webkit-scrollbar-track {
+    background:
+        #17120f;
+
+    border:
+        1px solid rgba(201, 168, 117, 0.16);
+}
+
+.theme-saturn-observatory
+::-webkit-scrollbar-thumb {
+    background:
+        linear-gradient(
+            180deg,
+            #efe0be,
+            #c9a875,
+            #705638
+        );
+
+    border:
+        3px solid #17120f;
+
+    border-radius:
+        999px;
+}
+
+
+/* =========================================================
+   NHÃN MỞ BÁN GIỚI HẠN
+========================================================= */
+
+.theme-saturn-observatory
+.annual-sale-chip {
+    color: #211810;
+
+    background:
+        linear-gradient(
+            100deg,
+            #efe0be,
+            #c9a875,
+            #8c6f4c
+        );
+
+    border:
+        2px double rgba(255, 249, 235, 0.78);
+
+    box-shadow:
+        0 8px 19px rgba(0, 0, 0, 0.32);
+}
+
+.theme-saturn-observatory
+.annual-sale-locked {
+    color:
+        #b9a98f !important;
+
+    background:
+        linear-gradient(
+            90deg,
+            #211a15,
+            #4c4036
+        ) !important;
+
+    border-color:
+        rgba(201, 168, 117, 0.34) !important;
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 768px) {
+    .theme-saturn-observatory .sidebar,
+    .theme-saturn-observatory .nav-bar {
+        border-radius:
+            0 62px 62px 0 /
+            0 34px 34px 0;
+    }
+
+    .theme-saturn-observatory
+    .modal-content:not(.ui-theme-immune),
+
+    .theme-saturn-observatory
+    .popup-content:not(.ui-theme-immune),
+
+    .theme-saturn-observatory
+    .dialog-content:not(.ui-theme-immune) {
+        border-radius:
+            54px 54px 20px 20px /
+            32px 32px 20px 20px !important;
+    }
+
+    .theme-saturn-observatory
+    .card:not(.ui-theme-immune),
+
+    .theme-saturn-observatory
+    .store-item-card:not(.ui-theme-immune),
+
+    .theme-saturn-observatory
+    .submit-box:not(.ui-theme-immune),
+
+    .theme-saturn-observatory
+    .content-box:not(.ui-theme-immune) {
+        border-radius:
+            40px 40px 13px 13px /
+            23px 23px 13px 13px !important;
+    }
+}
+/* =========================================================
+   ĐẠI TRIỀU VÀNH ĐAI CASSINI
+   HIỆU ỨNG TOÀN WEBSITE DÀNH RIÊNG CHO BỘ SAO THỔ
+========================================================= */
+
+.effect-saturn-cassini-field {
+    --saturn-field-shadow: #2a211a;
+    --saturn-field-brown: #4c4036;
+    --saturn-field-bronze: #8c6f4c;
+    --saturn-field-gold: #c9a875;
+    --saturn-field-cream: #efe0be;
+    --saturn-field-light: #fff9eb;
+
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    isolation: isolate;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.8s ease;
+}
+
+.effect-saturn-cassini-field.is-visible {
+    opacity: 1;
+}
+
+.effect-saturn-cassini-field,
+.effect-saturn-cassini-field * {
+    box-sizing: border-box;
+    pointer-events: none;
+}
+
+
+/* ÁNH SÁNG PHỦ TOÀN WEBSITE */
+
+.saturn-field-wash {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+
+    background:
+        radial-gradient(
+            circle at 69% 30%,
+            rgba(255, 249, 235, 0.13),
+            transparent 23%
+        ),
+        radial-gradient(
+            ellipse at 10% 105%,
+            rgba(140, 111, 76, 0.12),
+            transparent 43%
+        ),
+        linear-gradient(
+            118deg,
+            rgba(16, 13, 11, 0.13),
+            rgba(76, 64, 54, 0.07) 46%,
+            rgba(239, 224, 190, 0.05)
+        );
+
+    mix-blend-mode: screen;
+}
+
+
+/* DẢI CHẠNG VẠNG */
+
+.saturn-field-terminator {
+    position: absolute;
+    top: -30%;
+    left: -34%;
+    z-index: 1;
+
+    width: 46%;
+    height: 170%;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            rgba(16, 13, 11, 0.08) 22%,
+            rgba(16, 13, 11, 0.40) 52%,
+            rgba(201, 168, 117, 0.08) 75%,
+            transparent
+        );
+
+    filter: blur(20px);
+    transform: rotate(13deg);
+
+    animation:
+        saturnFieldTerminatorPass
+        20s
+        ease-in-out
+        infinite;
+}
+
+
+/* =========================================================
+   HÀNH TINH SAO THỔ
+========================================================= */
+
+.saturn-field-planet {
+    position: absolute;
+    left: 69%;
+    top: 30%;
+    z-index: 3;
+
+    width: clamp(230px, 31vw, 520px);
+    aspect-ratio: 1;
+
+    transform:
+        translate(-50%, -50%);
+
+    border-radius: 50%;
+
+    background:
+        repeating-linear-gradient(
+            7deg,
+            rgba(255, 249, 235, 0.10) 0 5px,
+            rgba(140, 111, 76, 0.10) 6px 12px,
+            transparent 13px 21px
+        ),
+        radial-gradient(
+            circle at 34% 28%,
+            #fff8df 0%,
+            #e8d2a9 25%,
+            #c19d69 49%,
+            #765b3b 72%,
+            #2b211a 100%
+        );
+
+    box-shadow:
+        inset -48px -34px 68px
+        rgba(15, 11, 9, 0.64),
+
+        inset 22px 16px 34px
+        rgba(255, 249, 235, 0.16),
+
+        0 0 52px
+        rgba(201, 168, 117, 0.19);
+
+    opacity: 0.40;
+
+    animation:
+        saturnFieldPlanetDrift
+        18s
+        ease-in-out
+        infinite;
+}
+
+.saturn-field-planet-light,
+.saturn-field-planet-shadow,
+.saturn-field-atmosphere {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+}
+
+.saturn-field-planet-light {
+    background:
+        radial-gradient(
+            circle at 31% 27%,
+            rgba(255, 255, 238, 0.38),
+            transparent 35%
+        );
+
+    mix-blend-mode: screen;
+}
+
+.saturn-field-planet-shadow {
+    background:
+        linear-gradient(
+            105deg,
+            transparent 0 45%,
+            rgba(16, 13, 11, 0.24) 58%,
+            rgba(16, 13, 11, 0.70) 100%
+        );
+}
+
+.saturn-field-atmosphere {
+    border:
+        1px solid
+        rgba(255, 249, 235, 0.34);
+
+    box-shadow:
+        inset 0 0 28px
+        rgba(255, 249, 235, 0.08),
+
+        0 0 18px
+        rgba(201, 168, 117, 0.14);
+}
+
+
+/* =========================================================
+   HỆ VÀNH ĐAI TRƯỚC VÀ SAU
+========================================================= */
+
+.saturn-field-ring-system {
+    position: absolute;
+    left: 69%;
+    top: 30%;
+
+    width:
+        clamp(760px, 126vw, 1900px);
+
+    height:
+        clamp(190px, 29vw, 470px);
+
+    transform:
+        translate(-50%, -50%)
+        rotate(-13deg);
+
+    border-radius: 50%;
+}
+
+.ring-system-back {
+    z-index: 2;
+
+    animation:
+        saturnFieldRingBackPrecession
+        24s
+        ease-in-out
+        infinite;
+}
+
+.ring-system-front {
+    z-index: 4;
+
+    clip-path:
+        polygon(
+            0 50%,
+            100% 50%,
+            100% 100%,
+            0 100%
+        );
+
+    animation:
+        saturnFieldRingFrontPrecession
+        24s
+        ease-in-out
+        infinite;
+}
+
+.saturn-field-ring,
+.saturn-field-cassini-division,
+.saturn-field-ring-sweep {
+    position: absolute;
+    border-radius: 50%;
+}
+
+.saturn-field-ring.ring-a {
+    inset: 0;
+
+    border:
+        clamp(10px, 1.5vw, 23px)
+        solid
+        rgba(112, 86, 56, 0.31);
+
+    box-shadow:
+        0 0 18px
+        rgba(140, 111, 76, 0.15),
+
+        inset 0 0 17px
+        rgba(239, 224, 190, 0.09);
+}
+
+.saturn-field-ring.ring-b {
+    inset: 12% 7%;
+
+    border:
+        clamp(8px, 1.15vw, 18px)
+        solid
+        rgba(201, 168, 117, 0.40);
+
+    box-shadow:
+        0 0 14px
+        rgba(201, 168, 117, 0.13);
+}
+
+.saturn-field-ring.ring-c {
+    inset: 24% 14%;
+
+    border:
+        clamp(6px, 0.8vw, 13px)
+        solid
+        rgba(239, 224, 190, 0.35);
+}
+
+.saturn-field-cassini-division {
+    inset: 18% 10%;
+
+    border:
+        clamp(5px, 0.65vw, 10px)
+        solid
+        rgba(17, 13, 11, 0.72);
+
+    box-shadow:
+        0 0 0 1px
+        rgba(239, 224, 190, 0.09),
+
+        inset 0 0 11px
+        rgba(0, 0, 0, 0.52);
+}
+
+
+/* ÁNH SÁNG CHẠY TRÊN VÀNH */
+
+.saturn-field-ring-sweep {
+    inset: 7% 4%;
+
+    background:
+        conic-gradient(
+            from 210deg,
+            transparent 0deg 115deg,
+            rgba(255, 249, 235, 0.52) 136deg,
+            transparent 158deg 360deg
+        );
+
+    -webkit-mask:
+        radial-gradient(
+            ellipse at center,
+            transparent 0 61%,
+            #000 62% 69%,
+            transparent 70%
+        );
+
+    mask:
+        radial-gradient(
+            ellipse at center,
+            transparent 0 61%,
+            #000 62% 69%,
+            transparent 70%
+        );
+
+    animation:
+        saturnFieldRingSweep
+        10s
+        linear
+        infinite;
+}
+
+
+/* =========================================================
+   BẢN ĐỒ QUỸ ĐẠO
+========================================================= */
+
+.saturn-field-orbit-map {
+    position: absolute;
+    left: 14%;
+    bottom: -24%;
+    z-index: 1;
+
+    width:
+        clamp(320px, 58vw, 940px);
+
+    aspect-ratio: 1;
+
+    transform:
+        rotate(-17deg);
+
+    opacity: 0.34;
+
+    animation:
+        saturnFieldOrbitMapTurn
+        46s
+        linear
+        infinite;
+}
+
+.saturn-field-orbit {
+    position: absolute;
+
+    border-radius: 50%;
+
+    border:
+        1px solid
+        rgba(201, 168, 117, 0.31);
+}
+
+.saturn-field-orbit.orbit-a {
+    inset: 0;
+}
+
+.saturn-field-orbit.orbit-b {
+    inset: 16%;
+    border-style: dashed;
+}
+
+.saturn-field-orbit.orbit-c {
+    inset: 33%;
+
+    border-color:
+        rgba(239, 224, 190, 0.26);
+}
+
+
+/* =========================================================
+   VỆ TINH
+========================================================= */
+
+.saturn-field-moon-field,
+.saturn-field-dust-field {
+    position: absolute;
+    inset: 0;
+}
+
+.saturn-field-moon-field {
+    z-index: 5;
+}
+
+.saturn-field-moon {
+    position: absolute;
+
+    left:
+        var(--saturn-field-moon-x);
+
+    top:
+        var(--saturn-field-moon-y);
+
+    width:
+        var(--saturn-field-moon-size);
+
+    height:
+        var(--saturn-field-moon-size);
+
+    margin:
+        calc(
+            var(--saturn-field-moon-size) / -2
+        );
+
+    border-radius: 50%;
+
+    background:
+        var(--saturn-field-moon-color);
+
+    box-shadow:
+        inset -2px -2px 4px
+        rgba(42, 33, 26, 0.42),
+
+        0 0 7px
+        rgba(255, 249, 235, 0.38),
+
+        0 0 16px
+        rgba(201, 168, 117, 0.18);
+
+    animation:
+        saturnFieldMoonDrift
+        var(--saturn-field-moon-duration)
+        ease-in-out
+        infinite;
+
+    animation-delay:
+        var(--saturn-field-moon-delay);
+}
+
+
+/* =========================================================
+   BỤI BĂNG
+========================================================= */
+
+.saturn-field-dust-field {
+    z-index: 6;
+}
+
+.saturn-field-grain {
+    position: absolute;
+
+    left:
+        var(--saturn-field-grain-x);
+
+    top:
+        var(--saturn-field-grain-y);
+
+    width:
+        var(--saturn-field-grain-size);
+
+    height:
+        var(--saturn-field-grain-size);
+
+    border-radius: 50%;
+
+    background:
+        rgba(201, 168, 117, 0.70);
+
+    box-shadow:
+        0 0 5px
+        rgba(201, 168, 117, 0.45);
+
+    opacity: 0;
+
+    animation:
+        saturnFieldGrainDrift
+        var(--saturn-field-grain-duration)
+        linear
+        infinite;
+
+    animation-delay:
+        var(--saturn-field-grain-delay);
+}
+
+.saturn-field-grain.grain-ice {
+    background:
+        rgba(255, 249, 235, 0.88);
+
+    box-shadow:
+        0 0 6px
+        rgba(255, 249, 235, 0.70),
+
+        0 0 13px
+        rgba(239, 224, 190, 0.30);
+}
+
+
+/* VỆT QUÉT QUANG PHỔ */
+
+.saturn-field-spectral-scan {
+    position: absolute;
+    inset: -30%;
+    z-index: 7;
+
+    background:
+        repeating-linear-gradient(
+            104deg,
+            transparent 0 64px,
+            rgba(239, 224, 190, 0.018)
+            65px 66px,
+            transparent 67px 128px
+        );
+
+    transform:
+        translateX(-14%);
+
+    animation:
+        saturnFieldSpectralSurvey
+        18s
+        linear
+        infinite;
+}
+
+
+/* PHỐI HỢP VỚI ĐÀI QUAN SÁT CASSINI */
+
+body.theme-saturn-observatory
+.effect-saturn-cassini-field {
+    --saturn-field-bronze: #987650;
+    --saturn-field-gold: #d4b37e;
+    --saturn-field-cream: #f3e5c6;
+}
+
+body.theme-saturn-observatory
+.saturn-field-wash {
+    opacity: 0.92;
+}
+
+body.theme-saturn-observatory
+.saturn-field-ring-system {
+    filter:
+        saturate(1.08)
+        brightness(1.06);
+}
+
+
+/* =========================================================
+   KEYFRAMES MỚI
+========================================================= */
+
+@keyframes saturnFieldTerminatorPass {
+    0%,
+    100% {
+        transform:
+            translateX(-12vw)
+            rotate(13deg);
+
+        opacity: 0.35;
+    }
+
+    50% {
+        transform:
+            translateX(104vw)
+            rotate(13deg);
+
+        opacity: 0.68;
+    }
+}
+
+@keyframes saturnFieldPlanetDrift {
+    0%,
+    100% {
+        transform:
+            translate(-50%, -50%)
+            rotate(-1deg)
+            scale(0.985);
+    }
+
+    50% {
+        transform:
+            translate(-50%, -53%)
+            rotate(1deg)
+            scale(1.02);
+    }
+}
+
+@keyframes saturnFieldRingBackPrecession {
+    0%,
+    100% {
+        transform:
+            translate(-50%, -50%)
+            rotate(-13deg)
+            scaleX(0.985);
+
+        opacity: 0.66;
+    }
+
+    50% {
+        transform:
+            translate(-50%, -50%)
+            rotate(-9deg)
+            scaleX(1.025);
+
+        opacity: 0.82;
+    }
+}
+
+@keyframes saturnFieldRingFrontPrecession {
+    0%,
+    100% {
+        transform:
+            translate(-50%, -50%)
+            rotate(-13deg)
+            scaleX(0.985);
+
+        opacity: 0.76;
+    }
+
+    50% {
+        transform:
+            translate(-50%, -50%)
+            rotate(-9deg)
+            scaleX(1.025);
+
+        opacity: 0.93;
+    }
+}
+
+@keyframes saturnFieldRingSweep {
+    from {
+        transform:
+            rotate(0deg);
+
+        opacity: 0.28;
+    }
+
+    50% {
+        opacity: 0.82;
+    }
+
+    to {
+        transform:
+            rotate(360deg);
+
+        opacity: 0.28;
+    }
+}
+
+@keyframes saturnFieldOrbitMapTurn {
+    from {
+        transform:
+            rotate(-17deg);
+    }
+
+    to {
+        transform:
+            rotate(343deg);
+    }
+}
+
+@keyframes saturnFieldMoonDrift {
+    0%,
+    100% {
+        transform:
+            translate3d(0, 0, 0)
+            scale(0.74);
+
+        opacity: 0.36;
+    }
+
+    50% {
+        transform:
+            translate3d(
+                var(--saturn-field-moon-drift-x),
+                var(--saturn-field-moon-drift-y),
+                0
+            )
+            scale(1.13);
+
+        opacity: 0.94;
+    }
+}
+
+@keyframes saturnFieldGrainDrift {
+    0% {
+        transform:
+            translate3d(0, 0, 0)
+            scale(0.55);
+
+        opacity: 0;
+    }
+
+    18% {
+        opacity: 0.72;
+    }
+
+    72% {
+        opacity: 0.48;
+    }
+
+    100% {
+        transform:
+            translate3d(
+                var(--saturn-field-grain-drift-x),
+                var(--saturn-field-grain-drift-y),
+                0
+            )
+            scale(1.18);
+
+        opacity: 0;
+    }
+}
+
+@keyframes saturnFieldSpectralSurvey {
+    from {
+        transform:
+            translateX(-14%);
+    }
+
+    to {
+        transform:
+            translateX(14%);
+    }
+}
+
+
+/* MOBILE */
+
+@media (max-width: 768px) {
+    .saturn-field-planet {
+        left: 76%;
+        top: 28%;
+        width:
+            clamp(205px, 62vw, 360px);
+
+        opacity: 0.35;
+    }
+
+    .saturn-field-ring-system {
+        left: 76%;
+        top: 28%;
+        width: 820px;
+        height: 230px;
+    }
+
+    .saturn-field-orbit-map {
+        left: -18%;
+        bottom: -5%;
+        width: 470px;
+    }
+
+    .saturn-field-terminator {
+        width: 62%;
+    }
+}
+
+
+/* GIẢM CHUYỂN ĐỘNG */
+
+@media (prefers-reduced-motion: reduce) {
+    .effect-saturn-cassini-field,
+    .effect-saturn-cassini-field * {
+        animation-duration:
+            0.001ms !important;
+
+        animation-iteration-count:
+            1 !important;
+    }
+}

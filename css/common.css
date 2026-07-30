@@ -3194,3 +3194,1029 @@ body.preview-modal-open {
 
     z-index: 10 !important;
 }
+/* =====================================================
+   MEDIA LINH HOẠT CHO MÀN HÌNH ĐĂNG NHẬP
+   Hỗ trợ cả ảnh và video
+   ===================================================== */
+
+#loginScenePanel {
+    position: relative !important;
+    min-width: 0;
+    min-height: 100%;
+    padding: 0 !important;
+    overflow: hidden !important;
+    background: #000 !important;
+    isolation: isolate;
+}
+
+/* Dùng chung cho ảnh và video */
+#loginScenePanel .login-scene-media {
+    position: absolute !important;
+    inset: 0 !important;
+
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+
+    object-fit: cover !important;
+    object-position: center center;
+
+    opacity: 1 !important;
+    filter: none !important;
+    transform: none !important;
+    mix-blend-mode: normal !important;
+
+    border: 0 !important;
+    border-radius: 0 !important;
+
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-drag: none;
+
+    z-index: 10 !important;
+}
+
+/* Không để các lớp trang trí cũ che ảnh/video */
+#loginScenePanel::before,
+#loginScenePanel::after,
+#loginScenePanel .scene-overlay,
+#loginScenePanel .scene-light,
+#loginScenePanel .floating-leaf {
+    display: none !important;
+    content: none !important;
+}
+
+/* Trên điện thoại chỉ hiện phần đăng nhập như giao diện cũ */
+@media (max-width: 760px) {
+    #loginScenePanel {
+        display: none !important;
+    }
+}
+/* ======================================================================
+   CÀI ĐẶT BỐ CỤC TRANG ĐĂNG NHẬP
+   Chỉ bổ sung giao diện lựa chọn trong trang giáo viên
+   và bố cục hiển thị trang đăng nhập.
+   ====================================================================== */
+
+/* ==========================
+   THẺ CÀI ĐẶT CỦA GIÁO VIÊN
+   ========================== */
+
+.login-layout-settings-card {
+    margin-top: 20px;
+}
+
+.login-layout-settings-heading {
+    margin-bottom: 18px;
+}
+
+.login-layout-settings-kicker {
+    margin: 0 0 5px;
+    color: var(--ui-primary, #4f46e5);
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+}
+
+.login-layout-settings-heading h3 {
+    margin: 0;
+    color: #172554;
+}
+
+.login-layout-settings-heading p:last-child {
+    margin: 7px 0 0;
+    color: #64748b;
+    font-size: 0.92rem;
+}
+
+.login-layout-choice-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.login-layout-choice {
+    position: relative;
+    min-width: 0;
+    padding: 14px;
+
+    display: grid;
+    grid-template-columns: 90px minmax(0, 1fr);
+    gap: 13px;
+    align-items: center;
+
+    cursor: pointer;
+
+    border: 2px solid rgba(148, 163, 184, 0.2);
+    border-radius: 18px;
+
+    background: rgba(248, 250, 252, 0.75);
+
+    transition:
+        border-color 0.22s ease,
+        background 0.22s ease,
+        box-shadow 0.22s ease,
+        transform 0.22s ease;
+}
+
+.login-layout-choice:hover {
+    transform: translateY(-2px);
+
+    border-color: rgba(79, 70, 229, 0.35);
+    background: #ffffff;
+
+    box-shadow:
+        0 12px 26px rgba(15, 23, 42, 0.08);
+}
+
+.login-layout-choice.is-selected {
+    border-color: #4f46e5;
+    background: rgba(238, 242, 255, 0.92);
+
+    box-shadow:
+        0 0 0 4px rgba(79, 70, 229, 0.1);
+}
+
+.login-layout-choice > input {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+
+    width: 18px;
+    height: 18px;
+    margin: 0;
+
+    accent-color: #4f46e5;
+}
+
+.login-layout-choice-preview {
+    position: relative;
+
+    width: 90px;
+    height: 62px;
+
+    display: block;
+    overflow: hidden;
+
+    border: 1px solid rgba(15, 23, 42, 0.13);
+    border-radius: 11px;
+
+    background:
+        linear-gradient(
+            145deg,
+            #bae6fd,
+            #c4b5fd 55%,
+            #fbcfe8
+        );
+
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+/* Hình xem trước bố cục hai cột */
+.login-layout-preview-split i {
+    position: absolute;
+    inset: 0 38% 0 0;
+
+    background:
+        radial-gradient(
+            circle at 70% 20%,
+            rgba(255, 255, 255, 0.55),
+            transparent 24%
+        ),
+        linear-gradient(
+            150deg,
+            #075985,
+            #4f46e5 52%,
+            #a21caf
+        );
+}
+
+.login-layout-preview-split b {
+    position: absolute;
+    top: 12px;
+    right: 7px;
+    bottom: 12px;
+
+    width: 29%;
+
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.92);
+
+    box-shadow:
+        0 4px 10px rgba(15, 23, 42, 0.15);
+}
+
+/* Hình xem trước bố cục toàn màn hình */
+.login-layout-preview-centered i {
+    position: absolute;
+    inset: 0;
+
+    background:
+        radial-gradient(
+            circle at 70% 20%,
+            rgba(255, 255, 255, 0.48),
+            transparent 24%
+        ),
+        linear-gradient(
+            145deg,
+            #075985,
+            #4f46e5 50%,
+            #a21caf
+        );
+}
+
+.login-layout-preview-centered b {
+    position: absolute;
+    top: 10px;
+    bottom: 10px;
+    left: 50%;
+
+    width: 31%;
+
+    transform: translateX(-50%);
+
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.9);
+
+    box-shadow:
+        0 5px 13px rgba(15, 23, 42, 0.23);
+}
+
+.login-layout-choice-copy {
+    min-width: 0;
+    padding-right: 18px;
+}
+
+.login-layout-choice-copy strong,
+.login-layout-choice-copy small {
+    display: block;
+}
+
+.login-layout-choice-copy strong {
+    color: #1e293b;
+    font-size: 0.95rem;
+}
+
+.login-layout-choice-copy small {
+    margin-top: 5px;
+
+    color: #64748b;
+    font-size: 0.78rem;
+    line-height: 1.5;
+}
+
+.login-layout-size-warning {
+    margin-top: 16px;
+    padding: 14px 16px;
+
+    display: grid;
+    gap: 5px;
+
+    color: #7c2d12;
+
+    border: 1px solid rgba(245, 158, 11, 0.34);
+    border-left: 5px solid #f59e0b;
+    border-radius: 14px;
+
+    background: rgba(255, 247, 237, 0.92);
+}
+
+.login-layout-size-warning strong,
+.login-layout-size-warning span {
+    display: block;
+}
+
+.login-layout-size-warning span {
+    color: #9a3412;
+    font-size: 0.88rem;
+    line-height: 1.6;
+}
+
+.login-layout-save-button {
+    margin-top: 16px;
+
+    color: #ffffff !important;
+
+    background:
+        linear-gradient(
+            135deg,
+            #4f46e5,
+            #7c3aed
+        ) !important;
+}
+
+/* ==========================
+   BỐ CỤC 1: GIỮ NGUYÊN
+   ========================== */
+
+body.login-page.login-layout-split #loginScenePanel {
+    display: block;
+}
+
+/* ==========================================================
+   BỐ CỤC 2:
+   ẢNH/VIDEO PHỦ TOÀN BỘ KHUNG ĐĂNG NHẬP LỚN
+   FORM ĐĂNG NHẬP NẰM GIỮA KHUNG
+   ========================================================== */
+
+/*
+Không thay đổi body.
+Nền màu và các hình trang trí bên ngoài khung lớn vẫn giữ nguyên.
+*/
+
+/* Khung lớn vẫn giữ kích thước, bo góc và bóng như giao diện cũ */
+body.login-page.login-layout-centered .login-shell {
+    position: relative;
+    isolation: isolate;
+
+    width: min(1080px, 100%);
+
+    min-height: min(
+        700px,
+        calc(100dvh - 56px)
+    );
+
+    display: grid;
+    grid-template-columns: 1fr;
+    place-items: center;
+
+    padding: clamp(24px, 4vw, 54px);
+
+    overflow: hidden;
+
+    border: 1px solid rgba(255, 255, 255, 0.86);
+    border-radius: 34px;
+
+    background: #0f172a;
+
+    box-shadow:
+        0 32px 100px rgba(30, 41, 59, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.95);
+
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+/* Lớp tối chỉ nằm trong khung lớn */
+body.login-page.login-layout-centered
+.login-shell::before {
+    content: '';
+
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+
+    pointer-events: none;
+
+    background:
+        radial-gradient(
+            circle at center,
+            rgba(15, 23, 42, 0.04),
+            rgba(15, 23, 42, 0.24)
+        ),
+        linear-gradient(
+            180deg,
+            rgba(2, 6, 23, 0.08),
+            rgba(2, 6, 23, 0.2)
+        );
+}
+
+/* Ảnh hoặc video phủ toàn bộ khung lớn */
+body.login-page.login-layout-centered
+#loginScenePanel {
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 0 !important;
+
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+
+    display: block !important;
+
+    padding: 0 !important;
+
+    border-radius: inherit !important;
+
+    overflow: hidden !important;
+}
+
+/* Áp dụng cho cả ảnh và video */
+body.login-page.login-layout-centered
+#loginScenePanel .scene-media,
+
+body.login-page.login-layout-centered
+#loginScenePanel .scene-video,
+
+body.login-page.login-layout-centered
+#loginScenePanel .login-scene-media {
+    position: absolute !important;
+    inset: 0 !important;
+
+    width: 100% !important;
+    height: 100% !important;
+
+    object-fit: cover !important;
+    object-position: center center;
+
+    border-radius: inherit !important;
+}
+
+/* Form đăng nhập nằm giữa khung lớn */
+body.login-page.login-layout-centered
+.login-container {
+    position: relative;
+    z-index: 2;
+
+    width: min(430px, 100%);
+    max-width: 430px;
+
+    min-height: auto;
+
+    margin: 0;
+
+    padding: clamp(30px, 4vw, 44px);
+
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    border-radius: 28px;
+
+    background:
+        radial-gradient(
+            circle at 100% 0,
+            rgba(129, 140, 248, 0.15),
+            transparent 30%
+        ),
+        rgba(255, 255, 255, 0.9);
+
+    box-shadow:
+        0 24px 70px rgba(2, 6, 23, 0.38),
+        inset 0 1px 0 rgba(255, 255, 255, 0.92);
+
+    backdrop-filter:
+        blur(20px) saturate(1.08);
+
+    -webkit-backdrop-filter:
+        blur(20px) saturate(1.08);
+}
+
+/* Máy tính không cần biểu tượng mobile */
+body.login-page.login-layout-centered
+.login-mobile-brand {
+    display: none;
+}
+
+/* ==========================================================
+   ĐIỆN THOẠI
+   Ảnh vẫn nằm trong khung lớn, form nằm giữa
+   ========================================================== */
+
+@media (max-width: 760px) {
+    body.login-page.login-layout-centered {
+        padding: 12px !important;
+    }
+
+    body.login-page.login-layout-centered
+    .login-shell {
+        width: 100%;
+
+        min-height: calc(100dvh - 24px);
+
+        padding: 14px;
+
+        place-items: center;
+
+        border-radius: 28px;
+    }
+
+    /*
+    Giao diện cũ ẩn ảnh trên điện thoại.
+    Chỉ bố cục centered mới bật lại ảnh.
+    */
+    body.login-page.login-layout-centered
+    #loginScenePanel {
+        display: block !important;
+    }
+
+    body.login-page.login-layout-centered
+    .login-shell::before {
+        background:
+            linear-gradient(
+                180deg,
+                rgba(2, 6, 23, 0.22),
+                rgba(2, 6, 23, 0.38)
+            );
+    }
+
+    body.login-page.login-layout-centered
+    .login-container {
+        width: min(100%, 400px) !important;
+        max-width: 400px !important;
+
+        max-height: calc(100dvh - 52px);
+
+        margin: 0 !important;
+
+        padding: 26px 20px !important;
+
+        overflow-y: auto;
+
+        border-radius: 24px !important;
+
+        background:
+            rgba(255, 255, 255, 0.92);
+    }
+
+    body.login-page.login-layout-centered
+    .login-mobile-brand {
+        width: 52px;
+        height: 52px;
+
+        margin-bottom: 18px;
+
+        display: grid;
+        place-items: center;
+
+        color: #ffffff;
+
+        border-radius: 17px 8px 17px 8px;
+
+        background:
+            linear-gradient(
+                135deg,
+                var(--ui-primary),
+                var(--ui-secondary),
+                var(--ui-accent)
+            );
+
+        box-shadow:
+            0 12px 25px rgba(15, 23, 42, 0.22);
+
+        font-size: 21px;
+    }
+
+    body.login-page.login-layout-centered
+    .login-heading {
+        margin-bottom: 21px;
+    }
+
+    body.login-page.login-layout-centered
+    .login-heading h2 {
+        font-size: 2rem;
+    }
+}
+
+@media (max-width: 430px) {
+    body.login-page.login-layout-centered {
+        padding: 10px !important;
+    }
+
+    body.login-page.login-layout-centered
+    .login-shell {
+        min-height: calc(100dvh - 20px);
+
+        padding: 10px;
+
+        border-radius: 23px;
+    }
+
+    body.login-page.login-layout-centered
+    .login-container {
+        max-height: calc(100dvh - 40px);
+
+        padding: 23px 17px !important;
+
+        border-radius: 21px !important;
+    }
+}
+
+/* ==========================
+   TRANG ĐĂNG NHẬP ĐIỆN THOẠI
+   ========================== */
+
+@media (max-width: 760px) {
+    body.login-page.login-layout-centered {
+        padding: 0 !important;
+    }
+
+    body.login-page.login-layout-centered
+    .login-shell {
+        width: 100%;
+
+        min-height: 100vh;
+        min-height: 100dvh;
+
+        padding: 12px;
+
+        place-items: center;
+
+        border-radius: 0;
+    }
+
+    /*
+     Ghi đè quy tắc cũ đang ẩn ảnh trên điện thoại.
+     Chỉ bố cục centered mới hiện lại ảnh.
+    */
+    body.login-page.login-layout-centered
+    #loginScenePanel {
+        display: block !important;
+    }
+
+    body.login-page.login-layout-centered
+    .login-shell::before {
+        background:
+            linear-gradient(
+                180deg,
+                rgba(2, 6, 23, 0.28),
+                rgba(2, 6, 23, 0.44)
+            );
+    }
+
+    body.login-page.login-layout-centered
+    .login-container {
+        width: min(100%, 420px) !important;
+        max-width: 420px !important;
+
+        margin: 0 !important;
+
+        padding: 27px 20px !important;
+
+        border-radius: 24px !important;
+
+        background:
+            rgba(255, 255, 255, 0.92);
+    }
+
+    body.login-page.login-layout-centered
+    .login-mobile-brand {
+        width: 54px;
+        height: 54px;
+
+        margin-bottom: 20px;
+
+        display: grid;
+        place-items: center;
+
+        color: #ffffff;
+
+        border-radius: 17px 8px 17px 8px;
+
+        background:
+            linear-gradient(
+                135deg,
+                var(--ui-primary),
+                var(--ui-secondary),
+                var(--ui-accent)
+            );
+
+        box-shadow:
+            0 12px 25px rgba(15, 23, 42, 0.22);
+
+        font-size: 21px;
+    }
+
+    body.login-page.login-layout-centered
+    .login-heading {
+        margin-bottom: 22px;
+    }
+
+    body.login-page.login-layout-centered
+    .login-heading h2 {
+        font-size: 2rem;
+    }
+}
+
+@media (max-width: 430px) {
+    body.login-page.login-layout-centered
+    .login-shell {
+        padding: 10px;
+    }
+
+    body.login-page.login-layout-centered
+    .login-container {
+        padding: 24px 17px !important;
+        border-radius: 21px !important;
+    }
+}
+
+/* ==========================================================
+   FORM COMPACT CUỐI CÙNG — CHỈ BỐ CỤC 2
+   Ghi đè toàn bộ kích thước cũ
+   ========================================================== */
+
+/* Hộp trắng trên máy tính */
+body.login-page.login-layout-centered .login-container {
+    position: relative !important;
+    z-index: 2 !important;
+
+    flex: 0 0 auto !important;
+
+    display: block !important;
+
+    width: min(340px, calc(100% - 32px)) !important;
+    max-width: 340px !important;
+    min-width: 0 !important;
+
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+
+    margin: 0 !important;
+    padding: 22px 24px !important;
+
+    overflow: visible !important;
+
+    box-sizing: border-box !important;
+
+    border-radius: 20px !important;
+
+    box-shadow:
+        0 18px 50px rgba(2, 6, 23, 0.34),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+}
+
+/* Không hiện biểu tượng mobile để tiết kiệm chiều cao */
+body.login-page.login-layout-centered .login-mobile-brand {
+    display: none !important;
+}
+
+/* Phần tiêu đề */
+body.login-page.login-layout-centered .login-heading {
+    margin: 0 0 16px !important;
+}
+
+body.login-page.login-layout-centered .login-kicker {
+    margin: 0 0 5px !important;
+
+    font-size: 0.66rem !important;
+    line-height: 1.3 !important;
+    letter-spacing: 0.15em !important;
+}
+
+body.login-page.login-layout-centered .login-heading h2 {
+    margin: 0 0 6px !important;
+
+    font-size: 2rem !important;
+    line-height: 1.05 !important;
+}
+
+body.login-page.login-layout-centered
+.login-heading > p:last-child {
+    margin: 0 !important;
+
+    font-size: 0.78rem !important;
+    line-height: 1.45 !important;
+}
+
+/* Khoảng cách trong form */
+body.login-page.login-layout-centered
+.login-container form {
+    display: grid !important;
+    gap: 12px !important;
+}
+
+body.login-page.login-layout-centered .login-field {
+    margin: 0 !important;
+}
+
+/* Nhãn */
+body.login-page.login-layout-centered
+.login-field label {
+    margin: 0 0 5px !important;
+
+    font-size: 0.73rem !important;
+    line-height: 1.3 !important;
+}
+
+/* Ô nhập tài khoản và mật khẩu */
+body.login-page.login-layout-centered
+.login-container
+input:not([type='checkbox']):not([type='radio']):not([type='range']) {
+    width: 100% !important;
+
+    height: 44px !important;
+    min-height: 44px !important;
+
+    margin: 0 !important;
+
+    padding:
+        8px
+        12px
+        8px
+        39px !important;
+
+    border-radius: 12px !important;
+
+    font-size: 0.86rem !important;
+}
+
+/* Biểu tượng trong ô nhập */
+body.login-page.login-layout-centered
+.login-input-icon {
+    left: 13px !important;
+
+    font-size: 0.82rem !important;
+}
+
+/* Nút đăng nhập */
+body.login-page.login-layout-centered
+.login-submit-btn {
+    width: 100% !important;
+
+    height: 46px !important;
+    min-height: 46px !important;
+
+    margin: 0 !important;
+
+    padding: 8px 12px !important;
+
+    border-radius: 12px !important;
+
+    font-size: 0.88rem !important;
+}
+
+body.login-page.login-layout-centered
+.login-submit-btn span:last-child {
+    width: 26px !important;
+    height: 26px !important;
+
+    border-radius: 8px !important;
+}
+
+/* Không chiếm chỗ khi chưa có lỗi */
+body.login-page.login-layout-centered
+.login-container .error:empty {
+    display: none !important;
+
+    min-height: 0 !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* Khi có lỗi mới hiện */
+body.login-page.login-layout-centered
+.login-container .error:not(:empty) {
+    min-height: 0 !important;
+
+    margin: 9px 0 0 !important;
+    padding: 8px 10px !important;
+
+    font-size: 0.7rem !important;
+    line-height: 1.4 !important;
+}
+
+/* Ghi chú bảo mật */
+body.login-page.login-layout-centered
+.login-help-note {
+    margin-top: 14px !important;
+    padding-top: 11px !important;
+
+    gap: 7px !important;
+
+    font-size: 0.66rem !important;
+    line-height: 1.4 !important;
+}
+
+/* ==========================================================
+   ĐIỆN THOẠI — FORM NHỎ HƠN
+   ========================================================== */
+
+@media screen and (max-width: 760px) {
+    body.login-page.login-layout-centered
+    .login-shell {
+        padding: 10px !important;
+    }
+
+    body.login-page.login-layout-centered
+    .login-container {
+        width: min(310px, calc(100% - 20px)) !important;
+        max-width: 310px !important;
+
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+
+        margin: 0 !important;
+        padding: 19px 18px !important;
+
+        overflow: visible !important;
+
+        border-radius: 18px !important;
+    }
+
+    body.login-page.login-layout-centered
+    .login-heading {
+        margin-bottom: 14px !important;
+    }
+
+    body.login-page.login-layout-centered
+    .login-heading h2 {
+        font-size: 1.72rem !important;
+    }
+
+    body.login-page.login-layout-centered
+    .login-heading > p:last-child {
+        font-size: 0.72rem !important;
+    }
+
+    body.login-page.login-layout-centered
+    .login-container form {
+        gap: 10px !important;
+    }
+
+    body.login-page.login-layout-centered
+    .login-container
+    input:not([type='checkbox']):not([type='radio']):not([type='range']) {
+        height: 42px !important;
+        min-height: 42px !important;
+
+        font-size: 16px !important;
+    }
+
+    body.login-page.login-layout-centered
+    .login-submit-btn {
+        height: 44px !important;
+        min-height: 44px !important;
+    }
+
+    body.login-page.login-layout-centered
+    .login-help-note {
+        margin-top: 11px !important;
+        padding-top: 9px !important;
+
+        font-size: 0.62rem !important;
+    }
+}
+
+/* Điện thoại rất nhỏ */
+@media screen and (max-width: 380px) {
+    body.login-page.login-layout-centered
+    .login-container {
+        width: min(290px, calc(100% - 16px)) !important;
+        max-width: 290px !important;
+
+        padding: 17px 15px !important;
+    }
+
+    body.login-page.login-layout-centered
+    .login-heading h2 {
+        font-size: 1.58rem !important;
+    }
+
+    body.login-page.login-layout-centered
+    .login-kicker {
+        font-size: 0.6rem !important;
+    }
+}
+/* ==========================================================
+   CĂN GIỮA FORM TRÊN ĐIỆN THOẠI — BỐ CỤC 2
+   ========================================================== */
+
+@media screen and (max-width: 760px) {
+    body.login-page.login-layout-centered {
+        min-height: 100vh !important;
+        min-height: 100svh !important;
+
+        padding: 10px !important;
+    }
+
+    body.login-page.login-layout-centered .login-shell {
+        width: 100% !important;
+
+        min-height: calc(100vh - 20px) !important;
+        min-height: calc(100svh - 20px) !important;
+
+        display: grid !important;
+
+        align-items: center !important;
+        justify-items: center !important;
+        place-items: center !important;
+
+        padding: 10px !important;
+
+        overflow-y: auto !important;
+    }
+
+    body.login-page.login-layout-centered .login-container {
+        align-self: center !important;
+        justify-self: center !important;
+
+        margin: auto !important;
+
+        transform: none !important;
+    }
+}
+@media screen and (max-width: 760px) and (max-height: 520px) {
+    body.login-page.login-layout-centered .login-shell {
+        align-items: start !important;
+        place-items: start center !important;
+
+        padding-top: 10px !important;
+        padding-bottom: 10px !important;
+    }
+
+    body.login-page.login-layout-centered .login-container {
+        margin: 0 auto !important;
+    }
+}

@@ -557,6 +557,8 @@ class PetManager {
             'sloth-dream-release',
             'sloth-domain-casting',
             'pet-birthday-serpent-2026-stage',
+            'pet-saturn-cassini-stage',
+            'pet-rainy-day-stage',
         );
 
         let petElement;
@@ -580,6 +582,71 @@ class PetManager {
         if (petData.petEffect) {
             petElement.classList.add(petData.petEffect);
             petElement.style.filter = '';
+        }
+        // =========================================================
+        // MÈO NHỎ NGÀY MƯA — KHUNG MƯA CỤC BỘ
+        // Chỉ tạo phần tử bên trong container thú cưng.
+        // Không phủ toàn màn hình và không dùng lại hiệu ứng cũ.
+        // =========================================================
+        if (petData.petEffect === 'rainy-day-cat-magic') {
+            petElement.setAttribute('draggable', 'false');
+            this.container.classList.add('pet-rainy-day-stage');
+
+            const rainBackdrop = document.createElement('div');
+            rainBackdrop.className = 'rainy-day-local-backdrop';
+            rainBackdrop.setAttribute('aria-hidden', 'true');
+            this.container.appendChild(rainBackdrop);
+
+            const drizzleField = document.createElement('div');
+            drizzleField.className = 'rainy-day-drizzle-field';
+            drizzleField.setAttribute('aria-hidden', 'true');
+
+            for (let index = 0; index < 11; index++) {
+                const drop = document.createElement('span');
+                drop.className = 'rainy-day-idle-drop';
+
+                drop.style.setProperty(
+                    '--rainy-idle-x',
+                    `${7 + (index * 17) % 88}%`
+                );
+
+                drop.style.setProperty(
+                    '--rainy-idle-delay',
+                    `${-index * 0.27}s`
+                );
+
+                drop.style.setProperty(
+                    '--rainy-idle-duration',
+                    `${1.45 + (index % 4) * 0.18}s`
+                );
+
+                drop.style.setProperty(
+                    '--rainy-idle-length',
+                    `${10 + (index % 3) * 4}px`
+                );
+
+                drizzleField.appendChild(drop);
+            }
+
+            this.container.appendChild(drizzleField);
+
+            const puddle = document.createElement('div');
+            puddle.className = 'rainy-day-puddle';
+            puddle.setAttribute('aria-hidden', 'true');
+
+            const puddleSheen = document.createElement('span');
+            puddleSheen.className = 'rainy-day-puddle-sheen';
+            puddle.appendChild(puddleSheen);
+
+            const rippleA = document.createElement('span');
+            rippleA.className = 'rainy-day-puddle-ripple';
+            puddle.appendChild(rippleA);
+
+            const rippleB = document.createElement('span');
+            rippleB.className = 'rainy-day-puddle-ripple ripple-b';
+            puddle.appendChild(rippleB);
+
+            this.container.appendChild(puddle);
         }
         // Hiệu ứng Giai Điệu Học Đường riêng của Shizuka
         if (
@@ -1061,6 +1128,115 @@ class PetManager {
             }
         }
 
+        // =========================================================
+        // LINH THÚ SAO THỔ — CỘNG HƯỞNG CASSINI
+        // Hiệu ứng chỉ được tạo bên trong container của pet.
+        // Không phủ toàn màn hình, không có hiệu ứng nhấn.
+        // =========================================================
+        if (petData.petEffect === 'saturn-cassini-magic') {
+            petElement.setAttribute('draggable', 'false');
+
+            this.container.classList.add(
+                'pet-saturn-cassini-stage'
+            );
+
+            // Nửa vành đai nằm phía sau pet
+            const ringBack = document.createElement('div');
+
+            ringBack.className =
+                'saturn-cassini-plane saturn-cassini-plane-back';
+
+            ringBack.setAttribute('aria-hidden', 'true');
+
+            ringBack.innerHTML = `
+        <span class="saturn-ring-band saturn-ring-amber"></span>
+        <span class="saturn-ring-band saturn-ring-ivory"></span>
+        <span class="saturn-cassini-gap"></span>
+    `;
+
+            this.container.appendChild(ringBack);
+
+            // Cơn bão hình lục giác đặc trưng tại cực Sao Thổ
+            const polarStorm = document.createElement('div');
+
+            polarStorm.className = 'saturn-polar-hexagon';
+            polarStorm.setAttribute('aria-hidden', 'true');
+
+            polarStorm.innerHTML = `
+        <span class="saturn-hexagon-line"></span>
+        <span class="saturn-storm-eye"></span>
+    `;
+
+            this.container.appendChild(polarStorm);
+
+            // Các vệ tinh nhỏ chuyển động quanh pet
+            const moonField = document.createElement('div');
+
+            moonField.className = 'saturn-shepherd-moons';
+            moonField.setAttribute('aria-hidden', 'true');
+
+            const moonPalette = [
+                '#f4e6c8',
+                '#d8c09a',
+                '#bba37d',
+                '#efe2cf',
+                '#c9b28e',
+                '#e8d5b2'
+            ];
+
+            for (let index = 0; index < 6; index++) {
+                const moon = document.createElement('span');
+
+                moon.className = 'saturn-shepherd-moon';
+
+                moon.style.setProperty(
+                    '--saturn-moon-delay',
+                    `${-index * 0.68}s`
+                );
+
+                moon.style.setProperty(
+                    '--saturn-moon-size',
+                    `${4 + index % 3 * 2}px`
+                );
+
+                moon.style.setProperty(
+                    '--saturn-moon-color',
+                    moonPalette[index]
+                );
+
+                moon.style.setProperty(
+                    '--saturn-moon-track',
+                    `${56 + index % 2 * 18}px`
+                );
+
+                moon.style.setProperty(
+                    '--saturn-moon-phase',
+                    `${index * 60}deg`
+                );
+
+                moonField.appendChild(moon);
+            }
+
+            this.container.appendChild(moonField);
+
+            // Nửa vành đai nằm phía trước pet
+            const ringFront = document.createElement('div');
+
+            ringFront.className =
+                'saturn-cassini-plane saturn-cassini-plane-front';
+
+            ringFront.setAttribute('aria-hidden', 'true');
+
+            ringFront.innerHTML = `
+        <span class="saturn-ring-band saturn-ring-amber"></span>
+        <span class="saturn-ring-band saturn-ring-ivory"></span>
+        <span class="saturn-cassini-gap"></span>
+        <span class="saturn-ring-sheen"></span>
+    `;
+
+            this.container.appendChild(ringFront);
+        }
+
         this.container.appendChild(petElement);
 
         /*
@@ -1521,6 +1697,115 @@ class PetManager {
             // Sau khi kéo thì không vô tình kích hoạt kỹ năng
             if (didDrag) {
                 didDrag = false;
+                return;
+            }
+
+            // =================================================
+            // MÈO NHỎ NGÀY MƯA — “VŨ ĐIỆU MÁI Ô”
+            // Hiệu ứng nhấn hoàn toàn cục bộ trong container pet.
+            // =================================================
+            if (
+                e.target &&
+                e.target.id === 'virtual-pet-img' &&
+                e.target.classList.contains('rainy-day-cat-magic')
+            ) {
+                const petImg = e.target;
+                const container = document.getElementById(
+                    'virtual-pet-container'
+                );
+
+                if (!container || container.dataset.rainyClickLocked === '1') {
+                    return;
+                }
+
+                container.dataset.rainyClickLocked = '1';
+
+                const oldScene = container.querySelector(
+                    '.rainy-day-click-scene'
+                );
+
+                oldScene?.remove();
+
+                const clickScene = document.createElement('div');
+                clickScene.className = 'rainy-day-click-scene';
+                clickScene.setAttribute('aria-hidden', 'true');
+
+                // Một màn mưa ngắn bung từ mép ô xuống vũng nước.
+                for (let index = 0; index < 18; index++) {
+                    const drop = document.createElement('span');
+                    drop.className = 'rainy-day-click-drop';
+
+                    drop.style.setProperty(
+                        '--rainy-click-x',
+                        `${3 + (index * 29) % 94}%`
+                    );
+
+                    drop.style.setProperty(
+                        '--rainy-click-delay',
+                        `${(index % 6) * 0.035}s`
+                    );
+
+                    drop.style.setProperty(
+                        '--rainy-click-fall',
+                        `${86 + (index % 5) * 10}px`
+                    );
+
+                    drop.style.setProperty(
+                        '--rainy-click-slant',
+                        `${-9 + (index % 4) * 6}deg`
+                    );
+
+                    clickScene.appendChild(drop);
+                }
+
+                // Ba gợn nước méo nhẹ, không dùng vòng tròn quỹ đạo cũ.
+                for (let index = 0; index < 3; index++) {
+                    const ripple = document.createElement('span');
+                    ripple.className = 'rainy-day-click-ripple';
+                    ripple.style.setProperty(
+                        '--rainy-ripple-delay',
+                        `${index * 0.12}s`
+                    );
+                    clickScene.appendChild(ripple);
+                }
+
+                // Các vệt nước bật khỏi vũng theo hình răng cưa thấp.
+                for (let index = 0; index < 7; index++) {
+                    const splash = document.createElement('span');
+                    splash.className = 'rainy-day-splash-tooth';
+                    splash.style.setProperty(
+                        '--rainy-splash-x',
+                        `${20 + index * 10}%`
+                    );
+                    splash.style.setProperty(
+                        '--rainy-splash-delay',
+                        `${0.08 + index * 0.025}s`
+                    );
+                    splash.style.setProperty(
+                        '--rainy-splash-lift',
+                        `${18 + (index % 3) * 8}px`
+                    );
+                    clickScene.appendChild(splash);
+                }
+
+                container.appendChild(clickScene);
+
+                petImg.classList.remove('rainy-day-umbrella-twirl');
+                container.classList.remove('rainy-day-click-active');
+
+                void petImg.offsetWidth;
+                void container.offsetWidth;
+
+                petImg.classList.add('rainy-day-umbrella-twirl');
+                container.classList.add('rainy-day-click-active');
+
+                window.setTimeout(() => {
+                    clickScene.remove();
+                    petImg.classList.remove('rainy-day-umbrella-twirl');
+                    container.classList.remove('rainy-day-click-active');
+                    delete container.dataset.rainyClickLocked;
+                }, 1250);
+
                 return;
             }
 

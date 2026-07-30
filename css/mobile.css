@@ -871,3 +871,62 @@
         display: none !important;
     }
 }
+/* ==============================================================
+   CÀI ĐẶT BỐ CỤC ĐĂNG NHẬP TRÊN ĐIỆN THOẠI
+   Chỉ áp dụng cho thẻ cài đặt trong trang giáo viên.
+   ============================================================== */
+
+@media screen and (max-width: 768px) {
+    #loginLayoutSettingsCard {
+        padding: 18px 14px !important;
+    }
+
+    #loginLayoutSettingsCard
+    .login-layout-choice-grid {
+        grid-template-columns: 1fr !important;
+        gap: 11px !important;
+    }
+
+    #loginLayoutSettingsCard
+    .login-layout-choice {
+        grid-template-columns:
+            82px minmax(0, 1fr) !important;
+
+        padding: 12px !important;
+    }
+
+    #loginLayoutSettingsCard
+    .login-layout-choice-preview {
+        width: 82px !important;
+        height: 58px !important;
+    }
+
+    #loginLayoutSettingsCard
+    .login-layout-size-warning {
+        padding: 13px !important;
+    }
+
+    #loginLayoutSettingsCard
+    .login-layout-save-button {
+        width: 100% !important;
+        min-height: 48px !important;
+    }
+}
+
+@media screen and (max-width: 420px) {
+    #loginLayoutSettingsCard
+    .login-layout-choice {
+        grid-template-columns: 1fr !important;
+    }
+
+    #loginLayoutSettingsCard
+    .login-layout-choice-preview {
+        width: 100% !important;
+        height: 86px !important;
+    }
+
+    #loginLayoutSettingsCard
+    .login-layout-choice-copy {
+        padding-right: 0 !important;
+    }
+}
