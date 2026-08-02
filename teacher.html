@@ -25,6 +25,193 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+
+    <style id="teacherAssignmentWorkspaceStyles">
+        .teacher-assignment-heading-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .teacher-assignment-heading-row h2 {
+            margin: 0;
+        }
+
+        .teacher-question-bank-shortcut-toggle {
+            width: 36px !important;
+            height: 42px;
+            flex: 0 0 36px;
+            margin: 0 !important;
+            padding: 0 !important;
+            display: inline-flex !important;
+            align-items: center;
+            justify-content: center;
+            color: #fff !important;
+            background: linear-gradient(135deg, #667eea, #7c3aed) !important;
+            border: 0 !important;
+            border-radius: 10px !important;
+            box-shadow: 0 6px 14px rgba(79, 70, 229, .20) !important;
+            font-size: 1.2rem;
+            font-weight: 900;
+            line-height: 1;
+            cursor: pointer;
+            transition: transform .2s ease, box-shadow .2s ease;
+        }
+
+        .teacher-question-bank-shortcut-toggle:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 9px 18px rgba(79, 70, 229, .27) !important;
+        }
+
+        .teacher-question-bank-shortcut-toggle-icon {
+            display: inline-block;
+            transition: transform .22s ease;
+        }
+
+        .teacher-question-bank-shortcut-toggle.is-collapsed
+        .teacher-question-bank-shortcut-toggle-icon {
+            transform: rotate(180deg);
+        }
+
+        .teacher-question-bank-shortcut-panel[hidden] {
+            display: none !important;
+        }
+
+        .teacher-question-bank-entry {
+            width: 100% !important;
+            max-width: 620px;
+            margin: 0 0 22px !important;
+            padding: 16px 18px !important;
+            display: flex !important;
+            align-items: center;
+            gap: 16px;
+            text-align: left;
+            color: #26355f !important;
+            background: rgba(255, 255, 255, 0.78) !important;
+            border: 1px solid rgba(102, 126, 234, 0.20) !important;
+            border-radius: 18px !important;
+            box-shadow: 0 9px 22px rgba(79, 70, 229, 0.08) !important;
+            cursor: pointer;
+            transition: transform .2s ease,
+                box-shadow .2s ease,
+                border-color .2s ease;
+        }
+
+        .teacher-question-bank-entry:hover {
+            transform: translateY(-2px);
+            border-color: rgba(102, 126, 234, 0.42) !important;
+            box-shadow: 0 13px 28px rgba(79, 70, 229, 0.14) !important;
+        }
+
+        .teacher-question-bank-entry:focus-visible {
+            outline: 3px solid rgba(102, 126, 234, 0.28);
+            outline-offset: 3px;
+        }
+
+        .teacher-question-bank-entry-icon {
+            width: 54px;
+            height: 54px;
+            flex: 0 0 54px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 15px;
+            font-size: 1.65rem;
+            background: linear-gradient(
+                135deg,
+                rgba(102, 126, 234, 0.18),
+                rgba(118, 75, 162, 0.16)
+            );
+        }
+
+        .teacher-question-bank-entry-text {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .teacher-question-bank-entry-title {
+            display: block;
+            margin-bottom: 4px;
+            color: #26355f;
+            font-size: 1.08rem;
+            font-weight: 900;
+        }
+
+        .teacher-question-bank-entry-description {
+            display: block;
+            color: #7b86a8;
+            font-size: .91rem;
+            font-weight: 700;
+            line-height: 1.45;
+        }
+
+        .teacher-question-bank-entry-arrow {
+            flex: 0 0 auto;
+            color: #667eea;
+            font-size: 1.45rem;
+            font-weight: 900;
+            transition: transform .2s ease;
+        }
+
+        .teacher-question-bank-entry:hover
+        .teacher-question-bank-entry-arrow {
+            transform: translateX(4px);
+        }
+
+        .teacher-question-bank-heading-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+        }
+
+        .teacher-question-bank-heading-row h2 {
+            margin: 0;
+        }
+
+        .teacher-question-bank-back-button {
+            width: auto !important;
+            margin: 0 !important;
+            padding: 10px 15px !important;
+            color: #5b5fc7 !important;
+            background: rgba(255, 255, 255, 0.70) !important;
+            border: 1px solid rgba(102, 126, 234, 0.26) !important;
+            border-radius: 11px !important;
+            box-shadow: none !important;
+            font-weight: 800;
+        }
+
+        .teacher-question-bank-back-button:hover {
+            background: rgba(238, 242, 255, 0.96) !important;
+        }
+
+        @media (max-width: 640px) {
+            .teacher-question-bank-entry {
+                max-width: none;
+                padding: 14px !important;
+                gap: 12px;
+            }
+
+            .teacher-question-bank-entry-icon {
+                width: 48px;
+                height: 48px;
+                flex-basis: 48px;
+                font-size: 1.45rem;
+            }
+
+            .teacher-question-bank-entry-description {
+                font-size: .84rem;
+            }
+
+            .teacher-question-bank-heading-row {
+                align-items: flex-start;
+            }
+        }
+    </style>
+
 </head>
 
 <body>
@@ -36,25 +223,24 @@
 
             <div class="sidebar-top">
                 <h3>Bảng điều khiển</h3><br>
-                <button class="nav-item active" onclick="switchTab('tab-create', this)">➕ <span class="nav-text">Giao
-                        bài tập mới</span></button>
+                <button id="teacherAssignmentMainNav" class="nav-item active"
+                    onclick="openTeacherAssignmentWorkspace('create', this)">➕
+                    <span class="nav-text">Giao bài tập mới</span>
+                </button>
                 <button class="nav-item" onclick="switchTab('tab-assigned', this)">📋 <span class="nav-text">Bài tập đã
                         giao</span></button>
                 <button class="nav-item" onclick="switchTab('tab-list', this)">📥 <span class="nav-text">Danh sách bài
                         đã nộp</span></button>
                 <button class="nav-item" onclick="switchTab('tab-materials', this)">📚 <span class="nav-text">Tài liệu
                         học tập</span></button>
-                <button class="nav-item" onclick="switchTab('tab-question-bank', this); loadQuestionBank();">
-                    🧠 <span class="nav-text">Ngân hàng câu hỏi</span>
-                </button>
                 <button class="nav-item" onclick="switchTab('tab-manage-students', this)">👥 <span class="nav-text">Quản
                         lý học sinh</span></button>
-                <button class="nav-item" onclick="switchTab('tab-transactions',this)">🧾<span class="nav-text">
-                        Nhật ký giao dịch</span></button>
                 <button class="nav-item" onclick="switchTab('tab-roadmap', this)">🗺️ <span class="nav-text">Lộ
                         trình & Lịch</span></button>
-                <button class="nav-item" onclick="switchTab('tab-game-manage', this)">🎮 <span class="nav-text">Quản lý
-                        trò chơi</span></button>
+                <button id="teacherGameMainNav" class="nav-item"
+                    onclick="openTeacherGameWorkspace('game', this)">🎮
+                    <span class="nav-text">Quản lý trò chơi</span>
+                </button>
                 <button class="nav-item" id="btnSettingsNav" onclick="switchTab('tab-settings', this)">⚙️ <span
                         class="nav-text">Cài đặt</span></button>
             </div>
@@ -66,7 +252,51 @@
 
         <div class="content">
             <div id="tab-create" class="tab-content active">
-                <h2>Giao bài tập mới</h2>
+                <div class="teacher-assignment-heading-row">
+                    <h2>Giao bài tập mới</h2>
+
+                    <button type="button"
+                        id="teacherQuestionBankShortcutToggle"
+                        class="teacher-question-bank-shortcut-toggle"
+                        onclick="toggleTeacherQuestionBankShortcut()"
+                        aria-expanded="true"
+                        aria-controls="teacherQuestionBankShortcutPanel"
+                        title="Thu gọn Ngân hàng câu hỏi">
+                        <span class="teacher-question-bank-shortcut-toggle-icon"
+                            aria-hidden="true">⌃</span>
+                    </button>
+                </div>
+
+                <div id="teacherQuestionBankShortcutPanel"
+                    class="teacher-question-bank-shortcut-panel">
+
+                    <button type="button"
+                        class="teacher-question-bank-entry"
+                        onclick="openTeacherAssignmentWorkspace('question-bank')"
+                        aria-label="Mở Ngân hàng câu hỏi">
+
+                        <span class="teacher-question-bank-entry-icon"
+                            aria-hidden="true">
+                            🧠
+                        </span>
+
+                        <span class="teacher-question-bank-entry-text">
+                            <span class="teacher-question-bank-entry-title">
+                                Ngân hàng câu hỏi
+                            </span>
+
+                            <span class="teacher-question-bank-entry-description">
+                                Lưu, tìm kiếm, tái sử dụng câu hỏi và tạo đề ngẫu nhiên
+                            </span>
+                        </span>
+
+                        <span class="teacher-question-bank-entry-arrow"
+                            aria-hidden="true">
+                            →
+                        </span>
+                    </button>
+                </div>
+
                 <div class="card form-container">
                     <label for="assessmentType"><strong>Loại hình kiểm tra:</strong></label>
                     <select id="assessmentType" onchange="toggleAssessmentFields()">
@@ -426,9 +656,15 @@
             </div>
 
             <div id="tab-transactions" class="tab-content">
-                <h2>
-                    🧾 Nhật ký giao dịch
-                </h2>
+                <div class="teacher-question-bank-heading-row">
+                    <h2>🧾 Nhật ký giao dịch</h2>
+
+                    <button type="button"
+                        class="teacher-question-bank-back-button"
+                        onclick="openTeacherGameWorkspace('game')">
+                        ← Quay lại Quản lý trò chơi
+                    </button>
+                </div>
 
                 <div class="card" style="margin-bottom:20px;">
                     <h3>
@@ -700,7 +936,51 @@
             </div>
 
             <div id="tab-game-manage" class="tab-content">
-                <h2>Quản lý trò chơi (Giáo viên)</h2>
+                <div class="teacher-assignment-heading-row">
+                    <h2>Quản lý trò chơi (Giáo viên)</h2>
+
+                    <button type="button"
+                        id="teacherTransactionShortcutToggle"
+                        class="teacher-question-bank-shortcut-toggle"
+                        onclick="toggleTeacherTransactionShortcut()"
+                        aria-expanded="true"
+                        aria-controls="teacherTransactionShortcutPanel"
+                        title="Thu gọn Nhật ký giao dịch">
+                        <span class="teacher-question-bank-shortcut-toggle-icon"
+                            aria-hidden="true">⌃</span>
+                    </button>
+                </div>
+
+                <div id="teacherTransactionShortcutPanel"
+                    class="teacher-question-bank-shortcut-panel">
+
+                    <button type="button"
+                        class="teacher-question-bank-entry"
+                        onclick="openTeacherGameWorkspace('transactions')"
+                        aria-label="Mở Nhật ký giao dịch">
+
+                        <span class="teacher-question-bank-entry-icon"
+                            aria-hidden="true">
+                            🧾
+                        </span>
+
+                        <span class="teacher-question-bank-entry-text">
+                            <span class="teacher-question-bank-entry-title">
+                                Nhật ký giao dịch
+                            </span>
+
+                            <span class="teacher-question-bank-entry-description">
+                                Điều chỉnh Coin, xem lịch sử thay đổi và hoàn tác giao dịch
+                            </span>
+                        </span>
+
+                        <span class="teacher-question-bank-entry-arrow"
+                            aria-hidden="true">
+                            →
+                        </span>
+                    </button>
+                </div>
+
                 <div class="card">
                     <h3 style="color: #764ba2; margin-bottom: 12px;">Kho lưu trữ & Thiết lập Sự kiện</h3>
                     <p style="color: #666; font-style: italic;">Quản lý trạng thái đóng/mở khu vực trò chơi
@@ -1176,9 +1456,17 @@
             </div>
 
             <div id="tab-question-bank" class="tab-content">
-                <h2>🧠 Ngân hàng câu hỏi & Đề ngẫu nhiên</h2>
+                <div class="teacher-question-bank-heading-row">
+                    <h2>🧠 Ngân hàng câu hỏi & Đề ngẫu nhiên</h2>
 
-                <div class="card form-container" style="margin-bottom:20px;">
+                    <button type="button"
+                        class="teacher-question-bank-back-button"
+                        onclick="openTeacherAssignmentWorkspace('create')">
+                        ← Quay lại Giao bài tập mới
+                    </button>
+                </div>
+
+                <div id="questionBankSaveCard" class="card form-container" style="margin-bottom:20px;">
                     <input type="hidden" id="qbEditingKey">
 
                     <div
@@ -1186,6 +1474,17 @@
                         <h3 style="margin:0;color:#4338ca;">Lưu câu hỏi</h3>
 
                         <div style="display:flex;gap:8px;flex-wrap:wrap;">
+
+                            <button type="button" id="questionBankSaveToggle" onclick="toggleQuestionBankSave()"
+                                aria-expanded="false" style="
+            width:auto;
+            background:#eef2ff;
+            color:#4338ca;
+            border:1px solid rgba(79,70,229,.25);
+        ">
+                                ▼ Mở rộng
+                            </button>
+
                             <button type="button" onclick="importQuestionsFromAssignmentsToBank()"
                                 style="width:auto;background:linear-gradient(135deg,#f59e0b,#f97316);color:white;">
                                 ♻️ Nhập câu hỏi từ bài cũ
@@ -1198,114 +1497,142 @@
                         </div>
                     </div>
 
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label><strong>Môn:</strong></label>
-                            <input id="qbSubject" type="text" placeholder="VD: Toán">
+                    <div id="questionBankSaveContent" style="display:none;">
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label><strong>Môn:</strong></label>
+                                <input id="qbSubject" type="text" placeholder="VD: Toán">
+                            </div>
+
+                            <div class="form-group">
+                                <label><strong>Lớp:</strong></label>
+                                <input id="qbGrade" type="text" placeholder="VD: 8">
+                            </div>
+
+                            <div class="form-group">
+                                <label><strong>Bài/chủ đề:</strong></label>
+                                <input id="qbLesson" type="text" placeholder="VD: Bài 3 - Đa thức">
+                            </div>
+
+                            <div class="form-group">
+                                <label><strong>Mức độ:</strong></label>
+                                <select id="qbDifficulty">
+                                    <option value="Nhận biết">Nhận biết</option>
+                                    <option value="Thông hiểu">Thông hiểu</option>
+                                    <option value="Vận dụng">Vận dụng</option>
+                                    <option value="Vận dụng cao">Vận dụng cao</option>
+                                </select>
+                            </div>
                         </div>
 
-                        <div class="form-group">
-                            <label><strong>Lớp:</strong></label>
-                            <input id="qbGrade" type="text" placeholder="VD: 8">
+                        <label><strong>Nội dung câu hỏi:</strong></label>
+                        <textarea id="qbText" rows="3" placeholder="Nhập nội dung câu hỏi..."></textarea>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>A.</label>
+                                <input id="qbA" type="text">
+                            </div>
+
+                            <div class="form-group">
+                                <label>B.</label>
+                                <input id="qbB" type="text">
+                            </div>
                         </div>
 
-                        <div class="form-group">
-                            <label><strong>Bài/chủ đề:</strong></label>
-                            <input id="qbLesson" type="text" placeholder="VD: Bài 3 - Đa thức">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>C.</label>
+                                <input id="qbC" type="text">
+                            </div>
+
+                            <div class="form-group">
+                                <label>D.</label>
+                                <input id="qbD" type="text">
+                            </div>
                         </div>
 
-                        <div class="form-group">
-                            <label><strong>Mức độ:</strong></label>
-                            <select id="qbDifficulty">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label><strong>Đáp án đúng:</strong></label>
+                                <select id="qbCorrect">
+                                    <option value="A">A</option>
+                                    <option value="B">B</option>
+                                    <option value="C">C</option>
+                                    <option value="D">D</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label><strong>Ghi chú/giải thích:</strong></label>
+                                <input id="qbExplanation" type="text" placeholder="Không bắt buộc">
+                            </div>
+                        </div>
+
+                        <button type="button" onclick="saveQuestionBankItem()"
+                            style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:white;">
+                            💾 Lưu câu hỏi
+                        </button>
+
+                    </div> <!-- đóng questionBankSaveContent -->
+                </div>
+
+                <div id="questionBankListCard" class="card" style="padding:18px;margin-bottom:20px;">
+
+                    <div
+                        style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+
+                        <h3 style="margin:0;color:#0f766e;">
+                            Danh sách câu hỏi
+                        </h3>
+
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+
+                            <button type="button" id="questionBankListToggle" onclick="toggleQuestionBankSection(
+                    'questionBankListContent',
+                    'questionBankListToggle',
+                    'questionBankListCollapsed'
+                )" aria-expanded="false" style="
+                    width:auto;
+                    background:#ecfdf5;
+                    color:#0f766e;
+                    border:1px solid rgba(15,118,110,.25);
+                ">
+                                ▼ Mở rộng
+                            </button>
+
+                            <button type="button" onclick="loadQuestionBank(true)"
+                                style="width:auto;background:#0f766e;color:white;">
+                                🔄 Tải lại
+                            </button>
+
+                        </div>
+                    </div>
+
+                    <div id="questionBankListContent" style="display:none;">
+
+                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;">
+                            <input id="qbSearch" type="text" placeholder="🔍 Tìm nội dung..."
+                                oninput="renderQuestionBank()">
+
+                            <input id="qbFilterSubject" type="text" placeholder="Lọc môn"
+                                oninput="renderQuestionBank()">
+
+                            <input id="qbFilterGrade" type="text" placeholder="Lọc lớp" oninput="renderQuestionBank()">
+
+                            <input id="qbFilterLesson" type="text" placeholder="Lọc bài" oninput="renderQuestionBank()">
+
+                            <select id="qbFilterDifficulty" onchange="renderQuestionBank()">
+                                <option value="">Tất cả mức độ</option>
                                 <option value="Nhận biết">Nhận biết</option>
                                 <option value="Thông hiểu">Thông hiểu</option>
                                 <option value="Vận dụng">Vận dụng</option>
                                 <option value="Vận dụng cao">Vận dụng cao</option>
                             </select>
                         </div>
-                    </div>
 
-                    <label><strong>Nội dung câu hỏi:</strong></label>
-                    <textarea id="qbText" rows="3" placeholder="Nhập nội dung câu hỏi..."></textarea>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>A.</label>
-                            <input id="qbA" type="text">
-                        </div>
-
-                        <div class="form-group">
-                            <label>B.</label>
-                            <input id="qbB" type="text">
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>C.</label>
-                            <input id="qbC" type="text">
-                        </div>
-
-                        <div class="form-group">
-                            <label>D.</label>
-                            <input id="qbD" type="text">
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label><strong>Đáp án đúng:</strong></label>
-                            <select id="qbCorrect">
-                                <option value="A">A</option>
-                                <option value="B">B</option>
-                                <option value="C">C</option>
-                                <option value="D">D</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label><strong>Ghi chú/giải thích:</strong></label>
-                            <input id="qbExplanation" type="text" placeholder="Không bắt buộc">
-                        </div>
-                    </div>
-
-                    <button type="button" onclick="saveQuestionBankItem()"
-                        style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:white;">
-                        💾 Lưu câu hỏi
-                    </button>
-                </div>
-
-                <div class="card" style="padding:18px;margin-bottom:20px;">
-                    <div
-                        style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
-                        <h3 style="margin:0;color:#0f766e;">Danh sách câu hỏi</h3>
-
-                        <button type="button" onclick="loadQuestionBank(true)"
-                            style="width:auto;background:#0f766e;color:white;">
-                            🔄 Tải lại
-                        </button>
-                    </div>
-
-                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;">
-                        <input id="qbSearch" type="text" placeholder="🔍 Tìm nội dung..."
-                            oninput="renderQuestionBank()">
-
-                        <input id="qbFilterSubject" type="text" placeholder="Lọc môn" oninput="renderQuestionBank()">
-
-                        <input id="qbFilterGrade" type="text" placeholder="Lọc lớp" oninput="renderQuestionBank()">
-
-                        <input id="qbFilterLesson" type="text" placeholder="Lọc bài" oninput="renderQuestionBank()">
-
-                        <select id="qbFilterDifficulty" onchange="renderQuestionBank()">
-                            <option value="">Tất cả mức độ</option>
-                            <option value="Nhận biết">Nhận biết</option>
-                            <option value="Thông hiểu">Thông hiểu</option>
-                            <option value="Vận dụng">Vận dụng</option>
-                            <option value="Vận dụng cao">Vận dụng cao</option>
-                        </select>
-                    </div>
-
-                    <div style="
+                        <div style="
     display:flex;
     justify-content:space-between;
     align-items:center;
@@ -1313,13 +1640,13 @@
     flex-wrap:wrap;
     margin:10px 0;
 ">
-                        <p id="qbCount" style="
+                            <p id="qbCount" style="
         color:#64748b;
         margin:0;
     ">
-                        </p>
+                            </p>
 
-                        <label style="
+                            <label style="
         display:flex;
         align-items:center;
         gap:7px;
@@ -1327,25 +1654,25 @@
         font-size:.9em;
         font-weight:700;
     ">
-                            Hiện
+                                Hiện
 
-                            <select id="qbPageSize" onchange="changeQuestionBankPageSize(this.value)" style="
+                                <select id="qbPageSize" onchange="changeQuestionBankPageSize(this.value)" style="
                 width:auto;
                 min-width:70px;
                 margin:0;
                 padding:7px 9px;
             ">
-                                <option value="5" selected>5</option>
-                                <option value="10">10</option>
-                                <option value="20">20</option>
-                                <option value="50">50</option>
-                            </select>
+                                    <option value="5" selected>5</option>
+                                    <option value="10">10</option>
+                                    <option value="20">20</option>
+                                    <option value="50">50</option>
+                                </select>
 
-                            câu/trang
-                        </label>
-                    </div>
+                                câu/trang
+                            </label>
+                        </div>
 
-                    <div id="questionBankList" style="
+                        <div id="questionBankList" style="
         display:grid;
         gap:10px;
         max-height:70vh;
@@ -1353,22 +1680,26 @@
         padding-right:5px;
         scroll-behavior:smooth;
     ">
-                    </div>
+                        </div>
 
-                    <div id="qbPagination" style="
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        flex-wrap:wrap;
-        gap:8px;
-        margin-top:14px;
-    ">
-                    </div>
-                </div>
+                        <div id="qbPagination" style="
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-wrap:wrap;
+    gap:8px;
+    margin-top:14px;
+">
+                        </div>
 
-                <div class="card" style="padding:18px;">
+                    </div> <!-- đóng questionBankListContent -->
+                </div> <!-- đóng questionBankListCard -->
+
+                <div id="questionBankStatsCard" class="card" style="padding:18px;">
+
                     <div
                         style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+
                         <div>
                             <h3 style="margin:0;color:#be123c;">
                                 📊 Câu học sinh làm sai nhiều
@@ -1379,13 +1710,40 @@
                             </p>
                         </div>
 
-                        <button type="button" onclick="calculateQuestionBankStatistics()"
-                            style="width:auto;background:#be123c;color:white;">
-                            Tính lại thống kê
-                        </button>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+
+                            <button type="button" id="questionBankStatsToggle" onclick="toggleQuestionBankSection(
+                    'questionBankStatsContent',
+                    'questionBankStatsToggle',
+                    'questionBankStatsCollapsed'
+                )" aria-expanded="false" style="
+                    width:auto;
+                    background:#fff1f2;
+                    color:#be123c;
+                    border:1px solid rgba(190,18,60,.25);
+                ">
+                                ▼ Mở rộng
+                            </button>
+
+                            <button type="button" onclick="
+                    setQuestionBankSectionCollapsed(
+                        'questionBankStatsContent',
+                        'questionBankStatsToggle',
+                        'questionBankStatsCollapsed',
+                        false
+                    );
+                    calculateQuestionBankStatistics();
+                " style="width:auto;background:#be123c;color:white;">
+                                Tính lại thống kê
+                            </button>
+
+                        </div>
                     </div>
 
-                    <div id="questionBankStats"></div>
+                    <div id="questionBankStatsContent" style="display:none;">
+                        <div id="questionBankStats"></div>
+                    </div>
+
                 </div>
             </div>
 

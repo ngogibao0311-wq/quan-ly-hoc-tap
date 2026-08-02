@@ -5391,6 +5391,324 @@ async function updateProfile() {
         document.getElementById('settingPass').value = '';
     }
 }
+
+// ======================================================
+// THU GỌN / MỞ RỘNG THẺ NGÂN HÀNG CÂU HỎI
+// Hoạt động độc lập với biểu mẫu Giao bài tập mới.
+// ======================================================
+
+function getTeacherQuestionBankShortcutStorageKey() {
+    const username = String(
+        currentUser?.username || 'teacher'
+    ).trim();
+
+    return `teacher_question_bank_shortcut_open:${username}`;
+}
+
+window.setTeacherQuestionBankShortcutOpen = function (
+    isOpen,
+    shouldPersist = true
+) {
+    const panel = document.getElementById(
+        'teacherQuestionBankShortcutPanel'
+    );
+
+    const toggle = document.getElementById(
+        'teacherQuestionBankShortcutToggle'
+    );
+
+    if (!panel || !toggle) {
+        return;
+    }
+
+    const open = isOpen !== false;
+
+    panel.hidden = !open;
+
+    toggle.classList.toggle(
+        'is-collapsed',
+        !open
+    );
+
+    toggle.setAttribute(
+        'aria-expanded',
+        String(open)
+    );
+
+    toggle.title = open
+        ? 'Thu gọn Ngân hàng câu hỏi'
+        : 'Mở Ngân hàng câu hỏi';
+
+    if (shouldPersist) {
+        try {
+            localStorage.setItem(
+                getTeacherQuestionBankShortcutStorageKey(),
+                open ? '1' : '0'
+            );
+        } catch (error) {
+            // Trình duyệt chặn localStorage thì vẫn sử dụng bình thường.
+        }
+    }
+};
+
+window.toggleTeacherQuestionBankShortcut = function () {
+    const panel = document.getElementById(
+        'teacherQuestionBankShortcutPanel'
+    );
+
+    if (!panel) {
+        return;
+    }
+
+    window.setTeacherQuestionBankShortcutOpen(
+        panel.hidden
+    );
+};
+
+function initializeTeacherQuestionBankShortcut() {
+    let isOpen = true;
+
+    try {
+        const savedState = localStorage.getItem(
+            getTeacherQuestionBankShortcutStorageKey()
+        );
+
+        if (savedState === '0') {
+            isOpen = false;
+        }
+    } catch (error) {
+        isOpen = true;
+    }
+
+    window.setTeacherQuestionBankShortcutOpen(
+        isOpen,
+        false
+    );
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener(
+        'DOMContentLoaded',
+        initializeTeacherQuestionBankShortcut,
+        { once: true }
+    );
+} else {
+    initializeTeacherQuestionBankShortcut();
+}
+
+// ======================================================
+// THU GỌN / MỞ RỘNG THẺ NHẬT KÝ GIAO DỊCH
+// Hoạt động độc lập với các thiết lập Quản lý trò chơi.
+// ======================================================
+
+function getTeacherTransactionShortcutStorageKey() {
+    const username = String(
+        currentUser?.username || 'teacher'
+    ).trim();
+
+    return `teacher_transaction_shortcut_open:${username}`;
+}
+
+window.setTeacherTransactionShortcutOpen = function (
+    isOpen,
+    shouldPersist = true
+) {
+    const panel = document.getElementById(
+        'teacherTransactionShortcutPanel'
+    );
+
+    const toggle = document.getElementById(
+        'teacherTransactionShortcutToggle'
+    );
+
+    if (!panel || !toggle) {
+        return;
+    }
+
+    const open = isOpen !== false;
+
+    panel.hidden = !open;
+
+    toggle.classList.toggle(
+        'is-collapsed',
+        !open
+    );
+
+    toggle.setAttribute(
+        'aria-expanded',
+        String(open)
+    );
+
+    toggle.title = open
+        ? 'Thu gọn Nhật ký giao dịch'
+        : 'Mở Nhật ký giao dịch';
+
+    if (shouldPersist) {
+        try {
+            localStorage.setItem(
+                getTeacherTransactionShortcutStorageKey(),
+                open ? '1' : '0'
+            );
+        } catch (error) {
+            // Trình duyệt chặn localStorage thì vẫn sử dụng bình thường.
+        }
+    }
+};
+
+window.toggleTeacherTransactionShortcut = function () {
+    const panel = document.getElementById(
+        'teacherTransactionShortcutPanel'
+    );
+
+    if (!panel) {
+        return;
+    }
+
+    window.setTeacherTransactionShortcutOpen(
+        panel.hidden
+    );
+};
+
+function initializeTeacherTransactionShortcut() {
+    let isOpen = true;
+
+    try {
+        const savedState = localStorage.getItem(
+            getTeacherTransactionShortcutStorageKey()
+        );
+
+        if (savedState === '0') {
+            isOpen = false;
+        }
+    } catch (error) {
+        isOpen = true;
+    }
+
+    window.setTeacherTransactionShortcutOpen(
+        isOpen,
+        false
+    );
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener(
+        'DOMContentLoaded',
+        initializeTeacherTransactionShortcut,
+        { once: true }
+    );
+} else {
+    initializeTeacherTransactionShortcut();
+}
+
+// ======================================================
+// NHẬT KÝ GIAO DỊCH TRONG KHU VỰC QUẢN LÝ TRÒ CHƠI
+// Chỉ thay đổi đường điều hướng giao diện.
+// Giữ nguyên hai tab và toàn bộ chức năng giao dịch.
+// ======================================================
+
+window.openTeacherGameWorkspace = function (
+    view,
+    navButton = null
+) {
+    const normalizedView =
+        view === 'transactions'
+            ? 'transactions'
+            : 'game';
+
+    const tabId =
+        normalizedView === 'transactions'
+            ? 'tab-transactions'
+            : 'tab-game-manage';
+
+    const mainNavButton =
+        navButton &&
+        navButton.classList &&
+        navButton.classList.contains('nav-item')
+            ? navButton
+            : document.getElementById(
+                'teacherGameMainNav'
+            );
+
+    switchTab(
+        tabId,
+        mainNavButton
+    );
+};
+
+// ======================================================
+// THẺ NGÂN HÀNG CÂU HỎI TRONG KHU VỰC GIAO BÀI
+// Chỉ thay đổi đường điều hướng giao diện.
+// Giữ nguyên hai tab và toàn bộ chức năng bên trong.
+// ======================================================
+
+function updateTeacherAssignmentWorkspaceTabs(view) {
+    const normalizedView =
+        view === 'question-bank'
+            ? 'question-bank'
+            : 'create';
+
+    document
+        .querySelectorAll(
+            '.teacher-assignment-workspace-tab'
+        )
+        .forEach(button => {
+            const isActive =
+                button.dataset
+                    .teacherAssignmentView ===
+                normalizedView;
+
+            button.classList.toggle(
+                'is-active',
+                isActive
+            );
+
+            button.setAttribute(
+                'aria-selected',
+                String(isActive)
+            );
+
+            button.tabIndex =
+                isActive ? 0 : -1;
+        });
+}
+
+window.openTeacherAssignmentWorkspace = function (
+    view,
+    navButton = null
+) {
+    const normalizedView =
+        view === 'question-bank'
+            ? 'question-bank'
+            : 'create';
+
+    const tabId =
+        normalizedView === 'question-bank'
+            ? 'tab-question-bank'
+            : 'tab-create';
+
+    const mainNavButton =
+        navButton &&
+        navButton.classList &&
+        navButton.classList.contains('nav-item')
+            ? navButton
+            : document.getElementById(
+                'teacherAssignmentMainNav'
+            );
+
+    switchTab(
+        tabId,
+        mainNavButton
+    );
+
+    if (
+        normalizedView === 'question-bank' &&
+        typeof window.loadQuestionBank ===
+            'function'
+    ) {
+        window.loadQuestionBank();
+    }
+};
+
 function switchTab(tabId, btnElement) {
     // 1. Reset trạng thái active của các tab
     document.querySelectorAll('.tab-content').forEach(
@@ -5411,6 +5729,18 @@ function switchTab(tabId, btnElement) {
 
     if (btnElement) {
         btnElement.classList.add('active');
+    }
+
+    if (tabId === 'tab-create') {
+        updateTeacherAssignmentWorkspaceTabs(
+            'create'
+        );
+    } else if (
+        tabId === 'tab-question-bank'
+    ) {
+        updateTeacherAssignmentWorkspaceTabs(
+            'question-bank'
+        );
     }
 
     // 3. Cuộn lên đầu trang
@@ -6278,12 +6608,47 @@ async function renderTeacherRoadmap() {
     });
 }
 
-// Lưu tự động dữ liệu tiền và điều kiện khi giáo viên gõ xong (Blur chuột ra ngoài)
+// Lưu dữ liệu lộ trình mà không tải lại toàn bộ bảng
 window.updateAssignmentRoadmap = async function (fbKey, field, value) {
     const updateObj = {};
-    updateObj[field] = value;
-    await updateDB('assignments', fbKey, updateObj);
-    renderTeacherRoadmap();
+
+    // passingGrade phải được lưu dưới dạng số
+    updateObj[field] =
+        field === 'passingGrade'
+            ? Number(value)
+            : value;
+
+    try {
+        // Ghi dữ liệu lên Firebase
+        await updateDB('assignments', fbKey, updateObj);
+
+        /*
+         * Cộng tiền và Điều kiện cụ thể đã hiển thị ngay trong ô nhập,
+         * không cần render lại bảng.
+         */
+        if (
+            field === 'roadmapMoney' ||
+            field === 'roadmapCondition'
+        ) {
+            return;
+        }
+
+        /*
+         * Mức điểm đạt làm thay đổi trạng thái Đạt/Loại,
+         * nên vẫn phải cập nhật bảng nhưng giữ vị trí cuộn.
+         */
+        const scrollX = window.scrollX;
+        const scrollY = window.scrollY;
+
+        await renderTeacherRoadmap();
+
+        requestAnimationFrame(() => {
+            window.scrollTo(scrollX, scrollY);
+        });
+    } catch (error) {
+        console.error('Lỗi cập nhật lộ trình:', error);
+        alert('❌ Không thể lưu thay đổi. Vui lòng thử lại!');
+    }
 };
 
 // ================= HÀM THA LỖI TRÊN GIAO DIỆN LỘ TRÌNH =================
@@ -11285,6 +11650,191 @@ window.changeTeacherPassword = async function () {
         return '';
     }
 
+    // ======================================================
+    // THU GỌN / MỞ RỘNG KHỐI LƯU CÂU HỎI
+    // ======================================================
+
+    window.setQuestionBankSaveCollapsed = function (
+        collapsed,
+        saveState = true
+    ) {
+        const content =
+            document.getElementById(
+                'questionBankSaveContent'
+            );
+
+        const button =
+            document.getElementById(
+                'questionBankSaveToggle'
+            );
+
+        if (!content || !button) {
+            return;
+        }
+
+        content.style.display =
+            collapsed ? 'none' : 'block';
+
+        button.textContent =
+            collapsed
+                ? '▼ Mở rộng'
+                : '▲ Thu gọn';
+
+        button.setAttribute(
+            'aria-expanded',
+            String(!collapsed)
+        );
+
+        if (saveState) {
+            localStorage.setItem(
+                'questionBankSaveCollapsed',
+                collapsed ? '1' : '0'
+            );
+        }
+    };
+
+    // ======================================================
+    // THU GỌN CÁC KHỐI TRONG NGÂN HÀNG CÂU HỎI
+    // ======================================================
+
+    window.setQuestionBankSectionCollapsed = function (
+        contentId,
+        buttonId,
+        storageKey,
+        collapsed,
+        saveState = true
+    ) {
+        const content =
+            document.getElementById(contentId);
+
+        const button =
+            document.getElementById(buttonId);
+
+        if (!content || !button) {
+            return;
+        }
+
+        content.style.display =
+            collapsed ? 'none' : 'block';
+
+        button.textContent =
+            collapsed
+                ? '▼ Mở rộng'
+                : '▲ Thu gọn';
+
+        button.setAttribute(
+            'aria-expanded',
+            String(!collapsed)
+        );
+
+        if (saveState) {
+            localStorage.setItem(
+                storageKey,
+                collapsed ? '1' : '0'
+            );
+        }
+    };
+
+    window.toggleQuestionBankSection = function (
+        contentId,
+        buttonId,
+        storageKey
+    ) {
+        const content =
+            document.getElementById(contentId);
+
+        if (!content) {
+            return;
+        }
+
+        const isCollapsed =
+            content.style.display === 'none' ||
+            window.getComputedStyle(content).display === 'none';
+
+        window.setQuestionBankSectionCollapsed(
+            contentId,
+            buttonId,
+            storageKey,
+            !isCollapsed
+        );
+    };
+
+    function initQuestionBankSectionCollapse() {
+        window.setQuestionBankSectionCollapsed(
+            'questionBankListContent',
+            'questionBankListToggle',
+            'questionBankListCollapsed',
+            localStorage.getItem(
+                'questionBankListCollapsed'
+            ) !== '0',
+            false
+        );
+
+        window.setQuestionBankSectionCollapsed(
+            'questionBankStatsContent',
+            'questionBankStatsToggle',
+            'questionBankStatsCollapsed',
+            localStorage.getItem(
+                'questionBankStatsCollapsed'
+            ) !== '0',
+            false
+        );
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener(
+            'DOMContentLoaded',
+            initQuestionBankSectionCollapse
+        );
+    } else {
+        initQuestionBankSectionCollapse();
+    }
+
+    window.toggleQuestionBankSave = function () {
+        const content =
+            document.getElementById(
+                'questionBankSaveContent'
+            );
+
+        if (!content) {
+            return;
+        }
+
+        const isCollapsed =
+            content.style.display === 'none' ||
+            window.getComputedStyle(content).display === 'none';
+
+        window.setQuestionBankSaveCollapsed(
+            !isCollapsed
+        );
+    };
+
+    // Khôi phục trạng thái lần sử dụng trước.
+    // Chưa có trạng thái thì mặc định thu gọn.
+    function initQuestionBankSaveCollapse() {
+        const savedState =
+            localStorage.getItem(
+                'questionBankSaveCollapsed'
+            );
+
+        const shouldCollapse =
+            savedState !== '0';
+
+        window.setQuestionBankSaveCollapsed(
+            shouldCollapse,
+            false
+        );
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener(
+            'DOMContentLoaded',
+            initQuestionBankSaveCollapse
+        );
+    } else {
+        initQuestionBankSaveCollapse();
+    }
+
     window.resetQuestionBankForm = function () {
         [
             'qbEditingKey',
@@ -11934,8 +12484,11 @@ window.changeTeacherPassword = async function () {
                     }
                 });
 
+            // Khi sửa câu hỏi, tự mở biểu mẫu.
+            window.setQuestionBankSaveCollapsed(false);
+
             document.getElementById(
-                'tab-question-bank'
+                'questionBankSaveCard'
             )?.scrollIntoView({
                 behavior: 'smooth',
                 block: 'start'
