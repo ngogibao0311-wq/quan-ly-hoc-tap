@@ -947,7 +947,7 @@
         function normalizeAnswer(value) {
                 return String(value ?? '')
                         .normalize('NFC')
-                        .toLocaleLowerCase('vi-VN')
+                        .toLowerCase() // ✅ Chỉ giữ lại dòng này
                         .replace(/[.,!?;:…“”"'‘’()[\]{}]/g, ' ')
                         .replace(/[–—-]/g, ' ')
                         .replace(/\s+/g, ' ')
@@ -1425,7 +1425,6 @@
 
                 const expired = now() >= Number(state.progress.questionDeadline || 0);
                 const wasTimeout = Boolean(timeout || expired);
-                const correct = !wasTimeout && isCorrectAnswer(question, input);
 
                 /*
                  * Watchdog: Firebase transaction bình thường phản hồi rất nhanh.
@@ -1466,6 +1465,7 @@
                 }, 10000);
 
                 try {
+                        const correct = !wasTimeout && isCorrectAnswer(question, input);
                         const processedAt = now();
                         const fallbackYear = Number(
                                 state.currentYear ||
@@ -1473,10 +1473,45 @@
                                 getVietnamParts().year
                         );
 
-                        const tx = await ref.transaction(current => {
-                                if (!current || current.status !== 'in_progress') return;
+                        /*
+                         * QUAN TRỌNG VỚI FIREBASE TRANSACTION:
+                         * updateFunction có thể được gọi lần đầu với `current === null`
+                         * khi cache cục bộ ở ref này chưa kịp có dữ liệu, dù dữ liệu thật
+                         * trên server vẫn tồn tại. Nếu `return` ngay ở lần gọi đó thì
+                         * transaction bị abort (committed = false) và UI lại render câu cũ.
+                         *
+                         * Đọc server một lần ngay trước transaction và dùng snapshot đó
+                         * làm fallback. Khi server phát hiện hash khác, Firebase vẫn tự retry
+                         * callback bằng dữ liệu mới nhất nên không làm mất cơ chế chống race.
+                         */
+                        const preflightSnap = await ref.once('value');
+                        const preflightProgress = preflightSnap.val() || state.progress || null;
 
-                                const remoteIndex = Number(current.currentIndex) || 0;
+                        if (!preflightProgress || preflightProgress.status !== 'in_progress') {
+                                state.progress = preflightProgress;
+
+                                if (state.progress?.status === 'completed') {
+                                        return renderResult();
+                                }
+
+                                await loadProgress();
+                                return state.progress?.status === 'completed'
+                                        ? renderResult()
+                                        : renderGame();
+                        }
+
+                        // Nếu server đã sang câu khác (tab/request khác xử lý trước),
+                        // chỉ đồng bộ UI; tuyệt đối không nộp lại câu cũ.
+                        if ((Number(preflightProgress.currentIndex) || 0) !== index) {
+                                state.progress = preflightProgress;
+                                return renderGame();
+                        }
+
+                        const tx = await ref.transaction(current => {
+                                const base = current || preflightProgress;
+                                if (!base || base.status !== 'in_progress') return;
+
+                                const remoteIndex = Number(base.currentIndex) || 0;
 
                                 // Một tab/request khác đã xử lý câu này rồi.
                                 if (remoteIndex !== index) return;
@@ -1484,10 +1519,10 @@
                                 const nextIndex = index + 1;
                                 const nextScore = Math.min(
                                         CONFIG.questionCount,
-                                        (Number(current.score) || 0) + (correct ? 1 : 0)
+                                        (Number(base.score) || 0) + (correct ? 1 : 0)
                                 );
 
-                                const log = Object.assign({}, current.answerLog || {});
+                                const log = Object.assign({}, base.answerLog || {});
                                 log[String(index)] = {
                                         questionId: Number(question.id),
                                         correct: Boolean(correct),
@@ -1495,13 +1530,13 @@
                                         answeredAt: processedAt
                                 };
 
-                                const nextData = Object.assign({}, current, {
+                                const nextData = Object.assign({}, base, {
                                         eventId: CONFIG.id,
                                         eventName: CONFIG.title,
-                                        year: Number(current.year) >= 2026
-                                                ? Number(current.year)
+                                        year: Number(base.year) >= 2026
+                                                ? Number(base.year)
                                                 : fallbackYear,
-                                        startedAt: Number(current.startedAt) || processedAt,
+                                        startedAt: Number(base.startedAt) || processedAt,
                                         currentIndex: nextIndex,
                                         score: nextScore,
                                         updatedAt: processedAt,
