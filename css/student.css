@@ -6655,3 +6655,24 @@ body.video-summary-resizing
         right: 205px !important;
     }
 }
+
+/* =========================================================
+   FIX DESKTOP — KHÓA VỊ TRÍ NÚT ĐÓNG / MỞ SIDEBAR
+   - Không đổi kích thước sidebar.
+   - Không đổi logic collapsed.
+   - Không áp dụng mobile <= 768px.
+   - Độ ưu tiên cao để không bị theme/event kéo nút về left:15px.
+   ========================================================= */
+@media (min-width: 769px) {
+    html body .dashboard > .sidebar > .sidebar-toggle,
+    html body .dashboard:not(.collapsed) > .sidebar > .sidebar-toggle,
+    html body .dashboard.collapsed > .sidebar > .sidebar-toggle {
+        position: absolute !important;
+        top: 32px !important;
+        left: auto !important;
+        right: -17px !important;
+        bottom: auto !important;
+        margin: 0 !important;
+    }
+}
+

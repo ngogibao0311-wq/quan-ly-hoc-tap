@@ -859,6 +859,14 @@
                 timerId: null,
                 timerDeadline: 0,
                 busy: false,
+
+                // Khóa riêng cho việc gửi đáp án.
+                // Không dùng chung state.busy để tránh một tác vụ khác
+                // làm kẹt nút Gửi đáp án / tự chuyển câu khi hết giờ.
+                answerSubmitting: false,
+                answerSubmitStartedAt: 0,
+                answerSubmitSerial: 0,
+
                 autoPopupShown: false
         };
 
@@ -1325,21 +1333,34 @@
         }
 
         function startTimer(deadline) {
+                stopTimer();
+
                 state.timerDeadline = deadline;
+
                 const tick = () => {
                         const timer = document.getElementById('historyTimer');
                         const remaining = Math.max(0, Math.ceil((deadline - now()) / 1000));
+
                         if (timer) {
                                 timer.textContent = String(remaining);
                                 timer.parentElement?.classList.toggle('danger', remaining <= 10);
                         }
+
                         if (remaining <= 0) {
+                                // QUAN TRỌNG: interval đã được gán trước khi tick chạy,
+                                // nên stopTimer() luôn dừng đúng interval hiện tại.
                                 stopTimer();
-                                submitCurrentQuestion({ timeout: true });
+
+                                // Không chờ người dùng bấm nút. Hết giờ phải tự nộp
+                                // và chuyển sang câu kế tiếp.
+                                void submitCurrentQuestion({ timeout: true });
                         }
                 };
-                tick();
+
+                // Gán interval TRƯỚC rồi mới tick lần đầu.
+                // Bản cũ làm ngược lại nên câu đã hết hạn có thể kẹt ở 0 giây.
                 state.timerId = setInterval(tick, 250);
+                tick();
         }
 
         function stopTimer() {
@@ -1348,28 +1369,126 @@
         }
 
         async function submitCurrentQuestion({ input = '', timeout = false } = {}) {
-                if (state.busy || state.progress?.status !== 'in_progress') return;
-                state.busy = true;
-                stopTimer();
+                if (state.progress?.status !== 'in_progress') return;
+
+                /*
+                 * Khóa RIÊNG cho đáp án, không dùng state.busy.
+                 * Nếu request cũ treo quá 10 giây thì tự vô hiệu hóa request cũ
+                 * và cho game phục hồi, tránh kẹt vĩnh viễn ở 0 giây.
+                 */
+                if (state.answerSubmitting) {
+                        const submittingFor = Date.now() - Number(state.answerSubmitStartedAt || 0);
+
+                        if (submittingFor < 10000) {
+                                return;
+                        }
+
+                        state.answerSubmitting = false;
+                        state.answerSubmitStartedAt = 0;
+                }
 
                 const index = Number(state.progress.currentIndex) || 0;
                 const questionId = state.progress.questionIds?.[index];
                 const question = getQuestionById(questionId);
-                if (!question) { state.busy = false; return; }
+                if (!question) return;
 
-                const expired = now() > Number(state.progress.questionDeadline || 0);
+                const ref = progressRef();
+                if (!ref) {
+                        notify('Không tìm thấy tiến trình Firebase của sự kiện. Hãy tải lại trang rồi thử lại.', 'error');
+                        return;
+                }
+
+                const submitSerial = ++state.answerSubmitSerial;
+                state.answerSubmitting = true;
+                state.answerSubmitStartedAt = Date.now();
+
+                /*
+                 * Hết giờ thì phải dừng timer ngay.
+                 * Gửi thủ công thì vẫn cho timer chạy trong lúc chờ Firebase;
+                 * nếu mạng treo, timer vẫn có thể kích hoạt cơ chế tự phục hồi.
+                 */
+                if (timeout) {
+                        stopTimer();
+                }
+
+                const inputEl = document.getElementById('historyAnswerInput');
+                const button = document.getElementById('historySubmitAnswer');
+                const feedback = document.getElementById('historyFeedback');
+
+                if (inputEl) inputEl.disabled = true;
+
+                if (button) {
+                        button.disabled = true;
+                        button.dataset.originalText = button.textContent || 'Gửi đáp án';
+                        button.textContent = timeout
+                                ? 'Hết giờ — đang chuyển câu...'
+                                : 'Đang gửi...';
+                }
+
+                const expired = now() >= Number(state.progress.questionDeadline || 0);
                 const wasTimeout = Boolean(timeout || expired);
                 const correct = !wasTimeout && isCorrectAnswer(question, input);
-                const ref = progressRef();
+
+                /*
+                 * Watchdog: Firebase transaction bình thường phản hồi rất nhanh.
+                 * Nếu 10 giây vẫn chưa xong, đọc lại tiến trình và dựng lại game.
+                 * Serial làm request cũ mất quyền thay đổi UI nếu nó phản hồi muộn.
+                 */
+                const watchdog = setTimeout(async () => {
+                        if (
+                                state.answerSubmitSerial !== submitSerial ||
+                                !state.answerSubmitting
+                        ) {
+                                return;
+                        }
+
+                        console.warn(
+                                '[Lịch sử hào hùng] Firebase gửi đáp án phản hồi quá chậm. Tự phục hồi giao diện.'
+                        );
+
+                        // Vô hiệu hóa request hiện tại nếu nó phản hồi muộn.
+                        state.answerSubmitSerial++;
+                        state.answerSubmitting = false;
+                        state.answerSubmitStartedAt = 0;
+
+                        try {
+                                await loadProgress();
+                        } catch (_) { }
+
+                        notify(
+                                'Máy chủ phản hồi chậm. Hệ thống đã tự đồng bộ lại câu hỏi.',
+                                'warning'
+                        );
+
+                        if (state.progress?.status === 'completed') {
+                                renderResult();
+                        } else {
+                                renderGame();
+                        }
+                }, 10000);
 
                 try {
                         const processedAt = now();
+                        const fallbackYear = Number(
+                                state.currentYear ||
+                                getAnnualWindow().year ||
+                                getVietnamParts().year
+                        );
+
                         const tx = await ref.transaction(current => {
                                 if (!current || current.status !== 'in_progress') return;
-                                if (Number(current.currentIndex) !== index) return;
+
+                                const remoteIndex = Number(current.currentIndex) || 0;
+
+                                // Một tab/request khác đã xử lý câu này rồi.
+                                if (remoteIndex !== index) return;
 
                                 const nextIndex = index + 1;
-                                const nextScore = Math.min(CONFIG.questionCount, (Number(current.score) || 0) + (correct ? 1 : 0));
+                                const nextScore = Math.min(
+                                        CONFIG.questionCount,
+                                        (Number(current.score) || 0) + (correct ? 1 : 0)
+                                );
+
                                 const log = Object.assign({}, current.answerLog || {});
                                 log[String(index)] = {
                                         questionId: Number(question.id),
@@ -1378,7 +1497,13 @@
                                         answeredAt: processedAt
                                 };
 
-                                return Object.assign({}, current, {
+                                const nextData = Object.assign({}, current, {
+                                        eventId: CONFIG.id,
+                                        eventName: CONFIG.title,
+                                        year: Number(current.year) >= 2026
+                                                ? Number(current.year)
+                                                : fallbackYear,
+                                        startedAt: Number(current.startedAt) || processedAt,
                                         currentIndex: nextIndex,
                                         score: nextScore,
                                         updatedAt: processedAt,
@@ -1386,23 +1511,41 @@
                                         questionDeadline: nextIndex < CONFIG.questionCount
                                                 ? processedAt + CONFIG.secondsPerQuestion * 1000
                                                 : 0,
-                                        status: nextIndex >= CONFIG.questionCount ? 'completed' : 'in_progress',
-                                        completedAt: nextIndex >= CONFIG.questionCount ? processedAt : (current.completedAt || null)
+                                        status: nextIndex >= CONFIG.questionCount
+                                                ? 'completed'
+                                                : 'in_progress'
                                 });
+
+                                if (nextIndex >= CONFIG.questionCount) {
+                                        nextData.completedAt = processedAt;
+                                } else if (nextData.completedAt == null) {
+                                        delete nextData.completedAt;
+                                }
+
+                                return nextData;
                         });
+
+                        /* Request này đã bị watchdog/request mới thay thế. */
+                        if (state.answerSubmitSerial !== submitSerial) {
+                                return;
+                        }
 
                         if (!tx.committed) {
                                 await loadProgress();
-                                if (state.progress?.status === 'completed') return renderResult();
+
+                                if (state.progress?.status === 'completed') {
+                                        return renderResult();
+                                }
+
                                 return renderGame();
                         }
 
                         state.progress = tx.snapshot.val();
-                        const feedback = document.getElementById('historyFeedback');
-                        const inputEl = document.getElementById('historyAnswerInput');
-                        const button = document.getElementById('historySubmitAnswer');
-                        if (inputEl) inputEl.disabled = true;
-                        if (button) button.disabled = true;
+                        stopTimer();
+
+                        if (button) {
+                                button.textContent = 'Đã gửi';
+                        }
 
                         if (feedback) {
                                 feedback.className = `history-feedback show ${correct ? 'correct' : 'wrong'}`;
@@ -1413,20 +1556,60 @@
                                                 : `❌ Chưa đúng. Đáp án: <b>${escapeHtml(question.displayAnswer)}</b>`);
                         }
 
-                        setTimeout(async () => {
-                                if (state.progress?.status === 'completed') {
+                        await new Promise(resolve => setTimeout(resolve, 650));
+
+                        if (state.answerSubmitSerial !== submitSerial) {
+                                return;
+                        }
+
+                        if (state.progress?.status === 'completed') {
+                                try {
                                         await finalizeRewardState();
-                                        renderResult();
-                                } else {
-                                        renderGame();
+                                } catch (rewardError) {
+                                        console.error(
+                                                '[Lịch sử hào hùng] Đáp án đã lưu nhưng chưa thể xác nhận phần thưởng:',
+                                                rewardError
+                                        );
                                 }
-                                state.busy = false;
-                        }, 950);
+
+                                await renderResult();
+                        } else {
+                                renderGame();
+                        }
                 } catch (error) {
-                        state.busy = false;
+                        if (state.answerSubmitSerial !== submitSerial) {
+                                return;
+                        }
+
                         console.error('[Lịch sử hào hùng] Lỗi ghi đáp án:', error);
-                        notify('Không thể lưu đáp án. Hãy kiểm tra kết nối mạng rồi thử lại.', 'error');
-                        renderGame();
+
+                        const permissionDenied =
+                                error?.code === 'PERMISSION_DENIED' ||
+                                error?.code === 'permission_denied';
+
+                        notify(
+                                permissionDenied
+                                        ? 'Firebase Rules đang từ chối lưu đáp án của Lịch Sử Hào Hùng.'
+                                        : 'Không thể lưu đáp án. Hãy kiểm tra kết nối mạng rồi thử lại.',
+                                'error'
+                        );
+
+                        try {
+                                await loadProgress();
+                        } catch (_) { }
+
+                        if (state.progress?.status === 'completed') {
+                                renderResult();
+                        } else {
+                                renderGame();
+                        }
+                } finally {
+                        clearTimeout(watchdog);
+
+                        if (state.answerSubmitSerial === submitSerial) {
+                                state.answerSubmitting = false;
+                                state.answerSubmitStartedAt = 0;
+                        }
                 }
         }
 
