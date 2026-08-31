@@ -867,7 +867,6 @@
                 answerSubmitStartedAt: 0,
                 answerSubmitSerial: 0,
 
-                autoPopupShown: false
         };
 
         function getCurrentUserSafe() {
@@ -1306,7 +1305,7 @@
                     <div><span>Điểm</span><strong id="historyScore">${Number(p.score) || 0}</strong></div>
                     <div class="history-timer-box"><span>Thời gian</span><strong id="historyTimer">50</strong><small>giây</small></div>
                 </div>
-                <div class="history-progress"><span style="width:${(index / CONFIG.questionCount) * 100}%"></span></div>
+                <div class="history-progress"><span style="width:${((index + 1) / CONFIG.questionCount) * 100}%"></span></div>
                 <div class="history-question-card">
                     <div class="history-question-label">CÂU HỎI #${question.id}</div>
                     <h3>${escapeHtml(question.question)}</h3>
@@ -1403,13 +1402,12 @@
                 state.answerSubmitStartedAt = Date.now();
 
                 /*
-                 * Hết giờ thì phải dừng timer ngay.
-                 * Gửi thủ công thì vẫn cho timer chạy trong lúc chờ Firebase;
-                 * nếu mạng treo, timer vẫn có thể kích hoạt cơ chế tự phục hồi.
+                 * Dừng timer ngay khi bắt đầu gửi (cả gửi tay lẫn hết giờ).
+                 * Bản cũ để timer tiếp tục chạy khi gửi tay, có thể phát sinh một lần
+                 * submit timeout song song nếu Firebase phản hồi chậm và làm UI kẹt câu.
+                 * Nếu lưu thất bại, renderGame() sẽ khởi động lại timer theo deadline hiện tại.
                  */
-                if (timeout) {
-                        stopTimer();
-                }
+                stopTimer();
 
                 const inputEl = document.getElementById('historyAnswerInput');
                 const button = document.getElementById('historySubmitAnswer');
@@ -1542,6 +1540,27 @@
 
                         state.progress = tx.snapshot.val();
                         stopTimer();
+
+                        /*
+                         * Không tin mù snapshot cục bộ: xác nhận currentIndex thật sự đã tăng.
+                         * Nếu dữ liệu Firebase/transaction bị lệch do tab khác hoặc cache cũ,
+                         * đọc lại một lần trước khi dựng câu tiếp theo.
+                         */
+                        if (
+                                state.progress?.status === 'in_progress' &&
+                                Number(state.progress.currentIndex) <= index
+                        ) {
+                                await loadProgress();
+                        }
+
+                        if (
+                                state.progress?.status === 'in_progress' &&
+                                Number(state.progress.currentIndex) <= index
+                        ) {
+                                throw new Error(
+                                        `Firebase đã phản hồi nhưng currentIndex không tăng (đang ở ${Number(state.progress.currentIndex) || 0}).`
+                                );
+                        }
 
                         if (button) {
                                 button.textContent = 'Đã gửi';
@@ -1892,15 +1911,6 @@
                 }
         }
 
-        async function maybeAutoPopup() {
-                if (state.autoPopupShown) return;
-                const w = getAnnualWindow();
-                if (!w.isOpen || !gameSectionAvailable()) return;
-                state.autoPopupShown = true;
-                openOverlay();
-                renderLanding();
-        }
-
         async function boot() {
                 buildShell();
                 injectEventCard();
@@ -1910,13 +1920,13 @@
                 await recoverPendingReward();
                 refreshCard();
 
-                // Khi đúng thời gian mở, vào web sẽ tự hiện popup có 2 nút Bắt đầu + Giới thiệu.
-                setTimeout(maybeAutoPopup, 650);
-
+                /*
+                 * KHÔNG tự mở popup khi vào web.
+                 * Popup chỉ được mở khi người dùng bấm “Giới thiệu” hoặc “Tham gia”.
+                 * Interval chỉ cập nhật trạng thái card theo thời gian sự kiện.
+                 */
                 setInterval(() => {
                         refreshCard();
-                        const w = getAnnualWindow();
-                        if (w.isOpen && !state.autoPopupShown) maybeAutoPopup();
                 }, 30000);
 
                 window.addEventListener('focus', () => {
