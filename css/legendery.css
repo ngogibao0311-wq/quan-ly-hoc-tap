@@ -4863,11 +4863,11 @@ body .store-item-card.store-card-nyx-trinity
         transform: none !important;
     }
 
-    /* Khi mở: đặt nút X bên trong sidebar */
+    /* Mobile: nút X vẫn ở góc trái; sidebar trượt độc lập. */
     body.theme-legendary-celestial
     .dashboard:not(.collapsed)
     .sidebar-toggle {
-        left: 205px !important;
+        left: 15px !important;
         transform: none !important;
     }
 
@@ -4893,7 +4893,7 @@ body .store-item-card.store-card-nyx-trinity
         line-height: 1 !important;
     }
 
-    /* Ẩn 4 nút góc trên khi sidebar mở */
+    /* Mobile: 4 nút hệ thống không bị sidebar che/khóa. */
     body.theme-legendary-celestial
     .dashboard:not(.collapsed)
     .content > :is(
@@ -4903,9 +4903,9 @@ body .store-item-card.store-card-nyx-trinity
         .leaderboard-trigger-btn,
         #btnLeaderboard
     ) {
-        visibility: hidden !important;
-        opacity: 0 !important;
-        pointer-events: none !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
     }
 
     /* Ẩn Coin và thú cưng khi sidebar mở */
