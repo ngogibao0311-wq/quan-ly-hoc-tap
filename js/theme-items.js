@@ -124,6 +124,33 @@ class ThemeManager {
             background: '#071421',
             className: 'theme-rain-cosmos'
         },
+
+        // Premium Mùa Xuân - dùng như lớp phủ khi Nữ Thần Mùa Xuân được trang bị
+        'theme_premium_mua_xuan': {
+            primary: '#2f7d62',
+            secondary: '#d85f8c',
+            background: '#fffaf0',
+            className: 'theme-spring-vintage-banquet'
+        },
+        // Giao diện Mùa Xuân độc lập — concept giấy dó / men ngọc / mộc bản.
+        // Không dùng lại class, palette hay hình khối của Xuân Tửu Hoa Viên.
+        'theme_mua_xuan_thanh_minh': {
+            primary: '#276b57',
+            secondary: '#d96f45',
+            background: '#f4f0df',
+            className: 'theme-spring-celadon-almanac'
+        },
+        // =========================================================
+        // QUỐC KHÁNH 2/9
+        // VIỆT DIỆU · HỒNG KỲ TÂN CHƯƠNG
+        // Concept riêng: nếp gấp quốc kỳ / quốc ấn / dải huy chương
+        // =========================================================
+        'theme_quoc_khanh_viet_dieu_hong_ky': {
+            primary: '#d71920',
+            secondary: '#f2c94c',
+            background: '#f7f0df',
+            className: 'theme-viet-dieu-hong-ky'
+        },
     };
 
     // Những popup phải giữ giao diện riêng,
@@ -214,6 +241,33 @@ class ThemeManager {
             className:
                 'store-card-birthday-2026'
         }),
+
+        'national-day-premium-pet': Object.freeze({
+            itemIds: Object.freeze([
+                'pet_quoc_khanh_1'
+            ]),
+
+            className:
+                'store-card-national-day-pet',
+
+            tagImage:
+                'assets/Premium/quốc khánh/tag.png'
+        }),
+
+        /* =========================================================
+   BỘ VIỆT DIỆU 2/9
+   Giữ card riêng, không bị theme toàn web ghi đè
+   ========================================================= */
+        'national-day-2-9': Object.freeze({
+            itemIds: Object.freeze([
+                'pet_quoc_khanh_chibi_1',
+                'effect_quoc_khanh_viet_dieu_non_song',
+                'theme_quoc_khanh_viet_dieu_hong_ky'
+            ]),
+
+            className:
+                'store-card-national-day-2-9'
+        }),
     });
 
 
@@ -272,6 +326,51 @@ class ThemeManager {
 
             card.dataset.specialCard =
                 groupName;
+
+            /*
+* Tag ảnh riêng cho card sự kiện.
+* Chèn trực tiếp vào DOM để đường dẫn đúng từ document root
+* và không bị theme toàn web đổi nền / chữ của .item-tag.
+*/
+            if (config.tagImage) {
+                let tagImage =
+                    card.querySelector(
+                        '.special-card-tag-image'
+                    );
+
+                if (!tagImage) {
+                    tagImage =
+                        document.createElement('img');
+
+                    tagImage.className =
+                        'special-card-tag-image';
+
+                    tagImage.alt =
+                        'Quốc khánh';
+
+                    tagImage.draggable =
+                        false;
+
+                    tagImage.setAttribute(
+                        'aria-hidden',
+                        'true'
+                    );
+
+                    card.appendChild(
+                        tagImage
+                    );
+                }
+
+                if (
+                    tagImage.getAttribute('src') !==
+                    config.tagImage
+                ) {
+                    tagImage.setAttribute(
+                        'src',
+                        config.tagImage
+                    );
+                }
+            }
         });
 
 
@@ -601,6 +700,80 @@ class ThemeManager {
         requestAnimationFrame(() => {
             decor.classList.add('is-mounted');
         });
+    }
+
+    // =========================================================
+    // PREMIUM MÙA XUÂN — LỚP PHỦ "XUÂN TỬU HOA VIÊN"
+    // Chỉ là overlay tạm thời của pet, không sửa active_theme.
+    // =========================================================
+    static applyPremiumSpringOverlay() {
+        const root = document.documentElement;
+        const body = document.body;
+
+        body?.classList.add(
+            'theme-spring-vintage-banquet'
+        );
+
+        root.classList.add(
+            'spring-vintage-equipped'
+        );
+
+        root.setAttribute(
+            'data-premium-spring-ui',
+            'spring-vintage-v1'
+        );
+
+        document.getElementById(
+            'spring-vintage-ui-frame'
+        )?.remove();
+
+        if (!body) return;
+
+        const frame = document.createElement('div');
+        frame.id = 'spring-vintage-ui-frame';
+        frame.className = 'spring-vintage-ui-frame';
+        frame.setAttribute('aria-hidden', 'true');
+        frame.innerHTML = `
+            <div class="sv-ui-top-vessel">
+                <span class="sv-ui-vessel-bowl"></span>
+                <span class="sv-ui-vessel-nectar"></span>
+                <span class="sv-ui-vessel-gem"></span>
+            </div>
+
+            <span class="sv-ui-vine sv-ui-vine-left"></span>
+            <span class="sv-ui-vine sv-ui-vine-right"></span>
+
+            <span class="sv-ui-grape-chain chain-left"></span>
+            <span class="sv-ui-grape-chain chain-right"></span>
+
+            <div class="sv-ui-bottom-cutglass">
+                <i></i><b>◆</b><i></i>
+            </div>
+        `;
+
+        body.prepend(frame);
+
+        requestAnimationFrame(() => {
+            frame.classList.add('is-mounted');
+        });
+    }
+
+    static clearPremiumSpringOverlay() {
+        document.body?.classList.remove(
+            'theme-spring-vintage-banquet'
+        );
+
+        document.documentElement.classList.remove(
+            'spring-vintage-equipped'
+        );
+
+        document.documentElement.removeAttribute(
+            'data-premium-spring-ui'
+        );
+
+        document.getElementById(
+            'spring-vintage-ui-frame'
+        )?.remove();
     }
 
     static applyTheme(themeId) {

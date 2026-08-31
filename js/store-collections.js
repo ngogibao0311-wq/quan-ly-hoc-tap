@@ -100,7 +100,18 @@
             label: 'Doraemon',
             icon: '🔔',
             tags: ['Doraemon']
-        }
+        },
+        {
+            id: 'spring',
+            label: 'Mùa xuân',
+            icon: '🌸',
+            tags: ['Mùa xuân'],
+
+            excludeLuxury: true,
+
+            // Mỗi mốc thưởng cao hơn bộ khác 30 Coin
+            rewardBonusCoins: 30
+        },
     ]);
 
     const COLLECTIONS = Object.freeze([
@@ -126,6 +137,16 @@
         { count: 15, coins: 50 },
         { count: 20, coins: 60 }
     ]);
+
+    function getCollectionRewardCoins(
+        collection,
+        milestone
+    ) {
+        return (
+            Number(milestone?.coins || 0) +
+            Number(collection?.rewardBonusCoins || 0)
+        );
+    }
 
     let activeCollectionId = 'all';
     let collectedItemIds = new Set();
@@ -282,6 +303,11 @@
         collection,
         milestone
     ) {
+        const rewardCoins =
+            getCollectionRewardCoins(
+                collection,
+                milestone
+            );
         const milestoneKey = String(milestone.count);
         const claimPath = buildRewardClaimPath(
             username,
@@ -334,7 +360,7 @@
                 collectionLabel: collection.label,
                 milestone: milestone.count,
                 milestoneKey,
-                rewardCoins: milestone.coins,
+                rewardCoins: rewardCoins,
                 reservedAt: now,
                 messageKey,
                 rewardVersion: 1,
@@ -362,7 +388,7 @@
         const updates = {};
 
         updates[`student_coins/${username}`] = getServerIncrement(
-            milestone.coins
+            rewardCoins
         );
 
         updates[claimPath] = {
@@ -371,7 +397,7 @@
             collectionLabel: collection.label,
             milestone: milestone.count,
             milestoneKey,
-            rewardCoins: milestone.coins,
+            rewardCoins: rewardCoins,
             reservedAt: Number(reserved.reservedAt) || now,
             sentAt,
             messageKey,
@@ -389,7 +415,7 @@
 
         return {
             credited: true,
-            coins: milestone.coins,
+            coins: rewardCoins,
             collectionLabel: collection.label,
             milestone: milestone.count
         };
@@ -608,6 +634,14 @@
 
     function itemMatchesCollection(item, collection) {
         if (!item || !collection || collection.isAll) return false;
+
+        // Bộ sưu tập có excludeLuxury sẽ bỏ vật phẩm Luxury
+        if (
+            collection.excludeLuxury === true &&
+            item.luxuryOnly === true
+        ) {
+            return false;
+        }
 
         const itemTags = getItemTags(item);
         const acceptedTags = new Set(
@@ -1040,13 +1074,13 @@
 
             <div class="store-collection-acquisition-list">
                 ${items.length
-                    ? items.map(createAcquisitionItemHTML).join('')
-                    : `
+                ? items.map(createAcquisitionItemHTML).join('')
+                : `
                         <div class="store-collection-acquisition-empty">
                             Chưa có vật phẩm để dò cách nhận.
                         </div>
                     `
-                }
+            }
             </div>
         `;
     }
@@ -1342,8 +1376,8 @@
                 data-collection-item-tag="${escapeAttribute(tag)}"
                 data-collected="${String(collected)}"
                 aria-label="${escapeAttribute(
-                    `${item.name || item.id || 'Vật phẩm'}: ${ownershipLabel}`
-                )}"
+            `${item.name || item.id || 'Vật phẩm'}: ${ownershipLabel}`
+        )}"
             >
                 <div class="store-collection-card__visual">
                     ${getItemVisualHTML(item)}
@@ -1497,35 +1531,43 @@
                 </div>
                 <div class="store-collection-rewards__track">
                     ${REWARD_MILESTONES.map(milestone => {
-                        const reached = collectedCount >= milestone.count;
-                        const claim = getRewardClaim(
-                            collection.id,
-                            milestone.count
-                        );
-                        const claimed = claim?.status === 'sent';
-                        const processing = reached && claim?.status === 'reserved';
-                        const classNames = [
-                            'store-collection-reward',
-                            reached ? 'is-reached' : '',
-                            claimed ? 'is-claimed' : '',
-                            processing ? 'is-processing' : ''
-                        ].filter(Boolean).join(' ');
-                        const statusText = claimed
-                            ? '✓ Đã nhận'
-                            : (
-                                processing
-                                    ? '⏳ Đang cộng'
-                                    : (reached ? '✓ Đã đạt' : 'Chưa đạt')
-                            );
 
-                        return `
+                const rewardCoins =
+                    getCollectionRewardCoins(
+                        collection,
+                        milestone
+                    );
+
+                const reached =
+                    collectedCount >= milestone.count;
+                const claim = getRewardClaim(
+                    collection.id,
+                    milestone.count
+                );
+                const claimed = claim?.status === 'sent';
+                const processing = reached && claim?.status === 'reserved';
+                const classNames = [
+                    'store-collection-reward',
+                    reached ? 'is-reached' : '',
+                    claimed ? 'is-claimed' : '',
+                    processing ? 'is-processing' : ''
+                ].filter(Boolean).join(' ');
+                const statusText = claimed
+                    ? '✓ Đã nhận'
+                    : (
+                        processing
+                            ? '⏳ Đang cộng'
+                            : (reached ? '✓ Đã đạt' : 'Chưa đạt')
+                    );
+
+                return `
                             <span class="${classNames}">
                                 <b>${milestone.count}</b> món
-                                <i>+${milestone.coins} 🪙</i>
+                                <i>+${rewardCoins} 🪙</i>
                                 <em>${statusText}</em>
                             </span>
                         `;
-                    }).join('')}
+            }).join('')}
                 </div>
             `;
         }

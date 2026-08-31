@@ -161,20 +161,6 @@
             );
         }
 
-        const maxSizeBytes =
-            Number(options.maxSizeBytes) ||
-            R2_CONFIG.defaultMaxFileSize;
-
-        if (file.size > maxSizeBytes) {
-            const maxMB =
-                maxSizeBytes / (1024 * 1024);
-
-            throw new Error(
-                `File vượt giới hạn ` +
-                `${maxMB.toFixed(0)} MB.`
-            );
-        }
-
         const originalName =
             options.fileName ||
             file.name ||
@@ -185,6 +171,33 @@
                 file,
                 originalName
             );
+
+        const isAudioFile =
+            String(inferredContentType || '')
+                .toLowerCase()
+                .startsWith('audio/');
+
+        const maxSizeBytes =
+            isAudioFile
+                ? (
+                    Number(options.audioMaxSizeBytes) ||
+                    Number(options.maxSizeBytes) ||
+                    R2_CONFIG.defaultMaxFileSize
+                )
+                : (
+                    Number(options.maxSizeBytes) ||
+                    R2_CONFIG.defaultMaxFileSize
+                );
+
+        if (file.size > maxSizeBytes) {
+            const maxMB =
+                maxSizeBytes / (1024 * 1024);
+
+            throw new Error(
+                `File vượt giới hạn ` +
+                `${maxMB.toFixed(0)} MB.`
+            );
+        }
 
         /*
          * Một số trình duyệt trả file.type rỗng,

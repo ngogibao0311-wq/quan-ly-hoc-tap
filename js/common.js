@@ -2,6 +2,1367 @@ const loginForm = document.getElementById('loginForm');
 let lockoutInterval = null;
 
 // ======================================================
+// APP STARTUP LOADER
+// CHỜ DỮ LIỆU + VIDEO TRƯỚC KHI MỞ WEB
+// ======================================================
+(function initAppStartupLoader() {
+    const overlay =
+        document.getElementById(
+            'appStartupLoader'
+        );
+
+    // index.html không có loader nên bỏ qua.
+    if (
+        !overlay ||
+        window.AppStartupLoader
+    ) {
+        return;
+    }
+
+    const statusElement =
+        document.getElementById(
+            'appStartupLoaderStatus'
+        );
+
+    const expectedKeys = new Set();
+    const readyKeys = new Set();
+
+    const mediaState = new Map();
+
+    let lastMediaMutationAt =
+        Date.now();
+
+    let isHidden = false;
+
+    function setStatus(message) {
+        if (!statusElement) return;
+
+        statusElement.textContent =
+            String(
+                message ||
+                'Đang tải hệ thống...'
+            );
+    }
+
+    function attachStartupMedia(element) {
+        if (!(element instanceof Element)) {
+            return;
+        }
+
+        const candidates = [];
+
+        if (
+            element.matches?.(
+                '[data-startup-video="1"]'
+            )
+        ) {
+            candidates.push(element);
+        }
+
+        element
+            .querySelectorAll?.(
+                '[data-startup-video="1"]'
+            )
+            .forEach(node => {
+                candidates.push(node);
+            });
+
+        candidates.forEach(media => {
+
+            if (mediaState.has(media)) {
+                return;
+            }
+
+            lastMediaMutationAt =
+                Date.now();
+
+            mediaState.set(
+                media,
+                'pending'
+            );
+
+            const markDone = () => {
+                mediaState.set(
+                    media,
+                    'ready'
+                );
+
+                lastMediaMutationAt =
+                    Date.now();
+            };
+
+            /*
+             * Video HTML5 có thể đã tải
+             * trước khi listener được gắn.
+             */
+            if (
+                media.tagName === 'VIDEO' &&
+                Number(media.readyState) >= 2
+            ) {
+                markDone();
+                return;
+            }
+
+            media.addEventListener(
+                'load',
+                markDone,
+                { once: true }
+            );
+
+            media.addEventListener(
+                'loadeddata',
+                markDone,
+                { once: true }
+            );
+
+            media.addEventListener(
+                'canplay',
+                markDone,
+                { once: true }
+            );
+
+            /*
+             * Video lỗi cũng cho qua,
+             * tránh khóa cả website.
+             */
+            media.addEventListener(
+                'error',
+                markDone,
+                { once: true }
+            );
+        });
+    }
+
+    document
+        .querySelectorAll(
+            '[data-startup-video="1"]'
+        )
+        .forEach(attachStartupMedia);
+
+    /*
+     * Theo dõi video/iframe được render
+     * sau khi Firebase trả dữ liệu.
+     */
+    const mediaObserver =
+        new MutationObserver(
+            mutations => {
+
+                mutations.forEach(
+                    mutation => {
+
+                        mutation.addedNodes
+                            .forEach(node => {
+
+                                if (
+                                    node.nodeType ===
+                                    Node.ELEMENT_NODE
+                                ) {
+                                    attachStartupMedia(
+                                        node
+                                    );
+                                }
+
+                            });
+                    }
+                );
+            }
+        );
+
+    mediaObserver.observe(
+        document.documentElement,
+        {
+            childList: true,
+            subtree: true
+        }
+    );
+
+    function expect(keys) {
+        (
+            Array.isArray(keys)
+                ? keys
+                : [keys]
+        )
+            .filter(Boolean)
+            .forEach(key => {
+                expectedKeys.add(
+                    String(key)
+                );
+            });
+    }
+
+    function markReady(key) {
+        if (!key) return;
+
+        readyKeys.add(
+            String(key)
+        );
+    }
+
+    function areExpectedReady() {
+        for (const key of expectedKeys) {
+            if (!readyKeys.has(key)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    function countPendingMedia() {
+        let pending = 0;
+
+        mediaState.forEach(state => {
+            if (state === 'pending') {
+                pending++;
+            }
+        });
+
+        return pending;
+    }
+
+    async function waitUntil(
+        check,
+        timeoutMs,
+        pollMs = 80
+    ) {
+        const startedAt =
+            Date.now();
+
+        while (
+            Date.now() - startedAt <
+            timeoutMs
+        ) {
+            if (check()) {
+                return true;
+            }
+
+            await new Promise(
+                resolve =>
+                    setTimeout(
+                        resolve,
+                        pollMs
+                    )
+            );
+        }
+
+        return check();
+    }
+
+    async function waitForExpected(
+        options = {}
+    ) {
+        const timeoutMs =
+            Math.max(
+                1000,
+                Number(
+                    options.timeoutMs
+                ) || 15000
+            );
+
+        setStatus(
+            'Đang đồng bộ dữ liệu ban đầu...'
+        );
+
+        return waitUntil(
+            () => areExpectedReady(),
+            timeoutMs
+        );
+    }
+
+    async function waitForMedia(
+        options = {}
+    ) {
+        const timeoutMs =
+            Math.max(
+                1000,
+                Number(
+                    options.timeoutMs
+                ) || 9000
+            );
+
+        const quietMs =
+            Math.max(
+                150,
+                Number(
+                    options.quietMs
+                ) || 550
+            );
+
+        const startedAt =
+            Date.now();
+
+        setStatus(
+            'Đang chuẩn bị video và liên kết học tập...'
+        );
+
+        while (
+            Date.now() - startedAt <
+            timeoutMs
+        ) {
+            const pending =
+                countPendingMedia();
+
+            const quietFor =
+                Date.now() -
+                lastMediaMutationAt;
+
+            if (
+                pending === 0 &&
+                quietFor >= quietMs
+            ) {
+                return true;
+            }
+
+            await new Promise(
+                resolve =>
+                    setTimeout(
+                        resolve,
+                        100
+                    )
+            );
+        }
+
+        /*
+         * Không để YouTube/link ngoài
+         * làm treo web.
+         */
+        return (
+            countPendingMedia() === 0
+        );
+    }
+
+    function hide() {
+        if (isHidden) return;
+
+        isHidden = true;
+
+        if (
+            window
+                .__appStartupLoaderFailsafe
+        ) {
+            clearTimeout(
+                window
+                    .__appStartupLoaderFailsafe
+            );
+
+            window
+                .__appStartupLoaderFailsafe =
+                null;
+        }
+
+        setStatus('Hoàn tất!');
+
+        overlay.setAttribute(
+            'aria-busy',
+            'false'
+        );
+
+        overlay.classList.add(
+            'is-hidden'
+        );
+
+        setTimeout(() => {
+            overlay.remove();
+
+            mediaObserver.disconnect();
+        }, 380);
+    }
+
+    window.AppStartupLoader =
+        Object.freeze({
+            expect,
+            markReady,
+            setStatus,
+            waitForExpected,
+            waitForMedia,
+            hide
+        });
+})();
+
+// ======================================================
+// MÀN HÌNH 404 / OFFLINE
+// ======================================================
+(function initAppNetwork404() {
+    if (window.AppNetwork404) return;
+
+    const state = {
+        visible: false,
+        startupInterrupted: false,
+        firebaseConnected: null,
+        firebaseTimer: null
+    };
+
+    function isStartupPhase() {
+        const loader =
+            document.getElementById(
+                'appStartupLoader'
+            );
+
+        return (
+            document.readyState !== 'complete' ||
+            Boolean(
+                loader &&
+                !loader.classList.contains(
+                    'is-hidden'
+                )
+            )
+        );
+    }
+
+    function ensurePage() {
+        let page =
+            document.getElementById(
+                'appNetwork404Page'
+            );
+
+        if (page) return page;
+
+        const style =
+            document.createElement('style');
+
+        style.id =
+            'appNetwork404Styles';
+
+        style.textContent = `
+            html.app-network-404-open,
+            body.app-network-404-open {
+                overflow: hidden !important;
+            }
+
+            #appNetwork404Page[hidden] {
+                display: none !important;
+            }
+
+            #appNetwork404Page {
+                position: fixed;
+                inset: 0;
+                z-index: 2147483647;
+
+                min-height: 100dvh;
+                padding: 24px;
+                box-sizing: border-box;
+
+                display: flex;
+                align-items: center;
+                justify-content: center;
+
+                overflow: auto;
+
+                color: #fff;
+
+                font-family:
+                    Inter,
+                    system-ui,
+                    -apple-system,
+                    "Segoe UI",
+                    sans-serif;
+
+                background:
+                    radial-gradient(
+                        circle at 20% 15%,
+                        rgba(0,210,255,.18),
+                        transparent 30%
+                    ),
+                    linear-gradient(
+                        145deg,
+                        #050b18,
+                        #091a35 55%,
+                        #061022
+                    );
+            }
+
+            .network404-shell {
+                width: min(1000px, 100%);
+
+                display: grid;
+
+                grid-template-columns:
+                    1.1fr .9fr;
+
+                gap: 55px;
+
+                align-items: center;
+            }
+
+            .network404-scene {
+                position: relative;
+
+                min-height: 360px;
+
+                overflow: hidden;
+
+                border:
+                    1px solid
+                    rgba(130,220,255,.25);
+
+                border-radius: 28px;
+
+                background:
+                    linear-gradient(
+                        180deg,
+                        #0b3564,
+                        #061328
+                    );
+
+                box-shadow:
+                    0 25px 70px
+                    rgba(0,0,0,.35);
+            }
+
+            .network404-ghost {
+                position: absolute;
+
+                top: 55px;
+                left: 55px;
+
+                z-index: 3;
+
+                font-size: 60px;
+
+                animation:
+                    network404Float
+                    2.6s
+                    ease-in-out
+                    infinite;
+            }
+
+            .network404-beam {
+                position: absolute;
+
+                left: 92px;
+                top: 126px;
+
+                width: 440px;
+                height: 190px;
+
+                background:
+                    linear-gradient(
+                        90deg,
+                        rgba(225,253,255,.9),
+                        rgba(100,220,255,.35),
+                        transparent
+                    );
+
+                clip-path:
+                    polygon(
+                        0 42%,
+                        100% 0,
+                        100% 100%,
+                        0 58%
+                    );
+
+                opacity: .82;
+            }
+
+            .network404-code {
+                position: absolute;
+
+                z-index: 4;
+
+                left: 50%;
+                top: 53%;
+
+                transform:
+                    translate(-50%,-50%)
+                    rotate(-5deg);
+
+                font-size:
+                    clamp(
+                        7rem,
+                        18vw,
+                        12rem
+                    );
+
+                line-height: .8;
+
+                font-weight: 1000;
+
+                letter-spacing: -.08em;
+
+                color: #39d9ff;
+
+                text-shadow:
+                    0 9px 0 #07527c,
+                    0 20px 45px
+                    rgba(0,210,255,.25);
+            }
+
+            .network404-copy h1 {
+                margin: 0 0 14px;
+
+                font-size:
+                    clamp(
+                        2rem,
+                        5vw,
+                        3.2rem
+                    );
+            }
+
+            .network404-copy p {
+                margin: 0;
+
+                color: #aebdd3;
+
+                line-height: 1.7;
+            }
+
+            .network404-kicker {
+                color: #62e2ff;
+
+                font-weight: 900;
+
+                letter-spacing: .12em;
+
+                margin-bottom: 14px;
+            }
+
+            .network404-status {
+                margin-top: 20px;
+
+                padding: 13px 15px;
+
+                border-radius: 13px;
+
+                border:
+                    1px solid
+                    rgba(255,255,255,.1);
+
+                background:
+                    rgba(255,255,255,.05);
+
+                color: #e1ebf7;
+            }
+
+            .network404-actions {
+                display: flex;
+
+                gap: 10px;
+
+                flex-wrap: wrap;
+
+                margin-top: 22px;
+            }
+
+            .network404-actions button {
+                min-height: 46px;
+
+                padding: 0 18px;
+
+                border-radius: 12px;
+
+                border:
+                    1px solid
+                    rgba(255,255,255,.15);
+
+                font: inherit;
+
+                font-weight: 800;
+
+                cursor: pointer;
+            }
+
+            #appNetwork404Retry {
+                background:
+                    linear-gradient(
+                        135deg,
+                        #68e8ff,
+                        #42c7ff
+                    );
+
+                color: #03131d;
+            }
+
+            #appNetwork404Login {
+                background:
+                    rgba(255,255,255,.06);
+
+                color: #fff;
+            }
+
+            @keyframes network404Float {
+                0%,
+                100% {
+                    transform:
+                        translateY(0)
+                        rotate(-4deg);
+                }
+
+                50% {
+                    transform:
+                        translateY(-12px)
+                        rotate(4deg);
+                }
+            }
+
+            @media (max-width: 760px) {
+                #appNetwork404Page {
+                    padding: 16px;
+
+                    align-items:
+                        flex-start;
+                }
+
+                .network404-shell {
+                    grid-template-columns:
+                        1fr;
+
+                    gap: 22px;
+
+                    max-width: 540px;
+                }
+
+                .network404-scene {
+                    min-height: 270px;
+                }
+
+                .network404-copy {
+                    text-align: center;
+                }
+
+                .network404-actions {
+                    justify-content:
+                        center;
+                }
+            }
+
+            @media (max-width: 430px) {
+                .network404-scene {
+                    min-height: 235px;
+                }
+
+                .network404-ghost {
+                    top: 28px;
+                    left: 22px;
+
+                    font-size: 48px;
+                }
+
+                .network404-beam {
+                    left: 58px;
+                    top: 92px;
+                }
+
+                .network404-actions {
+                    display: grid;
+                }
+
+                .network404-actions button {
+                    width: 100%;
+                }
+            }
+        `;
+
+        document.head.appendChild(
+            style
+        );
+
+        page =
+            document.createElement(
+                'div'
+            );
+
+        page.id =
+            'appNetwork404Page';
+
+        page.hidden = true;
+
+        page.innerHTML = `
+            <div class="network404-shell">
+
+                <section
+                    class="network404-scene"
+                    aria-hidden="true"
+                >
+                    <div
+                        class="network404-ghost"
+                    >
+                        👻
+                    </div>
+
+                    <div
+                        class="network404-beam"
+                    ></div>
+
+                    <div
+                        class="network404-code"
+                    >
+                        404
+                    </div>
+                </section>
+
+                <section
+                    class="network404-copy"
+                >
+
+                    <div
+                        class="network404-kicker"
+                    >
+                        ● CONNECTION LOST
+                    </div>
+
+                    <h1
+                        id="appNetwork404Title"
+                    >
+                        Có ai ở đó không?
+                    </h1>
+
+                    <p
+                        id="appNetwork404Message"
+                    >
+                        Kết nối bị gián đoạn
+                        nên hệ thống chưa thể
+                        tải đủ dữ liệu.
+                        Dữ liệu hiện tại của
+                        bạn không bị xóa.
+                    </p>
+
+                    <div
+                        class="network404-status"
+                        id="appNetwork404Status"
+                    >
+                        Đang chờ kết nối
+                        mạng trở lại...
+                    </div>
+
+                    <div
+                        class="network404-actions"
+                    >
+
+                        <button
+                            type="button"
+                            id="appNetwork404Retry"
+                        >
+                            ↻ Thử lại
+                        </button>
+
+                        <button
+                            type="button"
+                            id="appNetwork404Login"
+                        >
+                            ⌂ Trang đăng nhập
+                        </button>
+
+                    </div>
+                </section>
+
+            </div>
+        `;
+
+        (
+            document.body ||
+            document.documentElement
+        ).appendChild(page);
+
+        document.getElementById(
+            'appNetwork404Retry'
+        ).onclick = retry;
+
+        document.getElementById(
+            'appNetwork404Login'
+        ).onclick = function () {
+            window.location.href =
+                'index.html';
+        };
+
+        return page;
+    }
+
+    function show(options = {}) {
+        const page =
+            ensurePage();
+
+        state.visible = true;
+
+        const interrupted =
+            typeof options.startup ===
+                'boolean'
+                ? options.startup
+                : isStartupPhase();
+
+        state.startupInterrupted =
+            state.startupInterrupted ||
+            interrupted;
+
+        document.getElementById(
+            'appNetwork404Title'
+        ).textContent =
+            options.title ||
+            '404 — Mất kết nối';
+
+        document.getElementById(
+            'appNetwork404Message'
+        ).textContent =
+            options.message ||
+            'Kết nối mạng hoặc máy chủ Firebase bị gián đoạn.';
+
+        document.getElementById(
+            'appNetwork404Status'
+        ).textContent =
+            options.status ||
+            (
+                navigator.onLine === false
+                    ? 'Thiết bị đang ngoại tuyến. Hãy kiểm tra Wi-Fi hoặc 4G/5G.'
+                    : 'Đang chờ máy chủ dữ liệu phản hồi...'
+            );
+
+        page.hidden = false;
+
+        document.documentElement
+            .classList.add(
+                'app-network-404-open'
+            );
+
+        document.body?.classList.add(
+            'app-network-404-open'
+        );
+
+        /*
+         * Khi 404 xuất hiện thì
+         * ngừng timer tự tắt loader.
+         */
+        if (
+            window
+                .__appStartupLoaderFailsafe
+        ) {
+            clearTimeout(
+                window
+                    .__appStartupLoaderFailsafe
+            );
+
+            window
+                .__appStartupLoaderFailsafe =
+                null;
+        }
+
+        if (
+            window.AppStartupLoader
+        ) {
+            window.AppStartupLoader
+                .setStatus(
+                    'Kết nối bị gián đoạn...'
+                );
+        }
+    }
+
+    function hide() {
+        const page =
+            document.getElementById(
+                'appNetwork404Page'
+            );
+
+        if (page) {
+            page.hidden = true;
+        }
+
+        state.visible = false;
+
+        state.startupInterrupted =
+            false;
+
+        document.documentElement
+            .classList.remove(
+                'app-network-404-open'
+            );
+
+        document.body?.classList.remove(
+            'app-network-404-open'
+        );
+    }
+
+    function retry() {
+        if (
+            navigator.onLine === false
+        ) {
+            show({
+                status:
+                    'Vẫn chưa có mạng. Hãy kiểm tra Wi-Fi hoặc 4G/5G rồi thử lại.'
+            });
+
+            return;
+        }
+
+        document.getElementById(
+            'appNetwork404Status'
+        ).textContent =
+            'Đã phát hiện mạng. Đang tải lại hệ thống...';
+
+        setTimeout(
+            function () {
+                window.location.reload();
+            },
+            450
+        );
+    }
+
+    function isNetworkError(error) {
+        if (!error) {
+            return false;
+        }
+
+        const code =
+            String(
+                error.code || ''
+            ).toLowerCase();
+
+        const message =
+            String(
+                error.message ||
+                error ||
+                ''
+            ).toLowerCase();
+
+        const tokens = [
+            'network-request-failed',
+            'network error',
+            'failed to fetch',
+            'client is offline',
+            'disconnected',
+            'connection lost',
+            'offline',
+            'err_internet_disconnected',
+            'unavailable',
+            'timeout',
+            'timed out'
+        ];
+
+        return tokens.some(
+            token =>
+                code.includes(token) ||
+                message.includes(token)
+        );
+    }
+
+    function report(
+        error,
+        context = 'network'
+    ) {
+        if (
+            !isNetworkError(error)
+        ) {
+            return false;
+        }
+
+        const isLogin =
+            context === 'login';
+
+        show({
+            startup:
+                isLogin
+                    ? false
+                    : isStartupPhase(),
+
+            title:
+                isLogin
+                    ? 'Đăng nhập bị gián đoạn'
+                    : 'Không thể tải đủ dữ liệu',
+
+            message:
+                isLogin
+                    ? 'Kết nối bị mất trong lúc xác thực tài khoản. Hệ thống không tính đây là một lần nhập sai mật khẩu.'
+                    : 'Kết nối bị gián đoạn trong lúc trang đang tải. Hãy kết nối lại rồi thử lại.'
+        });
+
+        return true;
+    }
+
+    function recovered() {
+        if (!state.visible) {
+            return;
+        }
+
+        const status =
+            document.getElementById(
+                'appNetwork404Status'
+            );
+
+        if (status) {
+            status.textContent =
+                'Kết nối đã trở lại.';
+        }
+
+        /*
+         * Nếu bị mất mạng khi đang
+         * tải trang thì reload để tải
+         * lại đầy đủ dữ liệu Firebase.
+         */
+        if (
+            state.startupInterrupted
+        ) {
+            setTimeout(
+                function () {
+                    window.location.reload();
+                },
+                800
+            );
+
+            return;
+        }
+
+        /*
+         * Nếu đang dùng bình thường
+         * rồi mất mạng, mạng trở lại
+         * thì chỉ đóng màn hình 404.
+         */
+        setTimeout(
+            hide,
+            600
+        );
+    }
+
+    window.AppNetwork404 =
+        Object.freeze({
+            show,
+            hide,
+            retry,
+            report,
+            isNetworkError
+        });
+
+    /*
+     * Mất Wi-Fi / 4G / 5G.
+     */
+    window.addEventListener(
+        'offline',
+        function () {
+            show({
+                startup:
+                    isStartupPhase(),
+
+                title:
+                    '404 — Mất kết nối',
+
+                message:
+                    'Thiết bị vừa mất Internet nên thao tác hiện tại chưa thể hoàn tất.'
+            });
+        }
+    );
+
+    /*
+     * Internet trở lại.
+     */
+    window.addEventListener(
+        'online',
+        function () {
+
+            /*
+             * Có Internet nhưng Firebase
+             * chưa kết nối thì vẫn chờ.
+             */
+            if (
+                state.firebaseConnected ===
+                false
+            ) {
+                return;
+            }
+
+            recovered();
+        }
+    );
+
+    /*
+     * Bắt promise Firebase/fetch bị lỗi
+     * khi window.onload đang chạy.
+     */
+    window.addEventListener(
+        'unhandledrejection',
+        function (event) {
+            report(
+                event.reason,
+                isStartupPhase()
+                    ? 'startup'
+                    : 'network'
+            );
+        }
+    );
+
+    /*
+     * JS/CSS quan trọng không tải được
+     * trong lúc trang đang mở.
+     */
+    window.addEventListener(
+        'error',
+        function (event) {
+
+            const target =
+                event.target;
+
+            if (
+                !target ||
+                target === window ||
+                document.readyState ===
+                'complete'
+            ) {
+                return;
+            }
+
+            const tag =
+                String(
+                    target.tagName || ''
+                ).toUpperCase();
+
+            if (
+                tag === 'SCRIPT' ||
+                tag === 'LINK'
+            ) {
+                show({
+                    startup: true,
+
+                    title:
+                        'Tải trang bị gián đoạn',
+
+                    message:
+                        'Một tài nguyên cần thiết của trang chưa tải xong. Hãy kiểm tra kết nối rồi thử lại.'
+                });
+            }
+        },
+        true
+    );
+
+    /*
+     * Kiểm tra kết nối THẬT
+     * với Firebase.
+     */
+    try {
+        if (
+            window.db &&
+            typeof window.db.ref ===
+            'function'
+        ) {
+            window.db
+                .ref('.info/connected')
+                .on(
+                    'value',
+                    function (snapshot) {
+
+                        state.firebaseConnected =
+                            snapshot.val() ===
+                            true;
+
+                        clearTimeout(
+                            state.firebaseTimer
+                        );
+
+                        if (
+                            state.firebaseConnected
+                        ) {
+                            recovered();
+                            return;
+                        }
+
+                        /*
+                         * Firebase false thoáng qua
+                         * khi mới vào web là bình thường.
+                         * Đợi 8 giây mới hiện 404.
+                         */
+                        state.firebaseTimer =
+                            setTimeout(
+                                function () {
+
+                                    if (
+                                        state
+                                            .firebaseConnected !==
+                                        false
+                                    ) {
+                                        return;
+                                    }
+
+                                    show({
+                                        startup:
+                                            isStartupPhase(),
+
+                                        title:
+                                            navigator
+                                                .onLine ===
+                                                false
+                                                ? '404 — Mất kết nối'
+                                                : '404 — Không thể kết nối máy chủ',
+
+                                        message:
+                                            navigator
+                                                .onLine ===
+                                                false
+                                                ? 'Thiết bị đang ngoại tuyến nên Firebase chưa thể đồng bộ dữ liệu.'
+                                                : 'Internet vẫn có tín hiệu nhưng máy chủ dữ liệu chưa phản hồi.',
+
+                                        status:
+                                            navigator
+                                                .onLine ===
+                                                false
+                                                ? 'Hãy kiểm tra Wi-Fi hoặc 4G/5G.'
+                                                : 'Đang thử kết nối lại Firebase...'
+                                    });
+
+                                },
+                                8000
+                            );
+                    }
+                );
+        }
+    } catch (error) {
+        console.warn(
+            'Không thể theo dõi Firebase:',
+            error
+        );
+    }
+
+    /*
+     * Vừa mở web đã mất mạng.
+     */
+    if (
+        navigator.onLine === false
+    ) {
+        setTimeout(
+            function () {
+                show({
+                    startup:
+                        isStartupPhase()
+                });
+            },
+            0
+        );
+    }
+
+    /*
+     * Đăng ký trang offline.
+     */
+    if (
+        'serviceWorker' in navigator &&
+        (
+            location.protocol ===
+            'https:' ||
+            location.hostname ===
+            'localhost' ||
+            location.hostname ===
+            '127.0.0.1'
+        )
+    ) {
+        window.addEventListener(
+            'load',
+            function () {
+
+                navigator
+                    .serviceWorker
+                    .register(
+                        './sw.js',
+                        {
+                            scope: './'
+                        }
+                    )
+                    .catch(
+                        function (error) {
+                            console.warn(
+                                'Không thể đăng ký Service Worker:',
+                                error
+                            );
+                        }
+                    );
+            }
+        );
+    }
+
+})();
+
+// ======================================================
 // KHUNG MEDIA ĐĂNG NHẬP: TỰ NHẬN ẢNH HOẶC VIDEO
 // ======================================================
 (function initLoginSceneMedia() {
@@ -533,6 +1894,28 @@ if (loginForm) {
                     email: fakeEmail
                 }
             );
+
+            // Nếu lỗi là do mất mạng,
+            // mở màn hình 404.
+            //
+            // Quan trọng:
+            // KHÔNG tính đây là một lần
+            // nhập sai mật khẩu.
+            if (
+                window.AppNetwork404 &&
+                window.AppNetwork404.report(
+                    error,
+                    'login'
+                )
+            ) {
+                errorMsg.textContent =
+                    '⚠️ Kết nối bị gián đoạn. Hãy kiểm tra mạng rồi thử lại.';
+
+                errorMsg.style.color =
+                    '#d97706';
+
+                return;
+            }
 
             // Phần code xử lý lỗi phía dưới giữ nguyên.
 

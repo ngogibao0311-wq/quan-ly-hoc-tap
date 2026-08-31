@@ -6,13 +6,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Trang Giáo Viên</title>
     <link rel="icon" type="image/png" href="assets/icon.png">
-    <link rel="stylesheet" href="css/common.css?v=3.5">
-    <link rel="stylesheet" href="css/teacher.css?v=3.5">
-    <link rel="stylesheet" href="css/mobile.css?v=3.5">
-    <link rel="stylesheet" href="css/store-items.css?v=3.5">
-    <link rel="stylesheet" href="css/effects-pets.css?v=3.5">
-    <link rel="stylesheet" href="css/daily-login.css?v=3.5">
-    <link rel="stylesheet" href="css/painting.css?v=3.5">
+    <link rel="stylesheet" href="css/common.css?v=3.8">
+    <link rel="stylesheet" href="css/teacher.css?v=3.8">
+    <link rel="stylesheet" href="css/mobile.css?v=3.8">
+    <link rel="stylesheet" href="css/web-animations.css?v=1.0">
+    <link rel="stylesheet" href="css/store-items.css?v=3.8">
+    <link rel="stylesheet" href="css/effects-pets.css?v=3.8">
+    <link rel="stylesheet" href="css/daily-login.css?v=3.8">
+    <link rel="stylesheet" href="css/painting.css?v=3.8">
+    <link rel="stylesheet" href="css/luxury-store.css?v=4.2">
     <script>
         MathJax = {
             tex: {
@@ -69,8 +71,7 @@
             transition: transform .22s ease;
         }
 
-        .teacher-question-bank-shortcut-toggle.is-collapsed
-        .teacher-question-bank-shortcut-toggle-icon {
+        .teacher-question-bank-shortcut-toggle.is-collapsed .teacher-question-bank-shortcut-toggle-icon {
             transform: rotate(180deg);
         }
 
@@ -118,11 +119,9 @@
             justify-content: center;
             border-radius: 15px;
             font-size: 1.65rem;
-            background: linear-gradient(
-                135deg,
-                rgba(102, 126, 234, 0.18),
-                rgba(118, 75, 162, 0.16)
-            );
+            background: linear-gradient(135deg,
+                    rgba(102, 126, 234, 0.18),
+                    rgba(118, 75, 162, 0.16));
         }
 
         .teacher-question-bank-entry-text {
@@ -154,8 +153,7 @@
             transition: transform .2s ease;
         }
 
-        .teacher-question-bank-entry:hover
-        .teacher-question-bank-entry-arrow {
+        .teacher-question-bank-entry:hover .teacher-question-bank-entry-arrow {
             transform: translateX(4px);
         }
 
@@ -212,9 +210,642 @@
         }
     </style>
 
+    <style id="appStartupLoaderStyles">
+        #appStartupLoader {
+            position: fixed;
+            inset: 0;
+            z-index: 2147483640;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            box-sizing: border-box;
+            background:
+                radial-gradient(circle at 50% 25%, rgba(99, 102, 241, .30), transparent 33%),
+                radial-gradient(circle at 16% 82%, rgba(14, 165, 233, .14), transparent 28%),
+                linear-gradient(145deg, #07111f 0%, #101b33 52%, #07111f 100%);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            opacity: 1;
+            visibility: visible;
+            transition: opacity .32s ease, visibility .32s ease;
+        }
+
+        #appStartupLoader.is-hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .app-startup-loader-card {
+            width: min(94vw, 520px);
+            max-height: min(88vh, 760px);
+            overflow: auto;
+            padding: 28px;
+            border: 1px solid rgba(255, 255, 255, .16);
+            border-radius: 26px;
+            background: rgba(15, 23, 42, .78);
+            box-shadow: 0 28px 90px rgba(0, 0, 0, .42);
+            text-align: left;
+            color: #fff;
+        }
+
+        .app-startup-loader-head {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 18px;
+        }
+
+        .app-startup-cloud-icon {
+            width: 58px;
+            height: 58px;
+            flex: 0 0 58px;
+            display: grid;
+            place-items: center;
+            border-radius: 18px;
+            font-size: 1.75rem;
+            background: linear-gradient(135deg, rgba(56, 189, 248, .24), rgba(99, 102, 241, .34));
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .13);
+            animation: appStartupPulse 1.7s ease-in-out infinite;
+        }
+
+        .app-startup-loader-title strong {
+            display: block;
+            font-size: 1.16rem;
+            margin-bottom: 5px;
+        }
+
+        #appStartupLoaderStatus {
+            display: block;
+            min-height: 1.45em;
+            font-size: .92rem;
+            line-height: 1.5;
+            color: rgba(226, 232, 240, .86);
+        }
+
+        .app-startup-progress-track {
+            width: 100%;
+            height: 10px;
+            overflow: hidden;
+            border-radius: 999px;
+            background: rgba(148, 163, 184, .18);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .05);
+        }
+
+        #appStartupProgressBar {
+            display: block;
+            width: 4%;
+            height: 100%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, #38bdf8, #818cf8, #a78bfa);
+            transition: width .26s ease;
+        }
+
+        .app-startup-meta {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            margin: 9px 1px 0;
+            color: rgba(203, 213, 225, .78);
+            font-size: .79rem;
+            font-weight: 700;
+        }
+
+        #appStartupDetails {
+            margin-top: 17px;
+            padding: 11px 12px;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, .055);
+            color: rgba(226, 232, 240, .80);
+            font-size: .82rem;
+            line-height: 1.55;
+        }
+
+        #appStartupError {
+            margin-top: 17px;
+            padding: 14px;
+            border: 1px solid rgba(251, 113, 133, .34);
+            border-radius: 15px;
+            background: rgba(159, 18, 57, .18);
+        }
+
+        #appStartupError[hidden] { display: none !important; }
+
+        #appStartupError strong {
+            display: block;
+            margin-bottom: 6px;
+            color: #fecdd3;
+        }
+
+        #appStartupErrorText {
+            color: #ffe4e6;
+            font-size: .86rem;
+            line-height: 1.55;
+            white-space: pre-wrap;
+        }
+
+        .app-startup-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 9px;
+            margin-top: 12px;
+        }
+
+        .app-startup-actions button {
+            min-height: 40px;
+            padding: 0 14px;
+            border: 0;
+            border-radius: 11px;
+            cursor: pointer;
+            font-weight: 800;
+        }
+
+        .app-startup-retry { background: #e0f2fe; color: #0c4a6e; }
+        .app-startup-offline { background: rgba(255,255,255,.10); color: #fff; }
+
+        @keyframes appStartupPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.055); }
+        }
+
+        @media (max-width: 560px) {
+            #appStartupLoader { padding: 14px; }
+            .app-startup-loader-card { padding: 21px 18px; border-radius: 21px; }
+            .app-startup-cloud-icon { width: 50px; height: 50px; flex-basis: 50px; }
+        }
+    </style>
 </head>
 
 <body>
+    <div id="appStartupLoader" role="status" aria-live="polite" aria-busy="true">
+        <div class="app-startup-loader-card">
+            <div class="app-startup-loader-head">
+                <div class="app-startup-cloud-icon" aria-hidden="true">☁️</div>
+                <div class="app-startup-loader-title">
+                    <strong>Đang đồng bộ hệ thống học tập</strong>
+                    <span id="appStartupLoaderStatus">Đang kiểm tra tài nguyên và kết nối đám mây...</span>
+                </div>
+            </div>
+
+            <div class="app-startup-progress-track" aria-hidden="true">
+                <i id="appStartupProgressBar"></i>
+            </div>
+            <div class="app-startup-meta">
+                <span id="appStartupProgressText">Đang chuẩn bị...</span>
+                <span id="appStartupNetworkText">Đang kiểm tra mạng</span>
+            </div>
+
+            <div id="appStartupDetails">Hệ thống sẽ chỉ mở giao diện sau khi các dữ liệu bắt buộc đã phản hồi.</div>
+
+            <div id="appStartupError" hidden>
+                <strong>Không thể hoàn tất khởi động</strong>
+                <div id="appStartupErrorText"></div>
+                <div class="app-startup-actions">
+                    <button type="button" class="app-startup-retry" onclick="window.AppStartupLoader.retry()">↻ Thử lại</button>
+                    <button type="button" class="app-startup-offline" onclick="window.AppStartupLoader.openStatusPage()">🛟 Trang 404 / kết nối</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            'use strict';
+
+            const state = {
+                expected: new Set(),
+                ready: new Set(),
+                labels: new Map(),
+                warnings: [],
+                resourceErrors: [],
+                blocked: false,
+                errorKind: '',
+                hidden: false,
+                serviceWorkerPromise: null
+            };
+
+            const byId = id => document.getElementById(id);
+            const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+            function safeText(value) {
+                return String(value == null ? '' : value);
+            }
+
+            function updateNetworkLabel() {
+                const el = byId('appStartupNetworkText');
+                if (!el) return;
+                el.textContent = navigator.onLine ? '🌐 Có Internet' : '📴 Đang ngoại tuyến';
+            }
+
+            function getMissing() {
+                return [...state.expected].filter(key => !state.ready.has(key));
+            }
+
+            function render() {
+                if (state.hidden) return;
+                updateNetworkLabel();
+
+                const total = state.expected.size;
+                const done = [...state.expected].filter(key => state.ready.has(key)).length;
+                const percent = total ? Math.max(4, Math.min(100, Math.round((done / total) * 100))) : 4;
+
+                const bar = byId('appStartupProgressBar');
+                const text = byId('appStartupProgressText');
+                const details = byId('appStartupDetails');
+                if (bar) bar.style.width = percent + '%';
+                if (text) text.textContent = total ? `${done}/${total} bước • ${percent}%` : 'Đang chuẩn bị...';
+
+                if (details) {
+                    const missing = getMissing();
+                    if (missing.length) {
+                        const shown = missing.slice(0, 5).map(key => state.labels.get(key) || key);
+                        details.textContent = 'Đang chờ: ' + shown.join(' • ') + (missing.length > shown.length ? ` • +${missing.length - shown.length} bước` : '');
+                    } else if (total) {
+                        details.textContent = state.warnings.length
+                            ? `Dữ liệu bắt buộc đã sẵn sàng. Có ${state.warnings.length} cảnh báo không chặn hệ thống.`
+                            : '✅ Dữ liệu bắt buộc đã sẵn sàng.';
+                    }
+                }
+            }
+
+            function clearError() {
+                const box = byId('appStartupError');
+                if (box) box.hidden = true;
+                state.blocked = false;
+                state.errorKind = '';
+            }
+
+            function showError(message, detail, kind) {
+                state.blocked = true;
+                state.errorKind = kind || 'fatal';
+                const box = byId('appStartupError');
+                const text = byId('appStartupErrorText');
+                if (box) box.hidden = false;
+                if (text) text.textContent = safeText(message) + (detail ? '\n' + safeText(detail) : '');
+                api.setStatus('Khởi động bị gián đoạn. Hãy kiểm tra thông tin bên dưới.');
+                render();
+            }
+
+            function resolvePath(path) {
+                const normalized = safeText(path).trim();
+
+                // db thường được khai báo bằng const trong firebase-config.js,
+                // nên không nhất thiết nằm trên window.
+                if (normalized === 'db' || normalized.startsWith('db.')) {
+                    const database = (typeof db !== 'undefined' ? db : window.db);
+                    if (!database) return undefined;
+                    if (normalized === 'db') return database;
+                    return normalized.slice(3).split('.').filter(Boolean)
+                        .reduce((value, key) => value == null ? undefined : value[key], database);
+                }
+
+                return normalized.split('.').filter(Boolean)
+                    .reduce((value, key) => value == null ? undefined : value[key], window);
+            }
+
+            const api = {
+                expect(keys, labels) {
+                    (keys || []).forEach(key => {
+                        const normalized = safeText(key).trim();
+                        if (!normalized) return;
+                        state.expected.add(normalized);
+                        if (labels && labels[normalized]) state.labels.set(normalized, labels[normalized]);
+                    });
+                    render();
+                },
+
+                label(key, label) {
+                    if (key) state.labels.set(safeText(key), safeText(label));
+                    render();
+                },
+
+                markReady(key, label) {
+                    const normalized = safeText(key).trim();
+                    if (!normalized) return;
+                    if (label) state.labels.set(normalized, safeText(label));
+                    state.ready.add(normalized);
+                    render();
+
+                    if (state.blocked && state.errorKind === 'timeout' && getMissing().length === 0) {
+                        clearError();
+                        api.setStatus('Kết nối đã phục hồi. Hoàn tất khởi động...');
+                        setTimeout(() => api.hide(), 250);
+                    }
+                },
+
+                markWarning(message) {
+                    const text = safeText(message).trim();
+                    if (text && !state.warnings.includes(text)) state.warnings.push(text);
+                    render();
+                },
+
+                setStatus(message) {
+                    const el = byId('appStartupLoaderStatus');
+                    if (el) el.textContent = safeText(message);
+                },
+
+                fail(message, detail, kind) {
+                    showError(message, detail, kind || 'fatal');
+                    return false;
+                },
+
+                checkRuntime(paths) {
+                    const missing = (paths || []).filter(path => typeof resolvePath(path) === 'undefined');
+                    if (missing.length) {
+                        showError('Thiếu thư viện hoặc module bắt buộc.', 'Không tìm thấy: ' + missing.join(', '), 'runtime');
+                        return false;
+                    }
+                    return true;
+                },
+
+                checkStylesheets() {
+                    const failed = [...document.querySelectorAll('link[rel="stylesheet"][href]')]
+                        .filter(link => !link.disabled && !link.sheet)
+                        .map(link => link.href);
+
+                    if (failed.length) {
+                        showError(
+                            'Một hoặc nhiều giao diện CSS chưa tải được.',
+                            failed.join('\n'),
+                            'resource'
+                        );
+                        return false;
+                    }
+                    return true;
+                },
+
+                async registerServiceWorker() {
+                    if (state.serviceWorkerPromise) {
+                        return state.serviceWorkerPromise;
+                    }
+
+                    state.serviceWorkerPromise = (async () => {
+                        if (!('serviceWorker' in navigator)) {
+                            api.markWarning(
+                                'Trình duyệt không hỗ trợ Service Worker.'
+                            );
+                            return true;
+                        }
+
+                        if (!/^https?:$/.test(location.protocol)) {
+                            api.markWarning(
+                                'Service Worker chỉ hoạt động trên HTTP/HTTPS.'
+                            );
+                            return true;
+                        }
+
+                        try {
+                            /*
+                             * common.js là nơi duy nhất thực hiện registration.
+                             * Loader chỉ chờ kết quả để tránh đăng ký trùng.
+                             */
+                            if (
+                                window.AppServiceWorker &&
+                                typeof window.AppServiceWorker
+                                    .ensureRegistered === 'function'
+                            ) {
+                                await window.AppServiceWorker
+                                    .ensureRegistered();
+
+                                return true;
+                            }
+
+                            /*
+                             * Dự phòng nếu common.js chưa sẵn sàng.
+                             * URL vẫn được tính theo document.baseURI,
+                             * tương thích GitHub Pages project site.
+                             */
+                            const baseURL =
+                                new URL('./', document.baseURI);
+
+                            const registration =
+                                await navigator.serviceWorker.register(
+                                    new URL(
+                                        'sw.js',
+                                        baseURL
+                                    ).href,
+                                    {
+                                        scope: baseURL.pathname,
+                                        updateViaCache: 'none'
+                                    }
+                                );
+
+                            registration.update().catch(() => {});
+                            return true;
+
+                        } catch (error) {
+                            api.markWarning(
+                                'Không đăng ký được Service Worker: ' +
+                                (
+                                    error && error.message
+                                        ? error.message
+                                        : error
+                                )
+                            );
+
+                            /*
+                             * Service Worker là lớp hỗ trợ offline,
+                             * không được chặn Firebase/Web chính.
+                             */
+                            return true;
+                        }
+                    })();
+
+                    return state.serviceWorkerPromise;
+                },
+
+                async waitForCloudConnection(options) {
+                    const timeoutMs = Math.max(3000, Number(options && options.timeoutMs) || 18000);
+                    api.setStatus('Đang kết nối Firebase Realtime Database...');
+
+                    if (!navigator.onLine) {
+                        showError('Thiết bị đang ngoại tuyến.', 'Cần Internet để lấy dữ liệu mới nhất từ đám mây.', 'network');
+                        return false;
+                    }
+
+                    const database = (typeof db !== 'undefined' ? db : window.db);
+
+                    if (!database || typeof database.ref !== 'function') {
+                        showError('Firebase Database chưa được khởi tạo.', 'Không tìm thấy đối tượng db.ref().', 'runtime');
+                        return false;
+                    }
+
+                    return await new Promise(resolve => {
+                        let settled = false;
+                        const ref = database.ref('.info/connected');
+
+                        const finish = ok => {
+                            if (settled) return;
+                            settled = true;
+                            clearTimeout(timer);
+                            try { ref.off('value', handler); } catch (_) {}
+                            if (!ok) {
+                                showError(
+                                    'Không kết nối được máy chủ Firebase.',
+                                    `Đã chờ ${Math.round(timeoutMs / 1000)} giây nhưng máy chủ chưa phản hồi. Dữ liệu đám mây chưa đủ nên giao diện chưa được mở.`,
+                                    'network'
+                                );
+                            }
+                            resolve(ok);
+                        };
+
+                        const handler = snapshot => {
+                            if (snapshot && snapshot.val() === true) finish(true);
+                        };
+
+                        const timer = setTimeout(() => finish(false), timeoutMs);
+                        ref.on('value', handler, error => {
+                            showError('Firebase trả về lỗi kết nối.', error && error.message ? error.message : error, 'network');
+                            finish(false);
+                        });
+                    });
+                },
+
+                async runStage(key, label, task) {
+                    if (label) state.labels.set(key, label);
+                    api.setStatus('Đang tải: ' + (label || key) + '...');
+                    try {
+                        const result = await task();
+                        api.markReady(key, label);
+                        return result;
+                    } catch (error) {
+                        showError('Không tải được: ' + (label || key), error && error.message ? error.message : error, 'cloud');
+                        throw error;
+                    }
+                },
+
+                async waitForExpected(options) {
+                    const timeoutMs = Math.max(5000, Number(options && options.timeoutMs) || 30000);
+                    const started = Date.now();
+                    api.setStatus('Đang chờ các dữ liệu bắt buộc từ đám mây...');
+
+                    while (getMissing().length) {
+                        if (Date.now() - started >= timeoutMs) {
+                            const missing = getMissing();
+                            showError(
+                                'Một số dữ liệu bắt buộc chưa phản hồi.',
+                                'Còn thiếu: ' + missing.map(key => state.labels.get(key) || key).join(', '),
+                                'timeout'
+                            );
+                            return false;
+                        }
+                        await sleep(120);
+                    }
+
+                    return true;
+                },
+
+                async waitForMedia(options) {
+                    const timeoutMs = Math.max(1000, Number(options && options.timeoutMs) || 7000);
+                    const quietMs = Math.max(0, Number(options && options.quietMs) || 350);
+                    api.setStatus('Đang hoàn thiện ảnh và nội dung web...');
+
+                    const media = [...document.querySelectorAll('img[src], iframe[data-startup-video="1"]')]
+                        .filter(el => el.getAttribute('src'));
+
+                    const waits = media.map(el => new Promise(resolve => {
+                        if (el.tagName === 'IMG' && el.complete) return resolve();
+                        let done = false;
+                        const finish = () => {
+                            if (done) return;
+                            done = true;
+                            el.removeEventListener('load', finish);
+                            el.removeEventListener('error', finish);
+                            resolve();
+                        };
+                        el.addEventListener('load', finish, { once: true });
+                        el.addEventListener('error', finish, { once: true });
+                        setTimeout(finish, Math.min(timeoutMs, 5000));
+                    }));
+
+                    await Promise.race([
+                        Promise.all(waits),
+                        sleep(timeoutMs)
+                    ]);
+                    if (quietMs) await sleep(quietMs);
+                    return true;
+                },
+
+                hide(force) {
+                    if (state.hidden) return true;
+                    if (state.blocked && force !== true) return false;
+                    if (getMissing().length && force !== true) {
+                        showError('Dữ liệu chưa đủ để mở giao diện.', 'Còn thiếu: ' + getMissing().join(', '), 'timeout');
+                        return false;
+                    }
+
+                    const loader = byId('appStartupLoader');
+                    if (!loader) return true;
+                    state.hidden = true;
+                    loader.setAttribute('aria-busy', 'false');
+                    loader.classList.add('is-hidden');
+                    setTimeout(() => loader.remove(), 380);
+                    return true;
+                },
+
+                retry() {
+                    location.reload();
+                },
+
+                openStatusPage() {
+                    const target = new URL('./offline.html', location.href);
+                    target.searchParams.set('from', location.href);
+                    location.href = target.href;
+                },
+
+                diagnostics() {
+                    return {
+                        online: navigator.onLine,
+                        expected: [...state.expected],
+                        ready: [...state.ready],
+                        missing: getMissing(),
+                        warnings: [...state.warnings],
+                        resourceErrors: [...state.resourceErrors]
+                    };
+                }
+            };
+
+            window.AppStartupLoader = api;
+
+            window.addEventListener('online', updateNetworkLabel);
+            window.addEventListener('offline', updateNetworkLabel);
+            updateNetworkLabel();
+
+            window.addEventListener('error', event => {
+                const target = event.target;
+                if (target && target !== window && (target.src || target.href)) {
+                    const url = target.src || target.href;
+                    state.resourceErrors.push(url);
+
+                    let isCriticalLocalResource = false;
+                    try {
+                        const parsed = new URL(url, location.href);
+                        isCriticalLocalResource =
+                            parsed.origin === location.origin &&
+                            (target.tagName === 'SCRIPT' || target.tagName === 'LINK');
+                    } catch (_) {}
+
+                    if (isCriticalLocalResource) {
+                        showError(
+                            'Không tải được tài nguyên bắt buộc của website.',
+                            url,
+                            'resource'
+                        );
+                    } else {
+                        api.markWarning('Không tải được tài nguyên: ' + url);
+                    }
+                }
+            }, true);
+
+            window.addEventListener('unhandledrejection', event => {
+                if (state.hidden) return;
+                const reason = event.reason;
+                const message = reason && reason.message ? reason.message : reason;
+                showError('Có lỗi trong quá trình khởi động.', message || 'Promise bị từ chối nhưng không có thông báo chi tiết.', 'runtime');
+            });
+        })();
+    </script>
     <div class="dashboard">
         <div class="sidebar">
             <div class="sidebar-toggle" onclick="toggleSidebar()">
@@ -237,8 +868,7 @@
                         lý học sinh</span></button>
                 <button class="nav-item" onclick="switchTab('tab-roadmap', this)">🗺️ <span class="nav-text">Lộ
                         trình & Lịch</span></button>
-                <button id="teacherGameMainNav" class="nav-item"
-                    onclick="openTeacherGameWorkspace('game', this)">🎮
+                <button id="teacherGameMainNav" class="nav-item" onclick="openTeacherGameWorkspace('game', this)">🎮
                     <span class="nav-text">Quản lý trò chơi</span>
                 </button>
                 <button class="nav-item" id="btnSettingsNav" onclick="switchTab('tab-settings', this)">⚙️ <span
@@ -255,28 +885,20 @@
                 <div class="teacher-assignment-heading-row">
                     <h2>Giao bài tập mới</h2>
 
-                    <button type="button"
-                        id="teacherQuestionBankShortcutToggle"
-                        class="teacher-question-bank-shortcut-toggle"
-                        onclick="toggleTeacherQuestionBankShortcut()"
-                        aria-expanded="true"
-                        aria-controls="teacherQuestionBankShortcutPanel"
+                    <button type="button" id="teacherQuestionBankShortcutToggle"
+                        class="teacher-question-bank-shortcut-toggle" onclick="toggleTeacherQuestionBankShortcut()"
+                        aria-expanded="true" aria-controls="teacherQuestionBankShortcutPanel"
                         title="Thu gọn Ngân hàng câu hỏi">
-                        <span class="teacher-question-bank-shortcut-toggle-icon"
-                            aria-hidden="true">⌃</span>
+                        <span class="teacher-question-bank-shortcut-toggle-icon" aria-hidden="true">⌃</span>
                     </button>
                 </div>
 
-                <div id="teacherQuestionBankShortcutPanel"
-                    class="teacher-question-bank-shortcut-panel">
+                <div id="teacherQuestionBankShortcutPanel" class="teacher-question-bank-shortcut-panel">
 
-                    <button type="button"
-                        class="teacher-question-bank-entry"
-                        onclick="openTeacherAssignmentWorkspace('question-bank')"
-                        aria-label="Mở Ngân hàng câu hỏi">
+                    <button type="button" class="teacher-question-bank-entry"
+                        onclick="openTeacherAssignmentWorkspace('question-bank')" aria-label="Mở Ngân hàng câu hỏi">
 
-                        <span class="teacher-question-bank-entry-icon"
-                            aria-hidden="true">
+                        <span class="teacher-question-bank-entry-icon" aria-hidden="true">
                             🧠
                         </span>
 
@@ -290,8 +912,7 @@
                             </span>
                         </span>
 
-                        <span class="teacher-question-bank-entry-arrow"
-                            aria-hidden="true">
+                        <span class="teacher-question-bank-entry-arrow" aria-hidden="true">
                             →
                         </span>
                     </button>
@@ -659,8 +1280,7 @@
                 <div class="teacher-question-bank-heading-row">
                     <h2>🧾 Nhật ký giao dịch</h2>
 
-                    <button type="button"
-                        class="teacher-question-bank-back-button"
+                    <button type="button" class="teacher-question-bank-back-button"
                         onclick="openTeacherGameWorkspace('game')">
                         ← Quay lại Quản lý trò chơi
                     </button>
@@ -939,28 +1559,20 @@
                 <div class="teacher-assignment-heading-row">
                     <h2>Quản lý trò chơi (Giáo viên)</h2>
 
-                    <button type="button"
-                        id="teacherTransactionShortcutToggle"
-                        class="teacher-question-bank-shortcut-toggle"
-                        onclick="toggleTeacherTransactionShortcut()"
-                        aria-expanded="true"
-                        aria-controls="teacherTransactionShortcutPanel"
+                    <button type="button" id="teacherTransactionShortcutToggle"
+                        class="teacher-question-bank-shortcut-toggle" onclick="toggleTeacherTransactionShortcut()"
+                        aria-expanded="true" aria-controls="teacherTransactionShortcutPanel"
                         title="Thu gọn Nhật ký giao dịch">
-                        <span class="teacher-question-bank-shortcut-toggle-icon"
-                            aria-hidden="true">⌃</span>
+                        <span class="teacher-question-bank-shortcut-toggle-icon" aria-hidden="true">⌃</span>
                     </button>
                 </div>
 
-                <div id="teacherTransactionShortcutPanel"
-                    class="teacher-question-bank-shortcut-panel">
+                <div id="teacherTransactionShortcutPanel" class="teacher-question-bank-shortcut-panel">
 
-                    <button type="button"
-                        class="teacher-question-bank-entry"
-                        onclick="openTeacherGameWorkspace('transactions')"
-                        aria-label="Mở Nhật ký giao dịch">
+                    <button type="button" class="teacher-question-bank-entry"
+                        onclick="openTeacherGameWorkspace('transactions')" aria-label="Mở Nhật ký giao dịch">
 
-                        <span class="teacher-question-bank-entry-icon"
-                            aria-hidden="true">
+                        <span class="teacher-question-bank-entry-icon" aria-hidden="true">
                             🧾
                         </span>
 
@@ -974,8 +1586,7 @@
                             </span>
                         </span>
 
-                        <span class="teacher-question-bank-entry-arrow"
-                            aria-hidden="true">
+                        <span class="teacher-question-bank-entry-arrow" aria-hidden="true">
                             →
                         </span>
                     </button>
@@ -1459,8 +2070,7 @@
                 <div class="teacher-question-bank-heading-row">
                     <h2>🧠 Ngân hàng câu hỏi & Đề ngẫu nhiên</h2>
 
-                    <button type="button"
-                        class="teacher-question-bank-back-button"
+                    <button type="button" class="teacher-question-bank-back-button"
                         onclick="openTeacherAssignmentWorkspace('create')">
                         ← Quay lại Giao bài tập mới
                     </button>
@@ -2621,8 +3231,8 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
     <!-- 2. Khởi tạo Firebase -->
-    <script src="js/firebase-config.js?v=3.5"></script>
-    <script src="js/cloudinary-storage.js?v=3.5"></script>
+    <script src="js/firebase-config.js?v=3.8"></script>
+    <script src="js/cloudinary-storage.js?v=3.8"></script>
 
     <script>
         window.APP_STORAGE_CONFIG = Object.freeze({
@@ -2630,29 +3240,34 @@
         });
     </script>
 
-    <script src="js/cloudflare-r2-storage.js?v=3.5"></script>
+    <script src="js/cloudflare-r2-storage.js?v=3.8"></script>
 
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.4.7/dist/purify.min.js">
     </script>
 
     <!-- 3. Mã nền tảng -->
     <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
-    <script src="js/common.js?v=3.5"></script>
-    <script src="js/transaction-history.js?v=3.5"></script>
-    <script src="js/security.js?v=3.5"></script>
+    <script src="js/common.js?v=3.6"></script>
+    <script src="js/web-animations.js?v=1.0"></script>
+    <script src="js/transaction-history.js?v=3.8"></script>
+    <script src="js/security.js?v=3.8"></script>
 
     <!-- 4. Các module tính năng -->
-    <script src="js/daily-login.js?v=3.5"></script>
-    <script src="js/theme-items.js?v=3.5"></script>
-    <script src="js/effect-items.js?v=3.5"></script>
-    <script src="js/pet-items.js?v=3.5"></script>
-    <script src="js/royal-ball.js?v=3.5"></script>
-    <script src="js/music-manager.js?v=3.5"></script>
-    <script src="js/store-manager.js?v=3.5"></script>
-    <script src="js/painting.js?v=3.5"></script>
+    <script src="js/daily-login.js?v=3.8"></script>
+    <script src="js/theme-items.js?v=4.2"></script>
+    <script src="js/effect-items.js?v=4.2"></script>
+    <script src="js/pet-items.js?v=4.2"></script>
+    <script src="js/royal-ball.js?v=3.8"></script>
+    <script src="js/music-manager.js?v=3.8"></script>
+    <script src="js/store-manager.js?v=3.8"></script>
+    <script src="js/painting.js?v=3.8"></script>
+    <script src="js/luxury-store.js?v=4.2"></script>
 
     <!-- 5. Logic chính của trang giáo viên luôn đặt cuối -->
-    <script src="js/teacher.js?v=3.5"></script>
+    <!-- Hotfix: xác nhận cài đặt lộ trình trước khi teacher.js chờ loader -->
+    <script src="js/roadmap-startup-fix.js?v=1.0"></script>
+
+    <script src="js/teacher.js?v=3.8"></script>
     <script src="js/huong-dan-nguoi-moi.js?v=1.0.0"></script>
 </body>
 

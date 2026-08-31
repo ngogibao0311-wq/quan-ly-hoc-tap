@@ -3,6 +3,271 @@
 class PetManager {
     static container = document.getElementById('virtual-pet-container');
     static interactionAbortController = null;
+    static premiumSpringObserver = null;
+    static nationalDayObserver = null;
+
+    // =========================================================
+    // PREMIUM MÙA XUÂN — DỌN / QUẢN LÝ THẦN VỰC
+    // =========================================================
+    static clearPremiumSpringRealm() {
+        if (this.premiumSpringObserver) {
+            this.premiumSpringObserver.disconnect();
+            this.premiumSpringObserver = null;
+        }
+
+        this.container =
+            document.getElementById('virtual-pet-container') ||
+            this.container;
+
+        this.container?.classList.remove(
+            'pet-spring-vintage-stage',
+            'spring-vintage-awakening',
+            'spring-vintage-casting'
+        );
+
+        const activeImage =
+            this.container?.querySelector(
+                '#virtual-pet-img.spring-vintage-goddess-magic'
+            );
+
+        activeImage?.classList.remove(
+            'spring-vintage-goddess-magic',
+            'spring-vintage-avatar'
+        );
+
+        document
+            .querySelectorAll(
+                '.spring-vintage-trail, .spring-vintage-ultimate'
+            )
+            .forEach(node => node.remove());
+    }
+
+    static installPremiumSpringObserver() {
+        this.container =
+            document.getElementById('virtual-pet-container') ||
+            this.container;
+
+        if (!this.container) return;
+
+        if (this.premiumSpringObserver) {
+            this.premiumSpringObserver.disconnect();
+        }
+
+        this.premiumSpringObserver =
+            new MutationObserver(() => {
+                const activePet =
+                    this.container.querySelector(
+                        '#virtual-pet-img.spring-vintage-goddess-magic'
+                    );
+
+                const style =
+                    window.getComputedStyle(this.container);
+
+                const isVisible =
+                    style.display !== 'none' &&
+                    style.visibility !== 'hidden';
+
+                if (!activePet || !isVisible) {
+                    this.clearPremiumSpringRealm();
+                }
+            });
+
+        this.premiumSpringObserver.observe(
+            this.container,
+            {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                attributeFilter: [
+                    'class',
+                    'style'
+                ]
+            }
+        );
+    }
+
+    // =========================================================
+    // QUỐC KHÁNH — HÀO KHÍ ĐỘC LẬP
+    // Concept riêng: trống đồng Đông Sơn + sơn son + sao vàng.
+    // Không dùng lại realm, class hoặc animation của pet cũ.
+    // =========================================================
+    static clearNationalDayRealm() {
+        if (this.nationalDayObserver) {
+            this.nationalDayObserver.disconnect();
+            this.nationalDayObserver = null;
+        }
+
+        const realm =
+            document.getElementById(
+                'national-day-heritage-realm'
+            );
+
+        realm?.remove();
+
+        document
+            .querySelectorAll(
+                '.national-day-independence-burst,' +
+                '.national-day-dialogue-box'
+            )
+            .forEach(node => node.remove());
+
+        document.documentElement.classList.remove(
+            'national-day-heritage-equipped'
+        );
+
+        this.container =
+            document.getElementById('virtual-pet-container') ||
+            this.container;
+
+        this.container?.classList.remove(
+            'pet-national-day-stage',
+            'national-day-awakening',
+            'national-day-casting'
+        );
+    }
+
+    static createNationalDayRealm() {
+        this.clearNationalDayRealm();
+
+        this.container =
+            document.getElementById('virtual-pet-container') ||
+            this.container;
+
+        if (!this.container) return null;
+
+        const realm = document.createElement('div');
+
+        realm.id = 'national-day-heritage-realm';
+        realm.className = 'national-day-heritage-realm';
+        realm.setAttribute('aria-hidden', 'true');
+
+        realm.innerHTML = `
+        <div class="nd-realm-lacquer-wash"></div>
+
+        <div class="nd-realm-drum-watermark">
+            <span class="nd-realm-drum-star">★</span>
+            <span class="nd-realm-drum-track track-a"></span>
+            <span class="nd-realm-drum-track track-b"></span>
+            <span class="nd-realm-drum-track track-c"></span>
+        </div>
+
+        <div class="nd-realm-gold-horizon"></div>
+        <div class="nd-realm-particle-field"></div>
+
+        <div class="nd-realm-title">
+            <small>02 · 09</small>
+            <strong>HÀO KHÍ ĐỘC LẬP</strong>
+        </div>
+    `;
+
+        const particleField =
+            realm.querySelector(
+                '.nd-realm-particle-field'
+            );
+
+        const reduced =
+            window.matchMedia?.(
+                '(max-width: 768px), (pointer: coarse), (prefers-reduced-motion: reduce)'
+            ).matches;
+
+        const particleCount = reduced ? 10 : 22;
+
+        for (
+            let index = 0;
+            index < particleCount;
+            index++
+        ) {
+            const shard = document.createElement('span');
+
+            shard.className =
+                index % 5 === 0
+                    ? 'nd-realm-star-particle'
+                    : 'nd-realm-bronze-particle';
+
+            shard.textContent =
+                index % 5 === 0
+                    ? '★'
+                    : '';
+
+            shard.style.setProperty(
+                '--nd-x',
+                `${(index * 43 + 7) % 96}%`
+            );
+
+            shard.style.setProperty(
+                '--nd-y',
+                `${(index * 67 + 11) % 92}%`
+            );
+
+            shard.style.setProperty(
+                '--nd-delay',
+                `${-(index % 11) * 0.48}s`
+            );
+
+            shard.style.setProperty(
+                '--nd-duration',
+                `${7 + (index % 6) * 0.9}s`
+            );
+
+            shard.style.setProperty(
+                '--nd-scale',
+                `${0.62 + (index % 5) * 0.13}`
+            );
+
+            particleField?.appendChild(shard);
+        }
+
+        document.body.appendChild(realm);
+
+        document.documentElement.classList.add(
+            'national-day-heritage-equipped'
+        );
+
+        requestAnimationFrame(() => {
+            realm.classList.add('is-active');
+        });
+
+        this.nationalDayObserver =
+            new MutationObserver(() => {
+                const activePet =
+                    document.getElementById(
+                        'virtual-pet-img'
+                    );
+
+                const style =
+                    this.container
+                        ? window.getComputedStyle(
+                            this.container
+                        )
+                        : null;
+
+                const stillActive =
+                    activePet?.classList.contains(
+                        'national-day-dong-son-magic'
+                    ) &&
+                    style?.display !== 'none' &&
+                    style?.visibility !== 'hidden';
+
+                if (!stillActive) {
+                    this.clearNationalDayRealm();
+                }
+            });
+
+        this.nationalDayObserver.observe(
+            this.container,
+            {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                attributeFilter: [
+                    'class',
+                    'style'
+                ]
+            }
+        );
+
+        return realm;
+    }
 
     static clearSlothDreamRealm() {
         const oldRealm =
@@ -537,6 +802,13 @@ class PetManager {
 
         this.clearSlothDreamRealm();
         this.clearBirthday2026Realm();
+        this.clearPremiumSpringRealm();
+        this.clearNationalDayRealm();
+        document
+            .querySelectorAll(
+                '.nd29-independence-flash, .nd29-pet-dialogue'
+            )
+            .forEach(node => node.remove());
         // Dọn toàn bộ tương tác và vòng lặp của thú cưng trước
         if (
             typeof PetInteractionManager !== 'undefined' &&
@@ -559,6 +831,15 @@ class PetManager {
             'pet-birthday-serpent-2026-stage',
             'pet-saturn-cassini-stage',
             'pet-rainy-day-stage',
+            'pet-spring-vintage-stage',
+            'spring-vintage-awakening',
+            'spring-vintage-casting',
+            'pet-national-day-stage',
+            'national-day-awakening',
+            'national-day-casting',
+            'pet-national-day-chibi-stage',
+            'nd29-awakening',
+            'nd29-casting',
         );
 
         let petElement;
@@ -582,6 +863,211 @@ class PetManager {
         if (petData.petEffect) {
             petElement.classList.add(petData.petEffect);
             petElement.style.filter = '';
+        }
+
+        // =========================================================
+        // QUỐC KHÁNH 2/9 — SỨ GIẢ SAO VÀNG
+        // Vật phẩm mới hoàn toàn.
+        // KHÔNG dùng national-day-dong-son-magic của pet cũ.
+        // =========================================================
+        if (
+            petData.petEffect ===
+            'national-day-chibi-star-magic'
+        ) {
+            petElement.setAttribute('draggable', 'false');
+
+            this.container.classList.add(
+                'pet-national-day-chibi-stage',
+                'nd29-awakening'
+            );
+
+            const emblem = document.createElement('div');
+
+            emblem.className = 'nd29-pet-emblem';
+            emblem.setAttribute('aria-hidden', 'true');
+
+            emblem.innerHTML = `
+        <span class="nd29-halo halo-outer"></span>
+        <span class="nd29-halo halo-inner"></span>
+
+        <span class="nd29-emblem-star">
+            ★
+        </span>
+
+        <span class="nd29-ribbon ribbon-left"></span>
+        <span class="nd29-ribbon ribbon-right"></span>
+
+        <div class="nd29-ambient-particles"></div>
+    `;
+
+            const particleField =
+                emblem.querySelector(
+                    '.nd29-ambient-particles'
+                );
+
+            const reducedMotion =
+                window.matchMedia?.(
+                    '(max-width: 768px), ' +
+                    '(pointer: coarse), ' +
+                    '(prefers-reduced-motion: reduce)'
+                ).matches;
+
+            const particleCount =
+                reducedMotion ? 8 : 16;
+
+            for (
+                let index = 0;
+                index < particleCount;
+                index++
+            ) {
+                const particle =
+                    document.createElement('span');
+
+                particle.className =
+                    index % 4 === 0
+                        ? 'nd29-ambient-star'
+                        : 'nd29-ambient-spark';
+
+                particle.textContent =
+                    index % 4 === 0
+                        ? '★'
+                        : '';
+
+                particle.style.setProperty(
+                    '--nd29-angle',
+                    `${index *
+                    (360 / particleCount)}deg`
+                );
+
+                particle.style.setProperty(
+                    '--nd29-radius',
+                    `${56 +
+                    (index % 5) * 8}px`
+                );
+
+                particle.style.setProperty(
+                    '--nd29-delay',
+                    `${-index * 0.22}s`
+                );
+
+                particleField?.appendChild(
+                    particle
+                );
+            }
+
+            this.container.appendChild(emblem);
+
+            window.setTimeout(() => {
+                this.container?.classList.remove(
+                    'nd29-awakening'
+                );
+            }, 1450);
+        }
+
+        // =========================================================
+        // VIỆT LINH · HÀO KHÍ ĐỘC LẬP
+        // Idle local: trống đồng, sơn son, quỹ đạo sao và mảnh đồng.
+        // =========================================================
+        if (
+            petData.petEffect ===
+            'national-day-dong-son-magic'
+        ) {
+            petElement.setAttribute(
+                'draggable',
+                'false'
+            );
+
+            this.container.classList.add(
+                'pet-national-day-stage'
+            );
+
+            const drum = document.createElement('div');
+
+            drum.className =
+                'national-day-pet-drum';
+
+            drum.setAttribute(
+                'aria-hidden',
+                'true'
+            );
+
+            drum.innerHTML = `
+        <span class="nd-pet-drum-disc"></span>
+        <span class="nd-pet-drum-ring ring-one"></span>
+        <span class="nd-pet-drum-ring ring-two"></span>
+        <span class="nd-pet-drum-star">★</span>
+        <span class="nd-pet-lacquer-arc arc-left"></span>
+        <span class="nd-pet-lacquer-arc arc-right"></span>
+        <div class="nd-pet-orbit-field"></div>
+        <div class="nd-pet-bronze-shards"></div>
+    `;
+
+            const orbitField =
+                drum.querySelector(
+                    '.nd-pet-orbit-field'
+                );
+
+            for (
+                let index = 0;
+                index < 5;
+                index++
+            ) {
+                const star =
+                    document.createElement('span');
+
+                star.className =
+                    'nd-pet-orbit-star';
+
+                star.textContent = '★';
+
+                star.style.setProperty(
+                    '--nd-pet-angle',
+                    `${index * 72}deg`
+                );
+
+                star.style.setProperty(
+                    '--nd-pet-angle-back',
+                    `${index * -72}deg`
+                );
+
+                star.style.setProperty(
+                    '--nd-pet-delay',
+                    `${-index * 0.44}s`
+                );
+
+                orbitField?.appendChild(star);
+            }
+
+            const shardField =
+                drum.querySelector(
+                    '.nd-pet-bronze-shards'
+                );
+
+            for (
+                let index = 0;
+                index < 12;
+                index++
+            ) {
+                const shard =
+                    document.createElement('span');
+
+                shard.className =
+                    'nd-pet-bronze-shard';
+
+                shard.style.setProperty(
+                    '--nd-shard-angle',
+                    `${index * 30}deg`
+                );
+
+                shard.style.setProperty(
+                    '--nd-shard-delay',
+                    `${-index * 0.22}s`
+                );
+
+                shardField?.appendChild(shard);
+            }
+
+            this.container.appendChild(drum);
         }
         // =========================================================
         // MÈO NHỎ NGÀY MƯA — KHUNG MƯA CỤC BỘ
@@ -1237,6 +1723,186 @@ class PetManager {
             this.container.appendChild(ringFront);
         }
 
+        // =========================================================
+        // NỮ THẦN MÙA XUÂN — XUÂN TỬU HOA VIÊN
+        // Concept mới hoàn toàn: nho tím, dây leo ánh kim, rượu hồng ngọc
+        // và thủy tinh màu. Không dùng cánh hoa, bướm, vương miện, cổng
+        // hay mặt trời từ các hiệu ứng Mùa Xuân cũ.
+        // =========================================================
+        if (
+            petData.petEffect ===
+            'spring-vintage-goddess-magic'
+        ) {
+            petElement.setAttribute('draggable', 'false');
+            petElement.classList.add('spring-vintage-avatar');
+
+            this.container.classList.add(
+                'pet-spring-vintage-stage'
+            );
+
+            const relic = document.createElement('div');
+            relic.className = 'spring-vintage-pet-relic';
+            relic.setAttribute('aria-hidden', 'true');
+
+            relic.innerHTML = `
+                <div class="spring-vintage-glass-disc">
+                    <span class="spring-vintage-glass-cut cut-a"></span>
+                    <span class="spring-vintage-glass-cut cut-b"></span>
+                    <span class="spring-vintage-glass-cut cut-c"></span>
+                </div>
+
+                <span class="spring-vintage-vine arc-left"></span>
+                <span class="spring-vintage-vine arc-right"></span>
+
+                <div class="spring-vintage-grape-orbit orbit-a"></div>
+                <div class="spring-vintage-grape-orbit orbit-b"></div>
+
+                <div class="spring-vintage-nectar-vessel">
+                    <span class="spring-vintage-nectar-surface"></span>
+                    <span class="spring-vintage-nectar-glint"></span>
+                </div>
+
+                <div class="spring-vintage-gem-field"></div>
+            `;
+
+            const grapeOrbits = relic.querySelectorAll(
+                '.spring-vintage-grape-orbit'
+            );
+
+            grapeOrbits.forEach((orbit, orbitIndex) => {
+                const grapeCount = orbitIndex === 0 ? 9 : 7;
+
+                for (let index = 0; index < grapeCount; index++) {
+                    const grape = document.createElement('span');
+                    grape.className = 'spring-vintage-grape';
+                    grape.style.setProperty(
+                        '--sv-grape-angle',
+                        `${index * (360 / grapeCount) + orbitIndex * 19}deg`
+                    );
+                    grape.style.setProperty(
+                        '--sv-grape-delay',
+                        `${-(index + orbitIndex * 2) * 0.19}s`
+                    );
+                    grape.style.setProperty(
+                        '--sv-grape-scale',
+                        `${0.72 + (index % 4) * 0.09}`
+                    );
+                    orbit.appendChild(grape);
+                }
+            });
+
+            const gemField = relic.querySelector(
+                '.spring-vintage-gem-field'
+            );
+
+            const gemCount = window.matchMedia?.(
+                '(max-width: 768px), (pointer: coarse)'
+            ).matches ? 10 : 18;
+
+            for (let index = 0; index < gemCount; index++) {
+                const gem = document.createElement('span');
+                gem.className = 'spring-vintage-gem';
+                gem.style.setProperty(
+                    '--sv-gem-x',
+                    `${8 + (index * 31) % 84}%`
+                );
+                gem.style.setProperty(
+                    '--sv-gem-y',
+                    `${9 + (index * 47) % 77}%`
+                );
+                gem.style.setProperty(
+                    '--sv-gem-delay',
+                    `${-index * 0.31}s`
+                );
+                gem.style.setProperty(
+                    '--sv-gem-size',
+                    `${3 + index % 4}px`
+                );
+                gemField?.appendChild(gem);
+            }
+
+            this.container.appendChild(relic);
+
+            // Kỹ năng nhấn riêng: "Xuân Tửu Khai Yến".
+            // Listener gắn trực tiếp vào pet nên không gọi hiệu ứng click chung.
+            let springCastLocked = false;
+
+            petElement.addEventListener('click', event => {
+                if (springCastLocked) return;
+
+                if (
+                    typeof PetInteractionManager !== 'undefined' &&
+                    PetInteractionManager.isPetDragging
+                ) {
+                    return;
+                }
+
+                event.preventDefault();
+                event.stopPropagation();
+                springCastLocked = true;
+
+                this.container.classList.remove(
+                    'spring-vintage-casting'
+                );
+
+                void this.container.offsetWidth;
+
+                this.container.classList.add(
+                    'spring-vintage-casting'
+                );
+
+                const localBurst = document.createElement('div');
+                localBurst.className = 'spring-vintage-local-burst';
+                localBurst.setAttribute('aria-hidden', 'true');
+
+                for (let index = 0; index < 16; index++) {
+                    const drop = document.createElement('span');
+                    drop.className = index % 3 === 0
+                        ? 'spring-vintage-burst-grape'
+                        : 'spring-vintage-burst-drop';
+
+                    drop.style.setProperty(
+                        '--sv-burst-angle',
+                        `${index * (360 / 16)}deg`
+                    );
+                    drop.style.setProperty(
+                        '--sv-burst-distance',
+                        `${58 + index % 4 * 14}px`
+                    );
+                    drop.style.setProperty(
+                        '--sv-burst-delay',
+                        `${(index % 4) * 0.025}s`
+                    );
+                    localBurst.appendChild(drop);
+                }
+
+                this.container.appendChild(localBurst);
+
+                if (
+                    typeof EffectManager !== 'undefined' &&
+                    typeof EffectManager.pulsePremiumSpringCrown === 'function'
+                ) {
+                    const rect = petElement.getBoundingClientRect();
+
+                    EffectManager.pulsePremiumSpringCrown(
+                        rect.left + rect.width / 2,
+                        rect.top + rect.height / 2
+                    );
+                }
+
+                window.setTimeout(() => {
+                    localBurst.remove();
+                    this.container?.classList.remove(
+                        'spring-vintage-casting'
+                    );
+                }, 1550);
+
+                window.setTimeout(() => {
+                    springCastLocked = false;
+                }, 6000);
+            });
+        }
+
         this.container.appendChild(petElement);
 
         /*
@@ -1339,6 +2005,554 @@ class PetManager {
         this.container.appendChild(closeBtn);
         this.makePetDraggable();
         localStorage.setItem('active_pet', petData.id);
+
+        // =========================================================
+        // QUỐC KHÁNH 2/9 — ULTIMATE NHẤN
+        // SAO VÀNG KHẢI HOÀN
+        //
+        // Cùng cấp độ trình diễn với Xuân Tửu Khai Yến,
+        // nhưng namespace / hình ảnh / animation hoàn toàn riêng.
+        // KHÔNG gọi EffectManager.
+        // KHÔNG dùng national-day-dong-son-magic cũ.
+        // =========================================================
+        if (
+            petData.petEffect ===
+            'national-day-chibi-star-magic'
+        ) {
+            let nd29UltimateLocked = false;
+
+            petElement.addEventListener(
+                'click',
+                event => {
+                    if (nd29UltimateLocked) return;
+
+                    if (
+                        typeof PetInteractionManager !== 'undefined' &&
+                        PetInteractionManager.isPetDragging
+                    ) {
+                        return;
+                    }
+
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    nd29UltimateLocked = true;
+
+                    // Không cho hai ultimate tồn tại cùng lúc
+                    document
+                        .querySelectorAll(
+                            '.nd29-victory-ultimate'
+                        )
+                        .forEach(node => node.remove());
+
+                    this.container.classList.remove(
+                        'nd29-casting'
+                    );
+
+                    void this.container.offsetWidth;
+
+                    this.container.classList.add(
+                        'nd29-casting'
+                    );
+
+                    const rect =
+                        petElement.getBoundingClientRect();
+
+                    const originX =
+                        rect.left + rect.width / 2;
+
+                    const originY =
+                        rect.top + rect.height / 2;
+
+                    const ultimate =
+                        document.createElement('div');
+
+                    ultimate.className =
+                        'nd29-victory-ultimate';
+
+                    ultimate.setAttribute(
+                        'aria-hidden',
+                        'true'
+                    );
+
+                    ultimate.style.setProperty(
+                        '--nd29-origin-x',
+                        `${originX}px`
+                    );
+
+                    ultimate.style.setProperty(
+                        '--nd29-origin-y',
+                        `${originY}px`
+                    );
+
+                    ultimate.innerHTML = `
+                <!-- màn đỏ điện ảnh -->
+                <div class="nd29-victory-backdrop"></div>
+
+                <!-- ánh vàng lóe từ vị trí pet -->
+                <div class="nd29-victory-origin-flare"></div>
+
+                <!-- 5 tia sáng tượng trưng 5 cánh sao -->
+                <div class="nd29-victory-rays">
+                    <span class="ray ray-1"></span>
+                    <span class="ray ray-2"></span>
+                    <span class="ray ray-3"></span>
+                    <span class="ray ray-4"></span>
+                    <span class="ray ray-5"></span>
+                </div>
+
+                <!-- đại huy hiệu -->
+                <div class="nd29-victory-emblem">
+                    <span class="nd29-victory-ring ring-a"></span>
+                    <span class="nd29-victory-ring ring-b"></span>
+                    <span class="nd29-victory-ring ring-c"></span>
+
+                    <span class="nd29-victory-number">
+                        02 · 09
+                    </span>
+
+                    <span class="nd29-victory-star">
+                        ★
+                    </span>
+
+                    <small>
+                        VIỆT NAM
+                    </small>
+                </div>
+
+                <!-- hai dải lụa -->
+                <div class="nd29-victory-ribbons"></div>
+
+                <!-- trường sao vàng -->
+                <div class="nd29-victory-star-field"></div>
+
+                <!-- các tia lửa -->
+                <div class="nd29-victory-spark-field"></div>
+
+                <!-- vòng chấn động -->
+                <div class="nd29-victory-impact"></div>
+
+                <!-- chữ ultimate -->
+                <div class="nd29-victory-title">
+                    <small>
+                        QUỐC KHÁNH · 02/09
+                    </small>
+
+                    <strong>
+                        SAO VÀNG KHẢI HOÀN
+                    </strong>
+
+                    <span>
+                        ĐỘC LẬP · TỰ DO · VIỆT NAM
+                    </span>
+                </div>
+            `;
+
+                    /* =============================================
+                       DẢI LỤA ĐỎ / VÀNG
+                       ============================================= */
+                    const ribbonField =
+                        ultimate.querySelector(
+                            '.nd29-victory-ribbons'
+                        );
+
+                    for (
+                        let index = 0;
+                        index < 10;
+                        index++
+                    ) {
+                        const ribbon =
+                            document.createElement('span');
+
+                        ribbon.className =
+                            index % 2 === 0
+                                ? 'nd29-victory-ribbon is-red'
+                                : 'nd29-victory-ribbon is-gold';
+
+                        ribbon.style.setProperty(
+                            '--nd29-ribbon-angle',
+                            `${-42 + index * 9.3}deg`
+                        );
+
+                        ribbon.style.setProperty(
+                            '--nd29-ribbon-delay',
+                            `${0.18 + index * 0.045}s`
+                        );
+
+                        ribbon.style.setProperty(
+                            '--nd29-ribbon-width',
+                            `${10 + (index % 4) * 5}px`
+                        );
+
+                        ribbonField?.appendChild(
+                            ribbon
+                        );
+                    }
+
+                    /* =============================================
+                       SAO VÀNG BAY
+                       ============================================= */
+                    const starField =
+                        ultimate.querySelector(
+                            '.nd29-victory-star-field'
+                        );
+
+                    const starCount =
+                        window.matchMedia?.(
+                            '(max-width: 768px), ' +
+                            '(pointer: coarse), ' +
+                            '(prefers-reduced-motion: reduce)'
+                        ).matches
+                            ? 18
+                            : 36;
+
+                    for (
+                        let index = 0;
+                        index < starCount;
+                        index++
+                    ) {
+                        const star =
+                            document.createElement('span');
+
+                        star.className =
+                            'nd29-victory-particle-star';
+
+                        star.textContent = '★';
+
+                        star.style.setProperty(
+                            '--nd29-star-x',
+                            `${(index * 47 + 7) % 100}%`
+                        );
+
+                        star.style.setProperty(
+                            '--nd29-star-y',
+                            `${(index * 71 + 11) % 100}%`
+                        );
+
+                        star.style.setProperty(
+                            '--nd29-star-delay',
+                            `${(index % 12) * 0.055}s`
+                        );
+
+                        star.style.setProperty(
+                            '--nd29-star-size',
+                            `${7 + index % 5 * 3}px`
+                        );
+
+                        star.style.setProperty(
+                            '--nd29-star-spin',
+                            `${index % 2 === 0
+                                ? 160
+                                : -160}deg`
+                        );
+
+                        starField?.appendChild(star);
+                    }
+
+                    /* =============================================
+                       TIA LỬA VÀNG
+                       ============================================= */
+                    const sparkField =
+                        ultimate.querySelector(
+                            '.nd29-victory-spark-field'
+                        );
+
+                    const sparkCount =
+                        starCount < 30
+                            ? 28
+                            : 58;
+
+                    for (
+                        let index = 0;
+                        index < sparkCount;
+                        index++
+                    ) {
+                        const spark =
+                            document.createElement('span');
+
+                        spark.className =
+                            index % 7 === 0
+                                ? 'nd29-victory-spark is-bright'
+                                : 'nd29-victory-spark';
+
+                        spark.style.setProperty(
+                            '--nd29-spark-x',
+                            `${(index * 37 + 5) % 100}%`
+                        );
+
+                        spark.style.setProperty(
+                            '--nd29-spark-y',
+                            `${(index * 61 + 9) % 100}%`
+                        );
+
+                        spark.style.setProperty(
+                            '--nd29-spark-delay',
+                            `${(index % 16) * 0.045}s`
+                        );
+
+                        spark.style.setProperty(
+                            '--nd29-spark-size',
+                            `${2 + index % 5}px`
+                        );
+
+                        sparkField?.appendChild(
+                            spark
+                        );
+                    }
+
+                    document.body.appendChild(
+                        ultimate
+                    );
+
+                    requestAnimationFrame(() => {
+                        ultimate.classList.add(
+                            'is-active'
+                        );
+                    });
+
+                    /* =============================================
+                       LỜI THOẠI CỦA PET
+                       ============================================= */
+                    const dialogue =
+                        document.createElement('div');
+
+                    dialogue.className =
+                        'nd29-victory-dialogue';
+
+                    dialogue.textContent =
+                        '⭐ “Một ngôi sao — triệu trái tim Việt Nam.”';
+
+                    this.container.appendChild(
+                        dialogue
+                    );
+
+                    // Ultimate tồn tại 5.7 giây
+                    window.setTimeout(() => {
+                        ultimate.classList.add(
+                            'is-leaving'
+                        );
+                    }, 5000);
+
+                    window.setTimeout(() => {
+                        ultimate.remove();
+                        dialogue.remove();
+
+                        this.container
+                            ?.classList.remove(
+                                'nd29-casting'
+                            );
+                    }, 5700);
+
+                    // Cooldown 6 giây
+                    window.setTimeout(() => {
+                        nd29UltimateLocked = false;
+                    }, 6000);
+                }
+            );
+        }
+
+        // =========================================================
+        // QUỐC KHÁNH — AMBIENT + KỸ NĂNG NHẤN
+        // =========================================================
+        if (
+            petData.petEffect ===
+            'national-day-dong-son-magic'
+        ) {
+            requestAnimationFrame(() => {
+                this.container.classList.add(
+                    'national-day-awakening'
+                );
+
+                const realm =
+                    this.createNationalDayRealm();
+
+                window.setTimeout(() => {
+                    this.container?.classList.remove(
+                        'national-day-awakening'
+                    );
+                }, 1300);
+
+                let skillLocked = false;
+
+                petElement.addEventListener(
+                    'click',
+                    event => {
+                        if (skillLocked) return;
+
+                        if (
+                            typeof PetInteractionManager !==
+                            'undefined' &&
+                            PetInteractionManager.isPetDragging
+                        ) {
+                            return;
+                        }
+
+                        event.preventDefault();
+                        event.stopPropagation();
+
+                        skillLocked = true;
+
+                        this.container.classList.remove(
+                            'national-day-casting'
+                        );
+
+                        realm?.classList.remove(
+                            'is-casting'
+                        );
+
+                        void this.container.offsetWidth;
+
+                        if (realm) {
+                            void realm.offsetWidth;
+                        }
+
+                        this.container.classList.add(
+                            'national-day-casting'
+                        );
+
+                        realm?.classList.add(
+                            'is-casting'
+                        );
+
+                        const rect =
+                            petElement.getBoundingClientRect();
+
+                        const burst =
+                            document.createElement('div');
+
+                        burst.className =
+                            'national-day-independence-burst';
+
+                        burst.style.setProperty(
+                            '--nd-burst-x',
+                            `${rect.left +
+                            rect.width / 2}px`
+                        );
+
+                        burst.style.setProperty(
+                            '--nd-burst-y',
+                            `${rect.top +
+                            rect.height / 2}px`
+                        );
+
+                        burst.innerHTML = `
+                    <span class="nd-burst-medallion">
+                        <b>★</b>
+                        <small>02 · 09</small>
+                    </span>
+                    <span class="nd-burst-ring ring-a"></span>
+                    <span class="nd-burst-ring ring-b"></span>
+                    <span class="nd-burst-ring ring-c"></span>
+                    <div class="nd-burst-rays"></div>
+                    <div class="nd-burst-stars"></div>
+                `;
+
+                        const stars =
+                            burst.querySelector(
+                                '.nd-burst-stars'
+                            );
+
+                        for (
+                            let index = 0;
+                            index < 15;
+                            index++
+                        ) {
+                            const star =
+                                document.createElement(
+                                    'span'
+                                );
+
+                            star.textContent = '★';
+
+                            star.style.setProperty(
+                                '--nd-burst-angle',
+                                `${index * 24}deg`
+                            );
+
+                            star.style.setProperty(
+                                '--nd-burst-distance',
+                                `${92 +
+                                (index % 5) *
+                                19}px`
+                            );
+
+                            star.style.setProperty(
+                                '--nd-burst-delay',
+                                `${(index % 4) *
+                                0.035}s`
+                            );
+
+                            stars?.appendChild(star);
+                        }
+
+                        document.body.appendChild(
+                            burst
+                        );
+
+                        const dialogue =
+                            document.createElement(
+                                'div'
+                            );
+
+                        dialogue.className =
+                            'national-day-dialogue-box';
+
+                        dialogue.textContent =
+                            '★ Hào khí non sông — Độc lập, Tự do!';
+
+                        this.container.appendChild(
+                            dialogue
+                        );
+
+                        window.setTimeout(() => {
+                            burst.remove();
+                            dialogue.remove();
+
+                            this.container?.classList.remove(
+                                'national-day-casting'
+                            );
+
+                            realm?.classList.remove(
+                                'is-casting'
+                            );
+                        }, 3000);
+
+                        window.setTimeout(() => {
+                            skillLocked = false;
+                        }, 5200);
+                    }
+                );
+            });
+        }
+
+        // =========================================================
+        // PREMIUM MÙA XUÂN — KÍCH HOẠT CẢ THEME + EFFECT
+        // Chạy sau vòng render để luôn đè lên theme/effect thường
+        // trong lúc pet Premium đang được trang bị.
+        // =========================================================
+        if (
+            petData.petEffect ===
+            'spring-vintage-goddess-magic'
+        ) {
+            requestAnimationFrame(() => {
+                this.container.classList.add(
+                    'spring-vintage-awakening'
+                );
+
+                // PET MÙA XUÂN CHỈ CHẠY HIỆU ỨNG RIÊNG CỦA PET.
+                // Không can thiệp EffectManager.
+                // Không tự bật Xuân Tửu Hoa Viên.
+                // Không xóa effect mà người dùng đang trang bị.
+
+                this.installPremiumSpringObserver();
+
+                window.setTimeout(() => {
+                    this.container?.classList.remove(
+                        'spring-vintage-awakening'
+                    );
+                }, 1450);
+            });
+        }
 
         // =========================================================
         // KỸ NĂNG TOÀN MÀN HÌNH — MỘNG GIỚI TRÌ HOÃN
@@ -1501,8 +2715,24 @@ class PetManager {
                     'pet-birthday-serpent-2026-stage'
                 );
 
-            const safeRightGap = isBirthdayPet ? 34 : 8;
-            const safeBottomGap = isBirthdayPet ? 58 : 8;
+            const isPremiumSpringPet =
+                this.container.classList.contains(
+                    'pet-spring-vintage-stage'
+                );
+
+            const safeRightGap =
+                isBirthdayPet
+                    ? 34
+                    : isPremiumSpringPet
+                        ? 46
+                        : 8;
+
+            const safeBottomGap =
+                isBirthdayPet
+                    ? 58
+                    : isPremiumSpringPet
+                        ? 56
+                        : 8;
 
             const safeLeft = Math.min(
                 Math.max(8, initialX + dx),
@@ -1682,6 +2912,51 @@ class PetManager {
                     }, 1650);
                 }
             }
+
+            // VỆT XUÂN TỬU KHI KÉO NỮ THẦN MÙA XUÂN
+            // Hạt nho + giọt hồng ngọc, hoàn toàn riêng với trail cũ.
+            const springVintagePet = this.container.querySelector(
+                '.spring-vintage-goddess-magic'
+            );
+
+            if (springVintagePet && Math.random() < 0.58) {
+                const trailCount = Math.random() < 0.35 ? 2 : 1;
+
+                for (let i = 0; i < trailCount; i++) {
+                    const trail = document.createElement('span');
+                    trail.className = Math.random() < 0.34
+                        ? 'spring-vintage-trail is-grape'
+                        : 'spring-vintage-trail is-nectar';
+
+                    trail.style.left =
+                        `${e.clientX + (Math.random() * 34 - 17)}px`;
+                    trail.style.top =
+                        `${e.clientY + (Math.random() * 28 - 14)}px`;
+                    trail.style.setProperty(
+                        '--sv-trail-drift-x',
+                        `${Math.random() * 52 - 26}px`
+                    );
+                    trail.style.setProperty(
+                        '--sv-trail-drift-y',
+                        `${24 + Math.random() * 44}px`
+                    );
+                    trail.style.setProperty(
+                        '--sv-trail-spin',
+                        `${Math.random() * 220 - 110}deg`
+                    );
+                    trail.style.setProperty(
+                        '--sv-trail-size',
+                        `${6 + Math.random() * 7}px`
+                    );
+
+                    document.body.appendChild(trail);
+
+                    window.setTimeout(() => {
+                        trail.remove();
+                    }, 1300);
+                }
+            }
+
 
         }, { signal });
 

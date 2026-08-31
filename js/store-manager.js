@@ -726,6 +726,313 @@ const StoreConfig = {
             value: 'effect_doisong_mua_ngoai_o_cua',
             customIcon: '🌧️'
         },
+        {
+            id: 'pet_premium_mua_xuan',
+            name: 'Tiểu Hoa Mộng',
+            type: 'pet',
+            price: 750,
+            isNonCoin: false,
+            tag: 'Mùa xuân',
+            value: 'assets/Premium/Bốn mùa/mua-xuan-chibi.png',
+            isIcon: false,
+            petEffect: 'spring-vintage-goddess-magic',
+            disableClickEffect: true,
+
+            // ==========================================
+            // MỞ BÁN THEO MÙA
+            // Chỉ ngày 01 → 05 của tháng 3, 4 và 5
+            // ==========================================
+            annualSaleIcon: '🌸',
+
+            annualSaleTitle:
+                'Chỉ mở bán ngày 01–05 của tháng 03, 04 và 05 hằng năm',
+
+            annualSaleWindows: [
+                {
+                    startMonth: 3,
+                    startDay: 1,
+                    endMonth: 3,
+                    endDay: 5
+                },
+                {
+                    startMonth: 4,
+                    startDay: 1,
+                    endMonth: 4,
+                    endDay: 5
+                },
+                {
+                    startMonth: 5,
+                    startDay: 1,
+                    endMonth: 5,
+                    endDay: 5
+                }
+            ]
+        },
+        {
+            id: 'effect_premium_mua_xuan',
+            name: 'Xuân Tửu Hoa Viên',
+            type: 'effect',
+            price: 700,
+            isNonCoin: false,
+            tag: 'Mùa xuân',
+            value: 'effect_premium_mua_xuan',
+            customIcon: '🍇',
+
+            // ==========================================
+            // HIỆU ỨNG GIỚI HẠN MÙA XUÂN
+            // Chỉ ngày 01 → 05 của tháng 3, 4 và 5
+            // Đồng bộ lịch mở bán với Nữ Thần Mùa Xuân
+            // ==========================================
+            annualSaleIcon: '🌸',
+
+            annualSaleTitle:
+                'Chỉ mở bán ngày 01–05 của tháng 03, 04 và 05 hằng năm',
+
+            annualSaleWindows: [
+                {
+                    startMonth: 3,
+                    startDay: 1,
+                    endMonth: 3,
+                    endDay: 5
+                },
+                {
+                    startMonth: 4,
+                    startDay: 1,
+                    endMonth: 4,
+                    endDay: 5
+                },
+                {
+                    startMonth: 5,
+                    startDay: 1,
+                    endMonth: 5,
+                    endDay: 5
+                }
+            ]
+        },
+        {
+            id: 'theme_mua_xuan_thanh_minh',
+            name: 'Thanh Minh Xuân Phổ',
+            type: 'theme',
+            price: 700,
+            isNonCoin: false,
+            tag: 'Mùa xuân',
+            value: 'theme-spring-celadon-almanac',
+            customIcon: '🌿',
+
+            // ==========================================
+            // GIAO DIỆN MÙA XUÂN GIỚI HẠN
+            // Chỉ ngày 01 → 05 của tháng 3, 4 và 5
+            // Người đã sở hữu vẫn được trang bị quanh năm.
+            // ==========================================
+            annualSaleIcon: '🌱',
+            annualSaleTitle:
+                'Chỉ mở bán ngày 01–05 của tháng 03, 04 và 05 hằng năm',
+
+            annualSaleWindows: [
+                {
+                    startMonth: 3,
+                    startDay: 1,
+                    endMonth: 3,
+                    endDay: 5
+                },
+                {
+                    startMonth: 4,
+                    startDay: 1,
+                    endMonth: 4,
+                    endDay: 5
+                },
+                {
+                    startMonth: 5,
+                    startDay: 1,
+                    endMonth: 5,
+                    endDay: 5
+                }
+            ]
+        },
+        {
+            id: 'frame_premium_mua_xuan_hoa_mong',
+            name: 'Hoa Mộng · Vạn Sinh Chi Hoàn',
+            type: 'frame',
+            price: 400,
+            isNonCoin: false,
+            tag: 'Mùa xuân',
+
+            value: 'assets/Premium/Bốn mùa/khung-xuan.png',
+            isIcon: false,
+
+            frameEffect: 'spring-dream-ring',
+
+            // Chỉ mở bán ngày 01–05 tháng 3, 4 và 5
+            annualSaleIcon: '🌸',
+
+            annualSaleTitle:
+                'Chỉ mở bán ngày 01–05 của tháng 03, 04 và 05 hằng năm',
+
+            annualSaleWindows: [
+                {
+                    startMonth: 3,
+                    startDay: 1,
+                    endMonth: 3,
+                    endDay: 5
+                },
+                {
+                    startMonth: 4,
+                    startDay: 1,
+                    endMonth: 4,
+                    endDay: 5
+                },
+                {
+                    startMonth: 5,
+                    startDay: 1,
+                    endMonth: 5,
+                    endDay: 5
+                }
+            ]
+        },
+        {
+            id: 'background_premium_mua_xuan_hoa_mong',
+            name: 'Hoa Mộng · Vạn Sinh Thần Viên',
+            type: 'background',
+            price: 150,
+            isNonCoin: false,
+            tag: 'Mùa xuân',
+
+            value: 'assets/Premium/Bốn mùa/nen-xuan.png',
+            isIcon: false,
+
+            // Chỉ mở bán ngày 01–05 tháng 3, 4 và 5
+            annualSaleIcon: '🌸',
+
+            annualSaleTitle:
+                'Chỉ mở bán ngày 01–05 của tháng 03, 04 và 05 hằng năm',
+
+            annualSaleWindows: [
+                {
+                    startMonth: 3,
+                    startDay: 1,
+                    endMonth: 3,
+                    endDay: 5
+                },
+                {
+                    startMonth: 4,
+                    startDay: 1,
+                    endMonth: 4,
+                    endDay: 5
+                },
+                {
+                    startMonth: 5,
+                    startDay: 1,
+                    endMonth: 5,
+                    endDay: 5
+                }
+            ]
+        },
+        {
+            id: 'pet_quoc_khanh_chibi_1',
+            name: 'Việt Diệu · Sao Vàng Nhí',
+            type: 'pet',
+
+            price: 0,
+            isNonCoin: true,
+            eventOnly: true,
+
+            tag: '2/9',
+            tags: ['2/9', 'Quốc khánh'],
+
+            value: 'assets/Premium/quốc khánh/chibi1.png',
+            isIcon: false,
+
+            petEffect: 'national-day-chibi-star-magic',
+            disableClickEffect: true,
+
+            eventTier: 'event-national-day',
+
+            rewardSource: 'lich_su_hao_hung',
+            rewardLabel: 'Sự kiện Lịch sử hào hùng'
+        },
+        {
+            id: 'effect_quoc_khanh_viet_dieu_non_song',
+            name: 'Việt Diệu · Hào Quang Non Sông',
+            type: 'effect',
+
+            price: 0,
+            isNonCoin: true,
+            eventOnly: true,
+
+            tag: '2/9',
+            tags: ['2/9', 'Quốc khánh'],
+
+            value: 'effect_quoc_khanh_viet_dieu_non_song',
+            customIcon: '★',
+
+            eventTier: 'event-national-day',
+            effectScale: 'grand',
+
+            rewardSource: 'lich_su_hao_hung',
+            rewardLabel: 'Sự kiện Lịch sử hào hùng'
+        },
+        {
+            id: 'theme_quoc_khanh_viet_dieu_hong_ky',
+            name: 'Việt Diệu · Hồng Kỳ Tân Chương',
+            type: 'theme',
+
+            price: 0,
+            isNonCoin: true,
+            eventOnly: true,
+
+            tag: '2/9',
+            tags: ['2/9', 'Quốc khánh'],
+
+            value: 'theme-viet-dieu-hong-ky',
+            customIcon: '🇻🇳',
+
+            eventTier: 'event-national-day',
+
+            rewardSource: 'lich_su_hao_hung',
+            rewardLabel: 'Sự kiện Lịch sử hào hùng'
+        },
+        {
+            id: 'frame_quoc_khanh_viet_dieu_quoc_an',
+            name: 'Việt Nam · Vòng Sao Non Sông',
+            type: 'frame',
+
+            price: 0,
+            isNonCoin: true,
+            eventOnly: true,
+
+            tag: '2/9',
+            tags: ['2/9', 'Quốc khánh'],
+
+            value: 'assets/Premium/quốc khánh/khung1.png',
+            isIcon: false,
+
+            frameEffect: 'national-day-viet-dieu-frame',
+
+            eventTier: 'event-national-day',
+
+            rewardSource: 'lich_su_hao_hung',
+            rewardLabel: 'Sự kiện Lịch sử hào hùng'
+        },
+        {
+            id: 'background_quoc_khanh_son_ha_ruc_sang',
+            name: 'Việt Nam · Sơn Hà Rực Sáng',
+            type: 'background',
+
+            price: 0,
+            isNonCoin: true,
+            eventOnly: true,
+
+            tag: '2/9',
+            tags: ['2/9', 'Quốc khánh'],
+
+            value: 'assets/Premium/quốc khánh/nen1.png',
+            isIcon: false,
+
+            eventTier: 'event-national-day',
+
+            rewardSource: 'lich_su_hao_hung',
+            rewardLabel: 'Sự kiện Lịch sử hào hùng'
+        },
     ]
 };
 
@@ -740,10 +1047,18 @@ class StoreManager {
     }
 
     static getAnnualSaleState(item, now = new Date()) {
-        const schedule = item?.annualSale;
+        const schedules =
+            Array.isArray(item?.annualSaleWindows) &&
+                item.annualSaleWindows.length
+                ? item.annualSaleWindows
+                : (
+                    item?.annualSale
+                        ? [item.annualSale]
+                        : []
+                );
 
-        // Vật phẩm bình thường không bị giới hạn ngày bán
-        if (!schedule) {
+        // Không có lịch giới hạn = vật phẩm bán bình thường
+        if (!schedules.length) {
             return {
                 hasAnnualSale: false,
                 isOpen: true,
@@ -755,44 +1070,8 @@ class StoreManager {
             };
         }
 
-        const year = now.getFullYear();
-
-        const start = new Date(
-            year,
-            schedule.startMonth - 1,
-            schedule.startDay,
-            0,
-            0,
-            0,
-            0
-        );
-
-        const end = new Date(
-            year,
-            schedule.endMonth - 1,
-            schedule.endDay,
-            23,
-            59,
-            59,
-            999
-        );
-
-        const isOpen =
-            now.getTime() >= start.getTime() &&
-            now.getTime() <= end.getTime();
-
-        const nextStart =
-            now.getTime() < start.getTime()
-                ? start
-                : new Date(
-                    year + 1,
-                    schedule.startMonth - 1,
-                    schedule.startDay,
-                    0,
-                    0,
-                    0,
-                    0
-                );
+        const nowTime = now.getTime();
+        const currentYear = now.getFullYear();
 
         const padNumber = number =>
             String(number).padStart(2, '0');
@@ -805,25 +1084,136 @@ class StoreManager {
             ].join('/');
         };
 
-        const isSingleSaleDay =
-            schedule.startMonth === schedule.endMonth &&
-            schedule.startDay === schedule.endDay;
+        /*
+         * Tạo các đợt mở bán của:
+         * - năm hiện tại
+         * - năm tiếp theo
+         *
+         * Nhờ vậy sau 05/05 có thể tự nhảy
+         * sang 01/03 năm sau.
+         */
+        const windows = [];
 
-        const windowLabel =
-            isSingleSaleDay
-                ? `${padNumber(schedule.startDay)}/${padNumber(schedule.startMonth)}`
-                : (
-                    `${padNumber(schedule.startDay)}/${padNumber(schedule.startMonth)}` +
-                    `–${padNumber(schedule.endDay)}/${padNumber(schedule.endMonth)}`
+        [
+            currentYear,
+            currentYear + 1
+        ].forEach(year => {
+
+            schedules.forEach(schedule => {
+                const start = new Date(
+                    year,
+                    schedule.startMonth - 1,
+                    schedule.startDay,
+                    0,
+                    0,
+                    0,
+                    0
                 );
+
+                const end = new Date(
+                    year,
+                    schedule.endMonth - 1,
+                    schedule.endDay,
+                    23,
+                    59,
+                    59,
+                    999
+                );
+
+                windows.push({
+                    schedule,
+                    start,
+                    end
+                });
+            });
+
+        });
+
+        windows.sort(
+            (a, b) =>
+                a.start.getTime() -
+                b.start.getTime()
+        );
+
+        // ==========================================
+        // KIỂM TRA CÓ ĐANG TRONG ĐỢT MỞ BÁN KHÔNG
+        // ==========================================
+
+        const activeWindow =
+            windows.find(window => {
+                return (
+                    nowTime >= window.start.getTime() &&
+                    nowTime <= window.end.getTime()
+                );
+            });
+
+        const isOpen = Boolean(activeWindow);
+
+        // ==========================================
+        // TÌM ĐỢT MỞ BÁN TIẾP THEO
+        // ==========================================
+
+        const nextWindow =
+            windows.find(window => {
+                return window.start.getTime() > nowTime;
+            }) || null;
+
+        /*
+         * Chuỗi hiển thị:
+         *
+         * 01–05/03 • 01–05/04 • 01–05/05
+         */
+        const windowLabel =
+            schedules
+                .map(schedule => {
+                    const sameMonth =
+                        schedule.startMonth ===
+                        schedule.endMonth;
+
+                    if (sameMonth) {
+                        return (
+                            `${padNumber(schedule.startDay)}` +
+                            `–${padNumber(schedule.endDay)}` +
+                            `/${padNumber(schedule.startMonth)}`
+                        );
+                    }
+
+                    return (
+                        `${padNumber(schedule.startDay)}` +
+                        `/${padNumber(schedule.startMonth)}` +
+                        `–` +
+                        `${padNumber(schedule.endDay)}` +
+                        `/${padNumber(schedule.endMonth)}`
+                    );
+                })
+                .join(' • ');
 
         return {
             hasAnnualSale: true,
+
             isOpen,
-            start,
-            end,
-            nextStart,
-            nextOpenLabel: formatFullDate(nextStart),
+
+            start:
+                activeWindow?.start ||
+                nextWindow?.start ||
+                null,
+
+            end:
+                activeWindow?.end ||
+                nextWindow?.end ||
+                null,
+
+            nextStart:
+                nextWindow?.start ||
+                null,
+
+            nextOpenLabel:
+                nextWindow
+                    ? formatFullDate(
+                        nextWindow.start
+                    )
+                    : '',
+
             windowLabel
         };
     }
@@ -983,6 +1373,8 @@ class StoreManager {
             'Hệ Mặt Trời': 'tag-he-mat-troi',
             'Sinh nhật 2026': 'tag-sinh-nhat-2026',
             'Cơn mưa': 'tag-con-mua',
+            'Mùa xuân': 'tag-mua-xuan',
+            '2/9': 'tag-quoc-khanh-2-9',
         };
 
         let tagClass = tagClassMap[item.tag] || 'tag-normal';
@@ -1254,7 +1646,16 @@ class StoreManager {
             }
         }
 
-        let typeName = item.type === 'theme' ? 'Giao diện' : (item.type === 'effect' ? 'Hiệu ứng' : (item.type === 'music' ? 'Nhạc nền' : 'Thú cưng ảo'));
+        const typeNameMap = {
+            theme: 'Giao diện',
+            effect: 'Hiệu ứng',
+            pet: 'Thú cưng ảo',
+            music: 'Nhạc nền',
+            frame: 'Khung viền',
+            background: 'Nền'
+        };
+
+        let typeName = typeNameMap[item.type] || 'Vật phẩm';
 
         let iconHTML = '';
         if (item.isIcon === false && item.value) {
@@ -1279,6 +1680,14 @@ class StoreManager {
             'theme_truyenthuyet_celestial'
         ]);
 
+        const premiumSpringIds = new Set([
+            'pet_premium_mua_xuan',
+            'effect_premium_mua_xuan',
+            'theme_mua_xuan_thanh_minh',
+            'frame_premium_mua_xuan_hoa_mong',
+            'background_premium_mua_xuan_hoa_mong'
+        ]);
+
         const amonTrinityIds = new Set([
             'pet_lotm_amon',
             'effect_lotm_amon',
@@ -1301,6 +1710,14 @@ class StoreManager {
             'pet_sinh_nhat_2026',
             'theme_sinh_nhat_tiec_ngot_2026',
             'effect_sinh_nhat_than_an_phuc_loc_2026'
+        ]);
+
+        const nationalDay29Ids = new Set([
+            'pet_quoc_khanh_chibi_1',
+            'effect_quoc_khanh_viet_dieu_non_song',
+            'theme_quoc_khanh_viet_dieu_hong_ky',
+            'frame_quoc_khanh_viet_dieu_quoc_an',
+            'background_quoc_khanh_son_ha_ruc_sang'
         ]);
 
         const acediaCardVariantMap = Object.freeze({
@@ -1379,6 +1796,18 @@ class StoreManager {
         let specialCardGroup = '';
         let isThemeImmune = false;
 
+        if (premiumSpringIds.has(item.id)) {
+            cardClasses.push(
+                'store-card-premium-spring',
+                'store-theme-locked',
+                'ui-theme-immune'
+            );
+
+            specialCardGroup = 'premium-spring';
+            isThemeImmune = true;
+        }
+
+
 
         /* Bộ ba Nyx */
         if (nyxTrinityIds.has(item.id)) {
@@ -1439,6 +1868,21 @@ class StoreManager {
             );
 
             specialCardGroup = 'birthday-2026';
+            isThemeImmune = true;
+        }
+
+        /* =========================================================
+   QUỐC KHÁNH 2/9
+   Card riêng, không bị theme/giao diện khác ghi đè
+   ========================================================= */
+        if (nationalDay29Ids.has(item.id)) {
+            cardClasses.push(
+                'store-card-national-day-2-9',
+                'store-theme-locked',
+                'ui-theme-immune'
+            );
+
+            specialCardGroup = 'national-day-2-9';
             isThemeImmune = true;
         }
 
@@ -1522,8 +1966,138 @@ class StoreManager {
             case 'theme': return '🎨';
             case 'effect': return '✨';
             case 'pet': return '🐾';
-            case 'music': return '🎵'; // BỔ SUNG DÒNG NÀY
+            case 'music': return '🎵';
+            case 'frame': return '🖼️';
+            case 'background': return '🌄';
             default: return '📦';
         }
     }
 }
+
+/* =========================================================
+   THÊM TAB KHUNG VIỀN + NỀN VÀO CỬA HÀNG
+   ========================================================= */
+(function installExtraStoreCategoryButtons() {
+
+    const EXTRA_FILTERS = [
+        {
+            type: 'frame',
+            label: '🖼️ Khung viền'
+        },
+        {
+            type: 'background',
+            label: '🌄 Nền'
+        }
+    ];
+
+    function install() {
+        const storeTab =
+            document.getElementById('tab-store');
+
+        if (!storeTab) return false;
+
+        // Tìm nút Nhạc nền hiện tại
+        const musicButton =
+            storeTab.querySelector(
+                'button[onclick*="filterStore(\'music\')"]'
+            );
+
+        if (
+            !musicButton ||
+            !musicButton.parentElement
+        ) {
+            return false;
+        }
+
+        const filterBar =
+            musicButton.parentElement;
+
+        // Có thêm 2 nút nên cho phép xuống dòng
+        // khi màn hình không đủ rộng.
+        filterBar.style.flexWrap = 'wrap';
+
+        EXTRA_FILTERS.forEach(config => {
+
+            // Không tạo trùng nút
+            const exists =
+                filterBar.querySelector(
+                    `button[data-store-extra-filter="${config.type}"]`
+                );
+
+            if (exists) return;
+
+            const button =
+                document.createElement('button');
+
+            button.type = 'button';
+
+            // Giữ đúng style/class của các nút hiện có
+            button.className = 'btn-approve';
+
+            button.dataset.storeExtraFilter =
+                config.type;
+
+            button.setAttribute(
+                'onclick',
+                `filterStore('${config.type}')`
+            );
+
+            button.style.background =
+                'rgba(255,255,255,0.5)';
+
+            button.style.color =
+                '#667eea';
+
+            button.textContent =
+                config.label;
+
+            // Thêm ngay sau các nút hiện tại
+            filterBar.appendChild(button);
+        });
+
+        return true;
+    }
+
+    function boot() {
+
+        // Nếu HTML cửa hàng đã có rồi
+        if (install()) return;
+
+        // Nếu JS chạy trước khi DOM cửa hàng xuất hiện
+        const observer =
+            new MutationObserver(() => {
+
+                if (install()) {
+                    observer.disconnect();
+                }
+
+            });
+
+        observer.observe(
+            document.documentElement,
+            {
+                childList: true,
+                subtree: true
+            }
+        );
+
+        // Không theo dõi vô hạn
+        setTimeout(
+            () => observer.disconnect(),
+            15000
+        );
+    }
+
+    if (
+        document.readyState === 'loading'
+    ) {
+        document.addEventListener(
+            'DOMContentLoaded',
+            boot,
+            { once: true }
+        );
+    } else {
+        boot();
+    }
+
+})();

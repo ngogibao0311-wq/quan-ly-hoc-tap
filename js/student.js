@@ -489,6 +489,30 @@ function isCoinPurchasableStoreItem(item) {
 }
 
 /*
+ * Kiểm tra vật phẩm có thuộc Cửa hàng Sang trọng hay không.
+ */
+function isLuxuryStoreItem(item) {
+    if (!item) {
+        return false;
+    }
+
+    // Ưu tiên cờ được gắn trực tiếp trên vật phẩm.
+    if (item.luxuryOnly === true) {
+        return true;
+    }
+
+    // Kiểm tra thêm theo danh sách ID của Luxury Store.
+    if (
+        window.LuxuryStore &&
+        typeof window.LuxuryStore.isLuxuryItem === 'function'
+    ) {
+        return window.LuxuryStore.isLuxuryItem(item);
+    }
+
+    return false;
+}
+
+/*
  * Kiểm tra thẻ giảm giá áp dụng cho vật phẩm.
  */
 function isDiscountEligibleForStoreItem(
@@ -498,6 +522,35 @@ function isDiscountEligibleForStoreItem(
 ) {
     // Mọi thẻ chỉ áp dụng cho vật phẩm có giá Coin lớn hơn 0.
     if (!isCoinPurchasableStoreItem(item)) {
+        return false;
+    }
+
+    // =====================================================
+    // CỬA HÀNG SANG TRỌNG
+    // Không cho sử dụng mã giảm giá thông thường.
+    // =====================================================
+    const isLuxuryItem =
+        isLuxuryStoreItem(item);
+
+    /*
+     * Chừa sẵn khả năng tạo thẻ Luxury riêng sau này.
+     *
+     * Muốn một mã được dùng cho Luxury:
+     * luxuryEligible: true
+     *
+     * hoặc:
+     * discountScope: 'luxury'
+     */
+    const isLuxuryDiscount =
+        discount?.luxuryEligible === true ||
+        String(
+            discount?.discountScope || ''
+        ).toLowerCase() === 'luxury';
+
+    if (
+        isLuxuryItem &&
+        !isLuxuryDiscount
+    ) {
         return false;
     }
 
@@ -1111,6 +1164,115 @@ window.handleStudentFileAccumulate = function (input, assignId) {
 // ==============================================================
 
 window.onload = async function () {
+
+    const startupLoader =
+        window.AppStartupLoader || null;
+
+    if (startupLoader) {
+
+        startupLoader.setStatus(
+            'Đang xác thực phiên đăng nhập...'
+        );
+
+        startupLoader.expect([
+            'core-runtime',
+            'service-worker',
+            'cloud-connection',
+            'student-auth',
+            'student-user',
+            'student-profile-requests',
+            'student-assignments',
+            'student-submissions',
+            'student-materials',
+            'student-schedule',
+            'student-roadmap-settings',
+            'student-game-settings',
+            'student-wheel-settings',
+            'student-coins',
+            'student-store-settings',
+            'student-store-items',
+            'student-inventory',
+            'student-birthday-wallet',
+            'student-special-wallet',
+            'student-notifications',
+            'student-surveys',
+            'student-inbox',
+            'student-conversion-settings',
+            'student-money-offset',
+            'student-cash-requests',
+            'student-limited-event',
+            'student-discounts'
+        ], {
+            'core-runtime': 'Thư viện và module web',
+            'service-worker': 'Service Worker / cache',
+            'cloud-connection': 'Kết nối Firebase',
+            'student-auth': 'Phiên đăng nhập học sinh',
+            'student-user': 'Hồ sơ học sinh',
+            'student-profile-requests': 'Yêu cầu cập nhật hồ sơ',
+            'student-assignments': 'Bài tập',
+            'student-submissions': 'Bài nộp',
+            'student-materials': 'Tài liệu',
+            'student-schedule': 'Lịch học',
+            'student-roadmap-settings': 'Cài đặt lộ trình',
+            'student-game-settings': 'Cài đặt trò chơi',
+            'student-wheel-settings': 'Tỉ lệ vòng quay',
+            'student-coins': 'Số dư Coin',
+            'student-store-settings': 'Cài đặt cửa hàng',
+            'student-store-items': 'Dữ liệu cửa hàng',
+            'student-inventory': 'Kho vật phẩm',
+            'student-birthday-wallet': 'Ví Xu Sinh Nhật',
+            'student-special-wallet': 'Ví Xu Đặc Biệt',
+            'student-notifications': 'Thông báo',
+            'student-surveys': 'Khảo sát',
+            'student-inbox': 'Hộp thư',
+            'student-conversion-settings': 'Bảng quy đổi',
+            'student-money-offset': 'Tiền tích lũy',
+            'student-cash-requests': 'Yêu cầu rút tiền',
+            'student-limited-event': 'Sự kiện giới hạn',
+            'student-discounts': 'Thẻ giảm giá'
+        });
+
+        if (!startupLoader.checkRuntime([
+            'firebase.auth',
+            'firebase.database',
+            'db.ref',
+            'Quill',
+            'DOMPurify.sanitize',
+            'mammoth.convertToHtml',
+            'CloudflareR2Storage'
+        ])) {
+            return;
+        }
+
+        if (!startupLoader.checkStylesheets()) {
+            return;
+        }
+
+        if (
+            typeof StoreConfig === 'undefined' ||
+            !StoreConfig ||
+            !Array.isArray(StoreConfig.items)
+        ) {
+            startupLoader.fail(
+                'Module cửa hàng chưa sẵn sàng.',
+                'Không tìm thấy StoreConfig.items. Hãy kiểm tra store-manager.js và các module vật phẩm.',
+                'runtime'
+            );
+            return;
+        }
+
+        startupLoader.markReady('core-runtime');
+        await startupLoader.registerServiceWorker();
+        startupLoader.markReady('service-worker');
+
+        const cloudConnected = await startupLoader.waitForCloudConnection({
+            timeoutMs: 18000
+        });
+
+        if (!cloudConnected) return;
+        startupLoader.markReady('cloud-connection');
+    }
+
     // === FIX LỖI BẢO MẬT: Chờ và xác thực qua Firebase Auth ===
     const authUser = await new Promise((resolve) => {
         const unsubscribe = firebase.auth().onAuthStateChanged(user => {
@@ -1119,7 +1281,12 @@ window.onload = async function () {
         });
     });
 
+    if (startupLoader && authUser) {
+        startupLoader.markReady('student-auth');
+    }
+
     if (!authUser) {
+        if (startupLoader) startupLoader.fail('Không tìm thấy phiên đăng nhập hợp lệ.', 'Hãy đăng nhập lại để tiếp tục.', 'auth');
         alert("⛔ Lỗi: Không tìm thấy phiên đăng nhập hợp lệ!");
         localStorage.removeItem('currentUser');
         window.location.href = 'index.html';
@@ -1207,6 +1374,7 @@ window.onload = async function () {
             cacheProfileSt = val;
             await checkProfileRequests();
         }
+        if (startupLoader) startupLoader.markReady('student-profile-requests');
     });
 
     listenFirebase(
@@ -1245,6 +1413,11 @@ window.onload = async function () {
                 ) {
                     renderStudentRoadmap();
                 }
+            }
+            if (startupLoader) {
+                startupLoader.markReady(
+                    'student-user'
+                );
             }
         }
     );
@@ -1289,6 +1462,11 @@ window.onload = async function () {
                 }
             }, 300);
             if (document.getElementById('studentRoadmapBody')) renderStudentRoadmap();
+        }
+        if (startupLoader) {
+            startupLoader.markReady(
+                'student-assignments'
+            );
         }
     });
 
@@ -1363,27 +1541,61 @@ window.onload = async function () {
                     renderStudentRoadmap();
                 }
             }
+
+            if (startupLoader) {
+                startupLoader.markReady(
+                    'student-submissions'
+                );
+            }
         }
     );
 
-    listenFirebase(db.ref('materials'), 'value', async (snapshot) => {
-        const val = snapshot.val();
-        if (!isDeepEqual(val, cacheMaterialsSt)) {
-            cacheMaterialsSt = val;
-            await loadMaterialsListStudent();
+    listenFirebase(
+        db.ref('materials'),
+        'value',
+        async (snapshot) => {
+            const val = snapshot.val();
+
+            if (!isDeepEqual(val, cacheMaterialsSt)) {
+                cacheMaterialsSt = val;
+                await loadMaterialsListStudent();
+            }
+
+            if (startupLoader) {
+                startupLoader.markReady(
+                    'student-materials'
+                );
+            }
         }
-    });
+    );
     // ============================================
 
     // Đồng bộ điểm chuẩn từ xa do giáo viên cài đặt
     listenFirebase(db.ref('roadmap_settings/passingGrade'), 'value', (snapshot) => {
-        window.currentPassingGrade = parseFloat(snapshot.val() || 7);
+        window.currentPassingGrade = parseFloat(snapshot.val() ?? 7);
         if (document.getElementById('studentRoadmapBody')) renderStudentRoadmap();
+        if (startupLoader) startupLoader.markReady('student-roadmap-settings');
     });
 
-    listenFirebase(db.ref('schedule'), 'value', async () => {
-        if (typeof loadScheduleStudent === 'function') await loadScheduleStudent();
-    });
+    listenFirebase(
+        db.ref('schedule'),
+        'value',
+        async () => {
+
+            if (
+                typeof loadScheduleStudent ===
+                'function'
+            ) {
+                await loadScheduleStudent();
+            }
+
+            if (startupLoader) {
+                startupLoader.markReady(
+                    'student-schedule'
+                );
+            }
+        }
+    );
 
     listenFirebase(db.ref('game_settings'), 'value', (snapshot) => {
         // Cấp giá trị mặc định nếu Firebase chưa có dữ liệu
@@ -1408,12 +1620,18 @@ window.onload = async function () {
             if (gameActiveView) gameActiveView.style.display = 'block';
             if (gameLockedView) gameLockedView.style.display = 'none';
         }
+        if (startupLoader) {
+            startupLoader.markReady(
+                'student-game-settings'
+            );
+        }
     });
     window.wheelProbs = { miss: 50, c100: 20, c150: 25, c500: 4, gift: 1 };
     listenFirebase(db.ref('game_settings/wheel_probabilities'), 'value', (snapshot) => {
         if (snapshot.exists()) {
             window.wheelProbs = snapshot.val();
         }
+        if (startupLoader) startupLoader.markReady('student-wheel-settings');
     });
 
     // ==========================================
@@ -1432,6 +1650,7 @@ window.onload = async function () {
                 coinEl.style.color = '#fff';
             }, 300);
         }
+        if (startupLoader) startupLoader.markReady('student-coins');
     });
 
     // === LẮNG NGHE HỆ THỐNG CỬA HÀNG (REAL-TIME PHÍA HỌC SINH) ===
@@ -1479,16 +1698,31 @@ window.onload = async function () {
         ) {
             window.applyEquippedItems();
         }
+        if (startupLoader) {
+            startupLoader.markReady(
+                'student-store-settings'
+            );
+        }
     });
 
     listenFirebase(db.ref('store_items'), 'value', async () => {
         if (typeof loadStoreItems === 'function') await loadStoreItems();
+        if (startupLoader) {
+            startupLoader.markReady(
+                'student-store-items'
+            );
+        }
     });
 
-    listenFirebase(db.ref('student_inventory/' + currentUser.username), 'value', (snapshot) => {
+    listenFirebase(db.ref('student_inventory/' + currentUser.username), 'value', async (snapshot) => {
         myInventory = snapshot.val() ? Object.values(snapshot.val()) : [];
-        if (typeof loadStoreItems === 'function') loadStoreItems();
-        if (typeof applyEquippedItems === 'function') applyEquippedItems();
+        if (typeof loadStoreItems === 'function') await loadStoreItems();
+        if (typeof applyEquippedItems === 'function') await Promise.resolve(applyEquippedItems());
+        if (startupLoader) {
+            startupLoader.markReady(
+                'student-inventory'
+            );
+        }
     });
 
     // Ví Xu Sinh Nhật được tách riêng theo từng năm.
@@ -1547,6 +1781,7 @@ window.onload = async function () {
             ) {
                 window.renderStudentBag();
             }
+            if (startupLoader) startupLoader.markReady('student-birthday-wallet');
         }
     );
 
@@ -1617,6 +1852,7 @@ window.onload = async function () {
             ) {
                 window.renderStudentBag();
             }
+            if (startupLoader) startupLoader.markReady('student-special-wallet');
         }
     );
 
@@ -1654,6 +1890,7 @@ window.onload = async function () {
 
     // LẮNG NGHE THÔNG BÁO TOÀN TRƯỜNG
     listenFirebase(db.ref('global_notifications'), 'value', (snapshot) => {
+        if (startupLoader) startupLoader.markReady('student-notifications');
         const notifications = [];
         snapshot.forEach(child => {
             if (child.val()) notifications.push({ ...child.val(), _fbKey: child.key });
@@ -1789,6 +2026,7 @@ window.onload = async function () {
 
     // LẮNG NGHE KHẢO SÁT BẮT BUỘC (ĐÃ FIX LOGIC)
     listenFirebase(db.ref('global_surveys'), 'value', (snapshot) => {
+        if (startupLoader) startupLoader.markReady('student-surveys');
         const surveys = [];
         snapshot.forEach(child => {
             if (child.val()) surveys.push({ ...child.val(), _fbKey: child.key });
@@ -1822,37 +2060,894 @@ window.onload = async function () {
         }
     });
 
-    // BỔ SUNG: Lắng nghe hộp thư (Chỉ cập nhật UI, KHÔNG thực hiện thao tác Xóa ở đây)
-    listenFirebase(db.ref('inbox_messages/' + currentUser.username), 'value', (snapshot) => {
-        const messages = [];
-        const now = Date.now();
+    // ======================================================
+    // HIỆU ỨNG THƯ QUÀ BAY VÀO HỘP THƯ ĐẾN
+    // - Chạy khi có thư quà mới tới hộp thư
+    // - Áp dụng cho quà giáo viên tặng, quà sinh nhật hệ thống...
+    // - BỎ QUA phần thưởng sự kiện
+    // ======================================================
 
-        snapshot.forEach(child => {
-            const msg = child.val();
-            // CHỈ LỌC BỎ TRÊN GIAO DIỆN: Không đưa thư đã hết hạn vào mảng render
-            if (!msg.expiry || now <= msg.expiry) {
-                messages.push({ ...msg, _fbKey: child.key });
-            }
-        });
+    window.__inboxGiftFxState =
+        window.__inboxGiftFxState || {
+            initialized: false,
+            knownKeys: new Set(),
+            queue: [],
+            running: false
+        };
 
-        window.myInboxMessages = messages.sort((a, b) => b.timestamp - a.timestamp);
+    // ======================================================
+    // GHI NHỚ THƯ ĐÃ CHẠY HIỆU ỨNG
+    // Mỗi thư chỉ được chạy animation đúng 1 lần.
+    // Reload / đăng xuất đăng nhập lại cũng không chạy lại.
+    // ======================================================
 
-        // Cập nhật chấm đỏ
+    function getInboxGiftFxPlayedStorageKey() {
+        const username =
+            String(
+                currentUser?.username ||
+                'guest'
+            ).trim();
+
+        return `inbox_gift_fx_played:${username}`;
+    }
+
+    function loadInboxGiftFxPlayedKeys() {
+        try {
+            const raw =
+                localStorage.getItem(
+                    getInboxGiftFxPlayedStorageKey()
+                );
+
+            const values =
+                JSON.parse(raw || '[]');
+
+            return new Set(
+                Array.isArray(values)
+                    ? values.map(String)
+                    : []
+            );
+        } catch (error) {
+            console.warn(
+                'Không đọc được lịch sử hiệu ứng thư:',
+                error
+            );
+
+            return new Set();
+        }
+    }
+
+    window.__inboxGiftFxPlayedKeys =
+        window.__inboxGiftFxPlayedKeys ||
+        loadInboxGiftFxPlayedKeys();
+
+    function hasInboxGiftFxPlayed(messageKey) {
+        const key =
+            String(messageKey || '').trim();
+
+        if (!key) {
+            return false;
+        }
+
+        return window
+            .__inboxGiftFxPlayedKeys
+            .has(key);
+    }
+
+    function markInboxGiftFxPlayed(messageKey) {
+        const key =
+            String(messageKey || '').trim();
+
+        if (!key) {
+            return;
+        }
+
+        const played =
+            window.__inboxGiftFxPlayedKeys;
+
+        played.add(key);
+
+        /*
+         * Chỉ giữ tối đa 500 thư gần nhất,
+         * tránh localStorage phình quá lớn.
+         */
+        const values =
+            Array.from(played);
+
+        if (values.length > 500) {
+            const removeCount =
+                values.length - 500;
+
+            values
+                .slice(0, removeCount)
+                .forEach(oldKey => {
+                    played.delete(oldKey);
+                });
+        }
+
+        try {
+            localStorage.setItem(
+                getInboxGiftFxPlayedStorageKey(),
+                JSON.stringify(
+                    Array.from(played)
+                )
+            );
+        } catch (error) {
+            console.warn(
+                'Không lưu được lịch sử hiệu ứng thư:',
+                error
+            );
+        }
+    }
+
+    function ensureInboxGiftFxStyles() {
+        if (document.getElementById('inboxGiftFxStyles')) return;
+
+        const style = document.createElement('style');
+        style.id = 'inboxGiftFxStyles';
+        style.textContent = `
+#inboxGiftFxOverlay{
+    position:fixed;
+    inset:0;
+    z-index:2147483000;
+    pointer-events:none;
+    overflow:hidden;
+}
+.inbox-gift-fx-stage{
+    position:fixed;
+    left:50%;
+    top:38%;
+    transform:translate(-50%,-50%);
+    width:260px;
+    height:260px;
+}
+.inbox-gift-fx-envelope{
+    position:absolute;
+    left:50%;
+    top:58%;
+    transform:translate(-50%,-50%);
+    width:210px;
+    height:150px;
+    filter:drop-shadow(0 18px 35px rgba(0,0,0,.18));
+}
+.inbox-gift-fx-envelope-back{
+    position:absolute;
+    inset:0;
+    background:#f7c5c5;
+    border-radius:16px;
+}
+.inbox-gift-fx-letter{
+    position:absolute;
+    left:50%;
+    top:10px;
+    transform:translateX(-50%);
+    width:140px;
+    height:96px;
+    background:#fffdfd;
+    border-radius:10px;
+    box-shadow:0 8px 18px rgba(0,0,0,.12);
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    gap:5px;
+    font-size:13px;
+    color:#7b5260;
+    text-align:center;
+    padding:10px;
+    box-sizing:border-box;
+}
+.inbox-gift-fx-letter small{
+    font-size:11px;
+    opacity:.78;
+}
+.inbox-gift-fx-pocket-left,
+.inbox-gift-fx-pocket-right,
+.inbox-gift-fx-pocket-bottom{
+    position:absolute;
+    inset:0;
+}
+.inbox-gift-fx-pocket-left{
+    clip-path:polygon(0 100%,0 48%,50% 100%);
+    background:#eda3a3;
+    border-bottom-left-radius:16px;
+}
+.inbox-gift-fx-pocket-right{
+    clip-path:polygon(100% 100%,100% 48%,50% 100%);
+    background:#e99999;
+    border-bottom-right-radius:16px;
+}
+.inbox-gift-fx-pocket-bottom{
+    clip-path:polygon(0 100%,50% 62%,100% 100%);
+    background:#ef7f7f;
+    border-bottom-left-radius:16px;
+    border-bottom-right-radius:16px;
+}
+.inbox-gift-fx-flap{
+    position:absolute;
+    left:0;
+    right:0;
+    top:0;
+    height:88px;
+    clip-path:polygon(0 0,100% 0,50% 100%);
+    background:#f4b0b0;
+    transform-origin:50% 0%;
+    transform:rotateX(180deg);
+    transition:transform .42s ease;
+    z-index:5;
+}
+.inbox-gift-fx-envelope.closed .inbox-gift-fx-flap{
+    transform:rotateX(0deg);
+}
+.inbox-gift-fx-seal{
+    position:absolute;
+    left:50%;
+    top:-12px;
+    transform:translateX(-50%);
+    width:38px;
+    height:38px;
+    border-radius:999px;
+    background:#ff3f86;
+    color:#fff;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:19px;
+    box-shadow:0 8px 20px rgba(255,63,134,.35);
+    z-index:6;
+}
+.inbox-gift-fx-gift{
+    position:absolute;
+    left:50%;
+    top:8px;
+    transform:translateX(-50%);
+    min-width:118px;
+    max-width:180px;
+    padding:10px 14px;
+    border-radius:16px;
+    background:linear-gradient(180deg,#fff,#fff7fb);
+    border:1px solid rgba(255,255,255,.85);
+    box-shadow:0 16px 28px rgba(0,0,0,.14);
+    display:flex;
+    align-items:center;
+    gap:10px;
+    color:#334155;
+}
+.inbox-gift-fx-gift-emoji{
+    width:34px;
+    height:34px;
+    border-radius:999px;
+    background:rgba(255,99,132,.14);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:19px;
+    flex-shrink:0;
+}
+.inbox-gift-fx-gift-label{
+    font-size:12px;
+    font-weight:700;
+    line-height:1.35;
+    min-width:0;
+}
+.inbox-gift-fx-caption{
+    position:absolute;
+    left:50%;
+    bottom:2px;
+    transform:translateX(-50%);
+    padding:8px 14px;
+    border-radius:999px;
+    background:rgba(15,23,42,.82);
+    color:#fff;
+    font-size:12px;
+    font-weight:700;
+    letter-spacing:.2px;
+    white-space:nowrap;
+}
+.inbox-gift-fx-mail-bubble{
+    position:fixed;
+    z-index:2147483001;
+    padding:8px 12px;
+    border-radius:999px;
+    background:#ef4444;
+    color:#fff;
+    font-size:12px;
+    font-weight:800;
+    box-shadow:0 10px 20px rgba(239,68,68,.28);
+    pointer-events:none;
+}
+`;
+        document.head.appendChild(style);
+    }
+
+    function getInboxGiftData(msg) {
+        const type = String(msg?.giftType || 'none');
+
+        if (type === 'coin') {
+            return {
+                emoji: '🪙',
+                label: `${Number(msg.giftValue || 0).toLocaleString('vi-VN')} Coin`
+            };
+        }
+
+        if (type === 'birthday_coin') {
+            return {
+                emoji: '🎂',
+                label: `${Number(msg.giftValue || 0).toLocaleString('vi-VN')} Xu Sinh Nhật`
+            };
+        }
+
+        if (type === 'special_birthday_coin') {
+            return {
+                emoji: '🌟',
+                label: `${Number(msg.giftValue || 0).toLocaleString('vi-VN')} Xu Đặc Biệt`
+            };
+        }
+
+        if (type === 'money') {
+            return {
+                emoji: '💵',
+                label: `${Number(msg.giftValue || 0).toLocaleString('vi-VN')} đ Tiền lộ trình`
+            };
+        }
+
+        if (type === 'ticket') {
+            return {
+                emoji: '🎫',
+                label: `${Number(msg.giftValue || 0).toLocaleString('vi-VN')} Vé quay may mắn`
+            };
+        }
+
+        if (type === 'discount') {
+            return {
+                emoji: '🏷️',
+                label: `Thẻ giảm giá ${Number(msg.giftValue || 0)}%`
+            };
+        }
+
+        if (type === 'item') {
+            const itemDef =
+                typeof StoreConfig !== 'undefined' &&
+                    Array.isArray(StoreConfig.items)
+                    ? StoreConfig.items.find(
+                        item =>
+                            String(item.id) === String(msg.giftValue)
+                    )
+                    : null;
+
+            return {
+                emoji: '🎁',
+                label: itemDef?.name || 'Vật phẩm mới'
+            };
+        }
+
+        return {
+            emoji: '💌',
+            label: 'Quà mới'
+        };
+    }
+
+    function shouldAnimateInboxGiftMessage(msg) {
+        if (!msg) return false;
+        if (!msg.giftType || msg.giftType === 'none') return false;
+
+        // Chủ động cho phép tắt ở nguồn gửi
+        if (msg.skipInboxGiftAnimation === true) {
+            return false;
+        }
+
+        const source =
+            String(msg.source || '')
+                .trim()
+                .toLowerCase();
+
+        // BỎ QUA phần thưởng sự kiện
+        if (
+            source.startsWith('hoihoa_') ||
+            source === 'event' ||
+            source === 'event_reward' ||
+            source === 'season_reward'
+        ) {
+            return false;
+        }
+
+        return true;
+    }
+
+    function getInboxTargetElement() {
         const badge = document.getElementById('inboxBadge');
-        if (badge) {
-            if (messages.length > 0) {
-                badge.innerText = messages.length;
-                badge.style.display = 'block';
-            } else {
-                badge.style.display = 'none';
-            }
+
+        if (
+            badge &&
+            badge.offsetParent !== null
+        ) {
+            return badge;
         }
 
-        // Nếu hộp thư đang mở thì render lại liền
-        if (document.getElementById('studentInboxModal') && document.getElementById('studentInboxModal').classList.contains('active')) {
-            renderStudentInbox();
+        const selectors = [
+            '[onclick="openStudentInbox()"]',
+            '[onclick*="openStudentInbox"]',
+            '#openStudentInboxBtn',
+            '.inbox-button',
+            '.mailbox-button'
+        ];
+
+        for (const selector of selectors) {
+            const node = document.querySelector(selector);
+            if (node) return node;
         }
-    });
+
+        return null;
+    }
+
+    function getInboxTargetRect() {
+        const target = getInboxTargetElement();
+
+        if (target) {
+            const rect = target.getBoundingClientRect();
+            return {
+                left: rect.left,
+                top: rect.top,
+                width: rect.width,
+                height: rect.height,
+                centerX: rect.left + rect.width / 2,
+                centerY: rect.top + rect.height / 2
+            };
+        }
+
+        return {
+            left: window.innerWidth - 40,
+            top: 28,
+            width: 28,
+            height: 28,
+            centerX: window.innerWidth - 26,
+            centerY: 42
+        };
+    }
+
+    function waitInboxGiftFx(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function pulseInboxTarget() {
+        const target = getInboxTargetElement();
+        const badge = document.getElementById('inboxBadge');
+
+        if (target && typeof target.animate === 'function') {
+            target.animate(
+                [
+                    { transform: 'scale(1)' },
+                    { transform: 'scale(1.12)' },
+                    { transform: 'scale(0.94)' },
+                    { transform: 'scale(1.08)' },
+                    { transform: 'scale(1)' }
+                ],
+                {
+                    duration: 700,
+                    easing: 'ease-out'
+                }
+            );
+        }
+
+        if (badge && typeof badge.animate === 'function') {
+            badge.animate(
+                [
+                    { transform: 'scale(1)', opacity: 1 },
+                    { transform: 'scale(1.25)', opacity: 1 },
+                    { transform: 'scale(1)', opacity: 1 }
+                ],
+                {
+                    duration: 650,
+                    easing: 'ease-out'
+                }
+            );
+        }
+    }
+
+    async function playInboxGiftArrivalAnimation(msg) {
+        ensureInboxGiftFxStyles();
+
+        const data = getInboxGiftData(msg);
+        const targetRect = getInboxTargetRect();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'inboxGiftFxOverlay';
+
+        const stage = document.createElement('div');
+        stage.className = 'inbox-gift-fx-stage';
+
+        const envelope = document.createElement('div');
+        envelope.className = 'inbox-gift-fx-envelope';
+
+        envelope.innerHTML = `
+        <div class="inbox-gift-fx-envelope-back"></div>
+        <div class="inbox-gift-fx-letter">
+            <small>Gửi đến bạn</small>
+            <strong>Thư quà mới</strong>
+            <small>${data.label}</small>
+        </div>
+        <div class="inbox-gift-fx-pocket-left"></div>
+        <div class="inbox-gift-fx-pocket-right"></div>
+        <div class="inbox-gift-fx-pocket-bottom"></div>
+        <div class="inbox-gift-fx-flap"></div>
+        <div class="inbox-gift-fx-seal">❤</div>
+    `;
+
+        const gift = document.createElement('div');
+        gift.className = 'inbox-gift-fx-gift';
+        gift.innerHTML = `
+        <div class="inbox-gift-fx-gift-emoji">${data.emoji}</div>
+        <div class="inbox-gift-fx-gift-label">${data.label}</div>
+    `;
+
+        const caption = document.createElement('div');
+        caption.className = 'inbox-gift-fx-caption';
+        caption.textContent = 'Thư quà đang được gửi vào hộp thư...';
+
+        stage.appendChild(gift);
+        stage.appendChild(envelope);
+        stage.appendChild(caption);
+        overlay.appendChild(stage);
+        document.body.appendChild(overlay);
+
+        // B1. Quà rơi xuống gần thư
+        gift.animate(
+            [
+                {
+                    transform: 'translate(-50%, -70px) scale(.86)',
+                    opacity: 0
+                },
+                {
+                    transform: 'translate(-50%, 0px) scale(1)',
+                    opacity: 1
+                }
+            ],
+            {
+                duration: 420,
+                easing: 'cubic-bezier(.22,1,.36,1)',
+                fill: 'forwards'
+            }
+        );
+
+        await waitInboxGiftFx(450);
+
+        // B2. Quà chui vào trong thư
+        gift.animate(
+            [
+                {
+                    transform: 'translate(-50%, 0px) scale(1)',
+                    opacity: 1
+                },
+                {
+                    transform: 'translate(-50%, 92px) scale(.74)',
+                    opacity: .15
+                }
+            ],
+            {
+                duration: 420,
+                easing: 'ease-in',
+                fill: 'forwards'
+            }
+        );
+
+        await waitInboxGiftFx(430);
+
+        gift.style.display = 'none';
+
+        // B3. Đóng thư
+        envelope.classList.add('closed');
+        caption.textContent = 'Đóng thư lại...';
+
+        await waitInboxGiftFx(520);
+
+        // B4. Thư nhỏ dần và bay về hộp thư đến
+        caption.textContent = 'Bay vào hộp thư đến...';
+
+        const stageRect = stage.getBoundingClientRect();
+        const startX = stageRect.left + stageRect.width / 2;
+        const startY = stageRect.top + stageRect.height / 2;
+
+        const deltaX = targetRect.centerX - startX;
+        const deltaY = targetRect.centerY - startY;
+
+        await stage.animate(
+            [
+                {
+                    transform: 'translate(-50%, -50%) scale(1)',
+                    opacity: 1
+                },
+                {
+                    transform: `translate(calc(-50% + ${deltaX}px), calc(-50% + ${deltaY}px)) scale(.14)`,
+                    opacity: .9
+                }
+            ],
+            {
+                duration: 950,
+                easing: 'cubic-bezier(.2,.9,.1,1)',
+                fill: 'forwards'
+            }
+        ).finished.catch(() => { });
+
+        pulseInboxTarget();
+
+        // B5. Báo thư mới
+        const bubble = document.createElement('div');
+        bubble.className = 'inbox-gift-fx-mail-bubble';
+        bubble.textContent = '📩 Thư mới';
+
+        bubble.style.left =
+            `${Math.max(12, targetRect.centerX - 28)}px`;
+
+        bubble.style.top =
+            `${Math.max(12, targetRect.top - 18)}px`;
+
+        overlay.appendChild(bubble);
+
+        bubble.animate(
+            [
+                {
+                    transform: 'translateY(10px) scale(.85)',
+                    opacity: 0
+                },
+                {
+                    transform: 'translateY(0) scale(1)',
+                    opacity: 1
+                },
+                {
+                    transform: 'translateY(-8px) scale(1)',
+                    opacity: 1
+                },
+                {
+                    transform: 'translateY(-16px) scale(.95)',
+                    opacity: 0
+                }
+            ],
+            {
+                duration: 1200,
+                easing: 'ease-out',
+                fill: 'forwards'
+            }
+        );
+
+        await waitInboxGiftFx(1250);
+
+        overlay.remove();
+    }
+
+    function runInboxGiftAnimationQueue() {
+        const state = window.__inboxGiftFxState;
+
+        if (state.running || !state.queue.length) {
+            return;
+        }
+
+        state.running = true;
+
+        (async () => {
+            try {
+
+                /*
+                 * Chờ màn hình Loading biến mất
+                 * rồi mới chiếu hiệu ứng thư.
+                 */
+                while (true) {
+                    const loader =
+                        document.getElementById(
+                            'appStartupLoader'
+                        );
+
+                    if (
+                        !loader ||
+                        loader.classList.contains(
+                            'is-hidden'
+                        )
+                    ) {
+                        break;
+                    }
+
+                    await waitInboxGiftFx(150);
+                }
+
+                while (state.queue.length) {
+                    const nextMessage = state.queue.shift();
+                    await playInboxGiftArrivalAnimation(nextMessage);
+                    await waitInboxGiftFx(120);
+                }
+            } finally {
+                state.running = false;
+            }
+        })();
+    }
+
+    function enqueueInboxGiftAnimation(msg) {
+        if (!msg) {
+            return;
+        }
+
+        const messageKey =
+            String(
+                msg._fbKey ||
+                msg.messageId ||
+                ''
+            ).trim();
+
+        if (!messageKey) {
+            return;
+        }
+
+        /*
+         * Thư này đã từng phát hiệu ứng
+         * ở phiên trước hoặc lần tải trước
+         * => tuyệt đối không chạy lại.
+         */
+        if (
+            hasInboxGiftFxPlayed(
+                messageKey
+            )
+        ) {
+            return;
+        }
+
+        /*
+         * Đánh dấu NGAY TRƯỚC KHI đưa vào queue.
+         * Nhờ vậy nếu Firebase value callback
+         * chạy nhiều lần cũng không thêm trùng.
+         */
+        markInboxGiftFxPlayed(
+            messageKey
+        );
+
+        const state =
+            window.__inboxGiftFxState;
+
+        state.queue.push(msg);
+
+        runInboxGiftAnimationQueue();
+    }
+
+    // BỔ SUNG: Lắng nghe hộp thư (Chỉ cập nhật UI, KHÔNG thực hiện thao tác Xóa ở đây)
+    listenFirebase(
+        db.ref('inbox_messages/' + currentUser.username),
+        'value',
+        (snapshot) => {
+            const messages = [];
+            const now = Date.now();
+
+            const fxState =
+                window.__inboxGiftFxState ||
+                (window.__inboxGiftFxState = {
+                    initialized: false,
+                    knownKeys: new Set(),
+                    queue: [],
+                    running: false
+                });
+
+            const nextKeys = new Set();
+            const arrivingGiftMessages = [];
+
+            snapshot.forEach(child => {
+                const msg = child.val();
+
+                // Chỉ render thư chưa hết hạn
+                if (!msg.expiry || now <= msg.expiry) {
+                    const fullMsg = {
+                        ...msg,
+                        _fbKey: child.key
+                    };
+
+                    messages.push(fullMsg);
+                    nextKeys.add(child.key);
+
+                    // Chỉ phát hiệu ứng với thư MỚI tới
+                    const messageTime =
+                        Number(
+                            fullMsg.timestamp ||
+                            fullMsg.time ||
+                            0
+                        );
+
+                    const messageAge =
+                        now - messageTime;
+
+                    /*
+                     * Nếu vừa đăng nhập:
+                     * vẫn chạy hiệu ứng cho thư được gửi
+                     * trong vòng 15 phút gần nhất.
+                     */
+                    const isRecentGift =
+                        messageTime > 0 &&
+                        messageAge >= -30000 &&
+                        messageAge <=
+                        15 * 60 * 1000;
+
+                    /*
+                     * Khi trang đã chạy:
+                     * mọi thư mới phát sinh đều chạy.
+                     */
+                    const isNewLiveGift =
+                        fxState.initialized &&
+                        !fxState.knownKeys.has(
+                            child.key
+                        );
+
+                    const isNewOnStartup =
+                        !fxState.initialized &&
+                        isRecentGift;
+
+                    if (
+                        (
+                            isNewLiveGift ||
+                            isNewOnStartup
+                        ) &&
+                        shouldAnimateInboxGiftMessage(
+                            fullMsg
+                        )
+                    ) {
+                        arrivingGiftMessages.push(
+                            fullMsg
+                        );
+                    }
+                }
+            });
+
+            window.myInboxMessages =
+                messages.sort(
+                    (a, b) =>
+                        (b.timestamp || 0) -
+                        (a.timestamp || 0)
+                );
+
+            // Cập nhật badge
+            const badge = document.getElementById('inboxBadge');
+            if (badge) {
+                if (messages.length > 0) {
+                    badge.innerText = messages.length;
+                    badge.style.display = 'block';
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
+
+            // Chỉ seed trạng thái ở lần đầu, tránh mở web lên là chạy hiệu ứng toàn bộ thư cũ
+            if (!fxState.initialized) {
+                fxState.initialized = true;
+            }
+
+            /*
+             * Không dùng else.
+             * Nhờ vậy thư mới phát hiện ngay lúc
+             * vừa đăng nhập cũng được chạy.
+             */
+            if (
+                arrivingGiftMessages.length > 0
+            ) {
+                arrivingGiftMessages
+                    .sort(
+                        (a, b) =>
+                            (a.timestamp || 0) -
+                            (b.timestamp || 0)
+                    )
+                    .forEach(msg => {
+                        enqueueInboxGiftAnimation(
+                            msg
+                        );
+                    });
+            }
+
+            fxState.knownKeys = nextKeys;
+
+            // Nếu hộp thư đang mở thì render lại
+            const inboxModal =
+                document.getElementById('studentInboxModal');
+
+            if (
+                inboxModal &&
+                inboxModal.classList.contains('active')
+            ) {
+                renderStudentInbox();
+            }
+            if (startupLoader) startupLoader.markReady('student-inbox');
+        }
+    );
 
     // === QUÉT NGẦM VÀ XÓA HỘP THƯ HẾT HẠN (MỖI 5 PHÚT) ===
     setInterval(async () => {
@@ -1911,6 +3006,12 @@ window.onload = async function () {
                     ) {
                         MusicManager.stopMusic();
                     }
+                    if (
+                        itemDef.type === 'frame' &&
+                        window.AvatarFrameManager
+                    ) {
+                        window.AvatarFrameManager.clearFrame();
+                    }
                 }
 
                 // Xóa vật phẩm hết hạn khỏi kho
@@ -1945,6 +3046,7 @@ window.onload = async function () {
             closeCoinConversionModal();
             alert("🔒 Giáo viên vừa tạm khóa chức năng Bảng quy đổi!");
         }
+        if (startupLoader) startupLoader.markReady('student-conversion-settings');
     });
 
     // =================================================================
@@ -1961,21 +3063,30 @@ window.onload = async function () {
         if (typeof window.initCashWithdrawInterface === 'function' && document.getElementById('displayRouteMoney')) {
             await window.initCashWithdrawInterface();
         }
+        if (startupLoader) startupLoader.markReady('student-money-offset');
     });
 
     // 2. Lắng nghe trạng thái duyệt/từ chối rút tiền mặt từ Giáo viên
     listenFirebase(db.ref('cash_requests'), 'value', async () => {
-        if (typeof renderCashRequestHistory === 'function' && document.getElementById('cashRequestHistoryContainer')) {
+        // Khi trạng thái yêu cầu đổi, cập nhật cả lịch sử lẫn số tiền còn có thể yêu cầu.
+        if (typeof window.initCashWithdrawInterface === 'function' && document.getElementById('displayRouteMoney')) {
+            await window.initCashWithdrawInterface();
+        } else if (typeof renderCashRequestHistory === 'function' && document.getElementById('cashRequestHistoryContainer')) {
             await renderCashRequestHistory();
         }
+        if (startupLoader) startupLoader.markReady('student-cash-requests');
     });
 
     await LimitedEventAnnouncementManager.init();
+    if (startupLoader) startupLoader.markReady('student-limited-event');
 
     // Quét và cập nhật lại điều kiện cho các thẻ giảm giá CŨ của học sinh
     db.ref('student_discounts/' + currentUser.username).once('value', (snap) => {
         const discounts = snap.val();
-        if (!discounts) return;
+        if (!discounts) {
+            if (startupLoader) startupLoader.markReady('student-discounts');
+            return;
+        }
 
         let updates = {};
         // Lấy danh sách ID vật phẩm hợp lệ (<= 500 coin)
@@ -2077,7 +3188,28 @@ window.onload = async function () {
         if (Object.keys(updates).length > 0) {
             db.ref().update(updates);
         }
+        if (startupLoader) startupLoader.markReady('student-discounts');
     });
+    if (startupLoader) {
+        const allCloudReady = await startupLoader.waitForExpected({
+            timeoutMs: 30000
+        });
+
+        if (!allCloudReady) return;
+
+        await new Promise(resolve =>
+            requestAnimationFrame(() =>
+                requestAnimationFrame(resolve)
+            )
+        );
+
+        await startupLoader.waitForMedia({
+            timeoutMs: 9000,
+            quietMs: 600
+        });
+
+        startupLoader.hide();
+    }
 };
 
 function getEmbedHTML(url) {
@@ -2091,10 +3223,10 @@ function getEmbedHTML(url) {
     if (videoId) {
         let embedUrl = `https://www.youtube.com/embed/${videoId}`;
         // Thêm margin-bottom: 20px
-        return `<div class="video-wrapper" style="margin-bottom: 20px;"><iframe width="100%" height="315" src="${embedUrl}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen" loading="lazy"></iframe></div>`;
+        return `<div class="video-wrapper" style="margin-bottom: 20px;"><iframe width="100%" height="315" src="${embedUrl}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen" loading="eager" data-startup-video="1"></iframe></div>`;
     }
     // Thêm margin-bottom: 20px
-    return `<div class="video-wrapper" style="margin-bottom: 20px;"><iframe width="100%" height="315" src="${url}" frameborder="0" allow="fullscreen" loading="lazy"></iframe></div>`;
+    return `<div class="video-wrapper" style="margin-bottom: 20px;"><iframe width="100%" height="315" src="${url}" frameborder="0" allow="fullscreen" loading="eager" data-startup-video="1"></iframe></div>`;
 }
 
 let assignmentTimers = [];
@@ -7094,6 +8226,10 @@ async function readMultipleFiles(
         files,
         {
             maxSizeBytes: 10 * 1024 * 1024,
+
+            audioMaxSizeBytes:
+                30 * 1024 * 1024,
+
             folder: options.folder || 'submissions'
         }
     );
@@ -7102,6 +8238,163 @@ async function readMultipleFiles(
 // THAY THẾ TOÀN BỘ HÀM spinWheel CŨ Ở CUỐI FILE STUDENT.JS BẰNG ĐOẠN NÀY
 // ================= HỆ THỐNG VÒNG QUAY MAY MẮN =================
 let isSpinning = false;
+
+// ======================================================
+// GIỜ VÀNG VÒNG QUAY MAY MẮN
+// - Chỉ tăng phần thưởng Coin.
+// - Không đổi tỉ lệ trúng, vé quay hoặc vật phẩm.
+// - Mỗi lượt trúng Coin trong Giờ Vàng được cộng thêm 50 Coin.
+// - Thời gian tính theo múi giờ Việt Nam (Asia/Ho_Chi_Minh).
+// ======================================================
+const LUCKY_WHEEL_GOLDEN_HOUR_BONUS = 50;
+
+const LUCKY_WHEEL_GOLDEN_WINDOWS = Object.freeze([
+    { start: 0, end: 60, label: '00:00 - 01:00' },
+    { start: 9 * 60, end: 10 * 60, label: '09:00 - 10:00' },
+    { start: 12 * 60, end: 13 * 60, label: '12:00 - 13:00' },
+    { start: 14 * 60, end: 15 * 60, label: '14:00 - 15:00' },
+    { start: 20 * 60, end: 20 * 60 + 30, label: '20:00 - 20:30' }
+]);
+
+function getLuckyWheelVietnamClock(date = new Date()) {
+    const parts = new Intl.DateTimeFormat(
+        'en-GB',
+        {
+            timeZone: 'Asia/Ho_Chi_Minh',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hourCycle: 'h23'
+        }
+    ).formatToParts(date);
+
+    const values = {};
+
+    parts.forEach(part => {
+        if (part.type !== 'literal') {
+            values[part.type] = Number(part.value);
+        }
+    });
+
+    const hour = Number(values.hour) || 0;
+    const minute = Number(values.minute) || 0;
+    const second = Number(values.second) || 0;
+
+    return {
+        hour,
+        minute,
+        second,
+        totalMinutes:
+            hour * 60 +
+            minute +
+            second / 60
+    };
+}
+
+function getLuckyWheelGoldenHourStatus(date = new Date()) {
+    const clock = getLuckyWheelVietnamClock(date);
+
+    const activeWindow =
+        LUCKY_WHEEL_GOLDEN_WINDOWS.find(windowConfig =>
+            clock.totalMinutes >= windowConfig.start &&
+            clock.totalMinutes < windowConfig.end
+        ) || null;
+
+    return {
+        active: Boolean(activeWindow),
+        bonus: activeWindow
+            ? LUCKY_WHEEL_GOLDEN_HOUR_BONUS
+            : 0,
+        windowLabel: activeWindow?.label || '',
+        clock
+    };
+}
+
+window.getLuckyWheelGoldenHourStatus =
+    getLuckyWheelGoldenHourStatus;
+
+function renderLuckyWheelGoldenHourNotice() {
+    const modal =
+        document.getElementById('luckyWheelModal');
+
+    if (!modal) return;
+
+    const title =
+        modal.querySelector('h3');
+
+    if (!title) return;
+
+    let notice =
+        document.getElementById(
+            'luckyWheelGoldenHourNotice'
+        );
+
+    if (!notice) {
+        notice = document.createElement('div');
+        notice.id = 'luckyWheelGoldenHourNotice';
+
+        title.insertAdjacentElement(
+            'afterend',
+            notice
+        );
+    }
+
+    const status =
+        getLuckyWheelGoldenHourStatus();
+
+    notice.style.cssText = status.active
+        ? `
+            margin: 10px auto 12px;
+            max-width: 520px;
+            padding: 10px 14px;
+            border: 1px solid rgba(255, 215, 0, .75);
+            border-radius: 12px;
+            background: linear-gradient(
+                135deg,
+                rgba(255, 111, 0, .22),
+                rgba(255, 215, 0, .18)
+            );
+            box-shadow: 0 0 18px rgba(255, 193, 7, .22);
+            color: #ffd700;
+            font-size: .9em;
+            font-weight: 800;
+            line-height: 1.45;
+            text-align: center;
+        `
+        : `
+            margin: 10px auto 12px;
+            max-width: 520px;
+            padding: 9px 12px;
+            border: 1px solid rgba(255,255,255,.16);
+            border-radius: 12px;
+            background: rgba(255,255,255,.06);
+            color: rgba(255,255,255,.78);
+            font-size: .82em;
+            font-weight: 600;
+            line-height: 1.45;
+            text-align: center;
+        `;
+
+    notice.innerHTML = status.active
+        ? `
+            🔥 <strong>GIỜ VÀNG ĐANG DIỄN RA</strong><br>
+            Trúng Coin được cộng thêm
+            <strong>+${LUCKY_WHEEL_GOLDEN_HOUR_BONUS} Coin</strong>
+            mỗi lượt · ${status.windowLabel}
+        `
+        : `
+            🕒 Giờ Vàng:
+            00:00–01:00 · 09:00–10:00 ·
+            12:00–13:00 · 14:00–15:00 ·
+            20:00–20:30<br>
+            Trong Giờ Vàng:
+            <strong>+${LUCKY_WHEEL_GOLDEN_HOUR_BONUS} Coin</strong>
+            cho mỗi lượt trúng Coin
+        `;
+}
+
+window.renderLuckyWheelGoldenHourNotice =
+    renderLuckyWheelGoldenHourNotice;
 
 // HÀM DÙNG CHUNG: Tính vé chính xác (Vé từ điểm + Vé quà tặng - Số lần đã quay)
 window.calculateTotalTickets = async function () {
@@ -7458,6 +8751,9 @@ window.openLuckyWheel = async function () {
 
     const ticketData = await window.calculateTotalTickets();
 
+    // Cập nhật trạng thái Giờ Vàng mỗi lần mở vòng quay.
+    renderLuckyWheelGoldenHourNotice();
+
     const titleWheel = document.querySelector('#luckyWheelModal h3');
     if (titleWheel) {
         titleWheel.innerHTML = `🎡 Vòng Quay Nhân Phẩm<br><span style="font-size: 0.5em; color: #ffd700; text-transform: none;">🎫 Vé hiện có: ${ticketData.remaining}</span>`;
@@ -7502,6 +8798,11 @@ window.spinWheel = async function () {
     }
 
     isSpinning = true;
+
+    // Chốt Giờ Vàng ngay tại thời điểm bắt đầu quay.
+    // Animation kết thúc sau giờ vẫn giữ đúng quyền lợi của lượt đã bấm.
+    const goldenHourAtSpin =
+        getLuckyWheelGoldenHourStatus();
 
     const wheel = document.getElementById('wheelContainer');
     const resultText = document.getElementById('spinResultText');
@@ -7617,6 +8918,42 @@ window.spinWheel = async function () {
             }
         }
 
+        // GIỜ VÀNG:
+        // Nếu lượt này nhận Coin thì cộng thêm đúng 50 Coin.
+        // Vật phẩm thật không bị chuyển đổi và không nhận bonus.
+        const baseWonCoins = wonCoins;
+        const goldenHourBonus =
+            wonCoins > 0 &&
+                goldenHourAtSpin.active
+                ? LUCKY_WHEEL_GOLDEN_HOUR_BONUS
+                : 0;
+
+        if (goldenHourBonus > 0) {
+            wonCoins += goldenHourBonus;
+
+            if (
+                finalRewardStr === '50 Coin' ||
+                finalRewardStr === '70 Coin' ||
+                finalRewardStr === '200 Coin'
+            ) {
+                displayResult =
+                    `${wonCoins} Coin ` +
+                    `(Gốc ${baseWonCoins} + ` +
+                    `Giờ Vàng ${goldenHourBonus})`;
+
+                actualRewardRecord =
+                    `${wonCoins} Coin ` +
+                    `(Gốc ${baseWonCoins} + ` +
+                    `Giờ Vàng ${goldenHourBonus})`;
+            } else {
+                displayResult +=
+                    ` + Giờ Vàng ${goldenHourBonus} Coin`;
+
+                actualRewardRecord +=
+                    ` + Giờ Vàng ${goldenHourBonus} Coin`;
+            }
+        }
+
         // Hiển thị kết quả ra màn hình
         resultText.style.transform = 'scale(1.2)';
         resultText.style.color = (wonCoins > 0 || finalRewardStr === "Quà bí ẩn") ? '#ffd700' : '#ff4757';
@@ -7714,6 +9051,18 @@ window.spinWheel = async function () {
                         wonCoins:
                             wonCoins,
 
+                        baseWonCoins:
+                            baseWonCoins,
+
+                        goldenHour:
+                            goldenHourAtSpin.active,
+
+                        goldenHourWindow:
+                            goldenHourAtSpin.windowLabel,
+
+                        goldenHourBonus:
+                            goldenHourBonus,
+
                         itemId:
                             wonItem?.id ||
                             '',
@@ -7783,6 +9132,11 @@ window.spinMultipleWheel = async function () {
 
     isSpinning = true;
 
+    // Toàn bộ lượt trong một lần Quay Nhanh dùng trạng thái
+    // Giờ Vàng tại thời điểm người dùng bấm bắt đầu.
+    const goldenHourAtMultiSpin =
+        getLuckyWheelGoldenHourStatus();
+
     const resultText = document.getElementById('spinResultText');
     const titleWheel = document.querySelector('#luckyWheelModal h3');
 
@@ -7795,7 +9149,10 @@ window.spinMultipleWheel = async function () {
     resultText.style.opacity = '1';
     resultText.style.color = '#fff';
     resultText.style.transform = 'scale(1)';
-    resultText.innerText = `⚡ Đang xử lý quay ${spinsToDo} lần... 🌀`;
+    resultText.innerText =
+        goldenHourAtMultiSpin.active
+            ? `🔥 GIỜ VÀNG +${LUCKY_WHEEL_GOLDEN_HOUR_BONUS} Coin/lượt trúng Coin · Đang quay ${spinsToDo} lần...`
+            : `⚡ Đang xử lý quay ${spinsToDo} lần... 🌀`;
 
     // Chạy ngầm thuật toán quay y hệt hàm spinWheel gốc
     const cotichItems = (typeof StoreConfig !== 'undefined') ? StoreConfig.items.filter(i => i.tag && i.tag.toLowerCase() === 'cổ tích') : [];
@@ -7805,10 +9162,32 @@ window.spinMultipleWheel = async function () {
     let currentOwned = invSnap.val() ? Object.values(invSnap.val()).map(i => i.id) : [];
 
     let totalCoinsWon = 0;
+    let baseCoinsWon = 0;
+    let goldenHourBonusCoins = 0;
+    let coinRewardSpinCount = 0;
     let missCount = 0;
     let newlyWonItems = [];
     let newlyWonItemNames = [];
     let duplicateItemsCount = 0;
+
+    const addMultiWheelCoinReward = baseAmount => {
+        const normalizedBase =
+            Math.max(0, Number(baseAmount) || 0);
+
+        if (normalizedBase <= 0) return;
+
+        baseCoinsWon += normalizedBase;
+        totalCoinsWon += normalizedBase;
+        coinRewardSpinCount++;
+
+        if (goldenHourAtMultiSpin.active) {
+            totalCoinsWon +=
+                LUCKY_WHEEL_GOLDEN_HOUR_BONUS;
+
+            goldenHourBonusCoins +=
+                LUCKY_WHEEL_GOLDEN_HOUR_BONUS;
+        }
+    };
 
     const p = window.wheelProbs || { miss: 50, c100: 20, c150: 25, c500: 4, gift: 1 };
 
@@ -7817,15 +9196,15 @@ window.spinMultipleWheel = async function () {
         let cumulative = 0;
 
         if (rand < (cumulative += p.miss)) { missCount++; }
-        else if (rand < (cumulative += p.c100)) { totalCoinsWon += 50; }
-        else if (rand < (cumulative += p.c150)) { totalCoinsWon += 70; }
-        else if (rand < (cumulative += p.c500)) { totalCoinsWon += 200; }
+        else if (rand < (cumulative += p.c100)) { addMultiWheelCoinReward(50); }
+        else if (rand < (cumulative += p.c150)) { addMultiWheelCoinReward(70); }
+        else if (rand < (cumulative += p.c500)) { addMultiWheelCoinReward(200); }
         else {
             // Trúng Quà bí ẩn
             if (cotichItems.length > 0) {
                 const randomItem = cotichItems[Math.floor(Math.random() * cotichItems.length)];
                 if (currentOwned.includes(randomItem.id)) {
-                    totalCoinsWon += 600; // Đền bù 600 Coin
+                    addMultiWheelCoinReward(600); // Đền bù 600 Coin
                     duplicateItemsCount++;
                 } else {
                     currentOwned.push(randomItem.id);
@@ -7833,7 +9212,7 @@ window.spinMultipleWheel = async function () {
                     newlyWonItemNames.push(randomItem.name);
                 }
             } else {
-                totalCoinsWon += 600;
+                addMultiWheelCoinReward(600);
             }
         }
     }
@@ -7950,6 +9329,21 @@ window.spinMultipleWheel = async function () {
                     totalCoinsWon:
                         totalCoinsWon,
 
+                    baseCoinsWon:
+                        baseCoinsWon,
+
+                    coinRewardSpinCount:
+                        coinRewardSpinCount,
+
+                    goldenHour:
+                        goldenHourAtMultiSpin.active,
+
+                    goldenHourWindow:
+                        goldenHourAtMultiSpin.windowLabel,
+
+                    goldenHourBonusCoins:
+                        goldenHourBonusCoins,
+
                     duplicateItemsCount:
                         duplicateItemsCount,
 
@@ -7964,7 +9358,14 @@ window.spinMultipleWheel = async function () {
             });
     }
 
-    let historyStr = `Quay nhanh ${spinsToDo} lần: Trượt ${missCount}, +${totalCoinsWon} Coin`;
+    let historyStr =
+        `Quay nhanh ${spinsToDo} lần: ` +
+        `Trượt ${missCount}, +${totalCoinsWon} Coin`;
+
+    if (goldenHourBonusCoins > 0) {
+        historyStr +=
+            ` (Giờ Vàng +${goldenHourBonusCoins} Coin)`;
+    }
     if (duplicateItemsCount > 0) historyStr += ` (Bao gồm ${duplicateItemsCount} trùng lặp)`;
     if (newlyWonItemNames.length > 0) historyStr += `. Nhận VP: ${newlyWonItemNames.join(', ')}`;
 
@@ -8131,11 +9532,370 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ========================================================
+// HỆ THỐNG KHUNG AVATAR
+// ========================================================
+window.AvatarFrameManager = {
+
+    activeItemId: '',
+
+    // Xóa toàn bộ khung hiện tại
+    clearFrame() {
+
+        document.querySelectorAll(
+            '.avatar-frame-decoration,' +
+            '.avatar-frame-aura,' +
+            '.avatar-frame-spark'
+        ).forEach(node => node.remove());
+
+        document
+            .querySelectorAll('.avatar-frame-equipped')
+            .forEach(host => {
+
+                host.classList.remove(
+                    'avatar-frame-equipped',
+                    'avatar-frame-profile-host',
+                    'avatar-frame-modal-host',
+                );
+
+                host.removeAttribute(
+                    'data-avatar-frame-effect'
+                );
+
+                host.removeAttribute(
+                    'data-avatar-frame-id'
+                );
+
+            });
+
+        this.activeItemId = '';
+    },
+
+    // Tạo một bộ khung cho một vị trí avatar
+    createLayer(host, item, variant) {
+
+        if (!host || !item || !item.value) {
+            return;
+        }
+
+        host.classList.add(
+            'avatar-frame-equipped',
+            variant === 'profile'
+                ? 'avatar-frame-profile-host'
+                : 'avatar-frame-modal-host'
+        );
+
+        host.setAttribute(
+            'data-avatar-frame-effect',
+            String(
+                item.frameEffect ||
+                item.id ||
+                ''
+            )
+        );
+
+        host.setAttribute(
+            'data-avatar-frame-id',
+            String(item.id || '')
+        );
+
+        // =====================================================
+        // ĐỊNH DANH KHUNG ĐANG MẶC
+        // Dùng để mỗi bộ khung có CSS riêng.
+        // =====================================================
+        host.setAttribute(
+            'data-avatar-frame-id',
+            String(item.id || '')
+        );
+
+        // Quốc khánh 2/9 — Việt Diệu
+        if (
+            item.id ===
+            'frame_quoc_khanh_viet_dieu_vong_son'
+        ) {
+            host.classList.add(
+                'avatar-frame-viet-dieu-host'
+            );
+        }
+
+        // Hào quang phía sau
+        const aura =
+            document.createElement('span');
+
+        aura.className =
+            'avatar-frame-aura';
+
+        aura.setAttribute(
+            'aria-hidden',
+            'true'
+        );
+
+        // Ảnh khung thật
+        const frame =
+            document.createElement('img');
+
+        frame.className =
+            'avatar-frame-decoration';
+
+        frame.src =
+            item.value;
+
+        frame.alt = '';
+
+        frame.draggable =
+            false;
+
+        frame.setAttribute(
+            'aria-hidden',
+            'true'
+        );
+
+        frame.onerror = function () {
+
+            this.style.display =
+                'none';
+
+            console.warn(
+                'Không tải được ảnh khung:',
+                item.value
+            );
+
+        };
+
+        host.appendChild(aura);
+        host.appendChild(frame);
+
+        // Tinh quang quanh khung
+        [
+            'spark-1',
+            'spark-2',
+            'spark-3',
+            'spark-4'
+        ].forEach(className => {
+
+            const spark =
+                document.createElement('span');
+
+            spark.className =
+                `avatar-frame-spark ${className}`;
+
+            spark.textContent =
+                '✦';
+
+            spark.setAttribute(
+                'aria-hidden',
+                'true'
+            );
+
+            host.appendChild(spark);
+        });
+    },
+
+    // Mặc khung
+    applyFrame(itemOrId) {
+
+        const item =
+            typeof itemOrId === 'string'
+                ? StoreManager.getItemById(
+                    itemOrId
+                )
+                : itemOrId;
+
+        // Chỉ cho mặc 1 khung
+        this.clearFrame();
+
+        if (
+            !item ||
+            item.type !== 'frame' ||
+            !item.value
+        ) {
+            return;
+        }
+
+        // Avatar nhỏ góc phải màn hình
+        const profileButton =
+            document.querySelector(
+                '.profile-trigger-btn'
+            );
+
+        // Avatar trong popup Hồ sơ cá nhân
+        const modalAvatarHost =
+            document.querySelector(
+                '#studentInfoModal ' +
+                '.avatar-upload-container'
+            );
+
+        this.createLayer(
+            profileButton,
+            item,
+            'profile'
+        );
+
+        this.createLayer(
+            modalAvatarHost,
+            item,
+            'modal'
+        );
+
+        this.activeItemId =
+            item.id || '';
+    }
+};
+
+// ========================================================
+// HỆ THỐNG NỀN WEB
+// KHÔNG CÓ HIỆU ỨNG
+// ========================================================
+window.WebBackgroundManager = {
+
+    activeItemId: '',
+
+    // Tháo nền
+    clearBackground() {
+
+        const body = document.body;
+
+        if (!body) {
+            this.activeItemId = '';
+            return;
+        }
+
+        // Xóa ảnh nền do vật phẩm đặt
+        body.style.removeProperty(
+            'background-image'
+        );
+
+        body.style.removeProperty(
+            'background-size'
+        );
+
+        body.style.removeProperty(
+            'background-position'
+        );
+
+        body.style.removeProperty(
+            'background-repeat'
+        );
+
+        body.style.removeProperty(
+            'background-attachment'
+        );
+
+        body.classList.remove(
+            'store-background-equipped'
+        );
+
+        body.removeAttribute(
+            'data-store-background-id'
+        );
+
+        this.activeItemId = '';
+    },
+
+
+    // Mặc nền
+    applyBackground(itemOrId) {
+
+        const item =
+            typeof itemOrId === 'string'
+                ? StoreManager.getItemById(
+                    itemOrId
+                )
+                : itemOrId;
+
+
+        // Chỉ sử dụng 1 nền
+        this.clearBackground();
+
+
+        if (
+            !item ||
+            item.type !== 'background' ||
+            !item.value ||
+            !document.body
+        ) {
+            return;
+        }
+
+
+        const body =
+            document.body;
+
+
+        // Chuyển đường dẫn thành CSS url(...)
+        const cssURL =
+            `url(${JSON.stringify(
+                String(item.value)
+            )})`;
+
+
+        /*
+         * GHI ĐÈ ẢNH NỀN CỦA WEB
+         * Không tạo hiệu ứng.
+         */
+        body.style.setProperty(
+            'background-image',
+            cssURL,
+            'important'
+        );
+
+
+        body.style.setProperty(
+            'background-size',
+            'cover',
+            'important'
+        );
+
+
+        body.style.setProperty(
+            'background-position',
+            'center center',
+            'important'
+        );
+
+
+        body.style.setProperty(
+            'background-repeat',
+            'no-repeat',
+            'important'
+        );
+
+
+        body.style.setProperty(
+            'background-attachment',
+            'fixed',
+            'important'
+        );
+
+
+        body.classList.add(
+            'store-background-equipped'
+        );
+
+
+        body.setAttribute(
+            'data-store-background-id',
+            String(item.id || '')
+        );
+
+
+        this.activeItemId =
+            item.id || '';
+    }
+};
+
+// ========================================================
 // HỆ THỐNG CỬA HÀNG & TÚI ĐỒ (HỌC SINH) - ĐÃ CHUẨN HÓA
 // ========================================================
 
 let studentOwnedItems = [];
-let studentEquippedItems = { theme: 'default', effect: '', pet: '', music: '' };
+let studentEquippedItems = {
+    theme: 'default',
+    effect: '',
+    pet: '',
+    music: '',
+    frame: '',
+    background: ''
+};
 let trialItemsList = [];
 window.currentStoreFilterType = 'all';
 
@@ -8239,7 +9999,14 @@ window.filterStore = function (type) {
 // 2. Render Cửa hàng & Kiểm tra thời hạn dùng thử 
 window.loadStoreItems = async function () {
     studentOwnedItems = ['theme_default'];
-    studentEquippedItems = { theme: 'default', effect: '', pet: '', music: '' };
+    studentEquippedItems = {
+        theme: 'default',
+        effect: '',
+        pet: '',
+        music: '',
+        frame: '',
+        background: ''
+    };
     trialItemsList = [];
 
     const now = Date.now();
@@ -8282,6 +10049,13 @@ window.loadStoreItems = async function () {
                             typeof MusicManager !== 'undefined'
                         ) {
                             MusicManager.stopMusic();
+                        }
+
+                        if (
+                            itemDef.type === 'background' &&
+                            window.WebBackgroundManager
+                        ) {
+                            window.WebBackgroundManager.clearBackground();
                         }
                     }
                 }
@@ -8430,7 +10204,9 @@ window.openPaymentModal = function (item, basePrice, currentCoins, discounts, is
                         ? ' | Á quân Hội Họa: món dưới 600 Coin'
                         : discountSource === 'hoihoa_chest'
                             ? ' | Rương Hội Họa: món dưới 700 Coin'
-                            : '';
+                            : discountSource === 'leaderboard_runner_up'
+                                ? ' | Á quân BXH: thẻ thưởng mùa thi đua'
+                                : '';
 
         let targetArr = d.targetItem || ['all'];
         if (!Array.isArray(targetArr)) targetArr = [targetArr];
@@ -8893,6 +10669,18 @@ StoreManager.unapplyItem = async function (itemId) {
             PetManager.clearBirthday2026Realm();
         }
 
+
+        /*
+         * Dọn lớp giao diện + ambient + click ultimate của
+         * Nữ Thần Mùa Xuân Premium trước khi xóa pet khỏi DOM.
+         */
+        if (
+            typeof PetManager !== 'undefined' &&
+            typeof PetManager.clearPremiumSpringRealm === 'function'
+        ) {
+            PetManager.clearPremiumSpringRealm();
+        }
+
         /*
          * Dọn dự phòng trong trường hợp PetManager
          * chưa được tải hoặc hiệu ứng cũ bị tách khỏi manager.
@@ -8946,6 +10734,17 @@ StoreManager.unapplyItem = async function (itemId) {
         }
 
         /*
+ * Dọn ambient / ultimate Quốc khánh.
+ * Giữ riêng để không sót lớp toàn màn hình khi tháo pet.
+ */
+        if (
+            typeof PetManager !== 'undefined' &&
+            typeof PetManager.clearNationalDayRealm === 'function'
+        ) {
+            PetManager.clearNationalDayRealm();
+        }
+
+        /*
          * Xóa hoàn toàn thú cưng khỏi giao diện,
          * không chỉ ẩn ảnh.
          */
@@ -8955,8 +10754,14 @@ StoreManager.unapplyItem = async function (itemId) {
 
             petContainer.classList.remove(
                 'pet-birthday-serpent-2026-stage',
+                'pet-spring-vintage-stage',
+                'spring-vintage-awakening',
+                'spring-vintage-casting',
                 'pet-idle',
-                'pet-dragging'
+                'pet-dragging',
+                'pet-national-day-stage',
+                'national-day-awakening',
+                'national-day-casting',
             );
 
             petContainer.onmouseenter = null;
@@ -8975,6 +10780,20 @@ StoreManager.unapplyItem = async function (itemId) {
         typeof MusicManager !== 'undefined'
     ) {
         MusicManager.stopMusic();
+    }
+
+    if (
+        item.type === 'frame' &&
+        window.AvatarFrameManager
+    ) {
+        window.AvatarFrameManager.clearFrame();
+    }
+
+    if (
+        item.type === 'background' &&
+        window.WebBackgroundManager
+    ) {
+        window.WebBackgroundManager.clearBackground();
     }
 
     // 2. Lưu trạng thái "Đã tháo" lên Firebase
@@ -9040,6 +10859,13 @@ window.suspendExamVisualItems = function () {
         }
     }
 
+    if (
+        typeof PetManager !== 'undefined' &&
+        typeof PetManager.clearNationalDayRealm === 'function'
+    ) {
+        PetManager.clearNationalDayRealm();
+    }
+
     const petContainer =
         document.getElementById('virtual-pet-container');
 
@@ -9073,6 +10899,16 @@ window.restoreExamVisualItems = function () {
 window.applyEquippedItems = function () {
     const effectContainer =
         document.getElementById('global-effect-container');
+
+    // Xóa khung cũ trước khi đọc lại vật phẩm đang mặc
+    if (window.AvatarFrameManager) {
+        window.AvatarFrameManager.clearFrame();
+    }
+
+    // Xóa nền cũ trước khi đọc lại vật phẩm đang mặc
+    if (window.WebBackgroundManager) {
+        window.WebBackgroundManager.clearBackground();
+    }
 
     const petContainer =
         document.getElementById('virtual-pet-container');
@@ -9166,6 +11002,34 @@ window.applyEquippedItems = function () {
 
         if (itemDef.type === 'music') {
             equippedMusic = itemDef;
+            return;
+        }
+
+        // Áp khung avatar
+        if (itemDef.type === 'frame') {
+
+            if (window.AvatarFrameManager) {
+
+                window.AvatarFrameManager.applyFrame(
+                    itemDef
+                );
+
+            }
+
+            return;
+        }
+
+        // Áp ảnh nền web
+        if (itemDef.type === 'background') {
+
+            if (window.WebBackgroundManager) {
+
+                window.WebBackgroundManager.applyBackground(
+                    itemDef
+                );
+
+            }
+
             return;
         }
 
@@ -9430,23 +11294,50 @@ function isRoadmapSubmissionPassed(assign, sub) {
     );
 }
 
+function getRoadmapTargetStudents(assign) {
+    const rawTarget = assign?.targetStudent;
+
+    if (Array.isArray(rawTarget)) {
+        const values = rawTarget
+            .flatMap(value => String(value ?? '').split(','))
+            .map(value => value.trim())
+            .filter(Boolean);
+
+        return values.length
+            ? [...new Set(values)]
+            : ['all'];
+    }
+
+    const values = String(rawTarget ?? 'all')
+        .split(',')
+        .map(value => value.trim())
+        .filter(Boolean);
+
+    return values.length
+        ? [...new Set(values)]
+        : ['all'];
+}
+
+function isRoadmapAssignmentForStudent(assign, username) {
+    const targetStudents =
+        getRoadmapTargetStudents(assign);
+
+    const normalizedUsername =
+        String(username ?? '').trim();
+
+    return (
+        targetStudents.includes('all') ||
+        targetStudents.includes(normalizedUsername)
+    );
+}
+
 function calculateRoadmapBaseMoney(
     assignments,
     submissions,
     username
 ) {
     return (assignments || []).reduce((total, assign) => {
-        const targetStudents = Array.isArray(assign.targetStudent)
-            ? assign.targetStudent.map(String)
-            : String(assign.targetStudent || 'all')
-                .split(',')
-                .map(value => value.trim());
-
-        const isAssigned =
-            targetStudents.includes('all') ||
-            targetStudents.includes(String(username));
-
-        if (!isAssigned) {
+        if (!isRoadmapAssignmentForStudent(assign, username)) {
             return total;
         }
 
@@ -9505,8 +11396,11 @@ async function renderStudentRoadmapCore() {
     if (!body) return;
     body.innerHTML = '';
 
-    const assignments = await getDB('assignments');
-    const submissions = await getDB('submissions');
+    const [assignments, submissions, offsetSnap] = await Promise.all([
+        getDB('assignments'),
+        getDB('submissions'),
+        db.ref('student_money_offset/' + currentUser.username).once('value')
+    ]);
 
     // KIỂM TRA TRẠNG THÁI THAM GIA LỘ TRÌNH CỦA HỌC SINH
     const isParticipating = currentUser.isParticipatingRoadmap !== false;
@@ -9528,17 +11422,25 @@ async function renderStudentRoadmapCore() {
         totalMoneyCard.style.display = isParticipating ? 'flex' : 'none';
     }
 
-    // Lọc bài học được giao cho "Tất cả" hoặc giao riêng cho chính học sinh này
-    const myAssignments = assignments.filter(assign => {
-        const targetArr = Array.isArray(assign.targetStudent) ? assign.targetStudent : [assign.targetStudent || 'all'];
-        return targetArr.includes('all') || targetArr.includes(currentUser.username);
-    });
+    // Dùng cùng một hàm chuẩn hóa mục tiêu với phần tính tiền/rút tiền.
+    // Tránh lệch số dư khi dữ liệu targetStudent cũ chứa chuỗi phân cách bằng dấu phẩy.
+    const myAssignments = assignments.filter(assign =>
+        isRoadmapAssignmentForStudent(assign, currentUser.username)
+    );
     // Sắp xếp bài tập thông minh theo số đếm trong Tiêu đề (VD: Bài 1 -> Bài 2 -> Bài 10)
     const sortedAssignments = [...myAssignments].sort((a, b) => (a.title || '').localeCompare(b.title || '', 'vi-VN', { numeric: true, sensitivity: 'base' }));
 
     if (sortedAssignments.length === 0) {
         body.innerHTML = `<tr><td colspan="6" style="padding:15px; text-align:center; color:#666; font-style:italic;">Chưa có dữ liệu lộ trình học tập.</td></tr>`;
-        if (document.getElementById('totalRoadmapMoney')) document.getElementById('totalRoadmapMoney').innerText = '0';
+
+        // Không được ép về 0 vì học sinh vẫn có thể còn tiền offset
+        // (Coin → Tiền, quà, điều chỉnh hoặc giao dịch trước đó).
+        const moneyOffset = Number(offsetSnap.val()) || 0;
+        const finalMoney = Math.max(0, moneyOffset);
+        const totalMoneyEl = document.getElementById('totalRoadmapMoney');
+        if (totalMoneyEl) {
+            totalMoneyEl.innerText = finalMoney.toLocaleString('vi-VN');
+        }
         return;
     }
 
@@ -9634,13 +11536,15 @@ async function renderStudentRoadmapCore() {
         body.appendChild(tr);
     });
 
-    // FETCH SỐ TIỀN BÙ TRỪ SAU KHI QUY ĐỔI COIN (OFFSET)
-    const offsetSnap = await db.ref('student_money_offset/' + currentUser.username).once('value');
+    // Tổng hiển thị phải dùng đúng cùng thuật toán với bảng quy đổi/rút tiền.
+    // totalMoney ở trên chỉ phục vụ dựng trạng thái từng dòng; không dùng làm nguồn tổng cuối.
+    const baseMoney = calculateRoadmapBaseMoney(
+        assignments,
+        submissions,
+        currentUser.username
+    );
     const moneyOffset = Number(offsetSnap.val()) || 0;
-
-    // Tổng tiền cuối cùng = Tiền làm bài + Tiền bán Coin - Tiền mua Coin
-    let finalMoney = totalMoney + moneyOffset;
-    if (finalMoney < 0) finalMoney = 0; // Chặn về âm
+    const finalMoney = Math.max(0, baseMoney + moneyOffset);
 
     // Cập nhật hiển thị số tiền cuối cùng lên ô tổng
     const totalMoneyEl = document.getElementById('totalRoadmapMoney');
@@ -9650,21 +11554,23 @@ async function renderStudentRoadmapCore() {
 }
 
 // ================= QUY ĐỔI TIỀN VÀ COIN =================
-// Tiền → Coin: 1 lần/tháng, tối đa 500đ.
+// Tiền → Coin: tối đa 2 lần/ngày, không giới hạn số tiền mỗi lần.
 // Coin → Tiền: 1 lần/tuần, tối đa 500 Coin.
 // Tuần bắt đầu từ thứ Hai, tính theo múi giờ Việt Nam UTC+7.
 
 const STUDENT_CONVERSION_RULES = Object.freeze({
     M2C: Object.freeze({
-        maxAmount: 500,
-        periodType: 'month',
+        maxAmount: null,
+        periodType: 'day',
+        maxUses: 2,
         limitMessage:
-            '* Lưu ý: Chỉ được đổi 1 lần/tháng, tối đa 500đ sang Coin.'
+            '* Lưu ý: Tiền → Coin được đổi tối đa 2 lần/ngày, không giới hạn số tiền mỗi lần.'
     }),
 
     C2M: Object.freeze({
         maxAmount: 500,
         periodType: 'week',
+        maxUses: 1,
         limitMessage:
             '* Lưu ý: Chỉ được đổi 1 lần/tuần, tối đa 500 Coin sang Tiền lộ trình.'
     })
@@ -9714,8 +11620,8 @@ function padStudentConversionDatePart(value) {
     return String(value).padStart(2, '0');
 }
 
-// M2C tạo khóa tháng: 2026-07
-// C2M tạo khóa ngày thứ Hai đầu tuần: 2026-07-27
+// M2C tạo khóa theo ngày: 2026-08-30
+// C2M tạo khóa ngày thứ Hai đầu tuần: 2026-08-24
 function getStudentConversionPeriodKey(
     direction,
     timestamp = Date.now()
@@ -9723,6 +11629,16 @@ function getStudentConversionPeriodKey(
     const rule = getStudentConversionRule(direction);
     const parts = getVietnamCalendarParts(timestamp);
 
+    // Tiền → Coin: reset lượt mỗi ngày theo giờ Việt Nam
+    if (rule.periodType === 'day') {
+        return [
+            parts.year,
+            padStudentConversionDatePart(parts.month),
+            padStudentConversionDatePart(parts.day)
+        ].join('-');
+    }
+
+    // Giữ tương thích nếu sau này cần giới hạn tháng
     if (rule.periodType === 'month') {
         return (
             `${parts.year}-` +
@@ -9730,16 +11646,15 @@ function getStudentConversionPeriodKey(
         );
     }
 
+    // Coin → Tiền: theo tuần, tuần bắt đầu thứ Hai
     const date = new Date(Date.UTC(
         parts.year,
         parts.month - 1,
         parts.day
     ));
 
-    // Chủ nhật được đổi thành 7.
     const dayOfWeek = date.getUTCDay() || 7;
 
-    // Lùi về thứ Hai đầu tuần.
     date.setUTCDate(
         date.getUTCDate() - dayOfWeek + 1
     );
@@ -9784,13 +11699,14 @@ function getStudentConversionUsedMessage(direction) {
     }
 
     return (
-        '⛔ Bạn đã dùng lượt đổi Tiền → Coin của tháng này. ' +
-        'Mỗi tháng chỉ được đổi 1 lần.'
+        '⛔ Bạn đã dùng đủ 2 lượt đổi Tiền → Coin hôm nay. ' +
+        'Lượt sẽ được reset vào ngày mới.'
     );
 }
 
 // Giữ lượt trước khi cộng/trừ tiền.
-// Firebase Transaction ngăn hai tab cùng đổi một lúc.
+// M2C có 2 slot/ngày.
+// Firebase Transaction ngăn 2 tab chiếm cùng một slot.
 async function reserveStudentConversionUsage(
     direction,
     amount,
@@ -9804,7 +11720,7 @@ async function reserveStudentConversionUsage(
         serverNow
     );
 
-    const usagePath = getStudentConversionUsagePath(
+    const usageBasePath = getStudentConversionUsagePath(
         normalizedDirection,
         serverNow
     );
@@ -9814,10 +11730,61 @@ async function reserveStudentConversionUsage(
         Math.random().toString(36).slice(2, 12)
     ].join('_');
 
+    // =====================================================
+    // TIỀN → COIN: TỐI ĐA 2 LƯỢT MỖI NGÀY
+    // =====================================================
+    if (normalizedDirection === 'M2C') {
+        for (let slot = 1; slot <= 2; slot++) {
+            const usagePath =
+                `${usageBasePath}/slot${slot}`;
+
+            const transactionResult = await db
+                .ref(usagePath)
+                .transaction(currentValue => {
+                    // Slot đã có người dùng
+                    if (currentValue) {
+                        return;
+                    }
+
+                    return {
+                        used: true,
+                        status: 'reserved',
+                        direction: normalizedDirection,
+                        amount: amount,
+                        periodKey: periodKey,
+                        reservationId: reservationId,
+                        createdAt: serverNow
+                    };
+                });
+
+            if (transactionResult.committed) {
+                return {
+                    direction: normalizedDirection,
+                    periodKey: periodKey,
+                    usagePath: usagePath,
+                    reservationId: reservationId,
+                    serverNow: serverNow,
+                    slot: slot
+                };
+            }
+        }
+
+        const error = new Error(
+            'CONVERSION_LIMIT_ALREADY_USED'
+        );
+
+        error.code =
+            'CONVERSION_LIMIT_ALREADY_USED';
+
+        throw error;
+    }
+
+    // =====================================================
+    // COIN → TIỀN: GIỮ NGUYÊN 1 LẦN/TUẦN
+    // =====================================================
     const transactionResult = await db
-        .ref(usagePath)
+        .ref(usageBasePath)
         .transaction(currentValue => {
-            // Đã tồn tại bản ghi nghĩa là đã dùng hoặc đang giữ lượt.
             if (currentValue) {
                 return;
             }
@@ -9847,7 +11814,7 @@ async function reserveStudentConversionUsage(
     return {
         direction: normalizedDirection,
         periodKey: periodKey,
-        usagePath: usagePath,
+        usagePath: usageBasePath,
         reservationId: reservationId,
         serverNow: serverNow
     };
@@ -9864,7 +11831,7 @@ async function completeStudentConversionUsage(reservation) {
                 !currentValue ||
                 currentValue.status !== 'reserved' ||
                 currentValue.reservationId !==
-                    reservation.reservationId
+                reservation.reservationId
             ) {
                 return;
             }
@@ -9889,7 +11856,7 @@ async function releaseStudentConversionUsage(reservation) {
                     !currentValue ||
                     currentValue.status !== 'reserved' ||
                     currentValue.reservationId !==
-                        reservation.reservationId
+                    reservation.reservationId
                 ) {
                     return;
                 }
@@ -9946,7 +11913,23 @@ window.refreshStudentConversionLimitNotice =
                 return;
             }
 
-            if (snapshot.exists()) {
+            if (normalizedDirection === 'M2C') {
+                const usageData = snapshot.val() || {};
+
+                const usedCount = [
+                    usageData.slot1,
+                    usageData.slot2
+                ].filter(Boolean).length;
+
+                if (usedCount >= 2) {
+                    limitText.innerText =
+                        getStudentConversionUsedMessage('M2C');
+                } else {
+                    limitText.innerText =
+                        `* Tiền → Coin: đã dùng ${usedCount}/2 lượt hôm nay. ` +
+                        `Không giới hạn số tiền mỗi lần đổi.`;
+                }
+            } else if (snapshot.exists()) {
                 limitText.innerText =
                     getStudentConversionUsedMessage(
                         normalizedDirection
@@ -10045,13 +12028,20 @@ window.setConvertDir = function (direction) {
     if (amountInput) {
         amountInput.value = '';
         amountInput.min = '1';
-        amountInput.max = String(rule.maxAmount);
         amountInput.step = '1';
 
-        amountInput.placeholder =
-            normalizedDirection === 'M2C'
-                ? 'Nhập số tiền (tối đa 500đ)'
-                : 'Nhập số Coin (tối đa 500)';
+        if (normalizedDirection === 'M2C') {
+            // Không giới hạn số tiền nhập
+            amountInput.removeAttribute('max');
+            amountInput.placeholder =
+                'Nhập số tiền muốn đổi';
+        } else {
+            amountInput.max =
+                String(rule.maxAmount);
+
+            amountInput.placeholder =
+                'Nhập số Coin (tối đa 500)';
+        }
     }
 
     if (resultInput) {
@@ -10156,6 +12146,7 @@ window.updateConvertPreview = function () {
     if (
         rawAmount &&
         Number.isFinite(amount) &&
+        Number.isFinite(rule.maxAmount) &&
         amount > rule.maxAmount
     ) {
         amountInput.value =
@@ -10170,8 +12161,23 @@ window.updateConvertPreview = function () {
     resultInput.value = rawAmount;
 };
 
-// Thực hiện quy đổi.
-window.executeConversion = async function () {
+// Khóa dùng chung cho mọi thao tác làm thay đổi/giữ chỗ Tiền lộ trình.
+async function runWithStudentMoneyMutationLock(task) {
+    if (
+        navigator.locks &&
+        typeof navigator.locks.request === 'function'
+    ) {
+        return navigator.locks.request(
+            `student-money:${currentUser.username}`,
+            task
+        );
+    }
+
+    return task();
+}
+
+// Thực hiện quy đổi nội bộ.
+async function executeConversionCore() {
     const amountInput =
         document.getElementById('convertAmount');
 
@@ -10201,11 +12207,12 @@ window.executeConversion = async function () {
         return;
     }
 
-    if (amount > rule.maxAmount) {
+    if (
+        Number.isFinite(rule.maxAmount) &&
+        amount > rule.maxAmount
+    ) {
         alert(
-            direction === 'M2C'
-                ? '❌ Mỗi tháng chỉ được đổi tối đa 500đ sang Coin.'
-                : '❌ Mỗi tuần chỉ được đổi tối đa 500 Coin sang Tiền lộ trình.'
+            '❌ Mỗi tuần chỉ được đổi tối đa 500 Coin sang Tiền lộ trình.'
         );
         return;
     }
@@ -10229,12 +12236,14 @@ window.executeConversion = async function () {
             assignments,
             submissions,
             offsetSnapshot,
+            cashRequests,
             serverNow
         ] = await Promise.all([
             db.ref(coinPath).once('value'),
             getDB('assignments'),
             getDB('submissions'),
             db.ref(offsetPath).once('value'),
+            getDB('cash_requests'),
             getStudentConversionServerNow()
         ]);
 
@@ -10256,12 +12265,26 @@ window.executeConversion = async function () {
             baseRoadmapMoney + currentOffset
         );
 
-        // Kiểm tra nhanh số dư trước khi giữ lượt.
+        // Tiền đang chờ/đang xử lý nhưng CHƯA bị trừ khỏi offset phải được giữ chỗ.
+        const reservedCashAmount = getReservedCashRequestAmount(
+            cashRequests,
+            currentOffset
+        );
+        const currentAvailableMoney = Math.max(
+            0,
+            currentMoney - reservedCashAmount
+        );
+
+        // Kiểm tra nhanh số dư khả dụng trước khi giữ lượt.
         if (
             direction === 'M2C' &&
-            amount > currentMoney
+            amount > currentAvailableMoney
         ) {
-            alert('❌ Không đủ tiền lộ trình!');
+            alert(
+                `❌ Không đủ tiền lộ trình khả dụng! ` +
+                `Bạn còn có thể dùng ${currentAvailableMoney.toLocaleString('vi-VN')}đ ` +
+                `sau khi trừ các yêu cầu tiền mặt đang chờ/đang xử lý.`
+            );
             return;
         }
 
@@ -10295,7 +12318,8 @@ window.executeConversion = async function () {
                     const latestMoney = Math.max(
                         0,
                         baseRoadmapMoney +
-                            latestOffset
+                        latestOffset -
+                        reservedCashAmount
                     );
 
                     if (amount > latestMoney) {
@@ -10341,7 +12365,7 @@ window.executeConversion = async function () {
                 `${amount.toLocaleString('vi-VN')}đ ` +
                 `để nhận ` +
                 `${amount.toLocaleString('vi-VN')} Coin 🪙.\n` +
-                `Lượt Tiền → Coin của tháng này đã được sử dụng.`;
+                `Tiền → Coin được phép tối đa 2 lượt mỗi ngày.`;
         } else {
             // Trừ Coin.
             await decrementNumberTx(
@@ -10477,9 +12501,9 @@ window.executeConversion = async function () {
 
         if (
             error.code ===
-                'CONVERSION_LIMIT_ALREADY_USED' ||
+            'CONVERSION_LIMIT_ALREADY_USED' ||
             error.message ===
-                'CONVERSION_LIMIT_ALREADY_USED'
+            'CONVERSION_LIMIT_ALREADY_USED'
         ) {
             alert(
                 getStudentConversionUsedMessage(
@@ -10528,98 +12552,18 @@ window.executeConversion = async function () {
             .refreshStudentConversionLimitNotice(
                 direction
             )
-            .catch(() => {});
+            .catch(() => { });
     }
+}
+
+window.executeConversion = function () {
+    return runWithStudentMoneyMutationLock(executeConversionCore);
 };
 
-// Hàm tải lịch sử yêu cầu rút tiền của học sinh
-async function loadCashRequestsStudent() {
-    const requests = await getDB('cash_requests');
-    // Lọc ra các yêu cầu của học sinh hiện tại
-    const myRequests = requests.filter(r => r.studentName === currentUser.name);
-
-    let html = '';
-    myRequests.reverse().forEach(req => {
-        let statusText = '';
-        let noteText = '';
-
-        switch (req.status) {
-            case 'pending':
-                statusText = '<span style="color: #f39c12; font-weight: bold;">⏳ Đang chờ duyệt</span>';
-                break;
-            case 'transferring':
-                statusText = '<span style="color: #2980b9; font-weight: bold;">🔄 Đang chuyển</span>';
-                noteText = '<div style="font-size: 0.85em; color: #7f8c8d; margin-top: 5px;"><i>(Tiền sẽ được chuyển đến trong 2-3 ngày)</i></div>';
-                break;
-            case 'completed':
-                statusText = '<span style="color: #27ae60; font-weight: bold;">✅ Đã hoàn tất yêu cầu</span>';
-                break;
-            case 'rejected':
-                statusText = '<span style="color: #c0392b; font-weight: bold;">❌ Bị từ chối</span>';
-                break;
-        }
-
-        html += `
-            <div style="background: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 8px; padding: 10px; margin-bottom: 8px;">
-                <div><strong>Số tiền:</strong> ${req.amount.toLocaleString()} VNĐ</div>
-                <div><strong>Trạng thái:</strong> ${statusText}</div>
-                ${noteText}
-            </div>
-        `;
-    });
-
-    document.getElementById('studentRequestHistory').innerHTML = html || '<p style="color: #999;">Chưa có yêu cầu nào.</p>';
-}
-
-// Hàm gửi yêu cầu rút tiền
-async function submitCashRequest() {
-    const amountInput = document.getElementById('withdrawAmount');
-    const amount = parseInt(amountInput.value);
-
-    // Lưu ý: Thay 'currentUser.routeMoney' bằng biến/trường lưu "Tổng tiền tích lũy lộ trình" thực tế trong data của bạn
-    const currentMoney = currentUser.routeMoney || 0;
-
-    if (!amount || amount <= 0) {
-        alert("Vui lòng nhập số tiền hợp lệ!");
-        return;
-    }
-
-    if (amount > currentMoney) {
-        alert("Số tiền vượt quá Tổng tiền tích lũy lộ trình hiện có!");
-        return;
-    }
-
-    // Gửi lên Firebase
-    await pushDB('cash_requests', {
-        studentName: currentUser.name,
-        amount: amount,
-        status: 'pending', // Trạng thái mặc định ban đầu
-        timestamp: Date.now()
-    });
-
-    // Chạy hàm load khi mở bảng quy đổi
-    loadCashRequestsStudent(); currentUser.routeMoney -= amount;
-    const userKey =
-        firebase.auth().currentUser?.uid ||
-        currentUser._fbKey;
-
-    if (userKey) {
-        await db
-            .ref(
-                `users/${userKey}/routeMoney`
-            )
-            .set(
-                currentUser.routeMoney
-            );
-    }
-
-    alert("Gửi yêu cầu thành công! Vui lòng chờ giáo viên xác nhận.");
-    amountInput.value = '';
-    loadCashRequestsStudent();
-}
-
-// Chạy hàm load khi mở bảng quy đổi
-// loadCashRequestsStudent();
+// =========================================================================
+// HỆ THỐNG RÚT TIỀN MẶT CỦA HỌC SINH
+// Lưu ý: luồng cũ trùng hàm đã được loại bỏ. Luồng duy nhất nằm ở cuối file.
+// =========================================================================
 
 // ================= HỆ THỐNG HỘP THƯ & NHẬN QUÀ (HỌC SINH) =================
 
@@ -13088,48 +15032,6 @@ window.closeExamWarning = function (
             startButton.innerHTML =
                 startButton.dataset.originalText;
         }
-    }
-
-    return true;
-};
-
-window.closeExamWarning = function (
-    forceClose = false
-) {
-    const modal =
-        document.getElementById('examWarningModal');
-
-    // Phiên đang phục hồi: không cho học sinh bấm Hủy
-    if (
-        window.pendingExamIsResume === true &&
-        forceClose !== true
-    ) {
-        if (modal) {
-            modal.classList.add('active');
-        }
-
-        if (
-            typeof window.showToast ===
-            'function'
-        ) {
-            window.showToast(
-                'Bạn phải bấm Tiếp tục thi và vào lại toàn màn hình.',
-                'warning'
-            );
-        } else {
-            alert(
-                '⚠️ Bạn phải vào lại toàn màn hình để tiếp tục làm bài.'
-            );
-        }
-
-        return false;
-    }
-
-    window.pendingExamId = null;
-    window.pendingExamIsResume = false;
-
-    if (modal) {
-        modal.classList.remove('active');
     }
 
     return true;
@@ -16138,81 +18040,68 @@ window.renderStudentBag = async function () {
 };
 
 // =========================================================================
-// CHỨC NĂNG YÊU CẦU LẤY TIỀN MẶT - PHÍA HỌC SINH (CÁCH 2)
+// HỆ THỐNG YÊU CẦU LẤY TIỀN MẶT - PHÍA HỌC SINH (BẢN HỢP NHẤT / AN TOÀN)
 // =========================================================================
 
-// Hàm hiển thị danh sách lịch sử yêu cầu rút tiền của học sinh
-async function renderCashRequestHistory() {
-    const container = document.getElementById('cashRequestHistoryContainer');
-    if (!container) return;
+function isCashRequestOwnedByCurrentStudent(req) {
+    if (!req) return false;
 
-    try {
-        const allRequests = await getDB('cash_requests');
-        const now = Date.now();
-        const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000;
-        const myRequests = [];
-
-        // Lọc yêu cầu của học sinh hiện tại VÀ tự động xóa cái quá 2 ngày
-        for (let req of allRequests) {
-            if (req.studentName === currentUser.name) {
-                if (req.status === 'completed' || req.status === 'rejected') {
-                    const checkTime = req.resolvedAt || req.timestamp;
-                    if (now - checkTime > TWO_DAYS_MS) {
-                        // Xóa vĩnh viễn khỏi Firebase để tránh nặng data
-                        await removeDB('cash_requests', req._fbKey);
-                        continue; // Bỏ qua không hiển thị vào danh sách
-                    }
-                }
-                myRequests.push(req);
-            }
-        }
-
-        if (myRequests.length === 0) {
-            container.innerHTML = '<p style="color: #94a3b8; font-size: 0.9em; margin: 0; text-align: center; padding: 10px;">Chưa có yêu cầu lấy tiền mặt nào.</p>';
-            return;
-        }
-
-        let html = '';
-        // Đảo thứ tự để yêu cầu mới nhất hiện lên trên đầu
-        myRequests.reverse().forEach(req => {
-            let statusBadge = '';
-            let note = '';
-
-            if (req.status === 'pending') {
-                statusBadge = '<span style="background: #fef3c7; color: #d97706; padding: 3px 8px; border-radius: 4px; font-weight: 500; font-size: 0.85em;">⏳ Đang chờ duyệt</span>';
-            } else if (req.status === 'transferring') {
-                statusBadge = '<span style="background: #e0f2fe; color: #0284c7; padding: 3px 8px; border-radius: 4px; font-weight: 500; font-size: 0.85em;">🔄 Đang chuyển</span>';
-                note = '<p style="margin: 5px 0 0 0; font-size: 0.85em; color: #64748b; font-style: italic;">👉 Ghi chú: Tiền sẽ được chuyển đến trong 2-3 ngày</p>';
-            } else if (req.status === 'completed') {
-                statusBadge = '<span style="background: #dcfce7; color: #16a34a; padding: 3px 8px; border-radius: 4px; font-weight: 500; font-size: 0.85em;">✅ Đã hoàn tất yêu cầu</span>';
-            } else if (req.status === 'rejected') {
-                statusBadge = '<span style="background: #fee2e2; color: #dc2626; padding: 3px 8px; border-radius: 4px; font-weight: 500; font-size: 0.85em;">❌ Bị từ chối</span>';
-            }
-
-            html += `
-                <div style="background: white; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
-                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
-                        <span style="font-weight: 600; color: #1e293b;">${req.amount.toLocaleString('vi-VN')} VNĐ</span>
-                        ${statusBadge}
-                    </div>
-                    <div style="font-size: 0.8em; color: #94a3b8; margin-top: 4px;">Thời gian: ${new Date(req.timestamp).toLocaleString('vi-VN')}</div>
-                    ${note}
-                </div>
-            `;
-        });
-
-        container.innerHTML = html;
-    } catch (error) {
-        console.error("Lỗi khi tải lịch sử rút tiền:", error);
-        container.innerHTML = '<p style="color: #dc2626; font-size: 0.85em; padding: 5px; margin: 0;">Lỗi tải dữ liệu lịch sử!</p>';
+    // Dữ liệu mới: luôn ưu tiên username vì tên hiển thị có thể trùng/đổi.
+    if (req.studentUsername) {
+        return String(req.studentUsername) === String(currentUser.username);
     }
+
+    // Tương thích dữ liệu cũ chưa có studentUsername.
+    return String(req.studentName || '') === String(currentUser.name || '');
 }
 
-// HÀM MỚI: Tính toán chính xác Tổng tiền lộ trình thời gian thực
-window.calculateCurrentRouteMoney = async function () {
-    const [assignments, submissions] = await Promise.all([
+function getCashRequestAmount(req) {
+    const amount = Number(req && req.amount);
+    return Number.isFinite(amount) && amount > 0 ? amount : 0;
+}
+
+// Tính phần tiền đang được giữ chỗ bởi yêu cầu tiền mặt nhưng chưa bị trừ khỏi offset.
+// processing có thể rơi vào cửa sổ phục hồi: nếu offset đã bằng processingOffsetAfter
+// thì tiền đã được trừ, không được giữ chỗ lần hai.
+function getReservedCashRequestAmount(allRequests, currentOffset) {
+    const normalizedOffset = Number(currentOffset) || 0;
+
+    return (allRequests || [])
+        .filter(isCashRequestOwnedByCurrentStudent)
+        .reduce((sum, req) => {
+            const amount = getCashRequestAmount(req);
+            if (!amount) return sum;
+
+            if (req.status === 'pending') {
+                return sum + amount;
+            }
+
+            if (req.status === 'processing') {
+                if (req.debitApplied === true) {
+                    return sum;
+                }
+
+                const expectedAfter = Number(req.processingOffsetAfter);
+                if (
+                    Number.isFinite(expectedAfter) &&
+                    normalizedOffset === expectedAfter
+                ) {
+                    return sum;
+                }
+
+                return sum + amount;
+            }
+
+            return sum;
+        }, 0);
+}
+
+async function getCurrentRoadmapMoneyState() {
+    const [assignments, submissions, offsetSnap, cashRequests] = await Promise.all([
         getDB('assignments'),
-        getDB('submissions')
+        getDB('submissions'),
+        db.ref('student_money_offset/' + currentUser.username).once('value'),
+        getDB('cash_requests')
     ]);
 
     const baseMoney = calculateRoadmapBaseMoney(
@@ -16221,69 +18110,247 @@ window.calculateCurrentRouteMoney = async function () {
         currentUser.username
     );
 
-    const offsetSnap = await db
-        .ref('student_money_offset/' + currentUser.username)
-        .once('value');
-
     const moneyOffset = Number(offsetSnap.val()) || 0;
-    const currentMoney = baseMoney + moneyOffset;
+    const totalMoney = Math.max(0, baseMoney + moneyOffset);
+    const reservedAmount = getReservedCashRequestAmount(
+        cashRequests,
+        moneyOffset
+    );
+    const availableMoney = Math.max(0, totalMoney - reservedAmount);
 
-    return currentMoney < 0 ? 0 : currentMoney;
-};
+    return {
+        assignments,
+        submissions,
+        cashRequests,
+        baseMoney,
+        moneyOffset,
+        totalMoney,
+        reservedAmount,
+        availableMoney
+    };
+}
 
-// HÀM MỚI: Khởi tạo giao diện (Đã fix lỗi hiện 0 VNĐ)
-window.initCashWithdrawInterface = async function () {
-    // Gọi hàm tính tiền thực tế ở trên
-    const totalRouteMoney = await window.calculateCurrentRouteMoney();
+// Hiển thị lịch sử. Học sinh chỉ ẩn bản ghi cũ khỏi giao diện,
+// KHÔNG tự xóa Firebase để tránh lỗi quyền ghi/xóa phía client.
+async function renderCashRequestHistory() {
+    const container = document.getElementById('cashRequestHistoryContainer');
+    if (!container) return;
 
-    const displayEl = document.getElementById('displayRouteMoney');
-    if (displayEl) {
-        displayEl.innerText = totalRouteMoney.toLocaleString('vi-VN');
+    try {
+        const allRequests = await getDB('cash_requests');
+        const now = Date.now();
+        const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000;
+
+        const myRequests = (allRequests || [])
+            .filter(isCashRequestOwnedByCurrentStudent)
+            .filter(req => {
+                if (req.status !== 'completed' && req.status !== 'rejected') {
+                    return true;
+                }
+
+                const checkTime = Number(req.resolvedAt || req.timestamp || 0);
+                return !checkTime || now - checkTime <= TWO_DAYS_MS;
+            });
+
+        if (myRequests.length === 0) {
+            container.innerHTML = '<p style="color: #94a3b8; font-size: 0.9em; margin: 0; text-align: center; padding: 10px;">Chưa có yêu cầu lấy tiền mặt nào.</p>';
+            return;
+        }
+
+        let html = '';
+
+        [...myRequests]
+            .sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0))
+            .forEach(req => {
+                let statusBadge = '';
+                let note = '';
+
+                if (req.status === 'pending') {
+                    statusBadge = '<span style="background: #fef3c7; color: #d97706; padding: 3px 8px; border-radius: 4px; font-weight: 500; font-size: 0.85em;">⏳ Đang chờ duyệt</span>';
+                } else if (req.status === 'processing') {
+                    statusBadge = '<span style="background: #ede9fe; color: #7c3aed; padding: 3px 8px; border-radius: 4px; font-weight: 500; font-size: 0.85em;">🔐 Giáo viên đang xử lý</span>';
+                    note = '<p style="margin: 5px 0 0 0; font-size: 0.85em; color: #64748b; font-style: italic;">Yêu cầu đang được khóa để tránh trừ tiền lặp.</p>';
+                } else if (req.status === 'transferring') {
+                    statusBadge = '<span style="background: #e0f2fe; color: #0284c7; padding: 3px 8px; border-radius: 4px; font-weight: 500; font-size: 0.85em;">🔄 Đang chuyển</span>';
+                    note = '<p style="margin: 5px 0 0 0; font-size: 0.85em; color: #64748b; font-style: italic;">👉 Ghi chú: Tiền sẽ được chuyển đến trong 2-3 ngày</p>';
+                } else if (req.status === 'completed') {
+                    statusBadge = '<span style="background: #dcfce7; color: #16a34a; padding: 3px 8px; border-radius: 4px; font-weight: 500; font-size: 0.85em;">✅ Đã hoàn tất yêu cầu</span>';
+                } else if (req.status === 'rejected') {
+                    statusBadge = '<span style="background: #fee2e2; color: #dc2626; padding: 3px 8px; border-radius: 4px; font-weight: 500; font-size: 0.85em;">❌ Bị từ chối</span>';
+                } else {
+                    statusBadge = '<span style="background: #f1f5f9; color: #475569; padding: 3px 8px; border-radius: 4px; font-weight: 500; font-size: 0.85em;">Không xác định</span>';
+                }
+
+                const amount = getCashRequestAmount(req);
+                const timestamp = Number(req.timestamp || 0);
+                const timeText = timestamp
+                    ? new Date(timestamp).toLocaleString('vi-VN')
+                    : 'Không rõ';
+
+                html += `
+                    <div style="background: white; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+                            <span style="font-weight: 600; color: #1e293b;">${amount.toLocaleString('vi-VN')} VNĐ</span>
+                            ${statusBadge}
+                        </div>
+                        <div style="font-size: 0.8em; color: #94a3b8; margin-top: 4px;">Thời gian: ${timeText}</div>
+                        ${note}
+                    </div>
+                `;
+            });
+
+        container.innerHTML = html;
+    } catch (error) {
+        console.error('Lỗi khi tải lịch sử rút tiền:', error);
+        container.innerHTML = '<p style="color: #dc2626; font-size: 0.85em; padding: 5px; margin: 0;">Lỗi tải dữ liệu lịch sử!</p>';
     }
+}
 
-    // Tải danh sách lịch sử yêu cầu
-    renderCashRequestHistory();
+window.calculateCurrentRouteMoney = async function () {
+    const state = await getCurrentRoadmapMoneyState();
+    return state.totalMoney;
 };
 
-// HÀM MỚI: Xử lý gửi yêu cầu (Đã fix lỗi lấy sai số dư)
-window.handleRequestCashSubmit = async function () {
+window.calculateCurrentAvailableRouteMoney = async function () {
+    const state = await getCurrentRoadmapMoneyState();
+    return state.availableMoney;
+};
+
+window.initCashWithdrawInterface = async function () {
+    const displayEl = document.getElementById('displayRouteMoney');
+    if (!displayEl) return;
+
+    try {
+        const state = await getCurrentRoadmapMoneyState();
+        displayEl.innerText = state.totalMoney.toLocaleString('vi-VN');
+        window.currentRoadmapMoneyAmount = state.totalMoney;
+        window.currentAvailableRoadmapMoneyAmount = state.availableMoney;
+
+        const inputEl = document.getElementById('inputWithdrawAmount');
+        if (inputEl) {
+            inputEl.max = String(Math.floor(state.availableMoney));
+            inputEl.dataset.availableMoney = String(state.availableMoney);
+        }
+
+        const section = document.getElementById('cashWithdrawalSection');
+        if (section) {
+            let availableEl = document.getElementById('cashAvailableMoneyNotice');
+            if (!availableEl) {
+                availableEl = document.createElement('p');
+                availableEl.id = 'cashAvailableMoneyNotice';
+                availableEl.style.margin = '-8px 0 15px 0';
+                availableEl.style.color = '#64748b';
+                availableEl.style.fontSize = '0.88em';
+
+                const firstParagraph = section.querySelector('p');
+                if (firstParagraph) {
+                    firstParagraph.insertAdjacentElement('afterend', availableEl);
+                }
+            }
+
+            if (availableEl) {
+                availableEl.innerHTML =
+                    `Có thể yêu cầu lúc này: <strong style="color:#059669;">` +
+                    `${state.availableMoney.toLocaleString('vi-VN')} VNĐ</strong>` +
+                    (state.reservedAmount > 0
+                        ? ` · Đang giữ chỗ: ${state.reservedAmount.toLocaleString('vi-VN')} VNĐ`
+                        : '');
+            }
+        }
+
+        await renderCashRequestHistory();
+    } catch (error) {
+        console.error('Lỗi khởi tạo giao diện rút tiền mặt:', error);
+        displayEl.innerText = '—';
+    }
+};
+
+async function handleRequestCashSubmitCore() {
     const inputEl = document.getElementById('inputWithdrawAmount');
     if (!inputEl) return;
 
-    const amount = parseInt(inputEl.value);
-
-    // Lấy số tiền thực tế vào đúng thời điểm học sinh bấm Gửi
-    const totalRouteMoney = await window.calculateCurrentRouteMoney();
-
-    if (isNaN(amount) || amount <= 0) {
-        alert("⚠️ Vui lòng nhập số tiền mặt muốn lấy hợp lệ!");
-        return;
-    }
-
-    if (amount > totalRouteMoney) {
-        alert(`⚠️ Số tiền yêu cầu (${amount.toLocaleString('vi-VN')} VNĐ) vượt quá Tổng tiền tích lũy lộ trình hiện tại (${totalRouteMoney.toLocaleString('vi-VN')} VNĐ)!`);
-        return;
-    }
-
-    if (!confirm(`Bạn có chắc chắn muốn gửi yêu cầu lấy ${amount.toLocaleString('vi-VN')} VNĐ về giáo viên không?`)) {
-        return;
-    }
+    // Chặn double-click / nhiều Promise gửi song song trên cùng client.
+    if (window.cashRequestSubmitInFlight) return;
+    window.cashRequestSubmitInFlight = true;
 
     try {
+        const rawAmount = String(inputEl.value || '').trim();
+        const amount = Number(rawAmount);
+
+        if (!rawAmount || !Number.isInteger(amount) || amount <= 0) {
+            alert('⚠️ Vui lòng nhập số tiền mặt muốn lấy là số nguyên dương hợp lệ!');
+            return;
+        }
+
+        let state = await getCurrentRoadmapMoneyState();
+
+        if (amount > state.totalMoney) {
+            alert(`⚠️ Số tiền yêu cầu (${amount.toLocaleString('vi-VN')} VNĐ) vượt quá Tổng tiền tích lũy lộ trình hiện tại (${state.totalMoney.toLocaleString('vi-VN')} VNĐ)!`);
+            return;
+        }
+
+        if (amount > state.availableMoney) {
+            alert(
+                `⚠️ Bạn đang có ${state.reservedAmount.toLocaleString('vi-VN')} VNĐ ` +
+                `đang chờ/được xử lý. Số tiền còn có thể yêu cầu là ` +
+                `${state.availableMoney.toLocaleString('vi-VN')} VNĐ.`
+            );
+            return;
+        }
+
+        if (!confirm(`Bạn có chắc chắn muốn gửi yêu cầu lấy ${amount.toLocaleString('vi-VN')} VNĐ về giáo viên không?`)) {
+            return;
+        }
+
+        // Đọc lại ngay trước khi tạo request để tránh dùng số dư cũ sau thời gian confirm.
+        state = await getCurrentRoadmapMoneyState();
+        if (amount > state.availableMoney) {
+            alert(
+                `⚠️ Số dư khả dụng vừa thay đổi. Hiện chỉ còn ` +
+                `${state.availableMoney.toLocaleString('vi-VN')} VNĐ có thể yêu cầu.`
+            );
+            await window.initCashWithdrawInterface();
+            return;
+        }
+
         await pushDB('cash_requests', {
+            // Tương thích cả Firebase Rules cũ và luồng duyệt tiền hiện tại.
+            username: currentUser.username,
+            studentUsername: currentUser.username,
             studentName: currentUser.name,
             amount: amount,
             status: 'pending',
+            requestVersion: 2,
             timestamp: Date.now()
         });
 
-        alert("🎉 Gửi yêu cầu thành công! Vui lòng đợi giáo viên xét duyệt.");
+        alert('🎉 Gửi yêu cầu thành công! Vui lòng đợi giáo viên xét duyệt.');
         inputEl.value = '';
-        renderCashRequestHistory();
+
+        await window.initCashWithdrawInterface();
     } catch (error) {
-        console.error("Lỗi gửi yêu cầu tiền mặt:", error);
-        alert("❌ Đã xảy ra lỗi kết nối khi gửi yêu cầu.");
+        console.error('Lỗi gửi yêu cầu tiền mặt:', error);
+
+        const errorCode = String(error?.code || '').toLowerCase();
+        const errorMessage = String(error?.message || '').toLowerCase();
+
+        if (
+            errorCode.includes('permission-denied') ||
+            errorCode.includes('permission_denied') ||
+            errorMessage.includes('permission_denied') ||
+            errorMessage.includes('permission denied')
+        ) {
+            alert('❌ Firebase từ chối quyền tạo yêu cầu tiền mặt. Vui lòng kiểm tra Rules của cash_requests.');
+        } else {
+            alert('❌ Không thể gửi yêu cầu tiền mặt. Vui lòng kiểm tra kết nối rồi thử lại.');
+        }
+    } finally {
+        window.cashRequestSubmitInFlight = false;
     }
+}
+
+window.handleRequestCashSubmit = function () {
+    return runWithStudentMoneyMutationLock(handleRequestCashSubmitCore);
 };
 
 // ================= HỆ THỐNG THEO DÕI VIDEO YOUTUBE =================
@@ -17822,79 +19889,8 @@ window.onPlayerStateChange = function (event, assignId) {
     }
 };
 
-window.downloadStudentRoadmapPDF = async function () {
-    const assignments = await getDB('assignments');
-    const submissions = await getDB('submissions');
+// [FIX] Đã loại bỏ phiên bản downloadStudentRoadmapPDF cũ bị trùng.
 
-    const htmlContent = `
-        <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
-            <h2 style="text-align: center; color: #2c3e50; text-transform: uppercase;">BẢNG ĐIỂM HỌC TẬP</h2>
-            <p style="font-size: 16px;"><strong>Họ và tên học sinh:</strong> ${currentUser.name}</p>
-            <p style="font-size: 16px;"><strong>Ngày xuất:</strong> ${new Date().toLocaleDateString('vi-VN')}</p>
-            <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
-                <thead>
-                    <tr style="background-color: #f1f5f9;">
-                        <th style="border: 1px solid #cbd5e1; padding: 12px; text-align: left;">Tên bài học</th>
-                        <th style="border: 1px solid #cbd5e1; padding: 12px; text-align: center; width: 100px;">Điểm số</th>
-                        <th style="border: 1px solid #cbd5e1; padding: 12px; text-align: center; width: 150px;">Hạn nộp</th>
-                    </tr>
-                </thead>
-                <tbody>
-    `;
-
-    // Lọc bài tập của học sinh
-    const myAssignments = assignments.filter(assign => {
-        const targetArr = Array.isArray(assign.targetStudent) ? assign.targetStudent : [assign.targetStudent || 'all'];
-        return targetArr.includes('all') || targetArr.includes(currentUser.username);
-    });
-    const sortedAssignments = [...myAssignments].sort((a, b) => (a.title || '').localeCompare(b.title || '', 'vi-VN', { numeric: true, sensitivity: 'base' }));
-
-    let rowsHTML = "";
-    sortedAssignments.forEach(assign => {
-        // Đã sửa lại đúng tên biến: assign.id và s.studentUsername
-        const subs = submissions.filter(s => s.assignmentId === assign.id && s.studentUsername === currentUser.username);
-        let studentScore = "Chưa làm";
-
-        if (subs.length > 0) {
-            // Sắp xếp lấy bài có điểm cao nhất (dùng thuộc tính grade)
-            const bestSub = subs.sort((a, b) => (parseFloat(b.grade) || 0) - (parseFloat(a.grade) || 0))[0];
-
-            if (bestSub.isRegrading) {
-                studentScore = "Đang chấm lại";
-            } else if (bestSub.grade !== null && bestSub.grade !== undefined && bestSub.grade !== '') {
-                studentScore = parseFloat(bestSub.grade); // Hiển thị điểm thật
-            } else {
-                studentScore = "Chưa chấm";
-            }
-        }
-
-        rowsHTML += `
-            <tr>
-                <td style="border: 1px solid #cbd5e1; padding: 12px;">${assign.title}</td>
-                <td style="border: 1px solid #cbd5e1; padding: 12px; text-align: center; font-weight: bold; color: #e11d48;">${studentScore}</td>
-                <td style="border: 1px solid #cbd5e1; padding: 12px; text-align: center; color: #64748b;">${assign.endDate || '---'}</td>
-            </tr>
-        `;
-    });
-
-    const finalHTML = htmlContent + rowsHTML + `
-                </tbody>
-            </table>
-        </div>
-    `;
-
-    const opt = {
-        margin: 10,
-        filename: `BangDiem_${currentUser.name}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
-
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = finalHTML;
-    html2pdf().set(opt).from(tempDiv).save();
-};
 
 const LimitedEventAnnouncementManager = {
     events: {},
@@ -19545,3 +21541,150 @@ window.handleExamInterruption = async function (
             );
         };
 })();
+
+// =========================================================================
+// HỆ THỐNG XUẤT PDF BẢNG ĐIỂM LỘ TRÌNH (PHÍA HỌC SINH)
+// =========================================================================
+
+window.downloadStudentRoadmapPDF = async function () {
+    // Dùng đúng cùng thuật toán với bảng lộ trình trên màn hình.
+    const assignments = await getDB('assignments');
+    const submissions = await getDB('submissions');
+
+    const username = String(currentUser?.username || '').trim();
+    const stName = currentUser?.name || username || 'HocSinh';
+
+    // Chỉ lấy những bài thực sự giao cho học sinh này.
+    const myAssignments = (assignments || []).filter(assign =>
+        isRoadmapAssignmentForStudent(assign, username)
+    );
+
+    const sortedAssignments = [...myAssignments].sort((a, b) =>
+        (a.title || '').localeCompare(
+            b.title || '',
+            'vi-VN',
+            { numeric: true, sensitivity: 'base' }
+        )
+    );
+
+    let htmlContent = `
+        <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+            <h2 style="text-align: center; color: #2c3e50; text-transform: uppercase;">
+                BẢNG ĐIỂM LỘ TRÌNH HỌC TẬP
+            </h2>
+            <p style="font-size: 16px;">
+                <strong>Họ và tên học sinh:</strong>
+                ${studentAttachmentSafeHTML(stName)}
+            </p>
+            <p style="font-size: 16px;">
+                <strong>Ngày xuất:</strong>
+                ${new Date().toLocaleDateString('vi-VN')}
+            </p>
+            <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                <thead>
+                    <tr style="background-color: #f1f5f9;">
+                        <th style="border: 1px solid #cbd5e1; padding: 12px; text-align: left;">Tên bài học</th>
+                        <th style="border: 1px solid #cbd5e1; padding: 12px; text-align: center; width: 100px;">Điểm số</th>
+                        <th style="border: 1px solid #cbd5e1; padding: 12px; text-align: center; width: 140px;">Trạng thái</th>
+                        <th style="border: 1px solid #cbd5e1; padding: 12px; text-align: center; width: 150px;">Hạn nộp</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    sortedAssignments.forEach(assign => {
+        // Chính helper này cũng được dùng khi tính tiền lộ trình:
+        // forcePass -> bài đạt -> bài có điểm -> chấm lại -> bài lỗi.
+        const bestSub = getRoadmapSubmission(
+            assign,
+            submissions,
+            username
+        );
+
+        let studentScore = '-';
+        let statusText = 'Chưa nộp';
+
+        if (bestSub) {
+            const parsedGrade = parseRoadmapNumber(
+                bestSub.grade,
+                NaN
+            );
+
+            if (bestSub.forcePass) {
+                studentScore = Number.isFinite(parsedGrade)
+                    ? parsedGrade
+                    : '0';
+                statusText = 'Đạt (Được tha)';
+            } else if (isRoadmapSubmissionFailed(bestSub)) {
+                studentScore = Number.isFinite(parsedGrade)
+                    ? parsedGrade
+                    : '0';
+                statusText = bestSub.isCheatFail
+                    ? 'Loại (Vi phạm)'
+                    : 'Loại';
+            } else if (bestSub.isRegrading) {
+                studentScore = '🔄';
+                statusText = 'Đang chấm lại';
+            } else if (Number.isFinite(parsedGrade)) {
+                studentScore = parsedGrade;
+                statusText = isRoadmapSubmissionPassed(
+                    assign,
+                    bestSub
+                )
+                    ? 'Đạt'
+                    : 'Loại';
+            } else {
+                statusText = 'Chưa chấm';
+            }
+        }
+
+        htmlContent += `
+            <tr>
+                <td style="border: 1px solid #cbd5e1; padding: 12px;">
+                    ${studentAttachmentSafeHTML(assign?.title || 'Bài học')}
+                </td>
+                <td style="border: 1px solid #cbd5e1; padding: 12px; text-align: center; font-weight: bold; color: #e11d48;">
+                    ${studentAttachmentSafeHTML(studentScore)}
+                </td>
+                <td style="border: 1px solid #cbd5e1; padding: 12px; text-align: center;">
+                    ${studentAttachmentSafeHTML(statusText)}
+                </td>
+                <td style="border: 1px solid #cbd5e1; padding: 12px; text-align: center; color: #64748b;">
+                    ${studentAttachmentSafeHTML(assign?.endDate || 'Không giới hạn')}
+                </td>
+            </tr>
+        `;
+    });
+
+    htmlContent += `
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    const safeFileName = String(stName)
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9_-]+/g, '');
+
+    const opt = {
+        margin: 10,
+        filename: `BangDiem_LoTrinh_${safeFileName || 'HocSinh'}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: {
+            unit: 'mm',
+            format: 'a4',
+            orientation: 'portrait'
+        }
+    };
+
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = htmlContent;
+
+    await html2pdf()
+        .set(opt)
+        .from(tempDiv)
+        .save();
+};
+

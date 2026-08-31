@@ -214,8 +214,14 @@ class EffectManager {
             case 'effect_he_mat_troi_dai_trieu_cassini':
                 this.createSaturnCassiniFieldEffect();
                 break;
+            case 'effect_premium_mua_xuan':
+                this.createPremiumSpringSanctuaryEffect();
+                break;
             case 'effect_doisong_mua_ngoai_o_cua':
                 this.createRainWindowEffect();
+                break;
+            case 'effect_quoc_khanh_viet_dieu_non_song':
+                this.createNationalDayVietDieuWebEffect();
                 break;
         }
         localStorage.setItem('active_effect', effectId);
@@ -2875,7 +2881,526 @@ class EffectManager {
             IS_MOBILE_EFFECT ? 190 : 115
         );
     }
+    // =========================================================
+    // PREMIUM MÙA XUÂN — XUÂN TỬU HOA VIÊN
+    // Hệ ambient mới hoàn toàn: thủy tinh màu, nho tím, dòng rượu hồng ngọc
+    // và dây leo ánh kim. Không dùng cánh hoa / bướm / vương miện / cổng cũ.
+    // Không ghi đè active_effect đang lưu của người dùng.
+    // =========================================================
+    static clearPremiumSpringSanctuaryEffect() {
+        document
+            .querySelectorAll(
+                '.spring-vintage-ambient, .spring-vintage-ultimate'
+            )
+            .forEach(node => node.remove());
+    }
+
+    static createPremiumSpringSanctuaryEffect() {
+        if (!this.container) return null;
+
+        this.clearPremiumSpringSanctuaryEffect();
+
+        const ambient = document.createElement('div');
+        ambient.className = 'spring-vintage-ambient';
+        ambient.setAttribute('aria-hidden', 'true');
+
+        ambient.innerHTML = `
+    <div class="sv-ambient-glass"></div>
+    <div class="sv-ambient-vine vine-left"></div>
+    <div class="sv-ambient-vine vine-right"></div>
+    <div class="sv-ambient-wine-stream stream-a"></div>
+    <div class="sv-ambient-wine-stream stream-b"></div>
+    <div class="sv-ambient-bead-field"></div>
+    <div class="sv-ambient-bud-field"></div>
+    <div class="sv-ambient-glyph-field"></div>
+    <div class="sv-ambient-bottom-reflection"></div>
+`;
+
+        const beadField = ambient.querySelector(
+            '.sv-ambient-bead-field'
+        );
+
+        const budField = ambient.querySelector(
+            '.sv-ambient-bud-field'
+        );
+
+        const glyphField = ambient.querySelector(
+            '.sv-ambient-glyph-field'
+        );
+
+        const beadCount = IS_MOBILE_EFFECT ? 22 : 42;
+        const budCount = IS_MOBILE_EFFECT ? 10 : 20;
+        const glyphCount = IS_MOBILE_EFFECT ? 7 : 12;
+
+        for (let index = 0; index < beadCount; index++) {
+            const bead = document.createElement('span');
+            bead.className = index % 5 === 0
+                ? 'sv-ambient-bead is-gold'
+                : 'sv-ambient-bead';
+
+            bead.style.setProperty(
+                '--sv-bead-x',
+                `${(index * 37 + 9) % 100}%`
+            );
+            bead.style.setProperty(
+                '--sv-bead-y',
+                `${(index * 61 + 13) % 96}%`
+            );
+            bead.style.setProperty(
+                '--sv-bead-size',
+                `${3 + index % 7}px`
+            );
+            bead.style.setProperty(
+                '--sv-bead-delay',
+                `${-(index % 17) * 0.34}s`
+            );
+            bead.style.setProperty(
+                '--sv-bead-duration',
+                `${6.2 + index % 8 * 0.65}s`
+            );
+            beadField?.appendChild(bead);
+        }
+
+        // Mầm xuân / diệp quang:
+        // Lớp riêng của vật phẩm hiệu ứng toàn web.
+        // Không che UI, chỉ trôi nhẹ trên màn hình.
+        for (let index = 0; index < budCount; index++) {
+            const bud = document.createElement('span');
+
+            bud.className =
+                index % 7 === 0
+                    ? 'sv-ambient-bud is-ruby'
+                    : (
+                        index % 5 === 0
+                            ? 'sv-ambient-bud is-gold'
+                            : 'sv-ambient-bud'
+                    );
+
+            bud.style.setProperty(
+                '--sv-bud-x',
+                `${4 + (index * 43 + 7) % 92}%`
+            );
+
+            bud.style.setProperty(
+                '--sv-bud-y',
+                `${6 + (index * 31 + 11) % 86}%`
+            );
+
+            bud.style.setProperty(
+                '--sv-bud-size',
+                `${8 + index % 6}px`
+            );
+
+            bud.style.setProperty(
+                '--sv-bud-rotate',
+                `${-38 + (index * 29) % 76}deg`
+            );
+
+            bud.style.setProperty(
+                '--sv-bud-delay',
+                `${-(index % 11) * 0.47}s`
+            );
+
+            bud.style.setProperty(
+                '--sv-bud-duration',
+                `${8.4 + (index % 6) * 0.8}s`
+            );
+
+            budField?.appendChild(bud);
+        }
+
+        const glyphs = ['◆', '◇', '✦', '❖', '⋄'];
+
+        for (let index = 0; index < glyphCount; index++) {
+            const glyph = document.createElement('span');
+            glyph.className = 'sv-ambient-glyph';
+            glyph.textContent = glyphs[index % glyphs.length];
+            glyph.style.setProperty(
+                '--sv-glyph-x',
+                `${8 + (index * 41) % 84}%`
+            );
+            glyph.style.setProperty(
+                '--sv-glyph-y',
+                `${8 + (index * 29) % 78}%`
+            );
+            glyph.style.setProperty(
+                '--sv-glyph-delay',
+                `${-index * 0.8}s`
+            );
+            glyphField?.appendChild(glyph);
+        }
+
+        this.container.appendChild(ambient);
+
+        requestAnimationFrame(() => {
+            ambient.classList.add('is-active');
+        });
+
+        return ambient;
+    }
+
+    // =========================================================
+    // CLICK ULTIMATE — "THẦN YẾN · XUÂN TỬU KHAI HỘI"
+    // Tập trung vào rượu hồng ngọc + chùm nho + thủy tinh cắt cạnh.
+    // =========================================================
+    static pulsePremiumSpringCrown(x = null, y = null) {
+        const existing = document.querySelector(
+            '.spring-vintage-ultimate'
+        );
+
+        if (existing) return existing;
+
+        const viewport = this.getViewport();
+        const originX = Number.isFinite(x)
+            ? x
+            : viewport.offsetLeft + viewport.width * 0.76;
+        const originY = Number.isFinite(y)
+            ? y
+            : viewport.offsetTop + viewport.height * 0.66;
+
+        const realm = document.createElement('div');
+        realm.className = 'spring-vintage-ultimate';
+        realm.setAttribute('aria-hidden', 'true');
+        realm.style.setProperty('--sv-origin-x', `${originX}px`);
+        realm.style.setProperty('--sv-origin-y', `${originY}px`);
+
+        realm.innerHTML = `
+            <div class="sv-ultimate-blackglass"></div>
+            <div class="sv-ultimate-prism-lattice"></div>
+
+            <div class="sv-ultimate-vessel">
+                <span class="sv-vessel-rim"></span>
+                <span class="sv-vessel-cup"></span>
+                <span class="sv-vessel-nectar"></span>
+                <span class="sv-vessel-stem"></span>
+                <span class="sv-vessel-base"></span>
+                <span class="sv-vessel-handle handle-left"></span>
+                <span class="sv-vessel-handle handle-right"></span>
+            </div>
+
+            <div class="sv-ultimate-grape-constellation"></div>
+            <div class="sv-ultimate-ribbon-field"></div>
+            <div class="sv-ultimate-spark-field"></div>
+            <div class="sv-ultimate-impact"></div>
+
+            <div class="sv-ultimate-title">
+                <small>NỮ THẦN MÙA XUÂN</small>
+                <strong>THẦN YẾN · XUÂN TỬU KHAI HỘI</strong>
+            </div>
+        `;
+
+        const grapeField = realm.querySelector(
+            '.sv-ultimate-grape-constellation'
+        );
+        const ribbonField = realm.querySelector(
+            '.sv-ultimate-ribbon-field'
+        );
+        const sparkField = realm.querySelector(
+            '.sv-ultimate-spark-field'
+        );
+
+        const clusterCenters = IS_MOBILE_EFFECT
+            ? [[18, 30], [80, 28], [27, 72], [74, 70]]
+            : [[12, 25], [88, 23], [21, 70], [80, 72], [50, 19], [52, 80]];
+
+        clusterCenters.forEach(([cx, cy], clusterIndex) => {
+            const cluster = document.createElement('span');
+            cluster.className = 'sv-ultimate-grape-cluster';
+            cluster.style.setProperty('--sv-cluster-x', `${cx}%`);
+            cluster.style.setProperty('--sv-cluster-y', `${cy}%`);
+            cluster.style.setProperty(
+                '--sv-cluster-delay',
+                `${0.35 + clusterIndex * 0.08}s`
+            );
+
+            for (let index = 0; index < 7; index++) {
+                const grape = document.createElement('i');
+                grape.style.setProperty('--sv-mini-index', index);
+                cluster.appendChild(grape);
+            }
+
+            grapeField?.appendChild(cluster);
+        });
+
+        const ribbonCount = IS_MOBILE_EFFECT ? 5 : 8;
+
+        for (let index = 0; index < ribbonCount; index++) {
+            const ribbon = document.createElement('span');
+            ribbon.className = 'sv-ultimate-wine-ribbon';
+            ribbon.style.setProperty(
+                '--sv-ribbon-rotate',
+                `${-28 + index * (56 / Math.max(1, ribbonCount - 1))}deg`
+            );
+            ribbon.style.setProperty(
+                '--sv-ribbon-delay',
+                `${0.22 + index * 0.045}s`
+            );
+            ribbon.style.setProperty(
+                '--sv-ribbon-width',
+                `${13 + index % 3 * 7}px`
+            );
+            ribbonField?.appendChild(ribbon);
+        }
+
+        const sparkCount = IS_MOBILE_EFFECT ? 30 : 58;
+
+        for (let index = 0; index < sparkCount; index++) {
+            const spark = document.createElement('span');
+            spark.className = index % 6 === 0
+                ? 'sv-ultimate-spark is-ruby'
+                : 'sv-ultimate-spark';
+            spark.style.setProperty(
+                '--sv-spark-x',
+                `${(index * 47 + 3) % 100}%`
+            );
+            spark.style.setProperty(
+                '--sv-spark-y',
+                `${(index * 67 + 5) % 100}%`
+            );
+            spark.style.setProperty(
+                '--sv-spark-delay',
+                `${(index % 15) * 0.055}s`
+            );
+            spark.style.setProperty(
+                '--sv-spark-size',
+                `${2 + index % 5}px`
+            );
+            sparkField?.appendChild(spark);
+        }
+
+        document.body.appendChild(realm);
+
+        requestAnimationFrame(() => {
+            realm.classList.add('is-active');
+        });
+
+        const petContainer = document.getElementById(
+            'virtual-pet-container'
+        );
+
+        if (petContainer) {
+            const dialogue = document.createElement('div');
+            dialogue.className = 'spring-vintage-dialogue';
+            dialogue.textContent =
+                '🍇 “Mùa xuân không chỉ nở hoa — nó còn ủ thành ánh sáng.”';
+            petContainer.appendChild(dialogue);
+
+            window.setTimeout(() => {
+                dialogue.remove();
+            }, 5700);
+        }
+
+        window.setTimeout(() => {
+            realm.remove();
+        }, 5800);
+
+        return realm;
+    }
+
+    // =========================================================
+    // QUỐC KHÁNH 2/9 — VIỆT DIỆU · HÀO QUANG NON SÔNG
+    // Hiệu ứng toàn website.
+    // Đồng bộ với pet "Việt Diệu · Sao Vàng Nhí".
+    // Namespace riêng nd29-web-*.
+    // =========================================================
+    static createNationalDayVietDieuWebEffect() {
+        this.stopIntervals();
+
+        if (!this.container) return null;
+
+        // Không tạo trùng realm
+        const oldRealm = this.container.querySelector(
+            '.nd29-web-effect'
+        );
+
+        oldRealm?.remove();
+
+        const realm = document.createElement('div');
+
+        realm.className = 'nd29-web-effect';
+        realm.setAttribute('aria-hidden', 'true');
+
+        realm.innerHTML = `
+        <div class="nd29-web-wash"></div>
+
+        <div class="nd29-web-rays">
+            <span class="nd29-web-ray ray-1"></span>
+            <span class="nd29-web-ray ray-2"></span>
+            <span class="nd29-web-ray ray-3"></span>
+            <span class="nd29-web-ray ray-4"></span>
+            <span class="nd29-web-ray ray-5"></span>
+        </div>
+
+        <span
+            class="nd29-web-ribbon ribbon-left"
+        ></span>
+
+        <span
+            class="nd29-web-ribbon ribbon-right"
+        ></span>
+
+        <div class="nd29-web-star-field"></div>
+
+        <div class="nd29-web-spark-field"></div>
+
+        <div class="nd29-web-seal">
+            <span
+                class="nd29-web-seal-ring ring-a"
+            ></span>
+
+            <span
+                class="nd29-web-seal-ring ring-b"
+            ></span>
+
+            <b>★</b>
+
+            <strong>
+                02 · 09
+            </strong>
+
+            <small>
+                VIỆT DIỆU · NON SÔNG
+            </small>
+        </div>
+    `;
+
+        const starField =
+            realm.querySelector(
+                '.nd29-web-star-field'
+            );
+
+        const sparkField =
+            realm.querySelector(
+                '.nd29-web-spark-field'
+            );
+
+        const starCount =
+            IS_MOBILE_EFFECT
+                ? 15
+                : 30;
+
+        const sparkCount =
+            IS_MOBILE_EFFECT
+                ? 20
+                : 44;
+
+        /* =========================
+           SAO VÀNG
+           ========================= */
+        for (
+            let index = 0;
+            index < starCount;
+            index++
+        ) {
+            const star =
+                document.createElement('span');
+
+            star.className =
+                index % 5 === 0
+                    ? 'nd29-web-star is-major'
+                    : 'nd29-web-star';
+
+            star.textContent = '★';
+
+            star.style.setProperty(
+                '--nd29-web-x',
+                `${(index * 37 + 9) % 96}%`
+            );
+
+            star.style.setProperty(
+                '--nd29-web-y',
+                `${(index * 61 + 7) % 92}%`
+            );
+
+            star.style.setProperty(
+                '--nd29-web-size',
+                `${7 + (index % 5) * 3}px`
+            );
+
+            star.style.setProperty(
+                '--nd29-web-delay',
+                `${-(index % 13) * 0.62}s`
+            );
+
+            star.style.setProperty(
+                '--nd29-web-duration',
+                `${8 + (index % 6) * 1.15}s`
+            );
+
+            star.style.setProperty(
+                '--nd29-web-drift-x',
+                `${index % 2 === 0
+                    ? 28
+                    : -28}px`
+            );
+
+            starField?.appendChild(
+                star
+            );
+        }
+
+        /* =========================
+           BỤI SÁNG VÀNG
+           ========================= */
+        for (
+            let index = 0;
+            index < sparkCount;
+            index++
+        ) {
+            const spark =
+                document.createElement('span');
+
+            spark.className =
+                index % 8 === 0
+                    ? 'nd29-web-spark is-bright'
+                    : 'nd29-web-spark';
+
+            spark.style.setProperty(
+                '--nd29-spark-x',
+                `${(index * 43 + 5) % 100}%`
+            );
+
+            spark.style.setProperty(
+                '--nd29-spark-y',
+                `${(index * 67 + 13) % 100}%`
+            );
+
+            spark.style.setProperty(
+                '--nd29-spark-size',
+                `${2 + index % 4}px`
+            );
+
+            spark.style.setProperty(
+                '--nd29-spark-delay',
+                `${-(index % 17) * 0.41}s`
+            );
+
+            spark.style.setProperty(
+                '--nd29-spark-duration',
+                `${5.5 +
+                (index % 7) * 0.8}s`
+            );
+
+            sparkField?.appendChild(
+                spark
+            );
+        }
+
+        this.container.appendChild(
+            realm
+        );
+
+        requestAnimationFrame(() => {
+            realm.classList.add(
+                'is-active'
+            );
+        });
+
+        return realm;
+    }
+
 }
+
 
 document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
@@ -2883,9 +3408,18 @@ document.addEventListener('visibilitychange', () => {
         return;
     }
 
-    const activeEffect = localStorage.getItem('active_effect');
+    /*
+     * Khi quay lại tab trình duyệt, ưu tiên khôi phục bộ Premium Mùa Xuân
+     * nếu Nữ Thần Mùa Xuân vẫn đang được trang bị.
+     * Premium không ghi đè active_effect, nên applyEffect(active_effect)
+     * ở đây sẽ clearEffects() và xóa spring-vintage-ambient.
+     */
+    requestAnimationFrame(() => {
+        const activeEffect =
+            localStorage.getItem('active_effect');
 
-    if (activeEffect) {
-        EffectManager.applyEffect(activeEffect);
-    }
+        if (activeEffect) {
+            EffectManager.applyEffect(activeEffect);
+        }
+    });
 });
