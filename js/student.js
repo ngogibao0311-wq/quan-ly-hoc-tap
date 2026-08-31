@@ -3214,6 +3214,215 @@ window.onload = async function () {
     }
 };
 
+
+function isStudentPerformanceOptimizationEnabled() {
+    try {
+        return !!(
+            window.WebPerformanceOptimizer &&
+            typeof window.WebPerformanceOptimizer.isEnabled === 'function' &&
+            window.WebPerformanceOptimizer.isEnabled() &&
+            (
+                String(document.title || '').toLowerCase().includes('học sinh') ||
+                document.getElementById('studentName') ||
+                document.getElementById('assignmentsList')
+            )
+        );
+    } catch (_) {
+        return false;
+    }
+}
+
+function initOneStudentQuillEditor(el) {
+    if (
+        !el ||
+        el.classList.contains('ql-container') ||
+        el.dataset.perfQuillInitialized === '1' ||
+        typeof Quill === 'undefined'
+    ) {
+        return;
+    }
+
+    el.dataset.perfQuillInitialized = '1';
+    delete el.dataset.perfQuillPending;
+
+    const quill = new Quill(el, {
+        theme: 'snow',
+        modules: {
+            toolbar: [
+                ['bold', 'italic', 'underline', 'strike'],
+                [{ 'color': [] }, { 'background': [] }],
+                [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+                ['link', 'image', 'formula'],
+                ['clean']
+            ]
+        }
+    });
+
+    const assignmentId = el.id.replace('answer-', '');
+    let essayDraftTimer = null;
+
+    const persistEssayDraft = function () {
+        saveDraft(
+            assignmentId,
+            'essay',
+            null,
+            quill.root.innerHTML
+        );
+    };
+
+    quill.on('text-change', function () {
+        clearTimeout(essayDraftTimer);
+        essayDraftTimer = setTimeout(
+            persistEssayDraft,
+            700
+        );
+    });
+
+    quill.root.addEventListener('blur', function () {
+        clearTimeout(essayDraftTimer);
+        persistEssayDraft();
+    });
+}
+
+function initStudentQuillEditors(root = document) {
+    const editors = Array.from(
+        root.querySelectorAll('.quill-student-editor')
+    ).filter(el =>
+        !el.classList.contains('ql-container') &&
+        el.dataset.perfQuillInitialized !== '1'
+    );
+
+    if (!editors.length) return;
+
+    if (
+        !isStudentPerformanceOptimizationEnabled() ||
+        typeof IntersectionObserver === 'undefined'
+    ) {
+        editors.forEach(initOneStudentQuillEditor);
+        return;
+    }
+
+    if (!window.__studentQuillLazyObserver) {
+        window.__studentQuillLazyObserver = new IntersectionObserver(
+            entries => {
+                entries.forEach(entry => {
+                    if (!entry.isIntersecting) return;
+
+                    const el = entry.target;
+                    window.__studentQuillLazyObserver.unobserve(el);
+                    initOneStudentQuillEditor(el);
+                });
+            },
+            {
+                root: null,
+                rootMargin: '700px 0px',
+                threshold: 0.01
+            }
+        );
+    }
+
+    editors.forEach(el => {
+        el.dataset.perfQuillPending = '1';
+        window.__studentQuillLazyObserver.observe(el);
+    });
+}
+
+async function typesetStudentMathTargets(targets) {
+    if (
+        !window.MathJax ||
+        typeof MathJax.typesetPromise !== 'function' ||
+        !targets ||
+        !targets.length
+    ) {
+        return;
+    }
+
+    if (!isStudentPerformanceOptimizationEnabled()) {
+        await MathJax.typesetPromise(targets);
+        return;
+    }
+
+    const changed = [];
+
+    targets.forEach(container => {
+        if (!container) return;
+
+        Array.from(container.children).forEach(child => {
+            if (!(child instanceof Element)) return;
+
+            const currentHash =
+                child.getAttribute('data-hash') ||
+                child.getAttribute('data-id') ||
+                child.textContent?.length ||
+                'static';
+
+            if (child.dataset.perfMathHash !== String(currentHash)) {
+                child.dataset.perfMathHash = String(currentHash);
+                changed.push(child);
+            }
+        });
+    });
+
+    if (!changed.length) return;
+
+    const CHUNK_SIZE = 6;
+
+    for (let index = 0; index < changed.length; index += CHUNK_SIZE) {
+        const chunk = changed.slice(index, index + CHUNK_SIZE);
+
+        try {
+            await MathJax.typesetPromise(chunk);
+        } catch (error) {
+            console.log('MathJax error:', error);
+        }
+
+        if (index + CHUNK_SIZE < changed.length) {
+            await new Promise(resolve => {
+                if (typeof requestIdleCallback === 'function') {
+                    requestIdleCallback(() => resolve(), { timeout: 120 });
+                } else {
+                    setTimeout(resolve, 16);
+                }
+            });
+        }
+    }
+}
+
+
+window.addEventListener(
+    'web-performance-optimizer-change',
+    event => {
+        const detail = event?.detail || {};
+
+        if (detail.role !== 'student') return;
+
+        /*
+         * Nếu học sinh tắt tối ưu giữa phiên:
+         * khởi tạo ngay các YouTube tracker còn đang chờ IntersectionObserver,
+         * để hành vi trở về giống chế độ cũ mà không cần tải lại trang.
+         */
+        if (
+            detail.enabled === false &&
+            Array.isArray(window.cachedAssignments) &&
+            typeof window.initYouTubeTrackers === 'function'
+        ) {
+            setTimeout(
+                () => window.initYouTubeTrackers(
+                    window.cachedAssignments,
+                    0
+                ),
+                0
+            );
+        }
+
+        /*
+         * Nếu bật giữa phiên, các iframe mới/lần loadAssignments kế tiếp sẽ
+         * dùng lazy mode. Các card hiện tại vẫn được hưởng content-visibility
+         * ngay lập tức từ optimizer.
+         */
+    }
+);
+
 function getEmbedHTML(url) {
     if (!url) return '';
     let videoId = '';
@@ -3225,10 +3434,10 @@ function getEmbedHTML(url) {
     if (videoId) {
         let embedUrl = `https://www.youtube.com/embed/${videoId}`;
         // Thêm margin-bottom: 20px
-        return `<div class="video-wrapper" style="margin-bottom: 20px;"><iframe width="100%" height="315" src="${embedUrl}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen" loading="eager" data-startup-video="1"></iframe></div>`;
+        return `<div class="video-wrapper" style="margin-bottom: 20px;"><iframe width="100%" height="315" src="${embedUrl}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen" loading="${isStudentPerformanceOptimizationEnabled() ? 'lazy' : 'eager'}" data-startup-video="1"></iframe></div>`;
     }
     // Thêm margin-bottom: 20px
-    return `<div class="video-wrapper" style="margin-bottom: 20px;"><iframe width="100%" height="315" src="${url}" frameborder="0" allow="fullscreen" loading="eager" data-startup-video="1"></iframe></div>`;
+    return `<div class="video-wrapper" style="margin-bottom: 20px;"><iframe width="100%" height="315" src="${url}" frameborder="0" allow="fullscreen" loading="${isStudentPerformanceOptimizationEnabled() ? 'lazy' : 'eager'}" data-startup-video="1"></iframe></div>`;
 }
 
 let assignmentTimers = [];
@@ -4982,58 +5191,8 @@ async function loadAssignments() {
         }
     });
 
-    // Khởi tạo Quill cho tất cả các ô tự luận vừa render
-    document.querySelectorAll('.quill-student-editor').forEach(el => {
-        if (!el.classList.contains('ql-container')) {
-            let quill = new Quill(el, {
-                theme: 'snow',
-                modules: {
-                    toolbar: [
-                        ['bold', 'italic', 'underline', 'strike'],
-                        [{ 'color': [] }, { 'background': [] }], // 🎨 Thêm bảng chọn màu cho học sinh
-                        [{ 'list': 'ordered' }, { 'list': 'bullet' }],
-                        ['link', 'image', 'formula'],
-                        ['clean']
-                    ]
-                }
-            });
-
-            // Tự động lưu nháp khi học sinh gõ chữ hoặc đổi màu chữ
-            const assignmentId =
-                el.id.replace('answer-', '');
-
-            let essayDraftTimer = null;
-
-            const persistEssayDraft = function () {
-                saveDraft(
-                    assignmentId,
-                    'essay',
-                    null,
-                    quill.root.innerHTML
-                );
-            };
-
-            quill.on(
-                'text-change',
-                function () {
-                    clearTimeout(essayDraftTimer);
-
-                    essayDraftTimer = setTimeout(
-                        persistEssayDraft,
-                        700
-                    );
-                }
-            );
-
-            quill.root.addEventListener(
-                'blur',
-                function () {
-                    clearTimeout(essayDraftTimer);
-                    persistEssayDraft();
-                }
-            );
-        }
-    });
+    // Khởi tạo editor: lazy khi bật tối ưu, giữ nguyên hành vi cũ khi tắt.
+    initStudentQuillEditors(document);
 
     if (hasAutoSubmitted) {
         const syncAlert = document.createElement('div');
@@ -5050,7 +5209,8 @@ async function loadAssignments() {
         if (gradesEl) mathJaxTargets.push(gradesEl);
 
         if (mathJaxTargets.length > 0) {
-            MathJax.typesetPromise(mathJaxTargets).catch((err) => console.log('MathJax error:', err));
+            typesetStudentMathTargets(mathJaxTargets)
+                .catch(err => console.log('MathJax error:', err));
         }
     }
 
@@ -18882,9 +19042,11 @@ function getTrackedVideoHTML(
                 <iframe
     id="yt-player-${assignId}"
     data-resume-playback="${shouldResumePlayback ? 'true' : 'false'}"
+    data-assignment-id="${assignId}"
                     width="100%"
                     height="315"
                     src="${embedUrl}"
+                    loading="${isStudentPerformanceOptimizationEnabled() ? 'lazy' : 'eager'}"
                     frameborder="0"
                     allow="
                         accelerometer;
@@ -19449,28 +19611,25 @@ window.initYouTubeTrackers = function (
     }
 
     const renderedPlayerIds = new Set();
+    const assignmentMap = new Map(
+        (assignments || []).map(assign => [
+            String(assign.id),
+            assign
+        ])
+    );
 
-    assignments.forEach(assign => {
+    const initializePlayer = (assign, iframeEl) => {
+        if (!assign || !iframeEl || !iframeEl.isConnected) return;
+
         const assignId = String(assign.id);
-        const iframeId = `yt-player-${assignId}`;
-
-        const iframeEl =
-            document.getElementById(iframeId);
-
-        if (!iframeEl) return;
-
-        renderedPlayerIds.add(assignId);
-
-        const existingPlayer =
-            ytPlayers[assignId];
+        const existingPlayer = ytPlayers[assignId];
 
         if (existingPlayer) {
             let existingIframe = null;
 
             try {
                 existingIframe =
-                    typeof existingPlayer.getIframe ===
-                        'function'
+                    typeof existingPlayer.getIframe === 'function'
                         ? existingPlayer.getIframe()
                         : null;
             } catch (error) {
@@ -19478,133 +19637,202 @@ window.initYouTubeTrackers = function (
             }
 
             if (existingIframe !== iframeEl) {
-                destroyTrackedYouTubePlayer(
-                    assignId
-                );
+                destroyTrackedYouTubePlayer(assignId);
             }
         }
 
-        if (!ytPlayers[assignId]) {
-            ytPlayers[assignId] =
-                new YT.Player(iframeId, {
-                    events: {
-                        onReady: event => {
-                            const resumeEnabled =
-                                iframeEl.dataset
-                                    .resumePlayback !==
-                                'false';
+        if (ytPlayers[assignId]) return;
 
-                            db.ref(
-                                `video_tracking/${assignId}/${currentUser.username}`
-                            )
-                                .once('value')
-                                .then(snap => {
-                                    const firebaseSeconds =
-                                        normalizeVideoProgressSeconds(
-                                            snap.val()
-                                        );
+        ytPlayers[assignId] = new YT.Player(
+            iframeEl.id,
+            {
+                events: {
+                    onReady: event => {
+                        const resumeEnabled =
+                            iframeEl.dataset.resumePlayback !==
+                            'false';
 
-                                    const localSeconds =
-                                        resumeEnabled
-                                            ? getLocalVideoProgress(
-                                                assignId
-                                            )
-                                            : 0;
+                        db.ref(
+                            `video_tracking/${assignId}/${currentUser.username}`
+                        )
+                            .once('value')
+                            .then(snap => {
+                                const firebaseSeconds =
+                                    normalizeVideoProgressSeconds(
+                                        snap.val()
+                                    );
 
+                                const localSeconds =
+                                    resumeEnabled
+                                        ? getLocalVideoProgress(
+                                            assignId
+                                        )
+                                        : 0;
+
+                                watchDurations[
+                                    assignId
+                                ] = Math.max(
+                                    firebaseSeconds,
+                                    localSeconds,
+                                    normalizeVideoProgressSeconds(
+                                        watchDurations[
+                                            assignId
+                                        ]
+                                    )
+                                );
+
+                                lastSavedTime[
+                                    assignId
+                                ] = firebaseSeconds;
+
+                                updateVideoWatchDisplays(
+                                    assignId,
                                     watchDurations[
                                         assignId
-                                    ] = Math.max(
-                                        firebaseSeconds,
-                                        localSeconds,
-                                        normalizeVideoProgressSeconds(
-                                            watchDurations[
-                                            assignId
-                                            ]
-                                        )
-                                    );
+                                    ]
+                                );
 
-                                    lastSavedTime[
+                                const requiredSeconds =
+                                    Number(
+                                        assign.watchCondition
+                                    ) || 0;
+
+                                window.updateVideoSummaryAccess(
+                                    assignId,
+                                    requiredSeconds <= 0 ||
+                                    watchDurations[
                                         assignId
-                                    ] = firebaseSeconds;
+                                    ] >= requiredSeconds,
+                                    requiredSeconds
+                                );
 
-                                    updateVideoWatchDisplays(
+                                if (
+                                    resumeEnabled &&
+                                    watchDurations[
+                                        assignId
+                                    ] > 0
+                                ) {
+                                    pendingResumeTimes[
+                                        assignId
+                                    ] =
+                                        watchDurations[
+                                            assignId
+                                        ];
+
+                                    setTimeout(
+                                        () => {
+                                            seekToSavedVideoProgress(
+                                                assignId,
+                                                event.target,
+                                                false
+                                            );
+                                        },
+                                        150
+                                    );
+                                }
+
+                                if (
+                                    localSeconds >
+                                    firebaseSeconds
+                                ) {
+                                    saveVideoProgressToFirebase(
                                         assignId,
                                         watchDurations[
-                                        assignId
+                                            assignId
                                         ]
                                     );
+                                }
+                            })
+                            .catch(error => {
+                                console.error(
+                                    'Không thể tải tiến độ xem video:',
+                                    error
+                                );
+                            });
+                    },
 
-                                    const requiredSeconds =
-                                        Number(
-                                            assign.watchCondition
-                                        ) || 0;
+                    onStateChange: event =>
+                        window.onPlayerStateChange(
+                            event,
+                            assignId
+                        )
+                }
+            }
+        );
+    };
 
-                                    window
-                                        .updateVideoSummaryAccess(
-                                            assignId,
-                                            requiredSeconds <=
-                                            0 ||
-                                            watchDurations[
-                                            assignId
-                                            ] >=
-                                            requiredSeconds,
-                                            requiredSeconds
-                                        );
+    const lazyMode =
+        isStudentPerformanceOptimizationEnabled() &&
+        typeof IntersectionObserver !== 'undefined';
 
-                                    if (
-                                        resumeEnabled &&
-                                        watchDurations[
-                                        assignId
-                                        ] > 0
-                                    ) {
-                                        pendingResumeTimes[
-                                            assignId
-                                        ] =
-                                            watchDurations[
-                                            assignId
-                                            ];
+    if (window.__assignmentVideoLazyObserver) {
+        window.__assignmentVideoLazyObserver.disconnect();
+        window.__assignmentVideoLazyObserver = null;
+    }
 
-                                        setTimeout(
-                                            () => {
-                                                seekToSavedVideoProgress(
-                                                    assignId,
-                                                    event.target,
-                                                    false
-                                                );
-                                            },
-                                            150
-                                        );
-                                    }
+    const pending = [];
 
-                                    if (
-                                        localSeconds >
-                                        firebaseSeconds
-                                    ) {
-                                        saveVideoProgressToFirebase(
-                                            assignId,
-                                            watchDurations[
-                                            assignId
-                                            ]
-                                        );
-                                    }
-                                })
-                                .catch(error => {
-                                    console.error(
-                                        'Không thể tải tiến độ xem video:',
-                                        error
-                                    );
-                                });
-                        },
+    (assignments || []).forEach(assign => {
+        const assignId = String(assign.id);
+        const iframeId = `yt-player-${assignId}`;
+        const iframeEl =
+            document.getElementById(iframeId);
 
-                        onStateChange: event =>
-                            window.onPlayerStateChange(
-                                event,
-                                assignId
-                            )
-                    }
-                });
+        if (!iframeEl) return;
+
+        renderedPlayerIds.add(assignId);
+
+        if (lazyMode && !ytPlayers[assignId]) {
+            pending.push(iframeEl);
+        } else {
+            initializePlayer(assign, iframeEl);
         }
     });
+
+    if (lazyMode && pending.length) {
+        window.__assignmentVideoLazyObserver =
+            new IntersectionObserver(
+                entries => {
+                    entries.forEach(entry => {
+                        if (!entry.isIntersecting) return;
+
+                        const iframeEl = entry.target;
+                        const assignId =
+                            String(
+                                iframeEl.dataset.assignmentId ||
+                                iframeEl.id.replace(
+                                    'yt-player-',
+                                    ''
+                                )
+                            );
+
+                        const assign =
+                            assignmentMap.get(assignId);
+
+                        window.__assignmentVideoLazyObserver
+                            ?.unobserve(iframeEl);
+
+                        initializePlayer(
+                            assign,
+                            iframeEl
+                        );
+                    });
+                },
+                {
+                    root: null,
+                    // Tải trước khoảng 900px để khi học sinh cuộn tới
+                    // player thường đã bắt đầu sẵn sàng.
+                    rootMargin: '900px 0px',
+                    threshold: 0.01
+                }
+            );
+
+        pending.forEach(iframeEl => {
+            window.__assignmentVideoLazyObserver.observe(
+                iframeEl
+            );
+        });
+    }
 
     Object.keys(ytPlayers).forEach(
         assignId => {
