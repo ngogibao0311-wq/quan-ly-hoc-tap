@@ -4220,17 +4220,5 @@ body.login-page.login-layout-centered
         margin: 0 auto !important;
     }
 }
-/* ==============================================================
-   FIX LỖI NÚT ĐÓNG/MỞ SIDEBAR
-   ============================================================== */
-.sidebar-toggle .toggle-icon {
-    color: #ffffff !important; /* Ép sang màu trắng để nổi bật trên nền tím */
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    width: 100% !important;
-    height: 100% !important;
-    margin: 0 !important;
-    padding: 0 !important;
     line-height: 1 !important;
 }
