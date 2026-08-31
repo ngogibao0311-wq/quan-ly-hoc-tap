@@ -505,3 +505,31 @@ table td {
         flex-direction: column;
     }
 }
+/* Thiết lập Sidebar làm gốc tọa độ */
+.sidebar {
+    position: relative;
+}
+
+/* Căn chỉnh lại vị trí nút Toggle */
+.sidebar-toggle {
+    position: absolute;
+    top: 20px;       /* Căn cách lề trên 20px để thẳng hàng với chữ */
+    right: -15px;    /* Đẩy nút lồi ra ngoài lề phải một nửa (hoặc đổi thành '15px' nếu muốn nằm hẳn bên trong) */
+    width: 35px;
+    height: 35px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); /* Màu nút */
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 100;    /* Đảm bảo nút luôn nổi lên trên cùng */
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+/* Hiệu ứng khi di chuột vào nút */
+.sidebar-toggle:hover {
+    transform: scale(1.1);
+}
