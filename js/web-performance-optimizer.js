@@ -1,6 +1,6 @@
 /**
  * WEB PERFORMANCE OPTIMIZER — BALANCED + SETTINGS
- * Phiên bản: 1.2.0
+ * Phiên bản: 1.4.0
  *
  * Mặc định: TẮT.
  * Người dùng có thể bật/tắt tại tab Cài đặt.
@@ -15,7 +15,7 @@
 
     if (window.WebPerformanceOptimizer) return;
 
-    const VERSION = '1.2.0';
+    const VERSION = '1.4.0';
     const STORAGE_KEY_BASE = 'webPerformanceOptimizerEnabled';
 
     function resolveRole() {
@@ -59,6 +59,7 @@
     const STATUS_ID = 'webPerformanceOptimizerStatus';
 
     const CONFIG = Object.freeze({
+        baselineParticleLimit: 24,
         baseParticleLimit: 16,
         assistParticleLimit: 10,
         fpsThreshold: 49,
@@ -146,6 +147,38 @@
         const style = document.createElement('style');
         style.id = STYLE_ID;
         style.textContent = `
+/* =========================================================
+   BASELINE NHẸ — luôn hoạt động, kể cả khi công tắc tối ưu TẮT.
+   Không thay logic; chỉ giảm layout/paint và animation ngoài màn hình.
+   ========================================================= */
+body.perf-baseline #wfx-web-animation-layer .wfx-particle:nth-child(n + ${CONFIG.baselineParticleLimit + 1}) {
+    display: none !important;
+}
+
+body.perf-baseline #assignmentsList > .card,
+body.perf-baseline #gradesList > .card,
+body.perf-baseline #assignedListContainer > .card,
+body.perf-baseline #submissionsList > .card {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 500px;
+}
+
+body.perf-baseline.perf-page-hidden {
+    animation-play-state: paused !important;
+}
+
+body.perf-baseline.perf-page-hidden #wfx-web-animation-layer *,
+body.perf-baseline.perf-page-hidden #wfx-scroll-progress * {
+    animation-play-state: paused !important;
+}
+
+/* Trình duyệt yếu / mobile: baseline nhẹ hơn một chút kể cả khi toggle OFF. */
+@media (max-width: 768px), (pointer: coarse) {
+    body.perf-baseline #wfx-web-animation-layer .wfx-particle:nth-child(n + 15) {
+        display: none !important;
+    }
+}
+
 body.perf-balanced {
     background-attachment: scroll !important;
     animation-duration: 24s !important;
@@ -294,7 +327,7 @@ body.perf-balanced .quill-student-editor[data-perf-quill-pending="1"] {
         if (!el) return;
 
         if (!state.enabled) {
-            el.textContent = 'Đang tắt • Mặc định';
+            el.textContent = 'Đang tắt • Tối ưu nền nhẹ vẫn hoạt động';
             return;
         }
 
@@ -370,7 +403,7 @@ body.perf-balanced .quill-student-editor[data-perf-quill-pending="1"] {
     function setHiddenState() {
         document.body?.classList.toggle(
             'perf-page-hidden',
-            state.enabled && document.hidden
+            document.hidden
         );
     }
 
@@ -554,7 +587,8 @@ body.perf-balanced .quill-student-editor[data-perf-quill-pending="1"] {
             state.assist = false;
             state.assistReason = '';
             state.lastFps = null;
-            document.body.classList.remove('perf-assist', 'perf-page-hidden');
+            document.body.classList.remove('perf-assist');
+            setHiddenState();
             syncToggle();
             announceStateChange();
             return;
@@ -589,6 +623,7 @@ body.perf-balanced .quill-student-editor[data-perf-quill-pending="1"] {
                 return;
             }
 
+            document.body.classList.add('perf-baseline');
             state.enabled = safeGetStoredEnabled();
             injectSettingsToggle();
             setEnabled(state.enabled, false);

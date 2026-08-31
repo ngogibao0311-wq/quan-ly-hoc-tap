@@ -1595,10 +1595,15 @@ window.onload = async function () {
 
         if (!allCloudReady) return;
 
-        await startupLoader.waitForMedia({
-            timeoutMs: 9000,
-            quietMs: 600
-        });
+        /*
+         * Baseline nhẹ:
+         * Không khóa toàn bộ giao diện chỉ để chờ YouTube/iframe.
+         * Video tiếp tục tải sau khi web đã mở.
+         */
+        startupLoader.waitForMedia({
+            timeoutMs: 2000,
+            quietMs: 150
+        }).catch(() => { });
 
         startupLoader.hide();
     }
@@ -1615,10 +1620,10 @@ function getEmbedHTML(url) {
     if (videoId) {
         let embedUrl = `https://www.youtube.com/embed/${videoId}`;
         // Thêm margin-bottom: 20px
-        return `<div class="video-wrapper" style="margin-bottom: 20px;"><iframe width="100%" height="315" src="${embedUrl}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="eager" data-startup-video="1"></iframe></div>`;
+        return `<div class="video-wrapper" style="margin-bottom: 20px;"><iframe width="100%" height="315" src="${embedUrl}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy" data-startup-video="1"></iframe></div>`;
     }
     // Thêm margin-bottom: 20px
-    return `<div class="video-wrapper" style="margin-bottom: 20px;"><iframe width="100%" height="315" src="${url}" frameborder="0" allowfullscreen loading="eager" data-startup-video="1"></iframe></div>`;
+    return `<div class="video-wrapper" style="margin-bottom: 20px;"><iframe width="100%" height="315" src="${url}" frameborder="0" allowfullscreen loading="lazy" data-startup-video="1"></iframe></div>`;
 }
 
 // Hàm tự động ẩn/hiện giao diện tạo câu hỏi khi nhập điểm Thi

@@ -3521,14 +3521,23 @@ function getStudentSubmissionRank(sub) {
     return hasGrade ? 200 : 100;
 }
 
+const studentPreferredSubmissionIndexCache =
+    new WeakMap();
+
 function getPreferredStudentSubmission(
     submissions,
     assignmentOrId,
     username
 ) {
+    const rows = Array.isArray(submissions)
+        ? submissions
+        : [];
+
     const assignmentIds =
         getStudentCompatAssignmentIds(
             assignmentOrId
+        ).map(
+            normalizeStudentSubmissionValue
         );
 
     const normalizedUsername =
@@ -3536,45 +3545,146 @@ function getPreferredStudentSubmission(
             username
         );
 
-    const matches = (submissions || []).filter(
-        submission =>
-            assignmentIds.includes(
+    if (
+        rows.length === 0 ||
+        assignmentIds.length === 0
+    ) {
+        return null;
+    }
+
+    let cache =
+        studentPreferredSubmissionIndexCache
+            .get(rows);
+
+    /*
+     * Baseline nhẹ:
+     * Tạo index một lần cho mảng submissions hiện tại.
+     * Trước đây mỗi bài tập lại filter() toàn bộ submissions.
+     * Không đổi dữ liệu/logic chọn bản nộp ưu tiên.
+     */
+    if (
+        !cache ||
+        cache.length !== rows.length
+    ) {
+        const index = new Map();
+
+        rows.forEach(submission => {
+            const assignmentId =
                 normalizeStudentSubmissionValue(
                     getStudentCompatSubmissionAssignmentId(
                         submission
                     )
-                )
-            ) &&
-            normalizeStudentSubmissionValue(
-                getStudentCompatSubmissionUsername(
+                );
+
+            const studentUsername =
+                normalizeStudentSubmissionValue(
+                    getStudentCompatSubmissionUsername(
+                        submission
+                    )
+                );
+
+            if (!assignmentId) return;
+
+            const key =
+                `${studentUsername}\u0000${assignmentId}`;
+
+            const previous =
+                index.get(key);
+
+            if (!previous) {
+                index.set(
+                    key,
                     submission
-                )
-            ) === normalizedUsername
-    );
-
-    return matches.reduce(
-        (preferred, candidate) => {
-            if (!preferred) return candidate;
-
-            const preferredRank =
-                getStudentSubmissionRank(preferred);
-
-            const candidateRank =
-                getStudentSubmissionRank(candidate);
-
-            if (candidateRank !== preferredRank) {
-                return candidateRank > preferredRank
-                    ? candidate
-                    : preferred;
+                );
+                return;
             }
 
-            return getStudentSubmissionTime(candidate) >=
-                getStudentSubmissionTime(preferred)
-                ? candidate
-                : preferred;
-        },
-        null
+            const previousRank =
+                getStudentSubmissionRank(
+                    previous
+                );
+
+            const candidateRank =
+                getStudentSubmissionRank(
+                    submission
+                );
+
+            if (
+                candidateRank >
+                    previousRank ||
+                (
+                    candidateRank ===
+                        previousRank &&
+                    getStudentSubmissionTime(
+                        submission
+                    ) >=
+                    getStudentSubmissionTime(
+                        previous
+                    )
+                )
+            ) {
+                index.set(
+                    key,
+                    submission
+                );
+            }
+        });
+
+        cache = {
+            length: rows.length,
+            index
+        };
+
+        studentPreferredSubmissionIndexCache
+            .set(rows, cache);
+    }
+
+    let preferred = null;
+
+    assignmentIds.forEach(
+        assignmentId => {
+            const candidate =
+                cache.index.get(
+                    `${normalizedUsername}\u0000${assignmentId}`
+                );
+
+            if (!candidate) return;
+
+            if (!preferred) {
+                preferred = candidate;
+                return;
+            }
+
+            const preferredRank =
+                getStudentSubmissionRank(
+                    preferred
+                );
+
+            const candidateRank =
+                getStudentSubmissionRank(
+                    candidate
+                );
+
+            if (
+                candidateRank >
+                    preferredRank ||
+                (
+                    candidateRank ===
+                        preferredRank &&
+                    getStudentSubmissionTime(
+                        candidate
+                    ) >=
+                    getStudentSubmissionTime(
+                        preferred
+                    )
+                )
+            ) {
+                preferred = candidate;
+            }
+        }
     );
+
+    return preferred;
 }
 
 async function loadAssignments() {
