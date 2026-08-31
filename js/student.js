@@ -3203,12 +3203,14 @@ window.onload = async function () {
             )
         );
 
-        await startupLoader.waitForMedia({
-            timeoutMs: 9000,
-            quietMs: 600
-        });
+        // Không khóa giao diện chỉ để chờ YouTube/iframe.
+// Video tiếp tục tải bình thường sau khi web đã mở.
+startupLoader.waitForMedia({
+    timeoutMs: 2000,
+    quietMs: 150
+}).catch(() => {});
 
-        startupLoader.hide();
+startupLoader.hide();
     }
 };
 
