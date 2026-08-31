@@ -505,63 +505,28 @@ table td {
         flex-direction: column;
     }
 }
-/* ============================
-   FIX NÚT ĐÓNG / MỞ SIDEBAR
-   ============================ */
-
-.sidebar-toggle {
-    position: absolute;
-    top: 32px;
-    right: -17px;
-
-    width: 34px;
-    height: 34px;
-    padding: 0;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-
-    border: 2px solid rgba(255,255,255,.85);
-    border-radius: 50%;
-
-    cursor: pointer;
-    z-index: 200;
-
-    box-sizing: border-box;
-    transform-origin: center;
-
-    transition:
-        transform .3s ease,
-        box-shadow .3s ease;
-
-    box-shadow: 0 8px 22px rgba(49,46,129,.32);
+/* 1. Đảm bảo sidebar làm gốc tọa độ và không cắt nút */
+.sidebar {
+    position: relative !important; /* Bắt buộc để làm mỏ neo cho absolute */
+    overflow: visible !important;
 }
 
-/* SIDEBAR ĐANG MỞ */
-.dashboard:not(.collapsed) .sidebar-toggle {
-    transform: rotate(0deg);
-}
-
-.dashboard:not(.collapsed) .sidebar-toggle:hover {
-    transform: scale(1.08);
-}
-
-/* SIDEBAR THU GỌN */
-.dashboard.collapsed .sidebar-toggle {
-    transform: rotate(180deg);
-}
-
-.dashboard.collapsed .sidebar-toggle:hover {
-    transform: rotate(180deg) scale(1.08);
-}
-
-/* Mobile */
-@media (max-width: 760px) {
-    body.use-bottom-mobile-nav .sidebar-toggle {
-        display: none !important;
+/* 2. Định vị nút toggle bất kể thẻ cha ngoài cùng là gì */
+@media (min-width: 769px) {
+    .sidebar .sidebar-toggle {
+        position: absolute !important;
+        top: 32px !important;
+        right: -17px !important; /* Đẩy ra mép phải */
+        left: auto !important;
+        bottom: auto !important;
+        margin: 0 !important;
+        
+        z-index: 99999 !important; 
+        
+        width: 34px !important;
+        height: 34px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
     }
 }
