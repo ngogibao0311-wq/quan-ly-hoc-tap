@@ -505,10 +505,20 @@ table td {
         flex-direction: column;
     }
 }
-/* 1. Đảm bảo sidebar làm gốc tọa độ và không cắt nút */
-.sidebar {
-    position: relative !important; /* Bắt buộc để làm mỏ neo cho absolute */
-    overflow: visible !important;
+/* FIX SIDEBAR GIÁO VIÊN */
+@media (min-width: 769px) {
+    .sidebar {
+        position: sticky !important;
+        top: 0 !important;
+
+        height: 100vh !important;
+        height: 100dvh !important;
+
+        align-self: flex-start !important;
+
+        overflow-x: visible !important;
+        overflow-y: auto !important;
+    }
 }
 
 /* 2. Định vị nút toggle bất kể thẻ cha ngoài cùng là gì */
