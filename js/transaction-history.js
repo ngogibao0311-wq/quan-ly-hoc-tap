@@ -990,18 +990,6 @@
                 d.offsetDelta
             );
 
-        const conversionUsagePath =
-            String(
-                d.conversionUsagePath ||
-                ''
-            ).trim();
-
-        const conversionReservationId =
-            String(
-                d.conversionReservationId ||
-                ''
-            ).trim();
-
         if (
             !coinPath ||
             !offsetPath ||
@@ -1038,36 +1026,6 @@
         }
 
         const updates = {};
-
-        /*
-         * Nếu log có khóa lượt quy đổi thì hoàn lại đúng lượt đó.
-         * reservationId được đối chiếu để tránh xóa nhầm lượt mới
-         * trong trường hợp dữ liệu cũ đã bị thay đổi thủ công.
-         */
-        if (
-            conversionUsagePath &&
-            conversionReservationId
-        ) {
-            const usageSnapshot =
-                await db
-                    .ref(conversionUsagePath)
-                    .once('value');
-
-            const usageData =
-                usageSnapshot.val();
-
-            if (
-                usageData &&
-                String(
-                    usageData.reservationId ||
-                    ''
-                ) === conversionReservationId
-            ) {
-                updates[
-                    conversionUsagePath
-                ] = null;
-            }
-        }
 
         updates[coinPath] =
             firebase.database
