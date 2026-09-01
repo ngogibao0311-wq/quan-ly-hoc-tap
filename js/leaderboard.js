@@ -1,5 +1,9 @@
 // leaderboard.js — giao diện Bảng Xếp Hạng Thi Đua phiên bản mới
 
+window.__LEADERBOARD_BUILD_ID__ = '20260901-1644-chest-sync-fix';
+console.info('[Leaderboard] build:', window.__LEADERBOARD_BUILD_ID__);
+
+
 const LB_ICONS = {
     trophy: `
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -3564,55 +3568,98 @@ window.claimChestReward = async function (
         const currentChestClaim =
             rewardState?.claim || null;
 
-        const canRecoverStaleChestLock =
-            (
-                currentChestClaim?.status ===
-                    'processing_chest' ||
-                currentChestClaim?.status ===
-                    'processing'
-            ) &&
-            isLeaderboardClaimLockExpired(
-                currentChestClaim
-            );
+        const isRecoverableChestClaim =
+            claim => {
+                if (!claim) {
+                    return false;
+                }
+
+                const status =
+                    String(
+                        claim.status || ''
+                    ).trim();
+
+                /*
+                 * "retry" là trạng thái do luồng nhận thưởng BXH
+                 * đặt lại khi lần mở khóa Rương trước đó bị lỗi.
+                 * Với Hạng 1 + rewardType=chest thì có thể phục hồi
+                 * an toàn mà không bắt học sinh đóng/mở lại BXH.
+                 */
+                if (
+                    status === 'available_chest' ||
+                    status === 'retry'
+                ) {
+                    return true;
+                }
+
+                return (
+                    (
+                        status === 'processing_chest' ||
+                        status === 'processing'
+                    ) &&
+                    isLeaderboardClaimLockExpired(
+                        claim
+                    )
+                );
+            };
+
+        const currentChestStatus =
+            String(
+                currentChestClaim?.status || ''
+            ).trim();
 
         if (
             !rewardState ||
             rewardState.rank !== 1 ||
-            currentChestClaim?.rewardType !==
-                'chest' ||
-            (
-                currentChestClaim?.status !==
-                    'available_chest' &&
-                !canRecoverStaleChestLock
+            String(
+                currentChestClaim?.rewardType || ''
+            ).trim() !== 'chest' ||
+            !isRecoverableChestClaim(
+                currentChestClaim
             )
         ) {
             if (
-                currentChestClaim?.status ===
-                    'claimed'
+                currentChestStatus === 'claimed'
             ) {
                 alert(
                     '✅ Rương Hạng 1 này đã được nhận trước đó.'
                 );
+                closeTreasureChestModal();
             } else if (
-                currentChestClaim?.status ===
-                    'processing_chest'
+                (
+                    currentChestStatus ===
+                        'processing_chest' ||
+                    currentChestStatus ===
+                        'processing'
+                ) &&
+                currentChestClaim &&
+                !isLeaderboardClaimLockExpired(
+                    currentChestClaim
+                )
             ) {
                 alert(
                     '⏳ Rương đang được một tab khác xử lý. ' +
-                    'Nếu tab đó đã đóng hoặc bị lỗi, hệ thống sẽ ' +
+                    'Nếu lần xử lý đó bị gián đoạn, hệ thống sẽ ' +
                     'tự mở khóa sau khoảng 90 giây.'
                 );
             } else {
-                alert(
-                    '🔒 Rương không còn khả dụng hoặc bạn không có quyền mở.'
+                console.warn(
+                    '[Leaderboard] Rương không ở trạng thái có thể nhận:',
+                    {
+                        rank:
+                            rewardState?.rank,
+                        claim:
+                            currentChestClaim
+                    }
                 );
-            }
 
-            if (
-                currentChestClaim?.status !==
-                    'processing_chest'
-            ) {
                 closeTreasureChestModal();
+                await refreshPreviousLeaderboardRewardPanel();
+
+                alert(
+                    '🔒 Rương hiện không ở trạng thái có thể nhận. ' +
+                    'BXH đã được đồng bộ tự động.'
+                );
             }
             return;
         }
@@ -3631,93 +3678,153 @@ window.claimChestReward = async function (
                 )
             );
 
-        /*
-         * Khóa rương bằng transaction.
-         * Hai tab bấm cùng lúc chỉ một tab được quyền tiếp tục.
-         */
-        const lockResult =
-            await claimRef.transaction(
-                current => {
-                    if (!current) {
-                        return;
-                    }
+        const runChestLockTransaction =
+            async () => {
+                /*
+                 * applyLocally=false:
+                 * tránh transaction quyết định dựa trên cache cũ
+                 * rồi abort trước khi đối chiếu trạng thái máy chủ.
+                 */
+                return claimRef.transaction(
+                    current => {
+                        if (
+                            !current ||
+                            typeof current !== 'object'
+                        ) {
+                            return;
+                        }
 
-                    /*
-                     * Dữ liệu cũ có thể lưu rank = "1" thay vì 1.
-                     * Chỉ từ chối khi rank tồn tại nhưng thực sự khác hạng 1.
-                     */
-                    const storedRank =
-                        Number(current.rank);
+                        /*
+                         * Dữ liệu cũ có thể lưu rank = "1" thay vì 1.
+                         * Chỉ từ chối khi rank tồn tại nhưng thực sự khác hạng 1.
+                         */
+                        const storedRank =
+                            Number(current.rank);
 
-                    if (
-                        current.rank !== undefined &&
-                        current.rank !== null &&
-                        current.rank !== '' &&
-                        (
-                            !Number.isFinite(storedRank) ||
-                            storedRank !== 1
-                        )
-                    ) {
-                        return;
-                    }
-
-                    if (
-                        String(
-                            current.rewardType || ''
-                        ).trim() !== 'chest'
-                    ) {
-                        return;
-                    }
-
-                    const canLock =
-                        current.status ===
-                            'available_chest' ||
-                        (
+                        if (
+                            current.rank !== undefined &&
+                            current.rank !== null &&
+                            current.rank !== '' &&
                             (
-                                current.status ===
-                                    'processing_chest' ||
-                                current.status ===
-                                    'processing'
-                            ) &&
-                            isLeaderboardClaimLockExpired(
+                                !Number.isFinite(
+                                    storedRank
+                                ) ||
+                                storedRank !== 1
+                            )
+                        ) {
+                            return;
+                        }
+
+                        if (
+                            String(
+                                current.rewardType || ''
+                            ).trim() !== 'chest'
+                        ) {
+                            return;
+                        }
+
+                        if (
+                            !isRecoverableChestClaim(
                                 current
                             )
-                        );
+                        ) {
+                            return;
+                        }
 
-                    if (!canLock) {
-                        return;
-                    }
+                        const previousStatus =
+                            String(
+                                current.status || ''
+                            ).trim();
 
-                    return {
-                        ...current,
-                        status:
-                            'processing_chest',
-                        selectedChoice:
-                            choiceType,
-                        processingAt:
-                            Date.now(),
-                        recoveredStaleLock:
-                            current.status ===
-                                'processing_chest'
-                    };
+                        return {
+                            ...current,
+                            status:
+                                'processing_chest',
+                            selectedChoice:
+                                choiceType,
+                            processingAt:
+                                Date.now(),
+                            recoveredStaleLock:
+                                previousStatus !==
+                                    'available_chest'
+                        };
+                    },
+                    undefined,
+                    false
+                );
+            };
+
+        /*
+         * Đọc lại đúng node claim ngay trước transaction.
+         * Nếu giao diện/cached state vừa thay đổi, lần đọc này
+         * ép client đồng bộ trước khi khóa Rương.
+         */
+        await claimRef.once('value');
+
+        let lockResult =
+            await runChestLockTransaction();
+
+        /*
+         * Firebase có thể abort transaction nếu state local vừa
+         * bị thay thế đúng lúc bấm nhận. Khi đó đọc lại server và
+         * thử đúng MỘT lần nữa nếu Rương vẫn thực sự khả dụng.
+         */
+        if (!lockResult.committed) {
+            const latestSnap =
+                await claimRef.once('value');
+
+            const latestClaim =
+                latestSnap.val();
+
+            if (
+                isRecoverableChestClaim(
+                    latestClaim
+                )
+            ) {
+                lockResult =
+                    await runChestLockTransaction();
+            }
+        }
+
+        if (!lockResult.committed) {
+            const latestSnap =
+                await claimRef.once('value');
+
+            const latestClaim =
+                latestSnap.val();
+
+            const latestStatus =
+                String(
+                    latestClaim?.status || ''
+                ).trim();
+
+            console.warn(
+                '[Leaderboard] Không khóa được Rương:',
+                {
+                    seasonKey,
+                    username,
+                    latestClaim
                 }
             );
 
-        if (!lockResult.committed) {
-            const latestClaim =
-                lockResult.snapshot.val();
-
             if (
-                latestClaim?.status ===
-                    'claimed'
+                latestStatus === 'claimed'
             ) {
                 alert(
                     '✅ Rương Hạng 1 này đã được nhận trước đó.'
                 );
                 closeTreasureChestModal();
             } else if (
-                latestClaim?.status ===
-                    'processing_chest'
+                (
+                    latestStatus ===
+                        'processing_chest' ||
+                    latestStatus ===
+                        'processing'
+                ) &&
+                latestClaim &&
+                !isLeaderboardClaimLockExpired(
+                    latestClaim
+                )
             ) {
                 alert(
                     '⏳ Rương đang được một tab khác xử lý. ' +
@@ -3725,29 +3832,25 @@ window.claimChestReward = async function (
                     'thử lại sau khoảng 90 giây.'
                 );
             } else if (
-                latestClaim?.status ===
-                    'available_chest'
+                isRecoverableChestClaim(
+                    latestClaim
+                )
             ) {
                 /*
-                 * Firebase vẫn xác nhận rương còn khả dụng.
-                 * Không ép người dùng đóng modal/làm mới toàn trang.
+                 * Không đóng modal và không bắt refresh thủ công.
+                 * Người dùng có thể bấm lại ngay; finally sẽ bật nút.
                  */
                 alert(
                     'ℹ️ Rương vẫn đang sẵn sàng. ' +
-                    'Hãy bấm chọn phần thưởng lại một lần nữa.'
+                    'Bạn có thể chọn phần thưởng lại ngay.'
                 );
             } else {
-                /*
-                 * Đồng bộ lại panel để trạng thái trên giao diện
-                 * khớp với Firebase thay vì giữ modal cũ.
-                 */
                 closeTreasureChestModal();
-
                 await refreshPreviousLeaderboardRewardPanel();
 
                 alert(
-                    '⚠️ Trạng thái Rương đã được đồng bộ lại. ' +
-                    'Hãy mở Rương từ BXH và thử lại.'
+                    '⚠️ Trạng thái Rương không còn hợp lệ. ' +
+                    'BXH đã được đồng bộ tự động.'
                 );
             }
             return;
