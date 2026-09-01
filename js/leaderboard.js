@@ -1606,15 +1606,92 @@ function getDeterministicLeaderboardDiscountPercent(
 }
 
 
+function getLeaderboardStudentsFromSubmissions(submissions) {
+    const studentsByUsername = new Map();
+
+    (Array.isArray(submissions) ? submissions : [])
+        .forEach(submission => {
+            const username =
+                getLeaderboardSubmissionUsername(submission);
+
+            if (!username) {
+                return;
+            }
+
+            const name =
+                leaderboardText(
+                    submission?.studentName ??
+                    submission?.name ??
+                    submission?.studentFullName
+                ) || username;
+
+            const existing =
+                studentsByUsername.get(username);
+
+            if (!existing) {
+                studentsByUsername.set(username, {
+                    username,
+                    name,
+                    role: 'student',
+                    avatar: '👤'
+                });
+                return;
+            }
+
+            /*
+             * Ưu tiên tên đầy đủ nếu bản ghi cũ trước đó
+             * chỉ có username hoặc thiếu tên.
+             */
+            if (
+                (!existing.name || existing.name === username) &&
+                name !== username
+            ) {
+                existing.name = name;
+            }
+        });
+
+    /*
+     * Chỉ dùng dữ liệu currentUser của chính học sinh đang đăng nhập
+     * để làm đẹp avatar/tên của bản thân. Không đọc toàn bộ /users.
+     */
+    if (
+        typeof currentUser !== 'undefined' &&
+        currentUser?.username &&
+        studentsByUsername.has(
+            leaderboardText(currentUser.username)
+        )
+    ) {
+        const username =
+            leaderboardText(currentUser.username);
+
+        const ownStudent =
+            studentsByUsername.get(username);
+
+        if (leaderboardText(currentUser.name)) {
+            ownStudent.name = currentUser.name;
+        }
+
+        if (leaderboardText(currentUser.avatar)) {
+            ownStudent.avatar = currentUser.avatar;
+        }
+    }
+
+    return [...studentsByUsername.values()];
+}
+
+
 async function getLeaderboardSourceData() {
+    /*
+     * Không đọc getDB('users') ở phía học sinh.
+     * Firebase Rules chỉ cho teacher đọc toàn bộ /users,
+     * vì vậy BXH dựng danh sách người tham gia từ submissions.
+     */
     const [
-        users,
         assignments,
         submissions,
         trackingSnap,
         settingsSnap
     ] = await Promise.all([
-        getDB('users'),
         getDB('assignments'),
         getDB('submissions'),
         db.ref('video_tracking')
@@ -1622,6 +1699,11 @@ async function getLeaderboardSourceData() {
         db.ref('leaderboard_settings')
             .once('value')
     ]);
+
+    const users =
+        getLeaderboardStudentsFromSubmissions(
+            submissions
+        );
 
     return {
         users,
