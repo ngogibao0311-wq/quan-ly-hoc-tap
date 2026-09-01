@@ -3565,8 +3565,12 @@ window.claimChestReward = async function (
             rewardState?.claim || null;
 
         const canRecoverStaleChestLock =
-            currentChestClaim?.status ===
-                'processing_chest' &&
+            (
+                currentChestClaim?.status ===
+                    'processing_chest' ||
+                currentChestClaim?.status ===
+                    'processing'
+            ) &&
             isLeaderboardClaimLockExpired(
                 currentChestClaim
             );
@@ -3634,11 +3638,33 @@ window.claimChestReward = async function (
         const lockResult =
             await claimRef.transaction(
                 current => {
+                    if (!current) {
+                        return;
+                    }
+
+                    /*
+                     * Dữ liệu cũ có thể lưu rank = "1" thay vì 1.
+                     * Chỉ từ chối khi rank tồn tại nhưng thực sự khác hạng 1.
+                     */
+                    const storedRank =
+                        Number(current.rank);
+
                     if (
-                        !current ||
-                        current.rank !== 1 ||
-                        current.rewardType !==
-                            'chest'
+                        current.rank !== undefined &&
+                        current.rank !== null &&
+                        current.rank !== '' &&
+                        (
+                            !Number.isFinite(storedRank) ||
+                            storedRank !== 1
+                        )
+                    ) {
+                        return;
+                    }
+
+                    if (
+                        String(
+                            current.rewardType || ''
+                        ).trim() !== 'chest'
                     ) {
                         return;
                     }
@@ -3647,8 +3673,12 @@ window.claimChestReward = async function (
                         current.status ===
                             'available_chest' ||
                         (
-                            current.status ===
-                                'processing_chest' &&
+                            (
+                                current.status ===
+                                    'processing_chest' ||
+                                current.status ===
+                                    'processing'
+                            ) &&
                             isLeaderboardClaimLockExpired(
                                 current
                             )
@@ -3694,10 +3724,30 @@ window.claimChestReward = async function (
                     'Nếu lần xử lý đó bị gián đoạn, bạn có thể ' +
                     'thử lại sau khoảng 90 giây.'
                 );
-            } else {
+            } else if (
+                latestClaim?.status ===
+                    'available_chest'
+            ) {
+                /*
+                 * Firebase vẫn xác nhận rương còn khả dụng.
+                 * Không ép người dùng đóng modal/làm mới toàn trang.
+                 */
                 alert(
-                    '⚠️ Trạng thái Rương vừa thay đổi. ' +
-                    'Hãy đóng Rương, làm mới BXH rồi thử lại.'
+                    'ℹ️ Rương vẫn đang sẵn sàng. ' +
+                    'Hãy bấm chọn phần thưởng lại một lần nữa.'
+                );
+            } else {
+                /*
+                 * Đồng bộ lại panel để trạng thái trên giao diện
+                 * khớp với Firebase thay vì giữ modal cũ.
+                 */
+                closeTreasureChestModal();
+
+                await refreshPreviousLeaderboardRewardPanel();
+
+                alert(
+                    '⚠️ Trạng thái Rương đã được đồng bộ lại. ' +
+                    'Hãy mở Rương từ BXH và thử lại.'
                 );
             }
             return;
