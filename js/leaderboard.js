@@ -1,6 +1,6 @@
 // leaderboard.js — giao diện Bảng Xếp Hạng Thi Đua phiên bản mới
 
-window.__LEADERBOARD_BUILD_ID__ = '20260901-1644-chest-sync-fix';
+window.__LEADERBOARD_BUILD_ID__ = '20260901-1707-reward-claim-fix';
 console.info('[Leaderboard] build:', window.__LEADERBOARD_BUILD_ID__);
 
 
@@ -4017,6 +4017,66 @@ window.claimChestReward = async function (
                     );
                 };
 
+            /*
+             * Một số vật phẩm Sinh nhật / Special Birthday có rule nhận
+             * riêng và KHÔNG được phép cấp trực tiếp từ Rương BXH.
+             * Nếu để chúng trong pool, multi-location update có thể bị
+             * Firebase từ chối toàn bộ (PERMISSION_DENIED), khiến người
+             * dùng tưởng rằng phần thưởng BXH bị hỏng.
+             */
+            const [
+                birthdayItemYearsSnap,
+                specialBirthdayCatalogSnap
+            ] = await Promise.all([
+                db.ref('birthday_item_years')
+                    .once('value'),
+                db.ref('special_birthday_item_catalog')
+                    .once('value')
+            ]);
+
+            const birthdayItemIds =
+                new Set(
+                    Object.keys(
+                        birthdayItemYearsSnap.val() || {}
+                    ).map(String)
+                );
+
+            const specialBirthdayItemIds =
+                new Set(
+                    Object.entries(
+                        specialBirthdayCatalogSnap.val() || {}
+                    )
+                        .filter(([, config]) =>
+                            config?.enabled === true
+                        )
+                        .map(([itemId]) =>
+                            String(itemId)
+                        )
+                );
+
+            const isLeaderboardChestEligibleItem =
+                item => {
+                    const itemId =
+                        String(item?.id ?? '');
+
+                    if (!itemId) {
+                        return false;
+                    }
+
+                    if (item?.type === 'music') {
+                        return false;
+                    }
+
+                    if (
+                        birthdayItemIds.has(itemId) ||
+                        specialBirthdayItemIds.has(itemId)
+                    ) {
+                        return false;
+                    }
+
+                    return true;
+                };
+
             const validItems =
                 (
                     typeof StoreConfig !==
@@ -4026,9 +4086,7 @@ window.claimChestReward = async function (
                     )
                 )
                     ? StoreConfig.items.filter(
-                        item =>
-                            item.type !==
-                            'music'
+                        isLeaderboardChestEligibleItem
                     )
                     : [];
 
@@ -4401,9 +4459,19 @@ window.claimChestReward = async function (
             }
         }
 
+        const errorCode =
+            String(error?.code || '').toUpperCase();
+
+        const permissionDenied =
+            errorCode.includes('PERMISSION_DENIED') ||
+            errorCode.includes('PERMISSION-DENIED');
+
         alert(
-            '❌ Có lỗi xảy ra khi nhận thưởng Rương. ' +
-            'Vui lòng thử lại!'
+            permissionDenied
+                ? '❌ Firebase từ chối ghi phần thưởng Rương. ' +
+                    'Hãy cập nhật Firebase Rules bản mới rồi thử lại.'
+                : '❌ Có lỗi xảy ra khi nhận thưởng Rương. ' +
+                    'Vui lòng thử lại!'
         );
     } finally {
         btnNodes.forEach(button => {
