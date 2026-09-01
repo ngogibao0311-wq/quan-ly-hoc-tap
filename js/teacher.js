@@ -963,19 +963,32 @@ window.removeTeacherGradePendingFile =
 window.handleTeacherFileAccumulate = function (input, subId) {
     if (!window.teacherGradeDTs[subId]) window.teacherGradeDTs[subId] = new DataTransfer();
     const existingFiles = Array.from(window.teacherGradeDTs[subId].files).map(f => f.name + '_' + f.size);
-    const MAX_SIZE_BYTES = 5 * 1024 * 1024; // Giới hạn 5MB
+    const NORMAL_MAX_SIZE_BYTES = 5 * 1024 * 1024;
+    const AUDIO_MAX_SIZE_BYTES = 30 * 1024 * 1024;
+
+    const isAudioFile = (file) => {
+        const type = String(file?.type || '').toLowerCase();
+        return type.startsWith('audio/') ||
+            /\.(mp3|wav|m4a|aac|ogg|oga|opus|flac|webm)$/i.test(String(file?.name || ''));
+    };
 
     let hasOversize = false;
     for (let i = 0; i < input.files.length; i++) {
-        // Chặn file quá nặng ngay từ lúc chọn
-        if (input.files[i].size > MAX_SIZE_BYTES) {
-            alert(`⚠️ File "${input.files[i].name}" quá lớn (${(input.files[i].size / (1024 * 1024)).toFixed(2)}MB). Hệ thống chỉ cho phép tối đa 5MB/file và đã tự động loại bỏ file này!`);
+        const currentFile = input.files[i];
+        const maxSizeBytes = isAudioFile(currentFile)
+            ? AUDIO_MAX_SIZE_BYTES
+            : NORMAL_MAX_SIZE_BYTES;
+
+        // Chỉ nâng file âm thanh lên 30MB; file thường giữ nguyên 5MB.
+        if (currentFile.size > maxSizeBytes) {
+            const maxMB = maxSizeBytes / (1024 * 1024);
+            alert(`⚠️ File "${currentFile.name}" quá lớn (${(currentFile.size / (1024 * 1024)).toFixed(2)}MB). Hệ thống chỉ cho phép tối đa ${maxMB.toFixed(0)}MB/file và đã tự động loại bỏ file này!`);
             hasOversize = true;
             continue;
         }
-        const fileKey = input.files[i].name + '_' + input.files[i].size;
+        const fileKey = currentFile.name + '_' + currentFile.size;
         if (!existingFiles.includes(fileKey)) {
-            window.teacherGradeDTs[subId].items.add(input.files[i]);
+            window.teacherGradeDTs[subId].items.add(currentFile);
         }
     }
     input.files = window.teacherGradeDTs[subId].files;
@@ -3620,7 +3633,15 @@ function initFileListener() {
     );
 
     fInput.addEventListener('change', function (e) {
-        const MAX_SIZE_BYTES = 5 * 1024 * 1024; // Giới hạn an toàn: 5MB
+        const NORMAL_MAX_SIZE_BYTES = 5 * 1024 * 1024;
+        const AUDIO_MAX_SIZE_BYTES = 30 * 1024 * 1024;
+
+        const isAudioFile = (file) => {
+            const type = String(file?.type || '').toLowerCase();
+            return type.startsWith('audio/') ||
+                /\.(mp3|wav|m4a|aac|ogg|oga|opus|flac|webm)$/i.test(String(file?.name || ''));
+        };
+
         let hasOversize = false;
 
         // Lấy danh sách tên các file đã có trong bộ đệm để tránh trùng lặp
@@ -3628,10 +3649,14 @@ function initFileListener() {
 
         for (let i = 0; i < e.target.files.length; i++) {
             const currentFile = e.target.files[i];
+            const maxSizeBytes = isAudioFile(currentFile)
+                ? AUDIO_MAX_SIZE_BYTES
+                : NORMAL_MAX_SIZE_BYTES;
 
-            // BƯỚC VÁ LỖI: Chặn file quá nặng trước khi xử lý
-            if (currentFile.size > MAX_SIZE_BYTES) {
-                alert(`⚠️ File "${currentFile.name}" quá lớn (${(currentFile.size / (1024 * 1024)).toFixed(2)}MB). Hệ thống chỉ cho phép tối đa 5MB/file và đã tự động loại bỏ file này để bảo vệ máy chủ!`);
+            // Chỉ nâng file âm thanh lên 30MB; file thường giữ nguyên 5MB.
+            if (currentFile.size > maxSizeBytes) {
+                const maxMB = maxSizeBytes / (1024 * 1024);
+                alert(`⚠️ File "${currentFile.name}" quá lớn (${(currentFile.size / (1024 * 1024)).toFixed(2)}MB). Hệ thống chỉ cho phép tối đa ${maxMB.toFixed(0)}MB/file và đã tự động loại bỏ file này để bảo vệ máy chủ!`);
                 hasOversize = true;
                 continue; // Bỏ qua, không đưa vào danh sách cộng dồn
             }

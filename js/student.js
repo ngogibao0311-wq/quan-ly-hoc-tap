@@ -1135,19 +1135,32 @@ window.removeStudentPendingFile =
 window.handleStudentFileAccumulate = function (input, assignId) {
     if (!window.studentSubmitDTs[assignId]) window.studentSubmitDTs[assignId] = new DataTransfer();
     const existingFiles = Array.from(window.studentSubmitDTs[assignId].files).map(f => f.name + '_' + f.size);
-    const MAX_SIZE_BYTES = 7 * 1024 * 1024; // Giới hạn 5MB
+    const NORMAL_MAX_SIZE_BYTES = 7 * 1024 * 1024;
+    const AUDIO_MAX_SIZE_BYTES = 30 * 1024 * 1024;
+
+    const isAudioFile = (file) => {
+        const type = String(file?.type || '').toLowerCase();
+        return type.startsWith('audio/') ||
+            /\.(mp3|wav|m4a|aac|ogg|oga|opus|flac|webm)$/i.test(String(file?.name || ''));
+    };
 
     let hasOversize = false;
     for (let i = 0; i < input.files.length; i++) {
-        // Chặn ngay file quá nặng, không cho vào DataTransfer
-        if (input.files[i].size > MAX_SIZE_BYTES) {
-            alert(`⚠️ File "${input.files[i].name}" quá lớn (${(input.files[i].size / (1024 * 1024)).toFixed(2)}MB). Hệ thống chỉ cho phép tối đa 7MB/file và đã tự động loại bỏ file này!`);
+        const currentFile = input.files[i];
+        const maxSizeBytes = isAudioFile(currentFile)
+            ? AUDIO_MAX_SIZE_BYTES
+            : NORMAL_MAX_SIZE_BYTES;
+
+        // Chỉ nâng file âm thanh lên 30MB; file thường giữ nguyên giới hạn cũ.
+        if (currentFile.size > maxSizeBytes) {
+            const maxMB = maxSizeBytes / (1024 * 1024);
+            alert(`⚠️ File "${currentFile.name}" quá lớn (${(currentFile.size / (1024 * 1024)).toFixed(2)}MB). Hệ thống chỉ cho phép tối đa ${maxMB.toFixed(0)}MB/file và đã tự động loại bỏ file này!`);
             hasOversize = true;
             continue;
         }
-        const fileKey = input.files[i].name + '_' + input.files[i].size;
+        const fileKey = currentFile.name + '_' + currentFile.size;
         if (!existingFiles.includes(fileKey)) {
-            window.studentSubmitDTs[assignId].items.add(input.files[i]);
+            window.studentSubmitDTs[assignId].items.add(currentFile);
         }
     }
     input.files = window.studentSubmitDTs[assignId].files;
