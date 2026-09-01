@@ -1,6 +1,6 @@
 // leaderboard.js — giao diện Bảng Xếp Hạng Thi Đua phiên bản mới
 
-window.__LEADERBOARD_BUILD_ID__ = '20260901-1707-reward-claim-fix';
+window.__LEADERBOARD_BUILD_ID__ = '20260901-1745-transaction-lock-token-fix';
 console.info('[Leaderboard] build:', window.__LEADERBOARD_BUILD_ID__);
 
 
@@ -2077,6 +2077,7 @@ window.claimPreviousLeaderboardReward =
         });
 
         let lockedClaimRef = null;
+        let lockedClaimToken = null;
         let rewardFinalized = false;
 
         try {
@@ -2139,14 +2140,45 @@ window.claimPreviousLeaderboardReward =
                     rank
                 );
 
+            /*
+             * Firebase có thể chạy transaction callback nhiều lần.
+             * Token giúp callback nhận ra trạng thái processing do
+             * CHÍNH transaction hiện tại tạo ra, thay vì tự abort.
+             */
+            const claimLockToken =
+                `${Date.now()}_` +
+                `${Math.random().toString(36).slice(2)}`;
+
+            lockedClaimToken =
+                claimLockToken;
+
             const lockResult =
                 await claimRef.transaction(
                     current => {
                         if (current) {
+                            const currentStatus =
+                                String(
+                                    current.status || ''
+                                ).trim();
+
+                            const ownsCurrentLock =
+                                currentStatus ===
+                                    'processing' &&
+                                current.processingToken ===
+                                    claimLockToken;
+
+                            /*
+                             * Idempotent retry: Firebase đang chạy lại
+                             * callback của cùng transaction.
+                             */
+                            if (ownsCurrentLock) {
+                                return current;
+                            }
+
                             if (
-                                current.status ===
+                                currentStatus ===
                                     'claimed' ||
-                                current.status ===
+                                currentStatus ===
                                     'available_chest'
                             ) {
                                 return;
@@ -2154,9 +2186,9 @@ window.claimPreviousLeaderboardReward =
 
                             if (
                                 (
-                                    current.status ===
+                                    currentStatus ===
                                         'processing' ||
-                                    current.status ===
+                                    currentStatus ===
                                         'processing_chest'
                                 ) &&
                                 !isLeaderboardClaimLockExpired(
@@ -2176,6 +2208,8 @@ window.claimPreviousLeaderboardReward =
                             rewardType,
                             status:
                                 'processing',
+                            processingToken:
+                                claimLockToken,
                             startedAt:
                                 Date.now(),
                             recoveredStaleLock:
@@ -2189,7 +2223,9 @@ window.claimPreviousLeaderboardReward =
                                     )
                                 )
                         };
-                    }
+                    },
+                    undefined,
+                    false
                 );
 
             if (!lockResult.committed) {
@@ -2228,6 +2264,8 @@ window.claimPreviousLeaderboardReward =
                         'available_chest',
                     rewardLabel:
                         'Rương Kho Báu Hạng 1',
+                    processingToken:
+                        null,
                     unlockedAt:
                         firebase.database
                             .ServerValue
@@ -2459,9 +2497,30 @@ window.claimPreviousLeaderboardReward =
                 try {
                     await lockedClaimRef.transaction(
                         current => {
+                            const currentStatus =
+                                String(
+                                    current?.status || ''
+                                ).trim();
+
+                            const rollbackToken =
+                                current?.rollbackToken;
+
+                            /*
+                             * Idempotent retry của chính rollback.
+                             */
                             if (
-                                current?.status !==
-                                    'processing'
+                                currentStatus === 'retry' &&
+                                rollbackToken ===
+                                    lockedClaimToken
+                            ) {
+                                return current;
+                            }
+
+                            if (
+                                currentStatus !==
+                                    'processing' ||
+                                current?.processingToken !==
+                                    lockedClaimToken
                             ) {
                                 return;
                             }
@@ -2470,10 +2529,16 @@ window.claimPreviousLeaderboardReward =
                                 ...current,
                                 status:
                                     'retry',
+                                processingToken:
+                                    null,
+                                rollbackToken:
+                                    lockedClaimToken,
                                 lastErrorAt:
                                     Date.now()
                             };
-                        }
+                        },
+                        undefined,
+                        false
                     );
                 } catch (
                     rollbackError
@@ -3552,6 +3617,14 @@ window.claimChestReward = async function (
     let claimRef = null;
     let awardCommitted = false;
 
+    /*
+     * Giữ nguyên token trong toàn bộ vòng đời của MỘT lần bấm nhận.
+     * Transaction callback có thể bị Firebase gọi lại nhiều lần.
+     */
+    const chestLockToken =
+        `${Date.now()}_` +
+        `${Math.random().toString(36).slice(2)}`;
+
     try {
         if (
             choiceType !== 'coin' &&
@@ -3687,11 +3760,36 @@ window.claimChestReward = async function (
                  */
                 return claimRef.transaction(
                     current => {
+                        /*
+                         * Firebase transaction callback có thể được gọi
+                         * lần đầu với null dù dữ liệu thật đang tồn tại.
+                         * Không abort ngay: dùng claim vừa được đọc/kiểm tra
+                         * ở rewardState làm giá trị dự phòng. Nếu server có
+                         * dữ liệu mới hơn, Firebase sẽ phát hiện xung đột và
+                         * gọi lại callback với current mới nhất.
+                         */
+                        let transactionClaim =
+                            current;
+
                         if (
-                            !current ||
-                            typeof current !== 'object'
+                            !transactionClaim ||
+                            typeof transactionClaim !==
+                                'object'
                         ) {
-                            return;
+                            if (
+                                !currentChestClaim ||
+                                typeof currentChestClaim !==
+                                    'object' ||
+                                !isRecoverableChestClaim(
+                                    currentChestClaim
+                                )
+                            ) {
+                                return;
+                            }
+
+                            transactionClaim = {
+                                ...currentChestClaim
+                            };
                         }
 
                         /*
@@ -3699,12 +3797,14 @@ window.claimChestReward = async function (
                          * Chỉ từ chối khi rank tồn tại nhưng thực sự khác hạng 1.
                          */
                         const storedRank =
-                            Number(current.rank);
+                            Number(
+                                transactionClaim.rank
+                            );
 
                         if (
-                            current.rank !== undefined &&
-                            current.rank !== null &&
-                            current.rank !== '' &&
+                            transactionClaim.rank !== undefined &&
+                            transactionClaim.rank !== null &&
+                            transactionClaim.rank !== '' &&
                             (
                                 !Number.isFinite(
                                     storedRank
@@ -3717,31 +3817,52 @@ window.claimChestReward = async function (
 
                         if (
                             String(
-                                current.rewardType || ''
+                                transactionClaim.rewardType || ''
                             ).trim() !== 'chest'
-                        ) {
-                            return;
-                        }
-
-                        if (
-                            !isRecoverableChestClaim(
-                                current
-                            )
                         ) {
                             return;
                         }
 
                         const previousStatus =
                             String(
-                                current.status || ''
+                                transactionClaim.status || ''
                             ).trim();
 
+                        const ownsCurrentLock =
+                            previousStatus ===
+                                'processing_chest' &&
+                            transactionClaim.processingToken ===
+                                chestLockToken;
+
+                        /*
+                         * Idempotent retry: nếu Firebase gọi lại callback
+                         * sau khi chính transaction này đã tạo trạng thái
+                         * processing_chest, trả lại cùng dữ liệu thay vì abort.
+                         */
+                        if (ownsCurrentLock) {
+                            return {
+                                ...transactionClaim,
+                                selectedChoice:
+                                    choiceType
+                            };
+                        }
+
+                        if (
+                            !isRecoverableChestClaim(
+                                transactionClaim
+                            )
+                        ) {
+                            return;
+                        }
+
                         return {
-                            ...current,
+                            ...transactionClaim,
                             status:
                                 'processing_chest',
                             selectedChoice:
                                 choiceType,
+                            processingToken:
+                                chestLockToken,
                             processingAt:
                                 Date.now(),
                             recoveredStaleLock:
@@ -3853,6 +3974,32 @@ window.claimChestReward = async function (
                     'BXH đã được đồng bộ tự động.'
                 );
             }
+            return;
+        }
+
+        const lockedChestClaim =
+            lockResult.snapshot.val();
+
+        if (
+            String(
+                lockedChestClaim?.status || ''
+            ).trim() !== 'processing_chest' ||
+            lockedChestClaim?.processingToken !==
+                chestLockToken
+        ) {
+            console.warn(
+                '[Leaderboard] Transaction commit nhưng không sở hữu khóa Rương:',
+                {
+                    seasonKey,
+                    username,
+                    lockedChestClaim
+                }
+            );
+
+            alert(
+                '⏳ Không xác nhận được quyền sở hữu khóa Rương. ' +
+                'Vui lòng chọn phần thưởng lại.'
+            );
             return;
         }
 
@@ -4429,9 +4576,32 @@ window.claimChestReward = async function (
             try {
                 await claimRef.transaction(
                     current => {
+                        const currentStatus =
+                            String(
+                                current?.status || ''
+                            ).trim();
+
+                        /*
+                         * Idempotent retry của chính rollback.
+                         */
                         if (
-                            current?.status !==
-                                'processing_chest'
+                            currentStatus ===
+                                'available_chest' &&
+                            current?.rollbackToken ===
+                                chestLockToken
+                        ) {
+                            return current;
+                        }
+
+                        /*
+                         * Chỉ tab/lần bấm đang sở hữu token mới được
+                         * mở khóa lại claim của chính nó.
+                         */
+                        if (
+                            currentStatus !==
+                                'processing_chest' ||
+                            current?.processingToken !==
+                                chestLockToken
                         ) {
                             return;
                         }
@@ -4442,12 +4612,18 @@ window.claimChestReward = async function (
                                 'available_chest',
                             selectedChoice:
                                 null,
+                            processingToken:
+                                null,
+                            rollbackToken:
+                                chestLockToken,
                             processingAt:
                                 null,
                             lastErrorAt:
                                 Date.now()
                         };
-                    }
+                    },
+                    undefined,
+                    false
                 );
             } catch (
                 rollbackError
