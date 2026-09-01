@@ -4555,13 +4555,17 @@ async function gradeSubmission(subId) {
             const gradeBefore = {
                 grade: sub.grade ?? null,
                 teacherComment: sub.teacherComment ?? null,
-                isRegrading: sub.isRegrading ?? false
+                isRegrading: sub.isRegrading ?? false,
+                gradedAt: sub.gradedAt ?? null
             };
+
+            const gradedAt = Date.now();
 
             const updateObj = {
                 grade: grade,
                 teacherComment: commentVal,
-                isRegrading: false
+                isRegrading: false,
+                gradedAt: gradedAt
             };
             if (fileDataArray) updateObj.teacherFile = fileDataArray;
             await updateDB(
@@ -4603,7 +4607,8 @@ async function gradeSubmission(subId) {
                         after: {
                             grade: grade,
                             teacherComment: commentVal,
-                            isRegrading: false
+                            isRegrading: false,
+                            gradedAt: gradedAt
                         }
                     }
                 });

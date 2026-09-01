@@ -927,33 +927,121 @@ function getLeaderboardBestSubmission(
 }
 
 
-function getLeaderboardMonthAssignments(
-    assignments,
+function parseLeaderboardDateMs(value) {
+    if (
+        value === null ||
+        value === undefined ||
+        value === ''
+    ) {
+        return null;
+    }
+
+    // Timestamp dạng số: gradedAt, submittedAt, updatedAt...
+    const numeric = Number(value);
+    if (
+        Number.isFinite(numeric) &&
+        numeric > 0
+    ) {
+        return numeric;
+    }
+
+    // Ngày của bài tập đang được lưu theo dạng YYYY-MM-DD HH:mm.
+    const normalized = String(value)
+        .trim()
+        .replace(' ', 'T');
+
+    if (!normalized) {
+        return null;
+    }
+
+    const parsed = new Date(normalized).getTime();
+
+    return Number.isNaN(parsed)
+        ? null
+        : parsed;
+}
+
+
+function getLeaderboardSubmissionPeriodMs(submission) {
+    if (!submission) {
+        return null;
+    }
+
+    // Ưu tiên thời điểm giáo viên chấm.
+    // Dữ liệu cũ chưa có gradedAt sẽ tự rơi về thời điểm nộp bài.
+    const candidates = [
+        submission.gradedAt,
+        submission.submittedAt,
+        submission.submitTimestamp,
+        submission.updatedAt,
+        submission.timestamp
+    ];
+
+    for (const value of candidates) {
+        const parsed =
+            parseLeaderboardDateMs(value);
+
+        if (parsed !== null) {
+            return parsed;
+        }
+    }
+
+    // Tương thích bản ghi rất cũ: id thường bắt đầu bằng Date.now().
+    const idMatch =
+        leaderboardText(submission.id)
+            .match(/^(\d{13})/);
+
+    return idMatch
+        ? Number(idMatch[1])
+        : null;
+}
+
+
+function getLeaderboardAssignmentPeriodMs(
+    assignment,
+    submission
+) {
+    // Quy tắc xác định mùa thi đua:
+    // 1) Hạn nộp; 2) ngày bắt đầu; 3) ngày chấm; 4) ngày nộp.
+    const endDateMs =
+        parseLeaderboardDateMs(
+            assignment?.endDate
+        );
+
+    if (endDateMs !== null) {
+        return endDateMs;
+    }
+
+    const startDateMs =
+        parseLeaderboardDateMs(
+            assignment?.startDate
+        );
+
+    if (startDateMs !== null) {
+        return startDateMs;
+    }
+
+    return getLeaderboardSubmissionPeriodMs(
+        submission
+    );
+}
+
+
+function isLeaderboardPeriodMatch(
+    timestamp,
     year,
     monthIndex
 ) {
-    return (assignments || []).filter(
-        assignment => {
-            if (!assignment?.endDate) {
-                return false;
-            }
+    if (timestamp === null) {
+        return false;
+    }
 
-            const assignmentDate =
-                new Date(
-                    String(assignment.endDate)
-                        .replace(' ', 'T')
-                );
+    const date = new Date(timestamp);
 
-            return (
-                !Number.isNaN(
-                    assignmentDate.getTime()
-                ) &&
-                assignmentDate.getMonth() ===
-                    monthIndex &&
-                assignmentDate.getFullYear() ===
-                    year
-            );
-        }
+    return (
+        !Number.isNaN(date.getTime()) &&
+        date.getMonth() === monthIndex &&
+        date.getFullYear() === year
     );
 }
 
@@ -979,12 +1067,10 @@ function buildLeaderboardDataForPeriod({
                 'student'
         );
 
-    const monthAssignments =
-        getLeaderboardMonthAssignments(
-            assignments,
-            year,
-            monthIndex
-        );
+    const allAssignments =
+        Array.isArray(assignments)
+            ? assignments
+            : [];
 
     const rankedData = [];
 
@@ -998,8 +1084,8 @@ function buildLeaderboardDataForPeriod({
             return;
         }
 
-        const assignedMonthAssignments =
-            monthAssignments.filter(
+        const assignedAssignments =
+            allAssignments.filter(
                 assignment =>
                     isLeaderboardAssignmentForStudent(
                         assignment,
@@ -1013,8 +1099,31 @@ function buildLeaderboardDataForPeriod({
         let violationCount = 0;
         let totalVideoBonus = 0;
 
-        assignedMonthAssignments.forEach(
+        assignedAssignments.forEach(
             assignment => {
+                const submission =
+                    getLeaderboardBestSubmission(
+                        assignment,
+                        submissions,
+                        username
+                    );
+
+                const periodMs =
+                    getLeaderboardAssignmentPeriodMs(
+                        assignment,
+                        submission
+                    );
+
+                if (
+                    !isLeaderboardPeriodMatch(
+                        periodMs,
+                        year,
+                        monthIndex
+                    )
+                ) {
+                    return;
+                }
+
                 if (
                     Number(
                         assignment.watchCondition
@@ -1050,13 +1159,6 @@ function buildLeaderboardDataForPeriod({
                     totalVideoBonus +=
                         ratio * 0.5;
                 }
-
-                const submission =
-                    getLeaderboardBestSubmission(
-                        assignment,
-                        submissions,
-                        username
-                    );
 
                 if (!submission) {
                     return;
