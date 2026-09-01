@@ -1,6 +1,6 @@
 // leaderboard.js — giao diện Bảng Xếp Hạng Thi Đua phiên bản mới
 
-window.__LEADERBOARD_BUILD_ID__ = '20260901-1745-transaction-lock-token-fix';
+window.__LEADERBOARD_BUILD_ID__ = '20260901-chest-exclusive-pool-v2';
 console.info('[Leaderboard] build:', window.__LEADERBOARD_BUILD_ID__);
 
 
@@ -4201,6 +4201,69 @@ window.claimChestReward = async function (
                         )
                 );
 
+            /*
+             * Các nhóm vật phẩm ĐỘC QUYỀN không được phép rơi từ
+             * Rương Hạng 1 của BXH:
+             * - Lord of the Mysteries
+             * - Doraemon
+             * - Thất Đại Tội – Lười Biếng
+             * - Hội họa
+             * - Quốc khánh / 2/9
+             * - Bộ Mùa Xuân Premium trong cửa hàng thường
+             * - Toàn bộ vật phẩm thuộc Cửa hàng Sang trọng
+             *
+             * Chặn theo cả tag + ID + cờ luxuryOnly để:
+             * 1) không phụ thuộc hoàn toàn vào tên hiển thị;
+             * 2) vật phẩm Luxury thêm sau này vẫn tự động bị loại.
+             */
+            const excludedChestTags =
+                new Set([
+                    'lord of the mysteries',
+                    'doraemon',
+                    'that dai toi',
+                    'hoi hoa',
+                    '2/9',
+                    'quoc khanh'
+                ]);
+
+            const excludedPremiumSpringItemIds =
+                new Set([
+                    'pet_premium_mua_xuan',
+                    'effect_premium_mua_xuan',
+                    'theme_mua_xuan_thanh_minh',
+                    'frame_premium_mua_xuan_hoa_mong',
+                    'background_premium_mua_xuan_hoa_mong'
+                ]);
+
+            /*
+             * Danh sách Luxury hiện tại.
+             * luxuryOnly bên dưới vẫn là lớp bảo vệ chính cho
+             * các món Luxury được thêm trong tương lai.
+             */
+            const excludedLuxuryItemIds =
+                new Set([
+                    'pet_luxury_mua_xuan',
+                    'pet_quoc_khanh_1'
+                ]);
+
+            const hasExcludedChestTag =
+                item => {
+                    const itemTags = [
+                        item?.tag,
+                        ...(
+                            Array.isArray(item?.tags)
+                                ? item.tags
+                                : []
+                        )
+                    ]
+                        .map(normalizeTag)
+                        .filter(Boolean);
+
+                    return itemTags.some(tag =>
+                        excludedChestTags.has(tag)
+                    );
+                };
+
             const isLeaderboardChestEligibleItem =
                 item => {
                     const itemId =
@@ -4218,6 +4281,25 @@ window.claimChestReward = async function (
                         birthdayItemIds.has(itemId) ||
                         specialBirthdayItemIds.has(itemId)
                     ) {
+                        return false;
+                    }
+
+                    if (
+                        excludedPremiumSpringItemIds.has(
+                            itemId
+                        ) ||
+                        excludedLuxuryItemIds.has(
+                            itemId
+                        )
+                    ) {
+                        return false;
+                    }
+
+                    if (item?.luxuryOnly === true) {
+                        return false;
+                    }
+
+                    if (hasExcludedChestTag(item)) {
                         return false;
                     }
 
