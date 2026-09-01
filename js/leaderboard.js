@@ -28,6 +28,169 @@ const LB_ICONS = {
 
 
 // ======================================================
+// LỊCH SỬ BẢNG XẾP HẠNG
+// Cho phép xem tháng hiện tại và tối đa 3 tháng trước.
+// ======================================================
+
+const LB_HISTORY_MONTH_LIMIT = 3;
+let leaderboardViewMonthOffset = 0;
+let leaderboardRenderRequestId = 0;
+
+
+function getLeaderboardViewPeriod(
+    now = new Date()
+) {
+    const numericOffset =
+        Number(leaderboardViewMonthOffset);
+
+    const offset =
+        Math.max(
+            0,
+            Math.min(
+                LB_HISTORY_MONTH_LIMIT,
+                Number.isFinite(numericOffset)
+                    ? Math.trunc(numericOffset)
+                    : 0
+            )
+        );
+
+    leaderboardViewMonthOffset = offset;
+
+    const date =
+        new Date(
+            now.getFullYear(),
+            now.getMonth() - offset,
+            1
+        );
+
+    const year =
+        date.getFullYear();
+
+    const monthIndex =
+        date.getMonth();
+
+    const month =
+        monthIndex + 1;
+
+    return {
+        year,
+        month,
+        monthIndex,
+        offset,
+        isCurrent:
+            offset === 0,
+        display:
+            `Tháng ${month}/${year}`
+    };
+}
+
+
+function updateLeaderboardPeriodControls(
+    period = getLeaderboardViewPeriod()
+) {
+    const monthDisplay =
+        document.getElementById(
+            'lbMonthDisplay'
+        );
+
+    const status =
+        document.getElementById(
+            'lbSeasonStatus'
+        );
+
+    const statusText =
+        document.getElementById(
+            'lbSeasonStatusText'
+        );
+
+    const prevButton =
+        document.getElementById(
+            'lbPrevMonthBtn'
+        );
+
+    const nextButton =
+        document.getElementById(
+            'lbNextMonthBtn'
+        );
+
+    if (monthDisplay) {
+        monthDisplay.textContent =
+            `Mùa thi đua · ${period.display}`;
+    }
+
+    if (status) {
+        status.classList.toggle(
+            'is-history',
+            !period.isCurrent
+        );
+    }
+
+    if (statusText) {
+        statusText.textContent =
+            period.isCurrent
+                ? 'Đang diễn ra'
+                : 'Đã kết thúc';
+    }
+
+    if (prevButton) {
+        prevButton.disabled =
+            period.offset >=
+            LB_HISTORY_MONTH_LIMIT;
+
+        prevButton.title =
+            prevButton.disabled
+                ? `Chỉ xem lại tối đa ${LB_HISTORY_MONTH_LIMIT} tháng trước`
+                : 'Xem tháng trước';
+    }
+
+    if (nextButton) {
+        nextButton.disabled =
+            period.offset <= 0;
+
+        nextButton.title =
+            nextButton.disabled
+                ? 'Đang ở tháng hiện tại'
+                : 'Xem tháng sau';
+    }
+}
+
+
+async function changeLeaderboardMonth(
+    direction
+) {
+    const delta =
+        Number(direction);
+
+    if (!Number.isFinite(delta)) {
+        return;
+    }
+
+    const nextOffset =
+        Math.max(
+            0,
+            Math.min(
+                LB_HISTORY_MONTH_LIMIT,
+                leaderboardViewMonthOffset +
+                    Math.trunc(delta)
+            )
+        );
+
+    if (
+        nextOffset ===
+        leaderboardViewMonthOffset
+    ) {
+        updateLeaderboardPeriodControls();
+        return;
+    }
+
+    leaderboardViewMonthOffset =
+        nextOffset;
+
+    await calculateAndRenderLeaderboard();
+}
+
+
+// ======================================================
 // 1. KHỞI TẠO GIAO DIỆN BẢNG XẾP HẠNG
 // ======================================================
 
@@ -134,16 +297,47 @@ function initLeaderboardSystem() {
 
                     <div class="lb-season-line">
 
-                        <span
-                            id="lbMonthDisplay"
-                            class="lb-season-chip"
+                        <div
+                            class="lb-month-switcher"
+                            aria-label="Chọn tháng bảng xếp hạng"
                         >
-                            Đang tải mùa thi đua…
-                        </span>
+                            <button
+                                id="lbPrevMonthBtn"
+                                class="lb-month-nav-btn"
+                                type="button"
+                                title="Xem tháng trước"
+                                aria-label="Xem tháng trước"
+                            >
+                                ‹
+                            </button>
 
-                        <span class="lb-live-chip">
+                            <span
+                                id="lbMonthDisplay"
+                                class="lb-season-chip"
+                            >
+                                Đang tải mùa thi đua…
+                            </span>
+
+                            <button
+                                id="lbNextMonthBtn"
+                                class="lb-month-nav-btn"
+                                type="button"
+                                title="Xem tháng sau"
+                                aria-label="Xem tháng sau"
+                                disabled
+                            >
+                                ›
+                            </button>
+                        </div>
+
+                        <span
+                            id="lbSeasonStatus"
+                            class="lb-live-chip"
+                        >
                             <i class="lb-live-dot"></i>
-                            Đang diễn ra
+                            <span id="lbSeasonStatusText">
+                                Đang diễn ra
+                            </span>
                         </span>
 
                     </div>
@@ -430,6 +624,22 @@ function bindLeaderboardEvents() {
         ?.addEventListener(
             "click",
             calculateAndRenderLeaderboard
+        );
+
+
+    document
+        .getElementById("lbPrevMonthBtn")
+        ?.addEventListener(
+            "click",
+            () => changeLeaderboardMonth(1)
+        );
+
+
+    document
+        .getElementById("lbNextMonthBtn")
+        ?.addEventListener(
+            "click",
+            () => changeLeaderboardMonth(-1)
         );
 
 
@@ -2348,6 +2558,9 @@ window.openLeaderboardModal = async function () {
                 'leaderboard-open'
             );
 
+            leaderboardViewMonthOffset = 0;
+            updateLeaderboardPeriodControls();
+
             const monthDisplay =
                 document.getElementById(
                     'lbMonthDisplay'
@@ -2356,6 +2569,27 @@ window.openLeaderboardModal = async function () {
             if (monthDisplay) {
                 monthDisplay.textContent =
                     'Mùa hiện tại đang đóng';
+            }
+
+            const seasonStatus =
+                document.getElementById(
+                    'lbSeasonStatus'
+                );
+
+            const seasonStatusText =
+                document.getElementById(
+                    'lbSeasonStatusText'
+                );
+
+            if (seasonStatus) {
+                seasonStatus.classList.add(
+                    'is-history'
+                );
+            }
+
+            if (seasonStatusText) {
+                seasonStatusText.textContent =
+                    'Đã đóng';
             }
 
             const body =
@@ -2440,6 +2674,9 @@ window.openLeaderboardModal = async function () {
             .getElementById('lbCloseBtn')
             ?.focus();
 
+        // Mỗi lần mở BXH bắt đầu từ tháng hiện tại.
+        leaderboardViewMonthOffset = 0;
+
         await calculateAndRenderLeaderboard();
     } catch (error) {
         console.error(error);
@@ -2470,24 +2707,31 @@ async function calculateAndRenderLeaderboard() {
         return;
     }
 
+    const requestId =
+        ++leaderboardRenderRequestId;
+
+    const period =
+        getLeaderboardViewPeriod();
+
+    updateLeaderboardPeriodControls(
+        period
+    );
+
     body.innerHTML =
         getLeaderboardLoadingHTML();
-
-    const now = new Date();
-
-    const currentMonth =
-        now.getMonth();
-
-    const currentYear =
-        now.getFullYear();
-
-    monthDisplay.textContent =
-        `Mùa thi đua · Tháng ` +
-        `${currentMonth + 1}/${currentYear}`;
 
     try {
         const source =
             await getLeaderboardSourceData();
+
+        // Nếu người dùng bấm đổi tháng rất nhanh,
+        // bỏ kết quả của request cũ để tránh render sai tháng.
+        if (
+            requestId !==
+            leaderboardRenderRequestId
+        ) {
+            return;
+        }
 
         const rankedData =
             buildLeaderboardDataForPeriod({
@@ -2500,33 +2744,58 @@ async function calculateAndRenderLeaderboard() {
                 trackingData:
                     source.trackingData,
                 year:
-                    currentYear,
+                    period.year,
                 monthIndex:
-                    currentMonth
+                    period.monthIndex
             });
 
         if (rankedData.length === 0) {
-            body.innerHTML =
-                getLeaderboardStateHTML(
+            body.innerHTML = `
+                ${period.isCurrent
+                    ? '<div id="lbSeasonRewardArea"></div>'
+                    : ''
+                }
+                ${getLeaderboardStateHTML(
                     'empty',
                     'Chưa có dữ liệu xếp hạng',
-                    'Tháng này chưa có bài tập hợp lệ đã được chấm điểm.'
-                );
+                    `${period.display} chưa có bài tập hợp lệ đã được chấm điểm.`
+                )}
+            `;
+
+            if (period.isCurrent) {
+                await refreshPreviousLeaderboardRewardPanel();
+            }
 
             return;
         }
 
         body.innerHTML =
             renderLeaderboard(
-                rankedData
+                rankedData,
+                {
+                    showRewardPanel:
+                        period.isCurrent,
+                    periodLabel:
+                        period.display
+                }
             );
 
         /*
-         * Sau khi dựng BXH hiện tại,
-         * kiểm tra phần thưởng của tháng ĐÃ KẾT THÚC.
+         * Phần thưởng vẫn chỉ kiểm tra ở màn hình tháng hiện tại.
+         * Khi xem lịch sử 1-3 tháng trước chỉ hiển thị thứ hạng,
+         * không cho nhận thưởng cũ từ màn hình lịch sử.
          */
-        await refreshPreviousLeaderboardRewardPanel();
+        if (period.isCurrent) {
+            await refreshPreviousLeaderboardRewardPanel();
+        }
     } catch (error) {
+        if (
+            requestId !==
+            leaderboardRenderRequestId
+        ) {
+            return;
+        }
+
         body.innerHTML =
             getLeaderboardStateHTML(
                 'error',
@@ -2542,7 +2811,18 @@ async function calculateAndRenderLeaderboard() {
 // 8. HIỂN THỊ TOÀN BỘ BẢNG XẾP HẠNG
 // ======================================================
 
-function renderLeaderboard(rankedData) {
+function renderLeaderboard(
+    rankedData,
+    options = {}
+) {
+    const showRewardPanel =
+        options.showRewardPanel !== false;
+
+    const periodLabel =
+        leaderboardText(
+            options.periodLabel
+        ) || 'Tháng hiện tại';
+
     const participantCount =
         rankedData.length;
 
@@ -2586,7 +2866,10 @@ function renderLeaderboard(rankedData) {
 
 
     return `
-        <div id="lbSeasonRewardArea"></div>
+        ${showRewardPanel
+            ? '<div id="lbSeasonRewardArea"></div>'
+            : ''
+        }
 
         <section
             class="lb-summary-grid"
@@ -2632,7 +2915,7 @@ function renderLeaderboard(rankedData) {
                 </h4>
 
                 <span class="lb-section-note">
-                    Top 3 tháng này
+                    Top 3 · ${escapeHTML(periodLabel)}
                 </span>
             </div>
 
