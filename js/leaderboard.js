@@ -1549,6 +1549,49 @@ function getLeaderboardPreviousSeasonInfo(
 }
 
 
+const LEADERBOARD_CLAIM_LOCK_TIMEOUT_MS =
+    90 * 1000;
+
+
+function isLeaderboardClaimLockExpired(
+    claim,
+    now = Date.now()
+) {
+    if (!claim) {
+        return false;
+    }
+
+    const status =
+        String(claim.status || '');
+
+    if (
+        status !== 'processing' &&
+        status !== 'processing_chest'
+    ) {
+        return false;
+    }
+
+    const lockTime =
+        Number(
+            claim.processingAt ??
+            claim.startedAt ??
+            0
+        );
+
+    /*
+     * Claim cũ không có mốc thời gian được xem là khóa rác.
+     * Các khóa mới chỉ được thu hồi sau 90 giây để tránh
+     * hai tab cùng phát thưởng trong lúc một tab còn chạy.
+     */
+    if (!Number.isFinite(lockTime) || lockTime <= 0) {
+        return true;
+    }
+
+    return (now - lockTime) >=
+        LEADERBOARD_CLAIM_LOCK_TIMEOUT_MS;
+}
+
+
 function getLeaderboardClaimPath(
     seasonKey,
     username
@@ -2095,20 +2138,29 @@ window.claimPreviousLeaderboardReward =
             const lockResult =
                 await claimRef.transaction(
                     current => {
-                        if (
-                            current &&
-                            (
+                        if (current) {
+                            if (
                                 current.status ===
                                     'claimed' ||
                                 current.status ===
-                                    'available_chest' ||
-                                current.status ===
-                                    'processing' ||
-                                current.status ===
-                                    'processing_chest'
-                            )
-                        ) {
-                            return;
+                                    'available_chest'
+                            ) {
+                                return;
+                            }
+
+                            if (
+                                (
+                                    current.status ===
+                                        'processing' ||
+                                    current.status ===
+                                        'processing_chest'
+                                ) &&
+                                !isLeaderboardClaimLockExpired(
+                                    current
+                                )
+                            ) {
+                                return;
+                            }
                         }
 
                         return {
@@ -2121,7 +2173,17 @@ window.claimPreviousLeaderboardReward =
                             status:
                                 'processing',
                             startedAt:
-                                Date.now()
+                                Date.now(),
+                            recoveredStaleLock:
+                                Boolean(
+                                    current &&
+                                    (
+                                        current.status ===
+                                            'processing' ||
+                                        current.status ===
+                                            'processing_chest'
+                                    )
+                                )
                         };
                     }
                 );
@@ -2139,12 +2201,20 @@ window.claimPreviousLeaderboardReward =
                     return;
                 }
 
-                alert(
+                if (
                     current?.status ===
                         'claimed'
-                        ? '✅ Phần thưởng đã được nhận.'
-                        : '⏳ Phần thưởng đang được xử lý ở một tab khác.'
-                );
+                ) {
+                    alert(
+                        '✅ Phần thưởng đã được nhận.'
+                    );
+                } else {
+                    alert(
+                        '⏳ Phần thưởng đang được một tab khác xử lý. ' +
+                        'Nếu lần xử lý đó bị gián đoạn, hệ thống sẽ ' +
+                        'cho phép thử lại sau khoảng 90 giây.'
+                    );
+                }
                 return;
             }
 
@@ -3491,19 +3561,55 @@ window.claimChestReward = async function (
         const rewardState =
             await getPreviousLeaderboardRewardState();
 
+        const currentChestClaim =
+            rewardState?.claim || null;
+
+        const canRecoverStaleChestLock =
+            currentChestClaim?.status ===
+                'processing_chest' &&
+            isLeaderboardClaimLockExpired(
+                currentChestClaim
+            );
+
         if (
             !rewardState ||
             rewardState.rank !== 1 ||
-            rewardState.claim?.rewardType !==
+            currentChestClaim?.rewardType !==
                 'chest' ||
-            rewardState.claim?.status !==
-                'available_chest'
+            (
+                currentChestClaim?.status !==
+                    'available_chest' &&
+                !canRecoverStaleChestLock
+            )
         ) {
-            alert(
-                '🔒 Rương không còn khả dụng hoặc bạn không có quyền mở.'
-            );
+            if (
+                currentChestClaim?.status ===
+                    'claimed'
+            ) {
+                alert(
+                    '✅ Rương Hạng 1 này đã được nhận trước đó.'
+                );
+            } else if (
+                currentChestClaim?.status ===
+                    'processing_chest'
+            ) {
+                alert(
+                    '⏳ Rương đang được một tab khác xử lý. ' +
+                    'Nếu tab đó đã đóng hoặc bị lỗi, hệ thống sẽ ' +
+                    'tự mở khóa sau khoảng 90 giây.'
+                );
+            } else {
+                alert(
+                    '🔒 Rương không còn khả dụng hoặc bạn không có quyền mở.'
+                );
+            }
 
-            closeTreasureChestModal();
+            if (
+                currentChestClaim?.status !==
+                    'processing_chest'
+            ) {
+                closeTreasureChestModal();
+            }
             return;
         }
 
@@ -3532,10 +3638,23 @@ window.claimChestReward = async function (
                         !current ||
                         current.rank !== 1 ||
                         current.rewardType !==
-                            'chest' ||
-                        current.status !==
-                            'available_chest'
+                            'chest'
                     ) {
+                        return;
+                    }
+
+                    const canLock =
+                        current.status ===
+                            'available_chest' ||
+                        (
+                            current.status ===
+                                'processing_chest' &&
+                            isLeaderboardClaimLockExpired(
+                                current
+                            )
+                        );
+
+                    if (!canLock) {
                         return;
                     }
 
@@ -3546,15 +3665,41 @@ window.claimChestReward = async function (
                         selectedChoice:
                             choiceType,
                         processingAt:
-                            Date.now()
+                            Date.now(),
+                        recoveredStaleLock:
+                            current.status ===
+                                'processing_chest'
                     };
                 }
             );
 
         if (!lockResult.committed) {
-            alert(
-                '⚠️ Rương này đang được xử lý hoặc đã nhận ở tab khác.'
-            );
+            const latestClaim =
+                lockResult.snapshot.val();
+
+            if (
+                latestClaim?.status ===
+                    'claimed'
+            ) {
+                alert(
+                    '✅ Rương Hạng 1 này đã được nhận trước đó.'
+                );
+                closeTreasureChestModal();
+            } else if (
+                latestClaim?.status ===
+                    'processing_chest'
+            ) {
+                alert(
+                    '⏳ Rương đang được một tab khác xử lý. ' +
+                    'Nếu lần xử lý đó bị gián đoạn, bạn có thể ' +
+                    'thử lại sau khoảng 90 giây.'
+                );
+            } else {
+                alert(
+                    '⚠️ Trạng thái Rương vừa thay đổi. ' +
+                    'Hãy đóng Rương, làm mới BXH rồi thử lại.'
+                );
+            }
             return;
         }
 
