@@ -18667,14 +18667,52 @@ let lastSavedTime = {};  // Biến phụ để chống spam lưu lên Firebase l
 
 let lastPlayerSamples = {};
 let pendingResumeTimes = {};
+let videoTrackerReady = {};
 let videoProgressFlushBound = false;
 
 function normalizeVideoProgressSeconds(value) {
     return Math.max(0, Math.floor(Number(value) || 0));
 }
 
+function getVideoTrackingAssignment(assignOrId) {
+    if (
+        assignOrId &&
+        typeof assignOrId === 'object'
+    ) {
+        return assignOrId;
+    }
+
+    const assignId = String(assignOrId ?? '');
+
+    return Array.isArray(window.cachedAssignments)
+        ? window.cachedAssignments.find(
+            item =>
+                String(item?.id ?? '') ===
+                assignId
+        ) || null
+        : null;
+}
+
+function getVideoTrackingRevision(assignOrId) {
+    const assignment =
+        getVideoTrackingAssignment(assignOrId);
+
+    return String(
+        assignment?.videoTrackingRevision || ''
+    ).trim();
+}
+
 function getVideoProgressStorageKey(assignId) {
-    return `student_video_progress:${currentUser.username}:${assignId}`;
+    const revision =
+        getVideoTrackingRevision(assignId) ||
+        'legacy';
+
+    return (
+        `student_video_progress:` +
+        `${currentUser.username}:` +
+        `${assignId}:` +
+        `${revision}`
+    );
 }
 
 function getLocalVideoProgress(assignId) {
@@ -18810,6 +18848,7 @@ function destroyTrackedYouTubePlayer(assignId) {
 
     delete lastPlayerSamples[assignId];
     delete pendingResumeTimes[assignId];
+    delete videoTrackerReady[assignId];
 
     const player = ytPlayers[assignId];
 
@@ -19787,6 +19826,8 @@ window.initYouTubeTrackers = function (
 
         if (ytPlayers[assignId]) return;
 
+        videoTrackerReady[assignId] = false;
+
         ytPlayers[assignId] = new YT.Player(
             iframeEl.id,
             {
@@ -19875,6 +19916,57 @@ window.initYouTubeTrackers = function (
                                     );
                                 }
 
+                                /*
+                                 * Nếu chưa có tiến độ hợp lệ, ép player về đầu.
+                                 * YouTube đôi khi tự khôi phục vị trí phát từ
+                                 * lịch sử/cookie và vị trí đó không được tính.
+                                 */
+                                if (
+                                    watchDurations[
+                                        assignId
+                                    ] <= 0
+                                ) {
+                                    try {
+                                        const bootTime =
+                                            Number(
+                                                event.target
+                                                    .getCurrentTime?.()
+                                            ) || 0;
+
+                                        if (
+                                            bootTime > 1 &&
+                                            typeof event.target
+                                                .seekTo === 'function'
+                                        ) {
+                                            event.target.seekTo(
+                                                0,
+                                                true
+                                            );
+                                        }
+                                    } catch (error) {
+                                        console.warn(
+                                            'Không thể đưa video về đầu:',
+                                            error
+                                        );
+                                    }
+                                }
+
+                                lastPlayerSamples[
+                                    assignId
+                                ] = {
+                                    videoTime:
+                                        Number(
+                                            event.target
+                                                .getCurrentTime?.()
+                                        ) || 0,
+                                    wallTime:
+                                        Date.now()
+                                };
+
+                                videoTrackerReady[
+                                    assignId
+                                ] = true;
+
                                 if (
                                     localSeconds >
                                     firebaseSeconds
@@ -19886,6 +19978,33 @@ window.initYouTubeTrackers = function (
                                         ]
                                     );
                                 }
+
+                                /*
+                                 * PLAYING có thể phát sinh trước khi Firebase
+                                 * tải xong. Khi tracking sẵn sàng, khởi động lại
+                                 * bộ đếm nếu video vẫn đang phát.
+                                 */
+                                setTimeout(() => {
+                                    try {
+                                        if (
+                                            event.target
+                                                .getPlayerState?.() ===
+                                            YT.PlayerState.PLAYING
+                                        ) {
+                                            window.onPlayerStateChange(
+                                                {
+                                                    target:
+                                                        event.target,
+                                                    data:
+                                                        YT.PlayerState.PLAYING
+                                                },
+                                                assignId
+                                            );
+                                        }
+                                    } catch (error) {
+                                        // Không chặn player nếu API chưa phản hồi.
+                                    }
+                                }, 180);
                             })
                             .catch(error => {
                                 console.error(
@@ -20007,6 +20126,24 @@ window.onPlayerStateChange = function (event, assignId) {
     }
 
     if (event.data === YT.PlayerState.PLAYING) {
+        /*
+         * Không ghi nhận thời gian trước khi tiến độ Firebase
+         * của assignment hiện tại đã tải xong.
+         */
+        if (videoTrackerReady[assignId] !== true) {
+            if (watchTimers[assignId]) {
+                clearInterval(
+                    watchTimers[assignId]
+                );
+
+                delete watchTimers[
+                    assignId
+                ];
+            }
+
+            return;
+        }
+
         seekToSavedVideoProgress(
             assignId,
             player,
@@ -20066,6 +20203,45 @@ window.onPlayerStateChange = function (event, assignId) {
                     wallElapsedSeconds *
                     playbackRate +
                     3;
+
+                /*
+                 * Chặn cú nhảy ngay cả ở mẫu đầu tiên.
+                 * Bản cũ có thể chấp nhận việc YouTube mở sẵn
+                 * gần cuối video vì previousSample cũng bắt đầu
+                 * ở chính vị trí cuối đó.
+                 */
+                const maxSequentialTime =
+                    lastTime +
+                    Math.max(
+                        3.5,
+                        allowedAdvance
+                    );
+
+                if (
+                    rawCurrentTime >
+                    maxSequentialTime
+                ) {
+                    if (
+                        typeof player.seekTo ===
+                        'function'
+                    ) {
+                        player.seekTo(
+                            lastTime,
+                            true
+                        );
+                    }
+
+                    lastPlayerSamples[
+                        assignId
+                    ] = {
+                        videoTime:
+                            lastTime,
+                        wallTime:
+                            now
+                    };
+
+                    return;
+                }
 
                 if (currentTime > lastTime) {
                     if (

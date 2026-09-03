@@ -19,6 +19,17 @@ const PAGE_LIMIT = 20;
 // không giao cho bất kỳ học sinh nào.
 const PRIVATE_ASSIGNMENT_TARGET = '__private__';
 
+function createVideoTrackingRevision() {
+    return (
+        'v2_' +
+        Date.now().toString(36) +
+        '_' +
+        Math.random()
+            .toString(36)
+            .slice(2, 10)
+    );
+}
+
 function normalizeAssignmentTargets(targetStudent) {
     if (Array.isArray(targetStudent)) {
         const targets = targetStudent
@@ -2683,6 +2694,15 @@ async function createAssignment() {
 
         videoSummary:
             videoSummary,
+
+        /*
+         * Revision chỉ dùng để tách localStorage tiến độ giữa
+         * các lần đổi video/cấu hình, không đổi schema video_tracking.
+         */
+        videoTrackingRevision:
+            rawVideoLink
+                ? createVideoTrackingRevision()
+                : '',
 
         watchCondition:
             watchCondition // Đẩy lên Firebase dữ liệu cấu hình mới
@@ -7434,6 +7454,45 @@ window.saveAssignmentEdit = async function () {
         );
     }
 
+    const previousVideoLink =
+        String(assign.videoLink || '').trim();
+
+    const previousWatchCondition =
+        Number(assign.watchCondition) || 0;
+
+    const existingVideoRevision =
+        String(
+            assign.videoTrackingRevision || ''
+        ).trim();
+
+    const videoTrackingChanged =
+        previousVideoLink !==
+            editVideoLink ||
+        previousWatchCondition !==
+            watchCondition;
+
+    /*
+     * Bài video cũ chưa có revision sẽ được nâng cấp ngay
+     * khi giáo viên bấm Lưu. Đây cũng là cách sửa bài đang
+     * bị dính tiến độ sai: mở Sửa bài và Lưu một lần.
+     */
+    const needsVideoTrackingMigration =
+        !!editVideoLink &&
+        !existingVideoRevision;
+
+    const shouldResetVideoTracking =
+        videoTrackingChanged ||
+        needsVideoTrackingMigration;
+
+    const nextVideoTrackingRevision =
+        editVideoLink
+            ? (
+                shouldResetVideoTracking
+                    ? createVideoTrackingRevision()
+                    : existingVideoRevision
+            )
+            : '';
+
     const updateObj = {
         title: title,
         startDate: startDate
@@ -7453,6 +7512,9 @@ window.saveAssignmentEdit = async function () {
 
         videoSummary:
             editVideoSummary,
+
+        videoTrackingRevision:
+            nextVideoTrackingRevision,
 
         watchCondition:
             watchCondition
@@ -7678,9 +7740,45 @@ window.saveAssignmentEdit = async function () {
     }
 
     // Đẩy lên Firebase
-    await updateDB('assignments', currentEditingAssignmentKey, updateObj);
+    await updateDB(
+        'assignments',
+        currentEditingAssignmentKey,
+        updateObj
+    );
+
+    /*
+     * Đổi video / mốc xem hoặc nâng cấp bài video cũ:
+     * xóa toàn bộ tiến độ Firebase của assignment đó.
+     * videoTrackingRevision mới đồng thời làm localStorage cũ
+     * phía học sinh không còn được đọc lại.
+     */
+    if (
+        shouldResetVideoTracking &&
+        assign.id
+    ) {
+        try {
+            await db.ref(
+                `video_tracking/${assign.id}`
+            ).remove();
+        } catch (error) {
+            console.error(
+                'Không thể xóa tiến độ video cũ:',
+                error
+            );
+
+            alert(
+                '⚠️ Bài đã lưu nhưng Firebase chưa xóa được tiến độ video cũ. ' +
+                'Hãy kiểm tra quyền ghi/xóa video_tracking.'
+            );
+        }
+    }
+
     closeEditAssignmentModal();
-    alert("Đã cập nhật toàn bộ nội dung bài tập thành công!");
+    alert(
+        shouldResetVideoTracking
+            ? "Đã cập nhật bài và đặt lại tiến độ xem video cho học sinh!"
+            : "Đã cập nhật toàn bộ nội dung bài tập thành công!"
+    );
 
     // Ép render lại danh sách
     loadAssignedList();
