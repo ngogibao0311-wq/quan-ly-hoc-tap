@@ -20,7 +20,7 @@ const firebaseConfig = {
 //  storageBucket: "web-chan-doan-test.firebasestorage.app",
 //  messagingSenderId: "623035254774",
 //  appId: "1:623035254774:web:70ee10a059363d8cb429d7"
-v};
+//};
 
 // 2. Khởi tạo kết nối
 firebase.initializeApp(firebaseConfig);
