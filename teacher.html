@@ -952,7 +952,11 @@
                     </div>
 
                     <label for="title"><strong>Tiêu đề bài tập:</strong></label>
-                    <input type="text" id="title" placeholder="Nhập tiêu đề bài tập...">
+                    <input type="text" id="title" placeholder="Nhập tiêu đề bài tập..."
+                        oninput="scheduleAssignmentDuplicateCheck()" autocomplete="off">
+                    <div id="assignmentDuplicateHint" hidden
+                        style="margin:-6px 0 14px; padding:11px 12px; border:1px solid rgba(239,68,68,.35); border-radius:10px; background:rgba(254,242,242,.92); color:#991b1b; line-height:1.45;">
+                    </div>
 
                     <div class="form-row">
                         <div class="form-group">
@@ -1201,7 +1205,7 @@
                         </small>
                     </div>
 
-                    <button type="button" onclick="createAssignment()" style="margin-top: 20px;">
+                    <button type="button" id="publishAssignmentButton" onclick="createAssignment()" style="margin-top: 20px;">
                         Phát hành bài tập
                     </button>
 
@@ -3309,7 +3313,7 @@
     <!-- Hotfix: xác nhận cài đặt lộ trình trước khi teacher.js chờ loader -->
     <script src="js/roadmap-startup-fix.js?v=1.0"></script>
 
-    <script src="js/teacher.js?v=3.9.3-video-fix"></script>
+    <script src="js/teacher.js?v=3.9.4-no-duplicate"></script>
     <script src="js/huong-dan-nguoi-moi.js?v=1.0.0"></script>
 </body>
 
