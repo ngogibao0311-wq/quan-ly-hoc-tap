@@ -1706,6 +1706,13 @@ window.onload = async function () {
         }
 
         if (
+            window.LuxuryStore &&
+            typeof window.LuxuryStore.refresh === 'function'
+        ) {
+            window.LuxuryStore.refresh();
+        }
+
+        if (
             typeof window.applyEquippedItems ===
             'function'
         ) {
@@ -10244,6 +10251,9 @@ window.filterStore = function (type) {
 
     container.innerHTML = htmlContent || '<p style="text-align:center; color:#666; grid-column: 1/-1;">Chưa có vật phẩm nào trong danh mục này.</p>';
 
+    // Khóa thao tác copy/lưu đối với mọi ảnh vừa render trong Cửa hàng.
+    window.StoreImageProtection?.protectSubtree(container);
+
     // --- KÍCH HOẠT ĐỒNG HỒ ĐẾM NGƯỢC ---
     if (upcomingItems.length > 0) {
         // Cập nhật text ngay lập tức ở Giây thứ 0
@@ -11047,6 +11057,17 @@ StoreManager.unapplyItem = async function (itemId) {
                 'pet-national-day-stage',
                 'national-day-awakening',
                 'national-day-casting',
+                'pet-nyx-mythic-stage',
+                'nyx-mythic-awakening',
+                'nyx-mythic-casting',
+            );
+
+            document
+                .querySelectorAll('.nyx-mythic-ultimate')
+                .forEach(node => node.remove());
+
+            document.documentElement.classList.remove(
+                'nyx-mythic-pet-equipped'
             );
 
             petContainer.onmouseenter = null;

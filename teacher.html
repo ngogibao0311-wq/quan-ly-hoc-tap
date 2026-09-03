@@ -2069,6 +2069,32 @@
                         </div>
                     </div>
                 </div>
+
+                <div id="teacherLuxuryStoreManageCard" class="card accordion-card" style="margin-top: 20px;">
+                    <div class="accordion-header" onclick="toggleAccordion('luxuryStoreManageView', this)">
+                        <div class="accordion-title">
+                            <h3 style="color: #7c3aed; margin: 0; display: flex; align-items: center; gap: 8px;">
+                                💎 Quản lý Cửa hàng Sang trọng
+                            </h3>
+                        </div>
+                        <div class="accordion-meta"><span class="toggle-icon">▼</span></div>
+                    </div>
+
+                    <div id="luxuryStoreManageView" class="accordion-content">
+                        <div
+                            style="margin-bottom:15px; padding:14px 16px; border-radius:12px; border:1px dashed rgba(124,58,237,.35); background:rgba(124,58,237,.06); color:#5b3f86; line-height:1.55;">
+                            <strong>💎 Quản lý riêng vật phẩm Sang trọng</strong><br>
+                            Khóa / mở khóa từng vật phẩm mà không thay đổi cơ chế mua, nhận thưởng, trang bị hoặc các logic cửa hàng khác.
+                            Khi khóa, phía học sinh sẽ thấy toàn bộ thẻ bị che đen và có dấu <strong>?</strong> lớn ở giữa.
+                        </div>
+
+                        <div
+                            style="background:rgba(255,255,255,.55); padding:15px; border-radius:12px; border:1px solid rgba(124,58,237,.14);">
+                            <h4 style="color:#4c1d95; margin:0 0 15px;">📦 Danh sách Vật phẩm Sang trọng</h4>
+                            <div id="teacherLuxuryStoreItemsList"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div id="tab-question-bank" class="tab-content">
@@ -3275,15 +3301,15 @@
     <script src="js/pet-items.js?v=4.2"></script>
     <script src="js/royal-ball.js?v=3.8"></script>
     <script src="js/music-manager.js?v=3.8"></script>
-    <script src="js/store-manager.js?v=3.8"></script>
+    <script src="js/store-manager.js?v=3.8.1"></script>
     <script src="js/painting.js?v=3.8"></script>
-    <script src="js/luxury-store.js?v=4.2"></script>
+    <script src="js/luxury-store.js?v=4.2.1"></script>
 
     <!-- 5. Logic chính của trang giáo viên luôn đặt cuối -->
     <!-- Hotfix: xác nhận cài đặt lộ trình trước khi teacher.js chờ loader -->
     <script src="js/roadmap-startup-fix.js?v=1.0"></script>
 
-    <script src="js/teacher.js?v=3.9.1"></script>
+    <script src="js/teacher.js?v=3.9.2"></script>
     <script src="js/huong-dan-nguoi-moi.js?v=1.0.0"></script>
 </body>
 

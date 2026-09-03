@@ -1556,6 +1556,7 @@ window.onload = async function () {
                 }
             });
             if (typeof initTeacherStoreManagement === 'function') initTeacherStoreManagement();
+            if (typeof initTeacherLuxuryStoreManagement === 'function') initTeacherLuxuryStoreManagement();
         }
         if (startupLoader) startupLoader.markReady('teacher-store-settings');
     });
@@ -8350,10 +8351,14 @@ listenFirebase(db.ref('store_settings'), 'value', (snapshot) => {
                 if (settings[item.id].price !== undefined) item.price = settings[item.id].price;
                 if (settings[item.id].startDate !== undefined) item.startDate = settings[item.id].startDate;
                 if (settings[item.id].endDate !== undefined) item.endDate = settings[item.id].endDate;
+                item.isLocked = !!settings[item.id].isLocked;
             }
         });
         if (typeof initTeacherStoreManagement === 'function') {
             initTeacherStoreManagement();
+        }
+        if (typeof initTeacherLuxuryStoreManagement === 'function') {
+            initTeacherLuxuryStoreManagement();
         }
     }
 });
@@ -8531,16 +8536,37 @@ document.head.appendChild(styleSheet);
 
 // ====== LOGIC KẾT NỐI QUẢN LÝ CỬA HÀNG (GIÁO VIÊN) ======
 
+function getTeacherLuxuryStoreItems() {
+    if (
+        window.LuxuryStore &&
+        typeof window.LuxuryStore.getItems === 'function'
+    ) {
+        return window.LuxuryStore.getItems();
+    }
+
+    return StoreConfig.items.filter(
+        item => item?.luxuryOnly === true
+    );
+}
+
+function getTeacherRegularStoreItems() {
+    return StoreConfig.items.filter(
+        item => item?.luxuryOnly !== true
+    );
+}
+
 // Hàm hiển thị danh sách hàng hóa và đổ dữ liệu vào thẻ Select điều khiển
 function initTeacherStoreManagement() {
     const selectEl = document.getElementById('editStoreItemId');
     const listContainer = document.getElementById('teacherStoreItemsList');
     if (!selectEl || !listContainer) return;
 
+    const regularItems = getTeacherRegularStoreItems();
+
     selectEl.innerHTML = '<option value="">-- Chọn hàng hóa cần sửa --</option>';
     let listHtml = '<div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap:15px; margin-top:10px;">';
 
-    StoreConfig.items.forEach((item, index) => {
+    regularItems.forEach((item, index) => {
         const option = document.createElement('option');
         option.value = item.id;
         option.textContent = `[${item.tag}] ${item.name}`;
@@ -8571,11 +8597,11 @@ function initTeacherStoreManagement() {
 
     listHtml += '</div>';
 
-    if (StoreConfig.items.length > 4) {
+    if (regularItems.length > 4) {
         listHtml += `
             <div style="text-align: center; margin-top: 15px;">
                 <button id="toggleStoreItemsBtn" onclick="toggleStoreItemsList()" style="background: transparent; border: 1px dashed #10b981; color: #10b981; padding: 8px 20px; border-radius: 20px; cursor: pointer; font-size: 0.95em; font-weight: bold; transition: all 0.2s;">
-                    👇 Xem thêm ${StoreConfig.items.length - 4} hàng hóa khác
+                    👇 Xem thêm ${regularItems.length - 4} hàng hóa khác
                 </button>
             </div>
         `;
@@ -8644,7 +8670,11 @@ function loadStoreItemDetails() {
 // BỔ SUNG: Hàm xử lý Khóa / Mở khóa vật phẩm từ phía Giáo viên
 window.toggleLockStoreItem = async function (itemId, isCurrentlyLocked) {
     const actionText = isCurrentlyLocked ? "MỞ KHÓA" : "KHÓA TẠM THỜI";
-    if (!confirm(`Bạn có chắc chắn muốn ${actionText} vật phẩm này không? Học sinh sẽ không thể sử dụng hay mua món đồ này.`)) return;
+    if (!confirm(
+        `Bạn có chắc chắn muốn ${actionText} vật phẩm này không?\n\n` +
+        `Khi khóa, toàn bộ thẻ vật phẩm phía học sinh sẽ bị che đen, ` +
+        `hiện dấu ? và không thể mua, dùng thử hoặc sử dụng.`
+    )) return;
 
     try {
         await db.ref('store_settings/' + itemId).update({
@@ -8657,10 +8687,161 @@ window.toggleLockStoreItem = async function (itemId, isCurrentlyLocked) {
     }
 };
 
-// Khởi chạy đồng bộ khi giáo viên vào tab quản lý trò chơi / cửa hàng
-// Bạn có thể lồng hàm này vào hàm switchTab() có sẵn của bạn khi chuyển qua tab 'tab-game-manage'
+// ==============================================================
+// QUẢN LÝ CỬA HÀNG SANG TRỌNG — TÁCH RIÊNG KHỎI CỬA HÀNG THƯỜNG
+// Chỉ quản lý trạng thái Khóa / Mở khóa từng vật phẩm.
+// Dùng chung store_settings/<itemId>/isLocked nên không tạo logic dữ liệu mới.
+// ==============================================================
+function initTeacherLuxuryStoreManagement() {
+    const listContainer = document.getElementById(
+        'teacherLuxuryStoreItemsList'
+    );
+
+    if (!listContainer) return;
+
+    const luxuryItems = getTeacherLuxuryStoreItems();
+
+    if (!luxuryItems.length) {
+        listContainer.innerHTML = `
+            <div style="padding:18px; text-align:center; color:#64748b; border:1px dashed rgba(124,58,237,.35); border-radius:14px;">
+                💎 Chưa có vật phẩm trong Cửa hàng Sang trọng.
+            </div>
+        `;
+        return;
+    }
+
+    const cards = luxuryItems.map(item => {
+        const isItemLocked = !!item.isLocked;
+        const priceDisplay = item.isNonCoin
+            ? (
+                item.price > 0
+                    ? `🪙 ${item.price} Coin (giới hạn)`
+                    : '🎁 Vật phẩm sự kiện / phần thưởng'
+            )
+            : `🪙 ${item.price} Coin`;
+
+        const lockButton = isItemLocked
+            ? `
+                <button
+                    type="button"
+                    onclick="toggleLockStoreItem('${item.id}', true)"
+                    style="width:100%; padding:9px 12px; border:0; border-radius:10px; background:#10b981; color:#fff; font-weight:800; cursor:pointer;"
+                >
+                    🔓 Mở khóa vật phẩm
+                </button>
+            `
+            : `
+                <button
+                    type="button"
+                    onclick="toggleLockStoreItem('${item.id}', false)"
+                    style="width:100%; padding:9px 12px; border:0; border-radius:10px; background:#e11d48; color:#fff; font-weight:800; cursor:pointer;"
+                >
+                    🔒 Khóa vật phẩm
+                </button>
+            `;
+
+        return `
+            <div
+                class="card"
+                style="margin:0; padding:15px; position:relative; border:1px solid ${isItemLocked ? 'rgba(225,29,72,.30)' : 'rgba(124,58,237,.16)'}; background:${isItemLocked ? 'rgba(15,23,42,.06)' : 'rgba(255,255,255,.62)'};"
+            >
+                <span style="position:absolute; top:9px; right:9px; padding:3px 9px; border-radius:999px; background:${isItemLocked ? '#111827' : '#ede9fe'}; color:${isItemLocked ? '#fff' : '#6d28d9'}; font-size:.78em; font-weight:900;">
+                    ${isItemLocked ? 'ĐANG KHÓA' : 'ĐANG MỞ'}
+                </span>
+
+                <div style="padding-right:86px;">
+                    <div style="font-size:.78em; font-weight:900; color:#8b5cf6; text-transform:uppercase; letter-spacing:.04em;">
+                        ${item.tag || 'Luxury'}
+                    </div>
+                    <h4 style="margin:5px 0 8px; color:#3b2b63; line-height:1.35;">
+                        ${item.name}
+                    </h4>
+                </div>
+
+                <p style="margin:5px 0 12px; font-size:.9em; color:#475569;">
+                    <b>Giá / nguồn nhận:</b> ${priceDisplay}
+                </p>
+
+                ${lockButton}
+            </div>
+        `;
+    }).join('');
+
+    listContainer.innerHTML = `
+        <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:15px; margin-top:10px;">
+            ${cards}
+        </div>
+    `;
+}
+
+window.initTeacherLuxuryStoreManagement =
+    initTeacherLuxuryStoreManagement;
+
+function placeTeacherLuxuryStoreManagementCard() {
+    const gameTab = document.getElementById('tab-game-manage');
+    const luxuryCard = document.getElementById(
+        'teacherLuxuryStoreManageCard'
+    );
+
+    if (!gameTab || !luxuryCard) return false;
+
+    const normalizeText = value =>
+        String(value || '').replace(/\s+/g, ' ').trim();
+
+    const dailyLoginCard = Array.from(
+        gameTab.querySelectorAll('.card, .accordion-card')
+    ).find(element => {
+        if (element === luxuryCard) return false;
+
+        const text = normalizeText(
+            element.textContent
+        ).toLocaleLowerCase('vi-VN');
+
+        return text.includes(
+            'quản lý quà đăng nhập 7 ngày'
+        );
+    });
+
+    if (!dailyLoginCard) return false;
+
+    if (dailyLoginCard.nextElementSibling !== luxuryCard) {
+        dailyLoginCard.insertAdjacentElement(
+            'afterend',
+            luxuryCard
+        );
+    }
+
+    return true;
+}
+
+// Khởi chạy đồng bộ khi giáo viên vào tab quản lý trò chơi / cửa hàng.
 document.addEventListener('DOMContentLoaded', () => {
     initTeacherStoreManagement();
+    initTeacherLuxuryStoreManagement();
+
+    if (placeTeacherLuxuryStoreManagementCard()) {
+        return;
+    }
+
+    // daily-login.js có thể chèn khu vực quản lý sau DOMContentLoaded.
+    // Theo dõi đến khi thấy mục đó rồi đặt Luxury ngay bên dưới và dừng.
+    const gameTab = document.getElementById('tab-game-manage');
+    if (!gameTab || typeof MutationObserver === 'undefined') return;
+
+    const observer = new MutationObserver(() => {
+        if (placeTeacherLuxuryStoreManagementCard()) {
+            observer.disconnect();
+        }
+    });
+
+    observer.observe(gameTab, {
+        childList: true,
+        subtree: true
+    });
+
+    setTimeout(() => {
+        observer.disconnect();
+    }, 15000);
 });
 
 // Hàm điều khiển ẩn/hiện khu vực nhập thông báo
