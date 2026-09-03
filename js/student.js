@@ -18671,6 +18671,136 @@ let videoTrackerReady = {};
 let videoProgressFlushBound = false;
 let videoPausedByPageExit = {};
 let videoPageExitNoticePending = false;
+let videoPlaybackRateNoticeAt = {};
+
+// ======================================================
+// KHÓA TỐC ĐỘ VIDEO BÀI TẬP Ở 1×
+// - Chặn 1.25× / 1.5× / 2×... trong YouTube iframe.
+// - Nếu tốc độ bị đổi bằng menu, phím tắt hoặc cách khác,
+//   lập tức trả về 1×.
+// - Nếu đã phát nhanh được một đoạn rất ngắn trước khi API
+//   báo sự kiện, quay lại mốc hợp lệ gần nhất để không được
+//   cộng lợi thế thời gian.
+// ======================================================
+function enforceAssignmentVideoNormalSpeed(
+    assignId,
+    player,
+    rollbackProgress = false,
+    notifyStudent = false
+) {
+    if (!player) return true;
+
+    let playbackRate = 1;
+
+    try {
+        if (
+            typeof player.getPlaybackRate === 'function'
+        ) {
+            playbackRate =
+                Number(player.getPlaybackRate()) || 1;
+        }
+    } catch (error) {
+        playbackRate = 1;
+    }
+
+    if (Math.abs(playbackRate - 1) < 0.01) {
+        return true;
+    }
+
+    try {
+        if (
+            typeof player.setPlaybackRate === 'function'
+        ) {
+            player.setPlaybackRate(1);
+        }
+    } catch (error) {
+        console.warn(
+            'Không thể đưa tốc độ video về 1×:',
+            error
+        );
+    }
+
+    if (rollbackProgress) {
+        const safeTime =
+            normalizeVideoProgressSeconds(
+                watchDurations[assignId]
+            );
+
+        try {
+            const currentTime =
+                Number(
+                    player.getCurrentTime?.()
+                ) || 0;
+
+            /*
+             * Chỉ tua lùi nếu tốc độ nhanh đã đẩy video vượt
+             * mốc hợp lệ. Nếu học sinh đang xem lại đoạn cũ thì
+             * không ép nhảy lên mốc cao nhất.
+             */
+            if (
+                currentTime > safeTime + 0.15 &&
+                typeof player.seekTo === 'function'
+            ) {
+                player.seekTo(
+                    safeTime,
+                    true
+                );
+            }
+        } catch (error) {
+            console.warn(
+                'Không thể hoàn tác đoạn phát nhanh:',
+                error
+            );
+        }
+
+        lastPlayerSamples[assignId] = {
+            videoTime: safeTime,
+            wallTime: Date.now()
+        };
+    }
+
+    if (
+        notifyStudent &&
+        typeof window.showToast === 'function'
+    ) {
+        const now = Date.now();
+        const lastNotice =
+            Number(
+                videoPlaybackRateNoticeAt[
+                    assignId
+                ]
+            ) || 0;
+
+        /*
+         * Chống spam cảnh báo nếu học sinh bấm đổi tốc độ
+         * nhiều lần liên tiếp trong menu YouTube.
+         */
+        if (now - lastNotice >= 2500) {
+            videoPlaybackRateNoticeAt[
+                assignId
+            ] = now;
+
+            window.showToast(
+                'Tốc độ video được khóa ở 1×. ' +
+                'Phát nhanh 1.25×, 1.5×, 2× hoặc cao hơn ' +
+                'không được tính và đã được đưa về mốc hợp lệ.',
+                'warning'
+            );
+        }
+    }
+
+    return false;
+}
+
+window.onAssignmentVideoPlaybackRateChange =
+    function (event, assignId) {
+        enforceAssignmentVideoNormalSpeed(
+            String(assignId),
+            event?.target,
+            true,
+            true
+        );
+    };
 
 function isAssignmentVideoPageActive() {
     if (
@@ -19170,7 +19300,7 @@ function getTrackedVideoHTML(
     const embedUrl =
         `https://www.youtube.com/embed/` +
         `${videoId}` +
-        `?enablejsapi=1&rel=0&playsinline=1` +
+        `?enablejsapi=1&rel=0&playsinline=1&disablekb=1` +
         `${originParam}`;
 
     const summaryText =
@@ -20000,6 +20130,19 @@ window.initYouTubeTrackers = function (
                             iframeEl.dataset.resumePlayback !==
                             'false';
 
+                        /*
+                         * YouTube có thể ghi nhớ tốc độ từ lần
+                         * xem trước. Luôn đưa player về 1× ngay
+                         * khi sẵn sàng, nhưng chưa tua vị trí ở
+                         * đây để cơ chế resume vẫn hoạt động.
+                         */
+                        enforceAssignmentVideoNormalSpeed(
+                            assignId,
+                            event.target,
+                            false,
+                            false
+                        );
+
                         db.ref(
                             `video_tracking/${assignId}/${currentUser.username}`
                         )
@@ -20181,7 +20324,14 @@ window.initYouTubeTrackers = function (
                         window.onPlayerStateChange(
                             event,
                             assignId
-                        )
+                        ),
+
+                    onPlaybackRateChange: event =>
+                        window
+                            .onAssignmentVideoPlaybackRateChange(
+                                event,
+                                assignId
+                            )
                 }
             }
         );
@@ -20290,6 +20440,17 @@ window.onPlayerStateChange = function (event, assignId) {
 
     if (event.data === YT.PlayerState.PLAYING) {
         /*
+         * Tốc độ của mọi video bài tập/bài thi luôn là 1×.
+         * Việc này không ảnh hưởng nút fullscreen.
+         */
+        enforceAssignmentVideoNormalSpeed(
+            assignId,
+            player,
+            false,
+            false
+        );
+
+        /*
          * Không cho phát/tính thời gian khi học sinh đã chuyển
          * sang YouTube, tab khác hoặc cửa sổ khác.
          */
@@ -20348,6 +20509,22 @@ window.onPlayerStateChange = function (event, assignId) {
             }
 
             if (player && typeof player.getCurrentTime === 'function') {
+                /*
+                 * Lớp bảo vệ liên tục: nếu menu/phím tắt/extension
+                 * vừa đổi tốc độ, không ghi nhận tick này và hoàn
+                 * tác về mốc hợp lệ.
+                 */
+                if (
+                    !enforceAssignmentVideoNormalSpeed(
+                        assignId,
+                        player,
+                        true,
+                        true
+                    )
+                ) {
+                    return;
+                }
+
                 const rawCurrentTime =
                     Number(player.getCurrentTime()) || 0;
 
@@ -20370,31 +20547,16 @@ window.onPlayerStateChange = function (event, assignId) {
                     (now - previousSample.wallTime) / 1000
                 );
 
-                let playbackRate = 1;
-
-                try {
-                    if (
-                        typeof player.getPlaybackRate ===
-                        'function'
-                    ) {
-                        playbackRate = Math.max(
-                            0.25,
-                            Number(player.getPlaybackRate()) ||
-                            1
-                        );
-                    }
-                } catch (error) {
-                    playbackRate = 1;
-                }
-
                 const videoAdvance =
                     rawCurrentTime -
                     previousSample.videoTime;
 
+                /*
+                 * Tốc độ hợp lệ duy nhất là 1×, vì vậy giới hạn
+                 * bước tiến chỉ dựa trên thời gian thực.
+                 */
                 const allowedAdvance =
-                    wallElapsedSeconds *
-                    playbackRate +
-                    3;
+                    wallElapsedSeconds + 3;
 
                 /*
                  * Chặn cú nhảy ngay cả ở mẫu đầu tiên.
