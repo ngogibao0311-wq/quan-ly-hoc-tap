@@ -18669,6 +18669,127 @@ let lastPlayerSamples = {};
 let pendingResumeTimes = {};
 let videoTrackerReady = {};
 let videoProgressFlushBound = false;
+let videoPausedByPageExit = {};
+let videoPageExitNoticePending = false;
+
+function isAssignmentVideoPageActive() {
+    if (
+        document.hidden ||
+        document.visibilityState === 'hidden'
+    ) {
+        return false;
+    }
+
+    /*
+     * Trên trình duyệt hỗ trợ hasFocus(), chỉ tính thời gian khi
+     * cửa sổ/tab học tập thực sự đang hoạt động. Focus bên trong
+     * iframe YouTube vẫn được tính là focus của tài liệu này.
+     */
+    try {
+        if (
+            typeof document.hasFocus === 'function' &&
+            !document.hasFocus()
+        ) {
+            return false;
+        }
+    } catch (error) {
+        // Nếu trình duyệt không cho kiểm tra focus, Page Visibility
+        // vẫn là lớp bảo vệ chính.
+    }
+
+    return true;
+}
+
+function stopAssignmentVideoWatchTimer(assignId) {
+    if (watchTimers[assignId]) {
+        clearInterval(watchTimers[assignId]);
+        delete watchTimers[assignId];
+    }
+
+    delete lastPlayerSamples[assignId];
+}
+
+function saveCurrentTrackedVideoProgress(assignId) {
+    const seconds =
+        normalizeVideoProgressSeconds(
+            watchDurations[assignId]
+        );
+
+    if (seconds <= 0) return;
+
+    saveLocalVideoProgress(assignId, seconds);
+    saveVideoProgressToFirebase(assignId, seconds);
+}
+
+function pauseTrackedVideoBecausePageInactive(
+    assignId,
+    player,
+    reason = 'inactive'
+) {
+    if (!player) return false;
+
+    let isPlaying = Boolean(watchTimers[assignId]);
+
+    try {
+        if (
+            typeof player.getPlayerState === 'function'
+        ) {
+            isPlaying =
+                Number(player.getPlayerState()) === 1;
+        }
+    } catch (error) {
+        // Giữ trạng thái suy ra từ timer nếu API YouTube chưa sẵn sàng.
+    }
+
+    if (!isPlaying) return false;
+
+    stopAssignmentVideoWatchTimer(assignId);
+    saveCurrentTrackedVideoProgress(assignId);
+
+    try {
+        if (typeof player.pauseVideo === 'function') {
+            player.pauseVideo();
+        }
+    } catch (error) {
+        console.warn(
+            'Không thể tạm dừng video khi rời trang:',
+            error
+        );
+    }
+
+    videoPausedByPageExit[assignId] = reason;
+    videoPageExitNoticePending = true;
+
+    return true;
+}
+
+function pauseAllTrackedVideosBecausePageInactive(
+    reason = 'inactive'
+) {
+    Object.keys(ytPlayers).forEach(assignId => {
+        pauseTrackedVideoBecausePageInactive(
+            assignId,
+            ytPlayers[assignId],
+            reason
+        );
+    });
+}
+
+function showVideoPageExitPauseNotice() {
+    if (!videoPageExitNoticePending) return;
+    if (!isAssignmentVideoPageActive()) return;
+
+    videoPageExitNoticePending = false;
+
+    if (typeof window.showToast === 'function') {
+        window.showToast(
+            'Video đã tạm dừng vì bạn rời trang học tập. ' +
+            'Thời gian xem trên YouTube/tab khác không được tính. ' +
+            'Hãy nhấn ▶️ để tiếp tục xem trên trang.',
+            'warning'
+        );
+    }
+}
 
 function normalizeVideoProgressSeconds(value) {
     return Math.max(0, Math.floor(Number(value) || 0));
@@ -18819,7 +18940,12 @@ function bindVideoProgressFlushEvents() {
 
     window.addEventListener(
         'pagehide',
-        flushAllVideoProgress
+        () => {
+            pauseAllTrackedVideosBecausePageInactive(
+                'pagehide'
+            );
+            flushAllVideoProgress();
+        }
     );
 
     window.addEventListener(
@@ -18834,8 +18960,45 @@ function bindVideoProgressFlushEvents() {
                 document.visibilityState ===
                 'hidden'
             ) {
+                pauseAllTrackedVideosBecausePageInactive(
+                    'hidden'
+                );
                 flushAllVideoProgress();
+            } else {
+                setTimeout(
+                    showVideoPageExitPauseNotice,
+                    120
+                );
             }
+        }
+    );
+
+    /*
+     * Một số trình duyệt mở YouTube/app ngoài làm cửa sổ mất focus
+     * trước khi visibilitychange chạy. Kiểm tra trễ một nhịp để
+     * không nhầm thao tác focus bên trong chính iframe YouTube.
+     */
+    window.addEventListener(
+        'blur',
+        () => {
+            setTimeout(() => {
+                if (!isAssignmentVideoPageActive()) {
+                    pauseAllTrackedVideosBecausePageInactive(
+                        'blur'
+                    );
+                    flushAllVideoProgress();
+                }
+            }, 180);
+        }
+    );
+
+    window.addEventListener(
+        'focus',
+        () => {
+            setTimeout(
+                showVideoPageExitPauseNotice,
+                120
+            );
         }
     );
 }
@@ -20127,6 +20290,21 @@ window.onPlayerStateChange = function (event, assignId) {
 
     if (event.data === YT.PlayerState.PLAYING) {
         /*
+         * Không cho phát/tính thời gian khi học sinh đã chuyển
+         * sang YouTube, tab khác hoặc cửa sổ khác.
+         */
+        if (!isAssignmentVideoPageActive()) {
+            pauseTrackedVideoBecausePageInactive(
+                assignId,
+                player,
+                'play-while-inactive'
+            );
+            return;
+        }
+
+        delete videoPausedByPageExit[assignId];
+
+        /*
          * Không ghi nhận thời gian trước khi tiến độ Firebase
          * của assignment hiện tại đã tải xong.
          */
@@ -20155,6 +20333,20 @@ window.onPlayerStateChange = function (event, assignId) {
         }
 
         watchTimers[assignId] = setInterval(() => {
+            /*
+             * Lớp bảo vệ thứ hai: dù trình duyệt bỏ sót blur/
+             * visibilitychange, tuyệt đối không cộng thời gian
+             * khi trang học tập không còn hoạt động.
+             */
+            if (!isAssignmentVideoPageActive()) {
+                pauseTrackedVideoBecausePageInactive(
+                    assignId,
+                    player,
+                    'timer-inactive'
+                );
+                return;
+            }
+
             if (player && typeof player.getCurrentTime === 'function') {
                 const rawCurrentTime =
                     Number(player.getCurrentTime()) || 0;
