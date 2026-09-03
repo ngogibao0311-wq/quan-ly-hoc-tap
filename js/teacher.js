@@ -74,6 +74,315 @@ function compatToken(value) {
         .replace(/[\s_-]+/g, '');
 }
 
+
+// ======================================================
+// CHỐNG GIAO TRÙNG BÀI TẬP
+// Nhận diện các tiêu đề tương đương về cách viết, ví dụ:
+// "(Toán) Luyện tập chung trang 27" = "(Toán) luyện tập chung (27)".
+// ======================================================
+const ASSIGNMENT_DUPLICATE_CACHE_TTL = 60 * 1000;
+let assignmentDuplicateCache = {
+    loadedAt: 0,
+    items: []
+};
+let assignmentDuplicateCheckTimer = null;
+let assignmentDuplicateOverrideKey = '';
+
+function normalizeAssignmentDuplicateTitle(value) {
+    let text = String(value ?? '')
+        .trim()
+        .replace(/đ/g, 'd')
+        .replace(/Đ/g, 'D')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
+
+    // Đồng nhất các cách ghi số trang: "trang 27", "tr. 27", "page 27" -> "27".
+    text = text.replace(
+        /\b(?:trang|tr|page)\s*\.?\s*[:\-]?\s*(\d+(?:\s*[-–]\s*\d+)*)\b/g,
+        ' $1 '
+    );
+
+    // Các từ phụ này không làm thay đổi danh tính của bài.
+    text = text
+        .replace(/\b(?:sgk|sach\s+giao\s+khoa)\b/g, ' ')
+        .replace(/\bmon\s+(?=[a-z])/g, ' ')
+        .replace(/&/g, ' va ')
+        .replace(/[()\[\]{}<>:;,.!?"'`~|\\/_+=*#@]+/g, ' ')
+        .replace(/[–—-]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    return text;
+}
+
+function getAssignmentDuplicateNumbers(normalizedTitle) {
+    return (String(normalizedTitle || '').match(/\b\d+\b/g) || [])
+        .map(value => String(Number(value)))
+        .join('|');
+}
+
+function getAssignmentDuplicateWordTokens(normalizedTitle) {
+    return String(normalizedTitle || '')
+        .split(/\s+/)
+        .filter(token => token && !/^\d+$/.test(token));
+}
+
+function scoreAssignmentDuplicateTitle(newTitle, oldTitle) {
+    const left = normalizeAssignmentDuplicateTitle(newTitle);
+    const right = normalizeAssignmentDuplicateTitle(oldTitle);
+
+    if (!left || !right) return 0;
+    if (left === right) return 100;
+
+    const leftNumbers = getAssignmentDuplicateNumbers(left);
+    const rightNumbers = getAssignmentDuplicateNumbers(right);
+
+    // Có số bài/trang khác nhau thì không coi là trùng.
+    if (leftNumbers !== rightNumbers) return 0;
+
+    const leftWords = [...new Set(getAssignmentDuplicateWordTokens(left))];
+    const rightWords = [...new Set(getAssignmentDuplicateWordTokens(right))];
+
+    if (leftWords.length < 2 || rightWords.length < 2) return 0;
+
+    const leftSet = new Set(leftWords);
+    const rightSet = new Set(rightWords);
+    const intersection = leftWords.filter(word => rightSet.has(word)).length;
+    const union = new Set([...leftWords, ...rightWords]).size;
+    const jaccard = union ? intersection / union : 0;
+
+    const smaller = leftWords.length <= rightWords.length ? leftWords : rightWords;
+    const largerSet = leftWords.length <= rightWords.length ? rightSet : leftSet;
+    const isNearContainment =
+        smaller.length >= 3 &&
+        smaller.every(word => largerSet.has(word)) &&
+        Math.abs(leftWords.length - rightWords.length) <= 1;
+
+    if (jaccard >= 0.90) return 96;
+    if (isNearContainment) return 92;
+    if (jaccard >= 0.82 && leftWords.length >= 4 && rightWords.length >= 4) {
+        return 90;
+    }
+
+    return 0;
+}
+
+function formatAssignmentDuplicateDate(assignment) {
+    const raw = assignment?.startDate || assignment?.endDate || '';
+
+    if (raw) {
+        const parsed = new Date(String(raw).replace(' ', 'T'));
+        if (!Number.isNaN(parsed.getTime())) {
+            return parsed.toLocaleString('vi-VN');
+        }
+    }
+
+    const numericId = Number(assignment?.id);
+    if (Number.isFinite(numericId) && numericId > 1000000000000) {
+        return new Date(numericId).toLocaleString('vi-VN');
+    }
+
+    return 'không rõ thời gian';
+}
+
+function escapeAssignmentDuplicateHTML(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+async function getAssignmentsForDuplicateCheck(forceRefresh = false) {
+    const now = Date.now();
+
+    if (
+        !forceRefresh &&
+        assignmentDuplicateCache.loadedAt &&
+        now - assignmentDuplicateCache.loadedAt < ASSIGNMENT_DUPLICATE_CACHE_TTL
+    ) {
+        return assignmentDuplicateCache.items;
+    }
+
+    const snapshot = await db.ref('assignments').once('value');
+    const items = [];
+
+    snapshot.forEach(child => {
+        items.push({
+            _fbKey: child.key,
+            ...(child.val() || {})
+        });
+    });
+
+    assignmentDuplicateCache = {
+        loadedAt: now,
+        items
+    };
+
+    return items;
+}
+
+async function findDuplicateAssignmentsByTitle(title, forceRefresh = false) {
+    const normalized = normalizeAssignmentDuplicateTitle(title);
+    if (normalized.length < 5) return [];
+
+    const assignments = await getAssignmentsForDuplicateCheck(forceRefresh);
+
+    return assignments
+        .map(assignment => ({
+            assignment,
+            score: scoreAssignmentDuplicateTitle(title, assignment?.title || '')
+        }))
+        .filter(item => item.score >= 90)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 5);
+}
+
+function renderAssignmentDuplicateHint(matches, options = {}) {
+    const box = document.getElementById('assignmentDuplicateHint');
+    if (!box) return;
+
+    if (options.loading) {
+        box.hidden = false;
+        box.style.borderColor = 'rgba(59,130,246,.35)';
+        box.style.background = 'rgba(239,246,255,.85)';
+        box.style.color = '#1e3a8a';
+        box.innerHTML = '🔎 Đang kiểm tra bài đã giao trước đây...';
+        return;
+    }
+
+    if (options.error) {
+        box.hidden = false;
+        box.style.borderColor = 'rgba(239,68,68,.35)';
+        box.style.background = 'rgba(254,242,242,.92)';
+        box.style.color = '#991b1b';
+        box.innerHTML = '⚠️ Chưa kiểm tra được bài trùng. Hệ thống sẽ kiểm tra lại khi bạn bấm Phát hành.';
+        return;
+    }
+
+    if (!matches || matches.length === 0) {
+        box.hidden = true;
+        box.innerHTML = '';
+        return;
+    }
+
+    const rows = matches.slice(0, 3).map(item => {
+        const assignment = item.assignment || {};
+        return `
+            <li style="margin:4px 0;">
+                <strong>${escapeAssignmentDuplicateHTML(assignment.title || 'Bài không có tiêu đề')}</strong>
+                <span style="opacity:.78;"> — ${escapeAssignmentDuplicateHTML(formatAssignmentDuplicateDate(assignment))}</span>
+            </li>
+        `;
+    }).join('');
+
+    const overrideActive =
+        assignmentDuplicateOverrideKey &&
+        assignmentDuplicateOverrideKey === normalizeAssignmentDuplicateTitle(
+            document.getElementById('title')?.value || ''
+        );
+
+    box.hidden = false;
+    box.style.borderColor = overrideActive
+        ? 'rgba(245,158,11,.45)'
+        : 'rgba(239,68,68,.42)';
+    box.style.background = overrideActive
+        ? 'rgba(255,251,235,.94)'
+        : 'rgba(254,242,242,.94)';
+    box.style.color = overrideActive ? '#92400e' : '#991b1b';
+    box.innerHTML = `
+        <div style="font-weight:800; margin-bottom:5px;">
+            ${overrideActive ? '⚠️ Đã bật cho phép giao trùng 1 lần' : '⛔ Có thể bạn đã giao bài này rồi'}
+        </div>
+        <div style="font-size:.9em; line-height:1.45;">
+            Hệ thống đã chuẩn hóa cách viết tiêu đề nên “trang 27” và “(27)” vẫn được nhận là cùng bài.
+        </div>
+        <ul style="margin:7px 0 8px 18px; padding:0; font-size:.9em;">${rows}</ul>
+        <div style="display:flex; flex-wrap:wrap; gap:8px;">
+            <button type="button" onclick="openAssignedListFromDuplicateCheck()"
+                style="width:auto; margin:0; padding:7px 10px; font-size:.86em; background:#475569;">
+                📋 Xem bài đã giao
+            </button>
+            ${overrideActive ? '' : `
+                <button type="button" onclick="allowCurrentDuplicateAssignmentOnce()"
+                    style="width:auto; margin:0; padding:7px 10px; font-size:.86em; background:#d97706;">
+                    ↪ Vẫn giao 1 lần
+                </button>
+            `}
+        </div>
+    `;
+}
+
+window.scheduleAssignmentDuplicateCheck = function () {
+    clearTimeout(assignmentDuplicateCheckTimer);
+
+    const titleInput = document.getElementById('title');
+    const title = titleInput?.value || '';
+    const normalized = normalizeAssignmentDuplicateTitle(title);
+
+    if (assignmentDuplicateOverrideKey && assignmentDuplicateOverrideKey !== normalized) {
+        assignmentDuplicateOverrideKey = '';
+    }
+
+    if (title.trim().length < 5) {
+        renderAssignmentDuplicateHint([]);
+        return;
+    }
+
+    assignmentDuplicateCheckTimer = setTimeout(async () => {
+        const checkedKey = normalizeAssignmentDuplicateTitle(
+            document.getElementById('title')?.value || ''
+        );
+
+        renderAssignmentDuplicateHint([], { loading: true });
+
+        try {
+            const matches = await findDuplicateAssignmentsByTitle(title, false);
+
+            // Bỏ kết quả cũ nếu giáo viên đã đổi tiêu đề trong lúc đang tải.
+            if (
+                checkedKey !== normalizeAssignmentDuplicateTitle(
+                    document.getElementById('title')?.value || ''
+                )
+            ) {
+                return;
+            }
+
+            renderAssignmentDuplicateHint(matches);
+        } catch (error) {
+            console.error('Không kiểm tra được bài giao trùng:', error);
+            renderAssignmentDuplicateHint([], { error: true });
+        }
+    }, 450);
+};
+
+window.allowCurrentDuplicateAssignmentOnce = function () {
+    const title = document.getElementById('title')?.value || '';
+    assignmentDuplicateOverrideKey = normalizeAssignmentDuplicateTitle(title);
+
+    findDuplicateAssignmentsByTitle(title, false)
+        .then(matches => renderAssignmentDuplicateHint(matches))
+        .catch(() => {});
+};
+
+window.openAssignedListFromDuplicateCheck = function () {
+    const navButton = [...document.querySelectorAll('.nav-item')]
+        .find(button => String(button.getAttribute('onclick') || '').includes("'tab-assigned'"));
+
+    if (typeof switchTab === 'function') {
+        switchTab('tab-assigned', navButton || null);
+    } else {
+        document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+        document.getElementById('tab-assigned')?.classList.add('active');
+    }
+
+    if (typeof loadAssignedList === 'function') {
+        loadAssignedList(false);
+    }
+};
+
 function getCompatAssignmentIds(assignment) {
     return [...new Set(
         [
@@ -2346,6 +2655,69 @@ async function createAssignment() {
         );
     }
 
+    // ==================================================
+    // CHẶN GIAO TRÙNG TRƯỚC KHI XỬ LÝ/UPLOAD FILE.
+    // Luôn kiểm tra Firebase mới nhất khi bấm Phát hành.
+    // ==================================================
+    const duplicateKey =
+        normalizeAssignmentDuplicateTitle(title);
+
+    if (assignmentDuplicateOverrideKey !== duplicateKey) {
+        const publishButton =
+            document.getElementById('publishAssignmentButton');
+
+        const oldButtonText = publishButton?.textContent || '';
+
+        if (publishButton) {
+            publishButton.disabled = true;
+            publishButton.textContent = '🔎 Đang kiểm tra bài trùng...';
+        }
+
+        let duplicateMatches = [];
+
+        try {
+            duplicateMatches =
+                await findDuplicateAssignmentsByTitle(
+                    title,
+                    true
+                );
+        } catch (error) {
+            console.error(
+                'Không thể kiểm tra bài giao trùng trước khi phát hành:',
+                error
+            );
+
+            renderAssignmentDuplicateHint([], { error: true });
+
+            return alert(
+                '⚠️ Chưa thể kiểm tra bài đã giao trên Firebase. ' +
+                'Để tránh tạo bài trùng, hệ thống tạm dừng phát hành. ' +
+                'Vui lòng kiểm tra kết nối và thử lại.'
+            );
+        } finally {
+            if (publishButton) {
+                publishButton.disabled = false;
+                publishButton.textContent =
+                    oldButtonText || 'Phát hành bài tập';
+            }
+        }
+
+        if (duplicateMatches.length > 0) {
+            renderAssignmentDuplicateHint(
+                duplicateMatches
+            );
+
+            document.getElementById('title')?.focus();
+
+            return alert(
+                '⛔ Phát hiện bài có khả năng đã được giao trước đó.\n\n' +
+                `Bài cũ: ${duplicateMatches[0].assignment?.title || ''}\n` +
+                'Hệ thống đã dừng phát hành để tránh tạo bài trùng.\n\n' +
+                'Nếu đây thực sự là lần giao mới có chủ đích, hãy bấm “Vẫn giao 1 lần” bên dưới ô Tiêu đề rồi phát hành lại.'
+            );
+        }
+    }
+
     // Chuyển sang Date chỉ khi giáo viên có nhập.
     const start = startDate
         ? new Date(startDate)
@@ -2759,6 +3131,11 @@ async function createAssignment() {
     // Xóa bản nháp đi để lần sau mở form lên là form trống
     localStorage.removeItem('draft_teacher_title');
     localStorage.removeItem('draft_teacher_desc');
+
+    // Reset quyền bỏ qua trùng và cache để lần kiểm tra kế tiếp thấy bài vừa tạo.
+    assignmentDuplicateOverrideKey = '';
+    assignmentDuplicateCache.loadedAt = 0;
+    renderAssignmentDuplicateHint([]);
 
     alert("Giao bài tập thành công!");
 }
