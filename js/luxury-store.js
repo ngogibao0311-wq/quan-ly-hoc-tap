@@ -5251,6 +5251,291 @@ if (isNationalDay) {
         );
     }
 
+    // ========================================================
+    // DỌN TRẠNG THÁI TRÌNH DUYỆT KHI ĐỔI GIỮA 2 CỬA HÀNG
+    // - Tự sửa cả trạng thái cũ từng bị kẹt do chỉ đổi Firebase.
+    // - Chỉ dọn pet/theme/effect thuộc cửa hàng ĐỐI DIỆN.
+    // - Nền và Khung viền vẫn giữ nguyên.
+    // ========================================================
+    function getBoundaryActiveItem(storageKey) {
+        const activeId = localStorage.getItem(storageKey);
+
+        if (!activeId) {
+            return null;
+        }
+
+        const item = StoreManager.getItemById(activeId);
+
+        if (!item || isStoreBoundaryExempt(item)) {
+            return null;
+        }
+
+        return item;
+    }
+
+    function isOppositeBoundaryItem(
+        item,
+        targetIsLuxury
+    ) {
+        return Boolean(item) &&
+            isLuxuryBoundaryItem(item) !== targetIsLuxury;
+    }
+
+    function getOppositeStoreBrowserItems(
+        targetIsLuxury
+    ) {
+        const storageKeys = [
+            'active_pet',
+            'active_theme',
+            'active_effect'
+        ];
+
+        const items = [];
+        const seenIds = new Set();
+
+        storageKeys.forEach(storageKey => {
+            const item =
+                getBoundaryActiveItem(storageKey);
+
+            if (
+                !isOppositeBoundaryItem(
+                    item,
+                    targetIsLuxury
+                )
+            ) {
+                return;
+            }
+
+            const itemId = String(item.id);
+
+            if (seenIds.has(itemId)) {
+                return;
+            }
+
+            seenIds.add(itemId);
+            items.push(item);
+        });
+
+        return items;
+    }
+
+    function hardClearBoundaryPetRuntime() {
+        /*
+         * Dọn các runtime Luxury trước.
+         * Các hàm này đều nằm trong cùng module luxury-store.js.
+         */
+        [
+            LuxurySpringRuntime,
+            LuxuryNationalDayRuntime,
+            LuxuryNyxRuntime,
+            LuxuryTamonBSideRuntime,
+            LuxuryTamonPinkStaticRuntime
+        ].forEach(runtime => {
+            try {
+                runtime?.clear?.();
+            } catch (error) {
+                console.warn(
+                    '[LuxuryStore] Không thể dọn Luxury pet runtime:',
+                    error
+                );
+            }
+        });
+
+        if (typeof PetManager !== 'undefined') {
+            [
+                'clearSlothDreamRealm',
+                'clearBirthday2026Realm',
+                'clearPremiumSpringRealm',
+                'clearNationalDayRealm'
+            ].forEach(methodName => {
+                try {
+                    PetManager[methodName]?.call(PetManager);
+                } catch (error) {
+                    console.warn(
+                        `[LuxuryStore] Không thể gọi PetManager.${methodName}():`,
+                        error
+                    );
+                }
+            });
+        }
+
+        if (
+            typeof PetInteractionManager !== 'undefined' &&
+            typeof PetInteractionManager.detachEvents === 'function'
+        ) {
+            try {
+                PetInteractionManager.detachEvents({
+                    keepLoop: false,
+                    removeHungerBar: true
+                });
+            } catch (error) {
+                console.warn(
+                    '[LuxuryStore] Không thể dọn tương tác pet:',
+                    error
+                );
+            }
+        }
+
+        const container =
+            document.getElementById('virtual-pet-container');
+
+        if (container) {
+            container.innerHTML = '';
+            container.style.display = 'none';
+            container.style.visibility = 'hidden';
+            container.style.opacity = '0';
+            container.style.pointerEvents = 'none';
+            container.setAttribute('aria-hidden', 'true');
+        }
+
+        document
+            .querySelectorAll(
+                '.nyx-mythic-ultimate,' +
+                '.tbc1-fullscreen-ultimate,' +
+                '.nd29-independence-flash,' +
+                '.nd29-pet-dialogue'
+            )
+            .forEach(node => node.remove());
+
+        localStorage.removeItem('active_pet');
+    }
+
+    function clearOppositeStoreBrowserRuntime(
+        targetIsLuxury
+    ) {
+        /*
+         * EFFECT
+         * clearEffects(true) xóa cả DOM effect + active_effect,
+         * tránh visibilitychange khôi phục lại hiệu ứng cũ.
+         */
+        const activeEffect =
+            getBoundaryActiveItem('active_effect');
+
+        if (
+            isOppositeBoundaryItem(
+                activeEffect,
+                targetIsLuxury
+            )
+        ) {
+            if (
+                typeof EffectManager !== 'undefined' &&
+                typeof EffectManager.clearEffects === 'function'
+            ) {
+                EffectManager.clearEffects(true);
+            } else {
+                localStorage.removeItem('active_effect');
+            }
+        }
+
+        /*
+         * THEME
+         * Trả về mặc định rồi xóa active_theme để không tự hồi sinh
+         * giao diện cũ ở lần tải trang kế tiếp.
+         */
+        const activeTheme =
+            getBoundaryActiveItem('active_theme');
+
+        if (
+            isOppositeBoundaryItem(
+                activeTheme,
+                targetIsLuxury
+            )
+        ) {
+            if (
+                typeof ThemeManager !== 'undefined' &&
+                typeof ThemeManager.applyTheme === 'function'
+            ) {
+                ThemeManager.applyTheme('default');
+            }
+
+            localStorage.removeItem('active_theme');
+        }
+
+        /* PET */
+        const activePet =
+            getBoundaryActiveItem('active_pet');
+
+        if (
+            isOppositeBoundaryItem(
+                activePet,
+                targetIsLuxury
+            )
+        ) {
+            hardClearBoundaryPetRuntime();
+        }
+    }
+
+    async function fullyUnapplyBoundaryConflicts(
+        conflicts,
+        browserConflictItems,
+        inventoryRef,
+        targetIsLuxury
+    ) {
+        /*
+         * 1) Gọi đúng luồng GỠ của website cho TỪNG món.
+         * Đây là phần logic cũ bị thiếu: trước đây chỉ set
+         * isEquipped=false trong Firebase nên DOM/localStorage vẫn còn.
+         */
+        const uniqueIds = Array.from(
+            new Set(
+                [
+                    ...conflicts.map(
+                        conflict => conflict?.item?.id
+                    ),
+                    ...browserConflictItems.map(
+                        item => item?.id
+                    )
+                ]
+                    .filter(Boolean)
+                    .map(String)
+            )
+        );
+
+        for (const conflictItemId of uniqueIds) {
+            try {
+                await StoreManager.unapplyItem(
+                    conflictItemId
+                );
+            } catch (error) {
+                /*
+                 * Không dừng toàn bộ quá trình chỉ vì một món gỡ lỗi.
+                 * Phần fallback phía dưới vẫn tiếp tục dọn runtime
+                 * và ép Firebase về trạng thái đúng.
+                 */
+                console.error(
+                    `[LuxuryStore] Lỗi khi gỡ ${conflictItemId}:`,
+                    error
+                );
+            }
+        }
+
+        /*
+         * 2) Tự chữa trạng thái từng bị kẹt từ phiên bản cũ.
+         * Dựa vào active_pet / active_theme / active_effect hiện tại,
+         * chỉ dọn những gì thuộc cửa hàng đối diện với món sắp mặc.
+         */
+        clearOppositeStoreBrowserRuntime(
+            targetIsLuxury
+        );
+
+        /*
+         * 3) Firebase là lớp chốt cuối cùng.
+         * Dù unapplyItem() đã cập nhật, update lại false là idempotent
+         * và bảo đảm không còn món đối diện nào mang isEquipped=true.
+         */
+        const updates = {};
+
+        conflicts.forEach(conflict => {
+            updates[
+                `${conflict.firebaseKey}/isEquipped`
+            ] = false;
+        });
+
+        if (Object.keys(updates).length) {
+            await inventoryRef.update(updates);
+        }
+    }
+
     async function prepareStoreBoundaryEquip(
         itemId
     ) {
@@ -5381,10 +5666,23 @@ if (isNationalDay) {
         );
 
         /*
-         * Không có đồ bên cửa hàng đối diện
+         * Ngoài Firebase, kiểm tra thêm runtime/localStorage.
+         * Đây là lớp tự chữa cho các phiên bản cũ từng chỉ đổi
+         * isEquipped=false nhưng không dọn giao diện thật.
+         */
+        const browserConflictItems =
+            getOppositeStoreBrowserItems(
+                targetIsLuxury
+            );
+
+        /*
+         * Không có đồ phía đối diện ở cả Firebase lẫn trình duyệt
          * → mặc bình thường.
          */
-        if (!conflicts.length) {
+        if (
+            !conflicts.length &&
+            !browserConflictItems.length
+        ) {
             return true;
         }
 
@@ -5399,11 +5697,20 @@ if (isNationalDay) {
                 : 'Cửa hàng thường';
 
         const equippedNames =
-            conflicts
-                .map(
-                    conflict =>
-                        `• ${conflict.item.name}`
-                )
+            Array.from(
+                new Map(
+                    [
+                        ...conflicts.map(
+                            conflict => conflict.item
+                        ),
+                        ...browserConflictItems
+                    ].map(item => [
+                        String(item.id),
+                        item
+                    ])
+                ).values()
+            )
+                .map(item => `• ${item.name}`)
                 .join('\n');
 
         const agreed =
@@ -5454,26 +5761,15 @@ if (isNationalDay) {
 
         /*
          * Người dùng đồng ý:
-         * gỡ tất cả vật phẩm đang mặc
-         * thuộc cửa hàng đối diện.
+         * GỠ THẬT toàn bộ vật phẩm của cửa hàng đối diện.
+         * Không chỉ đổi cờ Firebase như logic cũ.
          */
-        const updates = {};
-
-        conflicts.forEach(
-            conflict => {
-                updates[
-                    `${conflict.firebaseKey}/isEquipped`
-                ] = false;
-            }
+        await fullyUnapplyBoundaryConflicts(
+            conflicts,
+            browserConflictItems,
+            inventoryRef,
+            targetIsLuxury
         );
-
-        if (
-            Object.keys(updates).length
-        ) {
-            await inventoryRef.update(
-                updates
-            );
-        }
 
         return true;
     }
