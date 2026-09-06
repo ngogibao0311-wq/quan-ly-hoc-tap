@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="application-version" content="4.0.1">
     <title>Trang Học Sinh</title>
     <!-- Kết nối sớm tới CDN lõi; không tải thêm tài nguyên và không đổi chức năng -->
     <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
@@ -1512,13 +1513,13 @@
     <script>
         // Phiên bản thực sự của bộ HTML/JS đang chạy.
         // common.js cũ đọc appVersion từ localStorage, nên đồng bộ trước khi nạp common.js.
-        window.APP_VERSION = '3.3.0';
+        window.APP_VERSION = '4.0.1';
         try {
             localStorage.setItem('appVersion', window.APP_VERSION);
         } catch (_) {}
     </script>
-    <script src="js/common.js?v=3.8"></script>
-    <script src="js/update-manager.js?v=1.0.0"></script>
+    <script src="js/common.js?v=4.0.1"></script>
+    <script src="js/update-manager.js?v=1.0.1"></script>
     <script src="js/web-animations.js?v=1.0"></script>
     <!-- Tối ưu hiệu năng: tự bật trên mobile; desktop theo Cài đặt -->
     <script src="js/web-performance-optimizer.js?v=2.0.0"></script>
@@ -1534,16 +1535,16 @@
     <script src="js/effect-quality-manager.js?v=1.0.0"></script>
     <script src="js/pet-interactions.js?v=3.8"></script>
     <script src="js/music-manager.js?v=3.8"></script>
-    <script src="js/store-manager.js?v=3.8.5-cam-mong-background"></script>
+    <script src="js/store-manager.js?v=4.0.1-lockfix-v1"></script>
     <script src="js/leaderboard.js?v=20260905.redo-scope-v1"></script>
     <script src="js/painting.js?v=3.8"></script>
-    <script src="js/luxury-store.js?v=4.2.3-midautumn-coin-v1"></script>
+    <script src="js/luxury-store.js?v=4.2.4-lockfix-v1"></script>
 
     <!-- YouTube API không phụ thuộc Firebase -->
     <script src="https://www.youtube.com/iframe_api"></script>
 
     <!-- 5. Logic chính của trang học sinh luôn đặt cuối -->
-    <script src="js/student.js?v=20260906.search-loadmore-optimized-v1"></script>
+    <script src="js/student.js?v=20260906.store-lock-update-hotfix-v1"></script>
     <script src="js/lich-su-hao-hung.js?v=20260831.1"></script>
     <script src="js/huong-dan-nguoi-moi.js?v=2.14.0"></script>
     <script src="js/store-collections.js?v=1.0"></script>
