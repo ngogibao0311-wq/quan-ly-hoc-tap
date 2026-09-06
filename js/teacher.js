@@ -1,4 +1,1066 @@
 const currentUser = JSON.parse(localStorage.getItem('currentUser')) || {};
+
+
+// ======================================================
+// TRUNG THU · LỊCH ÂM VIỆT NAM (UTC+7)
+// Tính ngày 15/8 âm lịch mà không cần Cloud Function/Scheduler.
+// ======================================================
+window.MidAutumnCalendar = window.MidAutumnCalendar || (() => {
+    const TZ = 7;
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const INT = Math.floor;
+    const PI = Math.PI;
+
+    function jdFromDate(dd, mm, yy) {
+        const a = INT((14 - mm) / 12);
+        const y = yy + 4800 - a;
+        const m = mm + 12 * a - 3;
+        let jd =
+            dd +
+            INT((153 * m + 2) / 5) +
+            365 * y +
+            INT(y / 4) -
+            INT(y / 100) +
+            INT(y / 400) -
+            32045;
+
+        if (jd < 2299161) {
+            jd =
+                dd +
+                INT((153 * m + 2) / 5) +
+                365 * y +
+                INT(y / 4) -
+                32083;
+        }
+
+        return jd;
+    }
+
+    function jdToDate(jd) {
+        let a;
+        let b;
+        let c;
+
+        if (jd > 2299160) {
+            a = jd + 32044;
+            b = INT((4 * a + 3) / 146097);
+            c = a - INT((b * 146097) / 4);
+        } else {
+            b = 0;
+            c = jd + 32082;
+        }
+
+        const d = INT((4 * c + 3) / 1461);
+        const e = c - INT((1461 * d) / 4);
+        const m = INT((5 * e + 2) / 153);
+
+        const day =
+            e -
+            INT((153 * m + 2) / 5) +
+            1;
+
+        const month =
+            m +
+            3 -
+            12 * INT(m / 10);
+
+        const year =
+            b * 100 +
+            d -
+            4800 +
+            INT(m / 10);
+
+        return [day, month, year];
+    }
+
+    function newMoon(k) {
+        const T = k / 1236.85;
+        const T2 = T * T;
+        const T3 = T2 * T;
+        const dr = PI / 180;
+
+        let jd1 =
+            2415020.75933 +
+            29.53058868 * k +
+            0.0001178 * T2 -
+            0.000000155 * T3;
+
+        jd1 +=
+            0.00033 *
+            Math.sin(
+                (166.56 +
+                    132.87 * T -
+                    0.009173 * T2) *
+                    dr
+            );
+
+        const M =
+            359.2242 +
+            29.10535608 * k -
+            0.0000333 * T2 -
+            0.00000347 * T3;
+
+        const Mpr =
+            306.0253 +
+            385.81691806 * k +
+            0.0107306 * T2 +
+            0.00001236 * T3;
+
+        const F =
+            21.2964 +
+            390.67050646 * k -
+            0.0016528 * T2 -
+            0.00000239 * T3;
+
+        let C1 =
+            (0.1734 - 0.000393 * T) *
+                Math.sin(M * dr) +
+            0.0021 *
+                Math.sin(2 * M * dr) -
+            0.4068 *
+                Math.sin(Mpr * dr) +
+            0.0161 *
+                Math.sin(2 * Mpr * dr) -
+            0.0004 *
+                Math.sin(3 * Mpr * dr) +
+            0.0104 *
+                Math.sin(2 * F * dr) -
+            0.0051 *
+                Math.sin((M + Mpr) * dr) -
+            0.0074 *
+                Math.sin((M - Mpr) * dr) +
+            0.0004 *
+                Math.sin((2 * F + M) * dr) -
+            0.0004 *
+                Math.sin((2 * F - M) * dr) -
+            0.0006 *
+                Math.sin((2 * F + Mpr) * dr) +
+            0.0010 *
+                Math.sin((2 * F - Mpr) * dr) +
+            0.0005 *
+                Math.sin((2 * Mpr + M) * dr);
+
+        let deltaT;
+
+        if (T < -11) {
+            deltaT =
+                0.001 +
+                0.000839 * T +
+                0.0002261 * T2 -
+                0.00000845 * T3 -
+                0.000000081 * T * T3;
+        } else {
+            deltaT =
+                -0.000278 +
+                0.000265 * T +
+                0.000262 * T2;
+        }
+
+        return jd1 + C1 - deltaT;
+    }
+
+    function getNewMoonDay(k) {
+        return INT(
+            newMoon(k) +
+            0.5 +
+            TZ / 24
+        );
+    }
+
+    function sunLongitude(jdn) {
+        const T =
+            (jdn - 2451545.0) /
+            36525;
+
+        const T2 = T * T;
+        const dr = PI / 180;
+
+        const M =
+            357.52910 +
+            35999.05030 * T -
+            0.0001559 * T2 -
+            0.00000048 * T * T2;
+
+        const L0 =
+            280.46645 +
+            36000.76983 * T +
+            0.0003032 * T2;
+
+        let DL =
+            (1.914600 -
+                0.004817 * T -
+                0.000014 * T2) *
+            Math.sin(dr * M);
+
+        DL +=
+            (0.019993 -
+                0.000101 * T) *
+                Math.sin(dr * 2 * M) +
+            0.000290 *
+                Math.sin(dr * 3 * M);
+
+        let L =
+            (L0 + DL) * dr;
+
+        L =
+            L -
+            PI *
+                2 *
+                INT(L / (PI * 2));
+
+        return L;
+    }
+
+    function getSunLongitude(dayNumber) {
+        return INT(
+            sunLongitude(
+                dayNumber -
+                    0.5 -
+                    TZ / 24
+            ) /
+                PI *
+                6
+        );
+    }
+
+    function getLunarMonth11(year) {
+        const off =
+            jdFromDate(
+                31,
+                12,
+                year
+            ) -
+            2415021;
+
+        const k =
+            INT(
+                off /
+                    29.530588853
+            );
+
+        let nm =
+            getNewMoonDay(k);
+
+        const sunLong =
+            getSunLongitude(nm);
+
+        if (sunLong >= 9) {
+            nm =
+                getNewMoonDay(
+                    k - 1
+                );
+        }
+
+        return nm;
+    }
+
+    function getLeapMonthOffset(a11) {
+        const k =
+            INT(
+                0.5 +
+                    (a11 -
+                        2415021.076998695) /
+                        29.530588853
+            );
+
+        let last = 0;
+        let i = 1;
+        let arc =
+            getSunLongitude(
+                getNewMoonDay(
+                    k + i
+                )
+            );
+
+        do {
+            last = arc;
+            i += 1;
+
+            arc =
+                getSunLongitude(
+                    getNewMoonDay(
+                        k + i
+                    )
+                );
+        } while (
+            arc !== last &&
+            i < 14
+        );
+
+        return i - 1;
+    }
+
+    function lunarToSolar(
+        lunarDay,
+        lunarMonth,
+        lunarYear,
+        lunarLeap = 0
+    ) {
+        let a11;
+        let b11;
+
+        if (lunarMonth < 11) {
+            a11 =
+                getLunarMonth11(
+                    lunarYear - 1
+                );
+
+            b11 =
+                getLunarMonth11(
+                    lunarYear
+                );
+        } else {
+            a11 =
+                getLunarMonth11(
+                    lunarYear
+                );
+
+            b11 =
+                getLunarMonth11(
+                    lunarYear + 1
+                );
+        }
+
+        const k =
+            INT(
+                0.5 +
+                    (a11 -
+                        2415021.076998695) /
+                        29.530588853
+            );
+
+        let off =
+            lunarMonth - 11;
+
+        if (off < 0) {
+            off += 12;
+        }
+
+        if (b11 - a11 > 365) {
+            const leapOff =
+                getLeapMonthOffset(
+                    a11
+                );
+
+            let leapMonth =
+                leapOff - 2;
+
+            if (leapMonth < 0) {
+                leapMonth += 12;
+            }
+
+            if (
+                lunarLeap !== 0 &&
+                lunarMonth !==
+                    leapMonth
+            ) {
+                return [0, 0, 0];
+            }
+
+            if (
+                lunarLeap !== 0 ||
+                off >= leapOff
+            ) {
+                off += 1;
+            }
+        }
+
+        const monthStart =
+            getNewMoonDay(
+                k + off
+            );
+
+        return jdToDate(
+            monthStart +
+                lunarDay -
+                1
+        );
+    }
+
+    function formatDateKey(
+        day,
+        month,
+        year
+    ) {
+        return (
+            String(year).padStart(4, '0') +
+            '-' +
+            String(month).padStart(2, '0') +
+            '-' +
+            String(day).padStart(2, '0')
+        );
+    }
+
+    function getFestivalInfo(year) {
+        const lunarYear =
+            Number(year);
+
+        const [
+            day,
+            month,
+            solarYear
+        ] = lunarToSolar(
+            15,
+            8,
+            lunarYear,
+            0
+        );
+
+        if (
+            !day ||
+            !month ||
+            !solarYear
+        ) {
+            throw new Error(
+                'MID_AUTUMN_DATE_ERROR'
+            );
+        }
+
+        const festivalStartAt =
+            Date.UTC(
+                solarYear,
+                month - 1,
+                day,
+                0,
+                0,
+                0,
+                0
+            ) -
+            TZ *
+                60 *
+                60 *
+                1000;
+
+        const festivalEndAt =
+            festivalStartAt +
+            DAY_MS -
+            1;
+
+        const autoGrantStartAt =
+            festivalStartAt -
+            5 * DAY_MS;
+
+        return {
+            year:
+                lunarYear,
+
+            festivalDateKey:
+                formatDateKey(
+                    day,
+                    month,
+                    solarYear
+                ),
+
+            festivalStartAt,
+            festivalEndAt,
+
+            autoGrantStartAt,
+            autoGrantEndAt:
+                festivalEndAt
+        };
+    }
+
+    function getVietnamYear(
+        timestamp = Date.now()
+    ) {
+        return new Date(
+            timestamp +
+                TZ *
+                    60 *
+                    60 *
+                    1000
+        ).getUTCFullYear();
+    }
+
+    function getVietnamDateKey(
+        timestamp = Date.now()
+    ) {
+        return new Date(
+            timestamp +
+                TZ *
+                    60 *
+                    60 *
+                    1000
+        )
+            .toISOString()
+            .slice(0, 10);
+    }
+
+    return {
+        TZ,
+        DAY_MS,
+        getFestivalInfo,
+        getVietnamYear,
+        getVietnamDateKey
+    };
+})();
+
+
+// ======================================================
+// TRUNG THU · GIÁO VIÊN
+// - Tự tạo lịch 15/8 âm lịch trên Firebase cho nhiều năm.
+// - Giáo viên có thể tặng Xu Trung Thu không hết hạn.
+// ======================================================
+window.TeacherMidAutumnCoins = (() => {
+    function normalizeWallet(value) {
+        const source =
+            value &&
+            typeof value === 'object'
+                ? value
+                : {};
+
+        return {
+            ...source,
+
+            balance:
+                Math.max(
+                    0,
+                    Number(
+                        source.balance || 0
+                    )
+                ),
+
+            autoGrants: {
+                ...(source.autoGrants ||
+                    {})
+            },
+
+            teacherGrants: {
+                ...(source.teacherGrants ||
+                    {})
+            },
+
+            teacherClaims: {
+                ...(source.teacherClaims ||
+                    {})
+            },
+
+            redemptions: {
+                ...(source.redemptions ||
+                    {})
+            }
+        };
+    }
+
+    async function seedCalendar() {
+        const now =
+            Date.now();
+
+        const startYear =
+            Math.max(
+                2026,
+                window
+                    .MidAutumnCalendar
+                    .getVietnamYear(now)
+            );
+
+        const endYear =
+            startYear + 15;
+
+        const rootRef =
+            db.ref(
+                'mid_autumn_calendar'
+            );
+
+        const snapshot =
+            await rootRef.once(
+                'value'
+            );
+
+        const existing =
+            snapshot.val() || {};
+
+        const updates = {};
+
+        for (
+            let year =
+                startYear;
+            year <=
+                endYear;
+            year++
+        ) {
+            if (
+                existing[
+                    String(year)
+                ]
+            ) {
+                continue;
+            }
+
+            const info =
+                window
+                    .MidAutumnCalendar
+                    .getFestivalInfo(
+                        year
+                    );
+
+            updates[
+                String(year)
+            ] = {
+                year:
+                    String(year),
+
+                festivalDateKey:
+                    info
+                        .festivalDateKey,
+
+                festivalStartAt:
+                    info
+                        .festivalStartAt,
+
+                festivalEndAt:
+                    info
+                        .festivalEndAt,
+
+                autoGrantStartAt:
+                    info
+                        .autoGrantStartAt,
+
+                autoGrantEndAt:
+                    info
+                        .autoGrantEndAt,
+
+                updatedAt:
+                    now,
+
+                source:
+                    'teacher_client_seed_v1'
+            };
+        }
+
+        if (
+            Object.keys(
+                updates
+            ).length
+        ) {
+            await rootRef.update(
+                updates
+            );
+        }
+    }
+
+    async function credit(
+        username,
+        amount,
+        grantId,
+        sentAt = Date.now()
+    ) {
+        const normalizedUsername =
+            String(
+                username || ''
+            ).trim();
+
+        const quantity =
+            Number(amount);
+
+        if (
+            !normalizedUsername ||
+            !Number.isInteger(
+                quantity
+            ) ||
+            quantity <= 0 ||
+            !grantId
+        ) {
+            throw new Error(
+                'INVALID_MID_AUTUMN_TEACHER_GIFT'
+            );
+        }
+
+        const walletRef =
+            db.ref(
+                `mid_autumn_wallets/${normalizedUsername}`
+            );
+
+        const tx =
+            await walletRef.transaction(
+                current => {
+                    const next =
+                        normalizeWallet(
+                            current
+                        );
+
+                    if (
+                        next.teacherGrants?.[
+                            grantId
+                        ]
+                    ) {
+                        return next;
+                    }
+
+                    next.balance =
+                        Number(
+                            next.balance || 0
+                        ) +
+                        quantity;
+
+                    next.teacherGrants[
+                        grantId
+                    ] = {
+                        id:
+                            grantId,
+
+                        amount:
+                            quantity,
+
+                        grantedAt:
+                            sentAt,
+
+                        grantedBy:
+                            String(
+                                currentUser
+                                    ?.username ||
+                                currentUser
+                                    ?.name ||
+                                'teacher'
+                            ),
+
+                        source:
+                            'teacher_gift'
+                    };
+
+                    next.lastOperation = {
+                        type:
+                            'teacher_gift',
+
+                        operationId:
+                            grantId,
+
+                        amount:
+                            quantity,
+
+                        operatedAt:
+                            sentAt
+                    };
+
+                    return next;
+                },
+                undefined,
+                false
+            );
+
+        if (!tx.committed) {
+            throw new Error(
+                'MID_AUTUMN_TEACHER_GIFT_FAILED'
+            );
+        }
+
+        return tx;
+    }
+
+    async function rollbackCredit(
+        username,
+        grantId
+    ) {
+        const walletRef =
+            db.ref(
+                `mid_autumn_wallets/${username}`
+            );
+
+        await walletRef.transaction(
+            current => {
+                const next =
+                    normalizeWallet(
+                        current
+                    );
+
+                const grant =
+                    next.teacherGrants?.[
+                        grantId
+                    ];
+
+                if (!grant) {
+                    return;
+                }
+
+                const amount =
+                    Number(
+                        grant.amount || 0
+                    );
+
+                next.balance =
+                    Math.max(
+                        0,
+                        Number(
+                            next.balance || 0
+                        ) -
+                        amount
+                    );
+
+                delete next
+                    .teacherGrants[
+                    grantId
+                ];
+
+                next.lastOperation = {
+                    type:
+                        'teacher_gift_rollback',
+
+                    operationId:
+                        grantId,
+
+                    amount,
+                    operatedAt:
+                        Date.now()
+                };
+
+                return next;
+            },
+            undefined,
+            false
+        );
+    }
+
+
+    async function distributeAnnualCoinsIfDue() {
+        const now =
+            Date.now();
+
+        const year =
+            window
+                .MidAutumnCalendar
+                .getVietnamYear(now);
+
+        const info =
+            window
+                .MidAutumnCalendar
+                .getFestivalInfo(year);
+
+        if (
+            now <
+                info.autoGrantStartAt ||
+            now >
+                info.autoGrantEndAt
+        ) {
+            return {
+                due: false,
+                granted: 0
+            };
+        }
+
+        const usersSnapshot =
+            await db
+                .ref('users')
+                .once('value');
+
+        const students = [];
+
+        usersSnapshot.forEach(
+            child => {
+                const value =
+                    child.val() || {};
+
+                if (
+                    value.role ===
+                        'student' &&
+                    value.username
+                ) {
+                    students.push(
+                        String(
+                            value.username
+                        )
+                    );
+                }
+            }
+        );
+
+        let granted = 0;
+        const grantKey =
+            String(year);
+
+        for (
+            let index = 0;
+            index < students.length;
+            index += 10
+        ) {
+            const batch =
+                students.slice(
+                    index,
+                    index + 10
+                );
+
+            const results =
+                await Promise.allSettled(
+                    batch.map(
+                        async username => {
+                            const walletRef =
+                                db.ref(
+                                    `mid_autumn_wallets/${username}`
+                                );
+
+                            const tx =
+                                await walletRef.transaction(
+                                    current => {
+                                        const next =
+                                            normalizeWallet(
+                                                current
+                                            );
+
+                                        if (
+                                            next.autoGrants?.[
+                                                grantKey
+                                            ]
+                                        ) {
+                                            return;
+                                        }
+
+                                        next.balance =
+                                            Number(
+                                                next.balance ||
+                                                0
+                                            ) +
+                                            1;
+
+                                        next.autoGrants[
+                                            grantKey
+                                        ] = {
+                                            year:
+                                                grantKey,
+
+                                            amount:
+                                                1,
+
+                                            festivalDateKey:
+                                                info.festivalDateKey,
+
+                                            grantedAt:
+                                                now,
+
+                                            source:
+                                                'annual_auto'
+                                        };
+
+                                        next.lastOperation = {
+                                            type:
+                                                'auto_grant_teacher',
+
+                                            operationId:
+                                                `auto_${year}`,
+
+                                            year:
+                                                grantKey,
+
+                                            amount:
+                                                1,
+
+                                            festivalDateKey:
+                                                info.festivalDateKey,
+
+                                            operatedAt:
+                                                now
+                                        };
+
+                                        return next;
+                                    },
+                                    undefined,
+                                    false
+                                );
+
+                            return tx.committed;
+                        }
+                    )
+                );
+
+            results.forEach(
+                result => {
+                    if (
+                        result.status ===
+                            'fulfilled' &&
+                        result.value ===
+                            true
+                    ) {
+                        granted += 1;
+                    }
+                }
+            );
+        }
+
+        return {
+            due: true,
+            granted
+        };
+    }
+
+    return {
+        seedCalendar,
+        credit,
+        rollbackCredit,
+        distributeAnnualCoinsIfDue
+    };
+})();
+
+function initializeTeacherMidAutumnSystem() {
+    let attempts = 0;
+
+    const start = () => {
+        attempts += 1;
+
+        if (
+            typeof db ===
+            'undefined'
+        ) {
+            if (attempts < 30) {
+                setTimeout(
+                    start,
+                    500
+                );
+            }
+
+            return;
+        }
+
+        window
+            .TeacherMidAutumnCoins
+            .seedCalendar()
+            .then(() =>
+                window
+                    .TeacherMidAutumnCoins
+                    .distributeAnnualCoinsIfDue()
+            )
+            .catch(error => {
+                console.warn(
+                    '[Xu Trung Thu] Chưa thể đồng bộ lịch/phát xu Trung Thu:',
+                    error
+                );
+            });
+
+        if (
+            !window
+                .teacherMidAutumnHourlyTimer
+        ) {
+            window
+                .teacherMidAutumnHourlyTimer =
+                setInterval(
+                    () => {
+                        window
+                            .TeacherMidAutumnCoins
+                            .distributeAnnualCoinsIfDue()
+                            .catch(() => {});
+                    },
+                    60 *
+                        60 *
+                        1000
+                );
+        }
+    };
+
+    start();
+}
+
+if (
+    document.readyState ===
+    'loading'
+) {
+    document.addEventListener(
+        'DOMContentLoaded',
+        initializeTeacherMidAutumnSystem,
+        {
+            once: true
+        }
+    );
+} else {
+    initializeTeacherMidAutumnSystem();
+}
+
 // Đã xóa lệnh chuyển hướng. Việc chặn quyền sẽ do Firebase đảm nhận ở bên dưới.
 
 const secondaryApp = firebase.initializeApp(firebaseConfig, "SecondaryApp")
@@ -544,7 +1606,517 @@ async function getPaginatedDB(path, limit = 20, cursorKey = null) {
     return { items, nextKey };
 }
 
+// ==============================================================
+// TỐI ƯU TÌM KIẾM + "TẢI THÊM" CHO 2 DANH SÁCH LỚN CỦA GIÁO VIÊN
+// - Danh sách thường: vẫn tải 20 mục/lần bằng Firebase key.
+// - Khi có từ khóa / lọc học sinh: tải chỉ mục 1 lần, cache ngắn hạn,
+//   lọc TOÀN BỘ dữ liệu đúng điều kiện rồi mới phân trang kết quả.
+// - Không còn tình trạng tìm kiếm chỉ trong 20 card đã render.
+// ==============================================================
+const TEACHER_SEARCH_CACHE_TTL = 45 * 1000;
+let teacherAssignedFilteredOffset = 0;
+let teacherSubmissionFilteredOffset = 0;
+let teacherAssignedSearchTimer = null;
+let teacherSubmissionSearchTimer = null;
+let teacherAssignedLoadSeq = 0;
+let teacherSubmissionLoadSeq = 0;
+
+const teacherAssignmentSearchCache = {
+    loadedAt: 0,
+    items: []
+};
+
+const teacherSubmissionSearchCache = {
+    loadedAt: 0,
+    items: []
+};
+
+const teacherStudentsLiteCache = {
+    loadedAt: 0,
+    items: []
+};
+
+function normalizeTeacherSearchText(value) {
+    return String(value ?? '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/đ/g, 'd')
+        .replace(/Đ/g, 'D')
+        .toLowerCase()
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function getTeacherAssignedSearchQuery() {
+    return normalizeTeacherSearchText(
+        document.getElementById('searchAssigned')?.value || ''
+    );
+}
+
+function getTeacherSubmissionSearchQuery() {
+    return normalizeTeacherSearchText(
+        document.getElementById('searchSubmissions')?.value || ''
+    );
+}
+
+function isTeacherAssignedFilteredMode() {
+    return (
+        getTeacherAssignedSearchQuery() !== '' ||
+        activeAssignedStudentFilter !== 'all'
+    );
+}
+
+function isTeacherSubmissionFilteredMode() {
+    return (
+        getTeacherSubmissionSearchQuery() !== '' ||
+        activeSubmissionStudentFilter !== 'all'
+    );
+}
+
+function teacherAssignmentMatchesStudentFilter(assignment, studentId) {
+    if (!studentId || studentId === 'all') return true;
+
+    const targets = normalizeAssignmentTargets(
+        assignment?.targetStudent
+    );
+
+    return (
+        targets.includes('all') ||
+        targets.includes(studentId)
+    );
+}
+
+function getTeacherAssignmentSearchText(assignment) {
+    const targets = normalizeAssignmentTargets(
+        assignment?.targetStudent
+    ).join(' ');
+
+    let typeText = assignment?.assessmentType || '';
+
+    if (assignment?.assessmentType === 'trac_nghiem') {
+        typeText += ' trac nghiem';
+    } else if (assignment?.assessmentType === 'ket_hop') {
+        typeText += ' ket hop';
+    } else if (assignment?.assessmentType === 'thi') {
+        typeText += ' thi kiem tra';
+    } else {
+        typeText += ' tu luan';
+    }
+
+    return normalizeTeacherSearchText([
+        assignment?.title,
+        assignment?.description,
+        assignment?.essayPrompt,
+        typeText,
+        assignment?.startDate,
+        assignment?.endDate,
+        targets
+    ].filter(Boolean).join(' '));
+}
+
+function getTeacherSubmissionSearchText(submission, assignment) {
+    return normalizeTeacherSearchText([
+        assignment?.title,
+        assignment?.assessmentType,
+        submission?.studentName,
+        submission?.studentUsername,
+        submission?.grade,
+        submission?.submitTime,
+        submission?.teacherComment
+    ].filter(Boolean).join(' '));
+}
+
+function getTeacherSearchSortKey(item) {
+    const rawTime =
+        item?.updatedAt ||
+        item?.submitTimestamp ||
+        item?.submittedAt ||
+        item?.createdAt ||
+        item?.timestamp ||
+        item?.id;
+
+    const numeric = Number(rawTime);
+    if (Number.isFinite(numeric) && numeric > 0) {
+        return numeric;
+    }
+
+    const dateText =
+        item?.submitTime ||
+        item?.endDate ||
+        item?.startDate;
+
+    if (dateText) {
+        const parsed = new Date(
+            String(dateText).replace(' ', 'T')
+        ).getTime();
+
+        if (Number.isFinite(parsed)) {
+            return parsed;
+        }
+    }
+
+    return 0;
+}
+
+async function getTeacherAssignmentSearchIndex(forceRefresh = false) {
+    const now = Date.now();
+
+    if (
+        !forceRefresh &&
+        teacherAssignmentSearchCache.loadedAt &&
+        now - teacherAssignmentSearchCache.loadedAt <
+            TEACHER_SEARCH_CACHE_TTL
+    ) {
+        return teacherAssignmentSearchCache.items;
+    }
+
+    const snapshot =
+        await db.ref('assignments').once('value');
+
+    const rows = [];
+
+    snapshot.forEach(child => {
+        rows.push({
+            _fbKey: child.key,
+            ...(child.val() || {})
+        });
+    });
+
+    rows.sort((a, b) => {
+        const timeDiff =
+            getTeacherSearchSortKey(b) -
+            getTeacherSearchSortKey(a);
+
+        if (timeDiff !== 0) return timeDiff;
+
+        return String(b._fbKey || '')
+            .localeCompare(String(a._fbKey || ''));
+    });
+
+    teacherAssignmentSearchCache.loadedAt = now;
+    teacherAssignmentSearchCache.items = rows;
+
+    return rows;
+}
+
+async function getTeacherSubmissionSearchIndex(forceRefresh = false) {
+    const now = Date.now();
+
+    if (
+        !forceRefresh &&
+        teacherSubmissionSearchCache.loadedAt &&
+        now - teacherSubmissionSearchCache.loadedAt <
+            TEACHER_SEARCH_CACHE_TTL
+    ) {
+        return teacherSubmissionSearchCache.items;
+    }
+
+    const snapshot =
+        await db.ref('submissions').once('value');
+
+    const rows = [];
+
+    snapshot.forEach(child => {
+        rows.push({
+            _fbKey: child.key,
+            ...(child.val() || {})
+        });
+    });
+
+    rows.sort((a, b) => {
+        const timeDiff =
+            getTeacherSearchSortKey(b) -
+            getTeacherSearchSortKey(a);
+
+        if (timeDiff !== 0) return timeDiff;
+
+        return String(b._fbKey || '')
+            .localeCompare(String(a._fbKey || ''));
+    });
+
+    teacherSubmissionSearchCache.loadedAt = now;
+    teacherSubmissionSearchCache.items = rows;
+
+    return rows;
+}
+
+function buildTeacherAssignmentIndexMap(assignments) {
+    const map = new Map();
+
+    (assignments || []).forEach(assignment => {
+        getCompatAssignmentIds(assignment).forEach(id => {
+            map.set(String(id), assignment);
+        });
+
+        if (assignment?._fbKey) {
+            map.set(
+                String(assignment._fbKey),
+                assignment
+            );
+        }
+    });
+
+    return map;
+}
+
+async function getTeacherFilteredAssignmentsPage(isLoadMore) {
+    if (!isLoadMore) {
+        teacherAssignedFilteredOffset = 0;
+    }
+
+    const query = getTeacherAssignedSearchQuery();
+    const allAssignments =
+        await getTeacherAssignmentSearchIndex();
+
+    const filtered = allAssignments.filter(assignment => {
+        if (
+            !teacherAssignmentMatchesStudentFilter(
+                assignment,
+                activeAssignedStudentFilter
+            )
+        ) {
+            return false;
+        }
+
+        if (!query) return true;
+
+        return getTeacherAssignmentSearchText(
+            assignment
+        ).includes(query);
+    });
+
+    const start = teacherAssignedFilteredOffset;
+    const items = filtered.slice(
+        start,
+        start + PAGE_LIMIT
+    );
+
+    teacherAssignedFilteredOffset += items.length;
+
+    return {
+        items,
+        total: filtered.length,
+        end:
+            teacherAssignedFilteredOffset >=
+            filtered.length
+    };
+}
+
+async function getTeacherFilteredSubmissionsPage(isLoadMore) {
+    if (!isLoadMore) {
+        teacherSubmissionFilteredOffset = 0;
+    }
+
+    const query =
+        getTeacherSubmissionSearchQuery();
+
+    const [allSubmissions, assignmentIndex] =
+        await Promise.all([
+            getTeacherSubmissionSearchIndex(),
+            getTeacherAssignmentSearchIndex()
+        ]);
+
+    const assignmentMap =
+        buildTeacherAssignmentIndexMap(
+            assignmentIndex
+        );
+
+    const preferred = new Map();
+
+    allSubmissions.forEach(submission => {
+        const studentUsername =
+            compatText(
+                getCompatSubmissionUsername(
+                    submission
+                )
+            );
+
+        if (
+            activeSubmissionStudentFilter !== 'all' &&
+            studentUsername !==
+                activeSubmissionStudentFilter
+        ) {
+            return;
+        }
+
+        const assignmentId =
+            compatText(
+                getCompatSubmissionAssignmentId(
+                    submission
+                )
+            );
+
+        const assignment =
+            assignmentMap.get(assignmentId);
+
+        if (
+            query &&
+            !getTeacherSubmissionSearchText(
+                submission,
+                assignment
+            ).includes(query)
+        ) {
+            return;
+        }
+
+        const groupKey = JSON.stringify([
+            assignmentId,
+            studentUsername
+        ]);
+
+        preferred.set(
+            groupKey,
+            pickPreferredSubmission(
+                preferred.get(groupKey),
+                submission
+            )
+        );
+    });
+
+    const filtered = [
+        ...preferred.values()
+    ].sort(
+        (a, b) =>
+            getTeacherSearchSortKey(b) -
+            getTeacherSearchSortKey(a)
+    );
+
+    const start =
+        teacherSubmissionFilteredOffset;
+
+    const items = filtered.slice(
+        start,
+        start + PAGE_LIMIT
+    );
+
+    teacherSubmissionFilteredOffset +=
+        items.length;
+
+    return {
+        items,
+        total: filtered.length,
+        end:
+            teacherSubmissionFilteredOffset >=
+            filtered.length
+    };
+}
+
+async function getTeacherVideoTrackingForSubmissions(submissions) {
+    const trackingData = {};
+    const pairs = new Map();
+
+    (submissions || []).forEach(submission => {
+        const assignmentId =
+            compatText(
+                getCompatSubmissionAssignmentId(
+                    submission
+                )
+            );
+
+        const username =
+            compatText(
+                getCompatSubmissionUsername(
+                    submission
+                )
+            );
+
+        if (!assignmentId || !username) return;
+
+        pairs.set(
+            `${assignmentId}\u0000${username}`,
+            {
+                assignmentId,
+                username
+            }
+        );
+    });
+
+    await Promise.all(
+        [...pairs.values()].map(
+            async ({ assignmentId, username }) => {
+                try {
+                    const snapshot =
+                        await db.ref(
+                            `video_tracking/${assignmentId}/${username}`
+                        ).once('value');
+
+                    const value =
+                        Number(snapshot.val()) || 0;
+
+                    if (!trackingData[assignmentId]) {
+                        trackingData[assignmentId] = {};
+                    }
+
+                    trackingData[assignmentId][username] =
+                        value;
+                } catch (error) {
+                    console.warn(
+                        'Không tải được tiến độ video:',
+                        assignmentId,
+                        username,
+                        error
+                    );
+                }
+            }
+        )
+    );
+
+    return trackingData;
+}
+
+window.queueTeacherAssignedSearch = function (
+    delay = 180
+) {
+    clearTimeout(teacherAssignedSearchTimer);
+
+    teacherAssignedSearchTimer =
+        setTimeout(() => {
+            loadAssignedList(false)
+                .catch(console.error);
+        }, delay);
+};
+
+window.queueTeacherSubmissionSearch = function (
+    delay = 180
+) {
+    clearTimeout(teacherSubmissionSearchTimer);
+
+    teacherSubmissionSearchTimer =
+        setTimeout(() => {
+            loadSubmissions(false)
+                .catch(console.error);
+        }, delay);
+};
+
+window.invalidateTeacherListSearchCache = function (
+    kind = 'all'
+) {
+    if (
+        kind === 'all' ||
+        kind === 'assignments'
+    ) {
+        teacherAssignmentSearchCache.loadedAt = 0;
+    }
+
+    if (
+        kind === 'all' ||
+        kind === 'submissions'
+    ) {
+        teacherSubmissionSearchCache.loadedAt = 0;
+    }
+};
+
 async function getStudentsLite() {
+    const now = Date.now();
+
+    if (
+        teacherStudentsLiteCache.loadedAt &&
+        now - teacherStudentsLiteCache.loadedAt < 60 * 1000
+    ) {
+        return teacherStudentsLiteCache.items;
+    }
+
     const snap = await db.ref('users').once('value');
     const students = [];
 
@@ -565,6 +2137,9 @@ async function getStudentsLite() {
             students.push(student);
         }
     });
+
+    teacherStudentsLiteCache.loadedAt = now;
+    teacherStudentsLiteCache.items = students;
 
     return students;
 }
@@ -1778,6 +3353,7 @@ window.onload = async function () {
 
     // 1. Chỉ lắng nghe khi có một bài nộp nào đó bị chỉnh sửa (ví dụ: HS nộp lại hoặc GV vừa chấm điểm)
     listenFirebase(db.ref('submissions'), 'child_changed', async (snapshot) => {
+        window.invalidateTeacherListSearchCache?.('submissions');
         const updatedSub = { _fbKey: snapshot.key, ...snapshot.val() };
 
         // Cập nhật ngầm phần tử này vào bộ nhớ đệm (Cache) mà không cần tải lại cả bảng
@@ -1796,6 +3372,7 @@ window.onload = async function () {
 
     // 2. Chỉ lắng nghe khi bài tập có sự thay đổi cấu hình
     listenFirebase(db.ref('assignments'), 'child_changed', async (snapshot) => {
+        window.invalidateTeacherListSearchCache?.('assignments');
         const updatedAssign = { _fbKey: snapshot.key, ...snapshot.val() };
         if (window.cachedAssignments) {
             const idx = window.cachedAssignments.findIndex(a => a._fbKey === updatedAssign._fbKey || a.id === updatedAssign.id);
@@ -1806,6 +3383,7 @@ window.onload = async function () {
 
     // 3. Khi có bài nộp hoàn toàn MỚI, ta không tải lại toàn bộ mà chỉ cần thông báo hoặc tải lại trang đầu
     listenFirebase(db.ref('submissions').limitToLast(1), 'child_added', (snapshot) => {
+        window.invalidateTeacherListSearchCache?.('submissions');
         // Chỉ xử lý nếu đây là bài nộp mới phát sinh sau khi trang đã tải xong
         if (window.cachedSubmissions && !window.cachedSubmissions.some(s => s._fbKey === snapshot.key)) {
             // Gọi load lại trang đầu tiên để cập nhật bài mới lên trên cùng
@@ -1858,6 +3436,32 @@ window.onload = async function () {
         }
         if (startupLoader) startupLoader.markReady('teacher-wheel-settings');
     });
+
+
+    listenFirebase(
+        db.ref('.info/serverTimeOffset'),
+        'value',
+        snapshot => {
+            window.teacherLuckyWheelServerTimeOffset =
+                Number(snapshot.val()) || 0;
+
+            if (
+                typeof renderTeacherLuckyWheelGoldenPreview === 'function'
+            ) {
+                renderTeacherLuckyWheelGoldenPreview();
+            }
+        }
+    );
+
+    listenFirebase(
+        db.ref('game_settings/lucky_wheel_golden_hour'),
+        'value',
+        snapshot => {
+            applyTeacherLuckyWheelGoldenSettings(
+                snapshot.val()
+            );
+        }
+    );
 
     listenFirebase(db.ref('store_settings'), 'value', (snapshot) => {
         const settings = snapshot.val();
@@ -3137,6 +4741,10 @@ async function createAssignment() {
     assignmentDuplicateCache.loadedAt = 0;
     renderAssignmentDuplicateHint([]);
 
+    window.invalidateTeacherListSearchCache?.(
+        'assignments'
+    );
+
     alert("Giao bài tập thành công!");
 }
 
@@ -3144,6 +4752,9 @@ async function loadAssignedList(isLoadMore = false) {
     ensureTeacherAssignmentEssayStyles();
     const container = document.getElementById('assignedListContainer');
     if (!container) return;
+
+    const loadSeq =
+        ++teacherAssignedLoadSeq;
 
     if (!isLoadMore) {
         currentAssignKey = null;
@@ -3160,15 +4771,68 @@ async function loadAssignedList(isLoadMore = false) {
         btn.innerText = '⏳ Đang tải...';
     }
 
-    // 1. Chỉ lấy 20 bài/lần thay vì getDB('assignments') toàn bộ.
-    const { items: assignmentsPage, nextKey } = await getPaginatedDB('assignments', PAGE_LIMIT, currentAssignKey);
-    currentAssignKey = nextKey;
-    if (!nextKey || assignmentsPage.length < PAGE_LIMIT) isAssignEnd = true;
+    // 1. Chế độ thường: phân trang Firebase 20 bài/lần.
+    //    Chế độ tìm kiếm/lọc HS: lọc trên chỉ mục đầy đủ rồi mới lấy 20 kết quả.
+    let assignmentsPage = [];
+    let nextKey = null;
+
+    if (isTeacherAssignedFilteredMode()) {
+        const filteredPage =
+            await getTeacherFilteredAssignmentsPage(
+                isLoadMore
+            );
+
+        assignmentsPage =
+            filteredPage.items;
+
+        isAssignEnd =
+            filteredPage.end;
+    } else {
+        const page =
+            await getPaginatedDB(
+                'assignments',
+                PAGE_LIMIT,
+                currentAssignKey
+            );
+
+        assignmentsPage = page.items;
+        nextKey = page.nextKey;
+        currentAssignKey = nextKey;
+
+        if (
+            !nextKey ||
+            assignmentsPage.length < PAGE_LIMIT
+        ) {
+            isAssignEnd = true;
+        }
+    }
+
+    if (
+        loadSeq !==
+        teacherAssignedLoadSeq
+    ) {
+        return;
+    }
 
     if (!isLoadMore) container.innerHTML = '';
 
     if (assignmentsPage.length === 0 && !isLoadMore) {
-        container.innerHTML = '<p style="color: #666; font-style: italic;">Chưa có bài tập nào.</p>';
+        const hasFilter =
+            isTeacherAssignedFilteredMode();
+
+        container.innerHTML = hasFilter
+            ? '<p style="color:#666; font-style:italic; text-align:center; padding:18px;">🔎 Không tìm thấy bài tập phù hợp trong toàn bộ danh sách.</p>'
+            : '<p style="color: #666; font-style: italic;">Chưa có bài tập nào.</p>';
+
+        const existingLoadMore =
+            document.getElementById(
+                'btnLoadMoreAssignments'
+            );
+
+        if (existingLoadMore) {
+            existingLoadMore.style.display = 'none';
+        }
+
         return;
     }
 
@@ -3193,6 +4857,13 @@ async function loadAssignedList(isLoadMore = false) {
         await getSubmissionsByAssignmentIds(
             assignmentIds
         );
+
+    if (
+        loadSeq !==
+        teacherAssignedLoadSeq
+    ) {
+        return;
+    }
 
     // 4. Sắp xếp trong phạm vi trang hiện tại.
     const nowSort = new Date();
@@ -3487,7 +5158,10 @@ async function loadAssignedList(isLoadMore = false) {
 
     loadMore.style.display = isAssignEnd ? 'none' : 'block';
     loadMore.disabled = false;
-    loadMore.innerText = '⬇️ Tải thêm bài tập';
+    loadMore.innerText =
+        isTeacherAssignedFilteredMode()
+            ? '⬇️ Tải thêm kết quả phù hợp'
+            : '⬇️ Tải thêm bài tập';
 
     typesetMathSafe(container);
 }
@@ -4110,6 +5784,298 @@ function normalizeSubmissionValue(value) {
     return String(value ?? '');
 }
 
+// ======================================================
+// LỊCH SỬ VI PHẠM KHI HỌC SINH LÀM LẠI
+// - Làm lại chỉ cho phép sửa bài, KHÔNG tự tha lỗi cũ.
+// - Lỗi cũ chỉ biến mất khi giáo viên bấm "Tha lỗi".
+// ======================================================
+function getTeacherRedoViolationHistory(submission) {
+    const raw =
+        submission &&
+        typeof submission.redoViolationHistory === 'object' &&
+        submission.redoViolationHistory !== null
+            ? submission.redoViolationHistory
+            : {};
+
+    return {
+        essayMissing: !!raw.essayMissing,
+        late: !!raw.late,
+        autoSubmitted: !!raw.autoSubmitted,
+        cheat: !!raw.cheat
+    };
+}
+
+function mergeTeacherRedoViolationHistory(submission) {
+    const history = getTeacherRedoViolationHistory(submission);
+
+    return {
+        essayMissing:
+            history.essayMissing ||
+            !!submission?.isEssayMissing,
+        late:
+            history.late ||
+            !!submission?.isLateFail,
+        autoSubmitted:
+            history.autoSubmitted ||
+            !!submission?.isAutoSubmitted,
+        cheat:
+            history.cheat ||
+            !!submission?.isCheatFail
+    };
+}
+
+function hasTeacherPardonableViolation(submission) {
+    const history = getTeacherRedoViolationHistory(submission);
+
+    return !!(
+        submission?.isLateFail ||
+        submission?.isAutoSubmitted ||
+        submission?.isCheatFail ||
+        submission?.isEssayMissing ||
+        history.late ||
+        history.autoSubmitted ||
+        history.cheat ||
+        history.essayMissing
+    );
+}
+
+function getTeacherRedoScopeCapabilities(assignment) {
+    const type = String(
+        assignment?.assessmentType ||
+        'tu_luan'
+    );
+
+    const questions = Array.isArray(assignment?.questions)
+        ? assignment.questions
+        : [];
+
+    // Bài thi cũ có thể chưa lưu mcWeight; logic chấm hiện tại coi trường hợp đó là 5 điểm.
+    // Chỉ xem là không có phần trắc nghiệm khi giáo viên đã đặt rõ mcWeight = 0.
+    const rawMcWeight = assignment?.mcWeight;
+    const effectiveMcWeight =
+        rawMcWeight === null ||
+        rawMcWeight === undefined ||
+        rawMcWeight === ''
+            ? 5
+            : Number(rawMcWeight);
+
+    const hasMultipleChoice =
+        questions.length > 0 &&
+        (
+            type === 'trac_nghiem' ||
+            type === 'ket_hop' ||
+            type === 'thi'
+        ) &&
+        !(
+            type === 'thi' &&
+            Number.isFinite(effectiveMcWeight) &&
+            effectiveMcWeight === 0
+        );
+
+    const hasEssay =
+        type !== 'trac_nghiem' &&
+        !(
+            type === 'thi' &&
+            Number(assignment?.essayWeight || 0) === 0
+        );
+
+    return {
+        hasMultipleChoice,
+        hasEssay
+    };
+}
+
+function getTeacherRedoScopeLabel(scope) {
+    if (scope === 'essay') return 'Tự luận';
+    if (scope === 'mc') return 'Trắc nghiệm';
+    return 'Cả hai phần';
+}
+
+function teacherRedoSafeHTML(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function chooseTeacherRedoScope(assignment, submission) {
+    const {
+        hasMultipleChoice,
+        hasEssay
+    } = getTeacherRedoScopeCapabilities(assignment);
+
+    const options = [];
+
+    if (hasEssay) {
+        options.push({
+            value: 'essay',
+            icon: '📝',
+            title: 'Làm lại Tự luận',
+            description:
+                'Chỉ mở phần tự luận và file đính kèm. ' +
+                'Phần trắc nghiệm được khóa và giữ nguyên kết quả cũ.'
+        });
+    }
+
+    if (hasMultipleChoice) {
+        options.push({
+            value: 'mc',
+            icon: '☑️',
+            title: 'Làm lại Trắc nghiệm',
+            description:
+                'Chỉ mở phần trắc nghiệm. ' +
+                'Phần nhập chữ và nộp file tự luận bị khóa.'
+        });
+    }
+
+    if (hasEssay && hasMultipleChoice) {
+        options.push({
+            value: 'both',
+            icon: '🔁',
+            title: 'Làm lại cả hai',
+            description:
+                'Mở lại cả trắc nghiệm lẫn tự luận để học sinh nộp lại đầy đủ.'
+        });
+    }
+
+    if (options.length === 0) {
+        options.push({
+            value: 'both',
+            icon: '🔁',
+            title: 'Làm lại bài',
+            description:
+                'Bài cũ không xác định rõ cấu trúc nên hệ thống mở lại toàn bộ phần có sẵn.'
+        });
+    }
+
+    return new Promise(resolve => {
+        const oldModal = document.getElementById(
+            'teacherRedoScopeModal'
+        );
+
+        if (oldModal) oldModal.remove();
+
+        const modal = document.createElement('div');
+        modal.id = 'teacherRedoScopeModal';
+        modal.className = 'teacher-redo-scope-overlay';
+
+        const firstValue = options[0].value;
+
+        modal.innerHTML = `
+            <section
+                class="teacher-redo-scope-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="teacherRedoScopeTitle"
+            >
+                <div class="teacher-redo-scope-head">
+                    <div>
+                        <span class="teacher-redo-scope-kicker">🔁 CHO LÀM LẠI</span>
+                        <h3 id="teacherRedoScopeTitle">Chọn phần học sinh được làm lại</h3>
+                        <p>
+                            ${teacherRedoSafeHTML(assignment?.title || 'Bài tập')}
+                            · ${teacherRedoSafeHTML(submission?.studentName || submission?.studentUsername || 'Học sinh')}
+                        </p>
+                    </div>
+                    <button type="button" class="teacher-redo-scope-close" aria-label="Đóng">×</button>
+                </div>
+
+                <div class="teacher-redo-scope-warning">
+                    <strong>⚠️ Làm lại không tự tha lỗi cũ.</strong>
+                    Nếu bài trước từng vi phạm (ví dụ thiếu tự luận), lỗi vẫn được tính trong Bảng Xếp Hạng Thi Đua cho đến khi giáo viên bấm <strong>Tha lỗi</strong>.
+                </div>
+
+                <div class="teacher-redo-scope-options">
+                    ${options.map((option, index) => `
+                        <label class="teacher-redo-scope-option">
+                            <input
+                                type="radio"
+                                name="teacherRedoScopeChoice"
+                                value="${option.value}"
+                                ${index === 0 ? 'checked' : ''}
+                            >
+                            <span class="teacher-redo-scope-option-icon">${option.icon}</span>
+                            <span class="teacher-redo-scope-option-copy">
+                                <strong>${option.title}</strong>
+                                <small>${option.description}</small>
+                            </span>
+                        </label>
+                    `).join('')}
+                </div>
+
+                <div class="teacher-redo-scope-actions">
+                    <button type="button" class="teacher-redo-scope-cancel">Hủy</button>
+                    <button type="button" class="teacher-redo-scope-confirm">Xác nhận cho làm lại</button>
+                </div>
+            </section>
+        `;
+
+        const close = value => {
+            document.removeEventListener(
+                'keydown',
+                onKeyDown
+            );
+            modal.remove();
+            resolve(value);
+        };
+
+        const onKeyDown = event => {
+            if (event.key === 'Escape') {
+                close(null);
+            }
+        };
+
+        modal.addEventListener('click', event => {
+            if (event.target === modal) {
+                close(null);
+            }
+        });
+
+        modal.querySelector(
+            '.teacher-redo-scope-close'
+        )?.addEventListener(
+            'click',
+            () => close(null)
+        );
+
+        modal.querySelector(
+            '.teacher-redo-scope-cancel'
+        )?.addEventListener(
+            'click',
+            () => close(null)
+        );
+
+        modal.querySelector(
+            '.teacher-redo-scope-confirm'
+        )?.addEventListener(
+            'click',
+            () => {
+                const checked = modal.querySelector(
+                    'input[name="teacherRedoScopeChoice"]:checked'
+                );
+
+                close(
+                    checked?.value ||
+                    firstValue
+                );
+            }
+        );
+
+        document.addEventListener(
+            'keydown',
+            onKeyDown
+        );
+
+        document.body.appendChild(modal);
+
+        requestAnimationFrame(() => {
+            modal.classList.add('is-open');
+        });
+    });
+}
+
 function getSubmissionDisplayRank(sub) {
     if (!sub) return -1;
 
@@ -4410,6 +6376,9 @@ async function loadSubmissions(isLoadMore = false) {
     const list = document.getElementById('submissionsList');
     if (!list) return;
 
+    const loadSeq =
+        ++teacherSubmissionLoadSeq;
+
     if (!isLoadMore) {
         // Reset trạng thái nếu là tải mới hoàn toàn
         currentSubKey = null;
@@ -4428,13 +6397,52 @@ async function loadSubmissions(isLoadMore = false) {
         list.innerHTML = `<p id="${loadingId}" style="text-align:center; color:#666; padding: 20px;">⏳ Đang tải dữ liệu bài nộp...</p>`;
     }
 
-    // GỌI HÀM PHÂN TRANG (Lấy từ DB thay vì kéo toàn bộ)
-    const { items: rawSubmissions, nextKey } = await getPaginatedDB('submissions', PAGE_LIMIT, currentSubKey);
+    // Chế độ thường: phân trang Firebase theo key.
+    // Khi tìm kiếm/lọc HS: lọc toàn bộ đúng điều kiện trước, sau đó mới phân trang.
+    let rawSubmissions = [];
+    let nextKey = null;
 
-    // Cập nhật mốc key cho lần tải sau
-    currentSubKey = nextKey;
-    if (!nextKey || rawSubmissions.length < PAGE_LIMIT) {
-        isSubEnd = true;
+    if (isTeacherSubmissionFilteredMode()) {
+        const filteredPage =
+            await getTeacherFilteredSubmissionsPage(
+                isLoadMore
+            );
+
+        rawSubmissions =
+            filteredPage.items;
+
+        isSubEnd =
+            filteredPage.end;
+    } else {
+        const page =
+            await getPaginatedDB(
+                'submissions',
+                PAGE_LIMIT,
+                currentSubKey
+            );
+
+        rawSubmissions =
+            page.items;
+
+        nextKey =
+            page.nextKey;
+
+        currentSubKey =
+            nextKey;
+
+        if (
+            !nextKey ||
+            rawSubmissions.length < PAGE_LIMIT
+        ) {
+            isSubEnd = true;
+        }
+    }
+
+    if (
+        loadSeq !==
+        teacherSubmissionLoadSeq
+    ) {
+        return;
     }
 
     // Xóa chữ "Đang tải" của lần tải đầu
@@ -4442,16 +6450,85 @@ async function loadSubmissions(isLoadMore = false) {
     if (loadingEl) loadingEl.remove();
 
     if (rawSubmissions.length === 0 && !isLoadMore) {
-        list.innerHTML = '<p style="color: #666; font-style: italic;">Chưa có bài nộp nào.</p>';
+        const hasFilter =
+            isTeacherSubmissionFilteredMode();
+
+        list.innerHTML = hasFilter
+            ? '<p style="color:#666; font-style:italic; text-align:center; padding:18px;">🔎 Không tìm thấy bài nộp phù hợp trong toàn bộ danh sách.</p>'
+            : '<p style="color: #666; font-style: italic;">Chưa có bài nộp nào.</p>';
+
+        const existingLoadMore =
+            document.getElementById(
+                'btnLoadMoreSubs'
+            );
+
+        if (existingLoadMore) {
+            existingLoadMore.style.display = 'none';
+        }
+
         return;
     }
 
-    // Chỉ lấy assignments liên quan đến 20 bài nộp đang hiển thị, không kéo toàn bộ assignments.
-    const assignmentIdsForSubs = [...new Set(rawSubmissions.map(s => s.assignmentId).filter(Boolean))];
-    const assignments = await getAssignmentsByIds(assignmentIdsForSubs);
+    window.cachedSubmissions = isLoadMore
+        ? [
+            ...(window.cachedSubmissions || []),
+            ...rawSubmissions
+        ]
+        : [...rawSubmissions];
 
-    const trackingSnap = await db.ref('video_tracking').once('value');
-    const trackingData = trackingSnap.val() || {};
+    // Chuẩn hóa cả dữ liệu bài nộp cũ trước khi tìm assignment tương ứng.
+    rawSubmissions.forEach(submission => {
+        const compatAssignmentId =
+            getCompatSubmissionAssignmentId(
+                submission
+            );
+
+        const compatUsername =
+            getCompatSubmissionUsername(
+                submission
+            );
+
+        if (compatAssignmentId) {
+            submission.assignmentId =
+                compatAssignmentId;
+        }
+
+        if (compatUsername) {
+            submission.studentUsername =
+                compatUsername;
+        }
+    });
+
+    // Chỉ lấy assignments liên quan đến bài nộp đang hiển thị.
+    const assignmentIdsForSubs = [
+        ...new Set(
+            rawSubmissions
+                .map(
+                    getCompatSubmissionAssignmentId
+                )
+                .map(compatText)
+                .filter(Boolean)
+        )
+    ];
+
+    const assignments =
+        await getAssignmentsByIds(
+            assignmentIdsForSubs
+        );
+
+    // Chỉ đọc tiến độ video của đúng các bài nộp đang render.
+    // Tránh tải toàn bộ cây video_tracking ở mỗi lần "Tải thêm".
+    const trackingData =
+        await getTeacherVideoTrackingForSubmissions(
+            rawSubmissions
+        );
+
+    if (
+        loadSeq !==
+        teacherSubmissionLoadSeq
+    ) {
+        return;
+    }
 
     const uniqueSubmissions = new Map();
 
@@ -4606,8 +6683,8 @@ async function loadSubmissions(isLoadMore = false) {
         let actionHTML = '';
 
         let pardonHTML = '';
-        if (sub.isLateFail || sub.isAutoSubmitted) {
-            pardonHTML = `<button class="btn-approve" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; margin-left: 5px; border: 2px solid #059669;" onclick="pardonSubmission('${sub._fbKey}')">✨ Tha lỗi (Tính bình thường)</button>`;
+        if (hasTeacherPardonableViolation(sub)) {
+            pardonHTML = `<button class="btn-approve" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; margin-left: 5px; border: 2px solid #059669;" onclick="pardonSubmission('${sub._fbKey}')">✨ Tha lỗi (Xóa vi phạm)</button>`;
         }
 
         if (sub.isRedoing) {
@@ -4640,7 +6717,16 @@ async function loadSubmissions(isLoadMore = false) {
             violationHTML = `<div style="background: rgba(225, 29, 72, 0.1); border-left: 4px solid #e11d48; padding: 10px; margin-top: 10px; margin-bottom: 10px; border-radius: 8px;"><strong style="color: #e11d48;">🚨 HỌC SINH VI PHẠM QUY CHẾ THI:</strong><br><span style="color:#b91c1c; font-size:0.9em;">Hệ thống phát hiện học sinh này đã tự ý thoát khỏi chế độ Toàn màn hình trong lúc thi.</span></div>`;
         }
 
-        let missingEssayBadge = sub.isEssayMissing ? '<span style="background: rgba(245, 158, 11, 0.15); color: #d97706; border: 1px solid #f59e0b; padding: 2px 6px; border-radius: 4px; font-size: 0.8em; margin-left: 8px; font-weight: bold; vertical-align: middle;">⚠️ Thiếu tự luận</span>' : '';
+        const redoViolationHistory =
+            getTeacherRedoViolationHistory(sub);
+
+        let missingEssayBadge = '';
+
+        if (sub.isEssayMissing) {
+            missingEssayBadge = '<span style="background: rgba(245, 158, 11, 0.15); color: #d97706; border: 1px solid #f59e0b; padding: 2px 6px; border-radius: 4px; font-size: 0.8em; margin-left: 8px; font-weight: bold; vertical-align: middle;">⚠️ Thiếu tự luận</span>';
+        } else if (redoViolationHistory.essayMissing) {
+            missingEssayBadge = '<span style="background: rgba(59, 130, 246, 0.12); color: #1d4ed8; border: 1px solid rgba(59, 130, 246, 0.55); padding: 2px 6px; border-radius: 4px; font-size: 0.8em; margin-left: 8px; font-weight: bold; vertical-align: middle;">⚠️ Từng thiếu tự luận</span>';
+        }
 
         const uniqueId = `teacher-sub-${sub.id}`;
         const div = document.createElement('div');
@@ -4914,12 +7000,12 @@ style="
         if (!loadMoreBtn) {
             loadMoreBtn = document.createElement('button');
             loadMoreBtn.id = 'btnLoadMoreSubs';
-            loadMoreBtn.innerText = '👇 Tải thêm các bài nộp cũ hơn';
+            loadMoreBtn.innerText = isTeacherSubmissionFilteredMode() ? '👇 Tải thêm kết quả phù hợp' : '👇 Tải thêm các bài nộp cũ hơn';
             loadMoreBtn.style.cssText = 'width: 100%; padding: 12px; margin-top: 15px; background: transparent; border: 2px dashed #667eea; color: #667eea; border-radius: 8px; cursor: pointer; font-weight: bold;';
             loadMoreBtn.onclick = () => loadSubmissions(true);
             list.parentElement.appendChild(loadMoreBtn);
         } else {
-            loadMoreBtn.innerText = '👇 Tải thêm các bài nộp cũ hơn';
+            loadMoreBtn.innerText = isTeacherSubmissionFilteredMode() ? '👇 Tải thêm kết quả phù hợp' : '👇 Tải thêm các bài nộp cũ hơn';
             loadMoreBtn.style.display = 'block';
         }
     } else if (loadMoreBtn) {
@@ -6648,38 +8734,122 @@ window.saveLoginLayoutSetting = async function () {
 };
 
 window.requestRedo = async function (subKey) {
-    if (confirm("Cấp quyền cho học sinh làm lại bài?...")) {
+    try {
+        const submissionSnapshot = await db
+            .ref(`submissions/${subKey}`)
+            .once('value');
+
+        if (!submissionSnapshot.exists()) {
+            return alert('❌ Bài nộp không còn tồn tại.');
+        }
+
+        const submission = {
+            _fbKey: subKey,
+            ...(submissionSnapshot.val() || {})
+        };
+
+        const assignments = await getDB('assignments');
+        const assignmentId = compatText(
+            submission.assignmentId
+        );
+
+        const assignment = assignments.find(item =>
+            getCompatAssignmentIds(item).includes(
+                assignmentId
+            )
+        );
+
+        if (!assignment) {
+            return alert(
+                '❌ Không tìm thấy bài tập gốc để xác định phần được làm lại.'
+            );
+        }
+
+        const redoScope = await chooseTeacherRedoScope(
+            assignment,
+            submission
+        );
+
+        if (!redoScope) return;
+
+        const violationHistory =
+            mergeTeacherRedoViolationHistory(
+                submission
+            );
+
         await updateDB('submissions', subKey, {
             isRedoing: true,
             grade: null,
-            hasRedone: true
+            hasRedone: true,
+            redoScope,
+            redoStartedAt: Date.now(),
+            redoViolationHistory:
+                violationHistory
         });
-        alert("Đã cấp quyền làm lại bài và thu hồi kết quả cũ!");
-        await loadSubmissions(); // THÊM DÒNG NÀY
+
+        alert(
+            '✅ Đã cho học sinh làm lại: ' +
+            getTeacherRedoScopeLabel(redoScope) +
+            '.\n\n' +
+            'Lưu ý: lỗi cũ vẫn được giữ trong Bảng Xếp Hạng Thi Đua cho đến khi giáo viên bấm Tha lỗi.'
+        );
+
+        await loadSubmissions();
+    } catch (error) {
+        console.error(
+            'Không thể cấp quyền làm lại:',
+            error
+        );
+
+        alert(
+            '❌ Không thể cấp quyền làm lại: ' +
+            (error?.message || 'Lỗi không xác định')
+        );
     }
-}
+};
 
 // ================= HÀM THA LỖI NỘP TRỄ / VI PHẠM =================
 window.pardonSubmission = async function (subKey) {
-    if (confirm("Bạn có chắc chắn muốn tha lỗi cho bài này?...")) {
+    if (
+        confirm(
+            'Bạn có chắc chắn muốn tha toàn bộ lỗi thi đua của bài này?\n\n' +
+            'Các lỗi hiện tại và lỗi đã lưu từ lần làm trước (nộp trễ, tự thu, vi phạm thi, thiếu tự luận) sẽ được xóa khỏi Bảng Xếp Hạng Thi Đua.'
+        )
+    ) {
         await updateDB('submissions', subKey, {
             isLateFail: false,
             isAutoSubmitted: false,
-            isCheatFail: false
+            isCheatFail: false,
+            isEssayMissing: false,
+            redoViolationHistory: null,
+            violationPardonedAt: Date.now()
         });
-        alert("✨ Đã tha lỗi thành công! Lộ trình của học sinh đã được cập nhật lại theo điểm số thực tế.");
-        await loadSubmissions(); // THÊM DÒNG NÀY
-        if (typeof renderTeacherRoadmap === 'function') renderTeacherRoadmap(); // THÊM DÒNG NÀY
+
+        alert(
+            '✨ Đã tha lỗi thành công! Các lỗi thi đua của bài này đã được xóa.'
+        );
+
+        await loadSubmissions();
+
+        if (
+            typeof renderTeacherRoadmap ===
+            'function'
+        ) {
+            renderTeacherRoadmap();
+        }
     }
 };
 
 window.forceSubmitRedo = async function (subKey) {
     if (confirm("Bạn muốn khóa bài ngay lập tức?...")) {
-        await updateDB('submissions', subKey, { isRedoing: false });
+        await updateDB('submissions', subKey, {
+            isRedoing: false,
+            redoScope: null
+        });
         alert("Đã khóa bài làm lại!");
-        await loadSubmissions(); // THÊM DÒNG NÀY
+        await loadSubmissions();
     }
-}
+};
 
 // ================= NHẬP NHANH CÂU HỎI TRẮC NGHIỆM =================
 let isImportingQuestions = false;
@@ -7355,7 +9525,14 @@ window.updateAssignmentRoadmap = async function (fbKey, field, value) {
 window.pardonRoadmap = async function (subKey, mode) {
     if (mode === 'late') {
         if (confirm("Xác nhận tha lỗi nộp trễ / vi phạm cho học sinh?\n\nHệ thống sẽ gỡ bỏ án phạt, bài làm sẽ quay về tính trạng thái theo điểm số thực tế.")) {
-            await updateDB('submissions', subKey, { isLateFail: false, isAutoSubmitted: false, isCheatFail: false });
+            await updateDB('submissions', subKey, {
+                isLateFail: false,
+                isAutoSubmitted: false,
+                isCheatFail: false,
+                isEssayMissing: false,
+                redoViolationHistory: null,
+                violationPardonedAt: Date.now()
+            });
             alert("✨ Đã tha lỗi thành công!");
         }
     }
@@ -8630,6 +10807,383 @@ window.saveGameLockMessage = async function () {
 
 // ================= QUẢN LÝ VÒNG QUAY MAY MẮN =================
 
+const TEACHER_LUCKY_WHEEL_GOLDEN_DEFAULTS = Object.freeze({
+    enabled: true,
+    bonusCoin: 50,
+    windows: Object.freeze([
+        Object.freeze({ start: '00:00', end: '01:00' }),
+        Object.freeze({ start: '09:00', end: '10:00' }),
+        Object.freeze({ start: '12:00', end: '13:00' }),
+        Object.freeze({ start: '14:00', end: '15:00' }),
+        Object.freeze({ start: '20:00', end: '20:30' })
+    ])
+});
+
+window.teacherLuckyWheelGoldenConfig = null;
+window.teacherLuckyWheelServerTimeOffset = 0;
+let teacherLuckyWheelGoldenPreviewTimer = null;
+
+function normalizeTeacherLuckyWheelGoldenSettings(raw) {
+    const source = raw && typeof raw === 'object' ? raw : {};
+
+    const bonusCoin = Math.max(
+        0,
+        Math.min(
+            100000,
+            Math.floor(
+                Number(
+                    source.bonusCoin ??
+                    TEACHER_LUCKY_WHEEL_GOLDEN_DEFAULTS.bonusCoin
+                ) || 0
+            )
+        )
+    );
+
+    const rawWindows = Array.isArray(source.windows)
+        ? source.windows
+        : TEACHER_LUCKY_WHEEL_GOLDEN_DEFAULTS.windows;
+
+    const windows = rawWindows
+        .map(entry => ({
+            start: String(entry?.start || '').trim(),
+            end: String(entry?.end || '').trim()
+        }))
+        .filter(entry =>
+            /^([01]\d|2[0-3]):[0-5]\d$/.test(entry.start) &&
+            /^([01]\d|2[0-3]):[0-5]\d$/.test(entry.end) &&
+            entry.start !== entry.end
+        );
+
+    return {
+        enabled: source.enabled !== false,
+        bonusCoin,
+        windows: windows.length
+            ? windows
+            : TEACHER_LUCKY_WHEEL_GOLDEN_DEFAULTS.windows.map(entry => ({ ...entry }))
+    };
+}
+
+function teacherGoldenTimeToMinutes(value) {
+    const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(
+        String(value || '').trim()
+    );
+
+    if (!match) return null;
+
+    return Number(match[1]) * 60 + Number(match[2]);
+}
+
+function getTeacherLuckyWheelVietnamClock() {
+    const date = new Date(
+        Date.now() +
+        Number(window.teacherLuckyWheelServerTimeOffset || 0)
+    );
+
+    const parts = new Intl.DateTimeFormat(
+        'en-GB',
+        {
+            timeZone: 'Asia/Ho_Chi_Minh',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hourCycle: 'h23'
+        }
+    ).formatToParts(date);
+
+    const values = {};
+    parts.forEach(part => {
+        if (part.type !== 'literal') {
+            values[part.type] = Number(part.value);
+        }
+    });
+
+    const hour = Number(values.hour) || 0;
+    const minute = Number(values.minute) || 0;
+    const second = Number(values.second) || 0;
+
+    return {
+        hour,
+        minute,
+        second,
+        totalMinutes: hour * 60 + minute + second / 60,
+        text: `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}`
+    };
+}
+
+function getTeacherLuckyWheelGoldenStatus(config = null) {
+    const resolved = normalizeTeacherLuckyWheelGoldenSettings(
+        config || window.teacherLuckyWheelGoldenConfig
+    );
+
+    const clock = getTeacherLuckyWheelVietnamClock();
+
+    if (!resolved.enabled || resolved.bonusCoin <= 0) {
+        return {
+            active: false,
+            config: resolved,
+            clock,
+            activeWindow: null
+        };
+    }
+
+    const activeWindow = resolved.windows.find(entry => {
+        const start = teacherGoldenTimeToMinutes(entry.start);
+        const end = teacherGoldenTimeToMinutes(entry.end);
+
+        if (start === null || end === null || start === end) {
+            return false;
+        }
+
+        return start < end
+            ? (
+                clock.totalMinutes >= start &&
+                clock.totalMinutes < end
+            )
+            : (
+                clock.totalMinutes >= start ||
+                clock.totalMinutes < end
+            );
+    }) || null;
+
+    return {
+        active: Boolean(activeWindow),
+        config: resolved,
+        clock,
+        activeWindow
+    };
+}
+
+window.applyTeacherLuckyWheelGoldenSettings =
+function applyTeacherLuckyWheelGoldenSettings(raw) {
+    const config = normalizeTeacherLuckyWheelGoldenSettings(raw);
+    window.teacherLuckyWheelGoldenConfig = config;
+
+    const enabledInput = document.getElementById('goldenHourEnabled');
+    const bonusInput = document.getElementById('goldenHourBonus');
+
+    if (enabledInput) enabledInput.checked = config.enabled;
+    if (bonusInput && !bonusInput.matches(':focus')) {
+        bonusInput.value = config.bonusCoin;
+    }
+
+    for (let index = 0; index < 5; index++) {
+        const startInput = document.getElementById(`goldenHourStart${index}`);
+        const endInput = document.getElementById(`goldenHourEnd${index}`);
+        const entry = config.windows[index] || { start: '', end: '' };
+
+        if (startInput && !startInput.matches(':focus')) {
+            startInput.value = entry.start;
+        }
+
+        if (endInput && !endInput.matches(':focus')) {
+            endInput.value = entry.end;
+        }
+    }
+
+    renderTeacherLuckyWheelGoldenPreview();
+
+    if (!teacherLuckyWheelGoldenPreviewTimer) {
+        teacherLuckyWheelGoldenPreviewTimer = setInterval(
+            renderTeacherLuckyWheelGoldenPreview,
+            1000
+        );
+    }
+};
+
+function readTeacherLuckyWheelGoldenForm() {
+    const enabled = Boolean(
+        document.getElementById('goldenHourEnabled')?.checked
+    );
+
+    const bonusCoin = Math.max(
+        0,
+        Math.floor(
+            Number(
+                document.getElementById('goldenHourBonus')?.value || 0
+            )
+        )
+    );
+
+    const windows = [];
+
+    for (let index = 0; index < 5; index++) {
+        const start = String(
+            document.getElementById(`goldenHourStart${index}`)?.value || ''
+        ).trim();
+
+        const end = String(
+            document.getElementById(`goldenHourEnd${index}`)?.value || ''
+        ).trim();
+
+        if (!start && !end) continue;
+
+        if (!start || !end || start === end) {
+            throw new Error(
+                `Khung Giờ Vàng ${index + 1} phải có giờ bắt đầu và kết thúc khác nhau.`
+            );
+        }
+
+        windows.push({ start, end });
+    }
+
+    if (enabled && windows.length === 0) {
+        throw new Error('Phải có ít nhất 1 khung Giờ Vàng khi đang bật.');
+    }
+
+    if (bonusCoin > 100000) {
+        throw new Error('Coin thưởng Giờ Vàng tối đa là 100.000 Coin/lượt.');
+    }
+
+    return {
+        enabled,
+        bonusCoin,
+        windows
+    };
+}
+
+window.renderTeacherLuckyWheelGoldenPreview =
+function renderTeacherLuckyWheelGoldenPreview() {
+    const statusBox = document.getElementById('teacherGoldenHourStatus');
+    const previewBox = document.getElementById('teacherGoldenHourPreview');
+
+    if (!statusBox && !previewBox) return;
+
+    let config;
+
+    try {
+        config = readTeacherLuckyWheelGoldenForm();
+    } catch (_) {
+        config = normalizeTeacherLuckyWheelGoldenSettings(
+            window.teacherLuckyWheelGoldenConfig
+        );
+    }
+
+    const status = getTeacherLuckyWheelGoldenStatus(config);
+    const bonus = Number(config.bonusCoin || 0);
+
+    if (previewBox) {
+        previewBox.innerHTML = config.enabled
+            ? `Giá hiển thị trong Giờ Vàng: <strong>50 → ${50 + bonus}</strong> · <strong>70 → ${70 + bonus}</strong> · <strong>200 → ${200 + bonus}</strong> Coin`
+            : 'Giờ Vàng đang tắt: vòng quay luôn hiển thị 50 · 70 · 200 Coin.';
+    }
+
+    if (statusBox) {
+        if (!config.enabled) {
+            statusBox.innerHTML =
+                `⚪ Giờ hệ thống ${status.clock.text} · Giờ Vàng đang <strong>TẮT</strong>`;
+            statusBox.style.color = '#64748b';
+        } else if (status.active) {
+            statusBox.innerHTML =
+                `🔥 <strong>ĐANG GIỜ VÀNG</strong> · ${status.activeWindow.start}–${status.activeWindow.end} · +${bonus} Coin/lượt trúng Coin · ${status.clock.text}`;
+            statusBox.style.color = '#b45309';
+        } else {
+            statusBox.innerHTML =
+                `🕒 Chưa vào Giờ Vàng · Giờ hệ thống ${status.clock.text}`;
+            statusBox.style.color = '#475569';
+        }
+    }
+};
+
+window.toggleLuckyWheelGoldenHourRealtime =
+async function (enabled) {
+    const nextEnabled =
+        Boolean(enabled);
+
+    const serverTimestamp =
+        window.firebase
+            ?.database
+            ?.ServerValue
+            ?.TIMESTAMP ||
+        Date.now();
+
+    try {
+        /*
+         * Chỉ cập nhật enabled để không vô tình lưu các ô giờ
+         * mà giáo viên đang nhập dở.
+         * Student có listener realtime trực tiếp và sẽ nhận thay đổi ngay.
+         */
+        await db
+            .ref(
+                'game_settings/lucky_wheel_golden_hour'
+            )
+            .update({
+                enabled:
+                    nextEnabled,
+
+                updatedAt:
+                    serverTimestamp
+            });
+
+        if (
+            typeof renderTeacherLuckyWheelGoldenPreview ===
+            'function'
+        ) {
+            renderTeacherLuckyWheelGoldenPreview();
+        }
+
+        if (
+            typeof window.showToast ===
+            'function'
+        ) {
+            window.showToast(
+                nextEnabled
+                    ? 'Đã bật Giờ Vàng và đồng bộ realtime tới học sinh.'
+                    : 'Đã tắt Giờ Vàng và đồng bộ realtime tới học sinh.',
+                'success'
+            );
+        }
+    } catch (error) {
+        console.error(
+            '[Giờ Vàng] Không thể cập nhật trạng thái realtime:',
+            error
+        );
+
+        const checkbox =
+            document.getElementById(
+                'goldenHourEnabled'
+            );
+
+        if (checkbox) {
+            checkbox.checked =
+                !nextEnabled;
+        }
+
+        alert(
+            '❌ Không thể cập nhật trạng thái Giờ Vàng lên Firebase.'
+        );
+    }
+};
+
+window.saveLuckyWheelGoldenHourSettings = async function () {
+    let config;
+
+    try {
+        config = readTeacherLuckyWheelGoldenForm();
+    } catch (error) {
+        alert(`❌ ${error.message}`);
+        return;
+    }
+
+    const serverTimestamp =
+        window.firebase?.database?.ServerValue?.TIMESTAMP ||
+        Date.now();
+
+    await db
+        .ref('game_settings/lucky_wheel_golden_hour')
+        .set({
+            enabled: config.enabled,
+            bonusCoin: config.bonusCoin,
+            windows: config.windows,
+            updatedAt: serverTimestamp
+        });
+
+    alert(
+        config.enabled
+            ? `✅ Đã lưu Giờ Vàng: +${config.bonusCoin} Coin cho mỗi lượt trúng Coin.`
+            : '✅ Đã tắt Giờ Vàng vòng quay.'
+    );
+};
+
 window.loadSpinHistory = async function () {
     const history = await getDB('spin_history');
     const tbody = document.getElementById('spinHistoryBody');
@@ -9030,6 +11584,37 @@ function getTeacherRegularStoreItems() {
     );
 }
 
+// Giữ trạng thái Xem thêm/Thu gọn khi Firebase render lại danh sách.
+// Trước đây initTeacherStoreManagement() luôn ẩn lại các vật phẩm từ vị trí thứ 5,
+// nên sau mỗi lần Khóa/Mở khóa giáo viên phải bấm "Xem thêm" lại.
+let teacherStoreItemsExpanded = false;
+
+function applyTeacherStoreItemsListState(expanded = teacherStoreItemsExpanded) {
+    teacherStoreItemsExpanded = !!expanded;
+
+    const listContainer = document.getElementById('teacherStoreItemsList');
+    if (!listContainer) return;
+
+    const hiddenItems = listContainer.querySelectorAll('.hidden-store-item-row');
+    const btn = document.getElementById('toggleStoreItemsBtn');
+
+    hiddenItems.forEach(item => {
+        item.style.display = teacherStoreItemsExpanded ? 'block' : 'none';
+    });
+
+    if (!btn) return;
+
+    if (teacherStoreItemsExpanded) {
+        btn.innerHTML = '👆 Thu gọn danh sách';
+        btn.style.borderColor = '#e11d48';
+        btn.style.color = '#e11d48';
+    } else {
+        btn.innerHTML = `👇 Xem thêm ${hiddenItems.length} hàng hóa khác`;
+        btn.style.borderColor = '#10b981';
+        btn.style.color = '#10b981';
+    }
+}
+
 // Hàm hiển thị danh sách hàng hóa và đổ dữ liệu vào thẻ Select điều khiển
 function initTeacherStoreManagement() {
     const selectEl = document.getElementById('editStoreItemId');
@@ -9050,7 +11635,7 @@ function initTeacherStoreManagement() {
         let priceDisplay = item.isNonCoin ? (item.price > 0 ? `🪙 ${item.price} Coin (Sự kiện)` : 'Vật phẩm Sự kiện') : `🪙 ${item.price} Coin`;
 
         let hiddenClass = index >= 4 ? 'hidden-store-item-row' : '';
-        let hiddenStyle = index >= 4 ? 'display: none;' : '';
+        let hiddenStyle = index >= 4 && !teacherStoreItemsExpanded ? 'display: none;' : '';
 
         // Xử lý UI nút khóa vật phẩm
         let isItemLocked = !!item.isLocked;
@@ -9075,38 +11660,28 @@ function initTeacherStoreManagement() {
     if (regularItems.length > 4) {
         listHtml += `
             <div style="text-align: center; margin-top: 15px;">
-                <button id="toggleStoreItemsBtn" onclick="toggleStoreItemsList()" style="background: transparent; border: 1px dashed #10b981; color: #10b981; padding: 8px 20px; border-radius: 20px; cursor: pointer; font-size: 0.95em; font-weight: bold; transition: all 0.2s;">
-                    👇 Xem thêm ${regularItems.length - 4} hàng hóa khác
+                <button id="toggleStoreItemsBtn" onclick="toggleStoreItemsList()" style="background: transparent; border: 1px dashed ${teacherStoreItemsExpanded ? '#e11d48' : '#10b981'}; color: ${teacherStoreItemsExpanded ? '#e11d48' : '#10b981'}; padding: 8px 20px; border-radius: 20px; cursor: pointer; font-size: 0.95em; font-weight: bold; transition: all 0.2s;">
+                    ${teacherStoreItemsExpanded ? '👆 Thu gọn danh sách' : `👇 Xem thêm ${regularItems.length - 4} hàng hóa khác`}
                 </button>
             </div>
         `;
     }
     listContainer.innerHTML = listHtml;
+
+    // Firebase có thể gọi lại hàm render sau khi Khóa/Mở khóa.
+    // Áp lại trạng thái cũ để danh sách không tự thu gọn.
+    applyTeacherStoreItemsListState(teacherStoreItemsExpanded);
 }
 
 // Hàm xử lý khi giáo viên bấm nút Xem thêm / Thu gọn danh sách hàng hóa
 window.toggleStoreItemsList = function () {
-    const hiddenItems = document.querySelectorAll('.hidden-store-item-row');
-    const btn = document.getElementById('toggleStoreItemsBtn');
+    const listContainer = document.getElementById('teacherStoreItemsList');
+    if (!listContainer) return;
+
+    const hiddenItems = listContainer.querySelectorAll('.hidden-store-item-row');
     if (hiddenItems.length === 0) return;
 
-    // Kiểm tra xem thẻ đầu tiên đang ẩn hay hiện
-    const isCurrentlyHidden = hiddenItems[0].style.display === 'none';
-
-    hiddenItems.forEach(item => {
-        item.style.display = isCurrentlyHidden ? 'block' : 'none';
-    });
-
-    // Thay đổi nội dung và màu sắc nút bấm cho trực quan
-    if (isCurrentlyHidden) {
-        btn.innerHTML = '👆 Thu gọn danh sách';
-        btn.style.borderColor = '#e11d48';
-        btn.style.color = '#e11d48';
-    } else {
-        btn.innerHTML = `👇 Xem thêm ${hiddenItems.length} hàng hóa khác`;
-        btn.style.borderColor = '#10b981';
-        btn.style.color = '#10b981';
-    }
+    applyTeacherStoreItemsListState(!teacherStoreItemsExpanded);
 };
 
 // Hàm bổ trợ giúp giáo viên click nhanh nút "Chọn chỉnh sửa" ở danh sách dưới
@@ -10654,7 +13229,8 @@ window.toggleGiftInput = function () {
         'money',
         'ticket',
         'discount',
-        'special_birthday_coin'
+        'special_birthday_coin',
+        'mid_autumn_coin'
     ];
 
     if (numericTypes.includes(type)) {
@@ -10680,6 +13256,12 @@ window.toggleGiftInput = function () {
         ) {
             numInput.placeholder =
                 'Nhập số Xu Đặc Biệt (1 - 50)...';
+        } else if (
+            type ===
+            'mid_autumn_coin'
+        ) {
+            numInput.placeholder =
+                'Nhập số Xu Trung Thu...';
         } else {
             numInput.placeholder =
                 'Nhập số lượng...';
@@ -10752,7 +13334,8 @@ window.sendGiftMessage = async function () {
             type === 'money' ||
             type === 'ticket' ||
             type === 'discount' ||
-            type === 'special_birthday_coin'
+            type === 'special_birthday_coin' ||
+            type === 'mid_autumn_coin'
         ) {
             value = parseInt(
                 document.getElementById('giftValueNumber').value,
@@ -10983,8 +13566,12 @@ window.sendGiftMessage = async function () {
  * học sinh nhận vào Túi đồ.
  */
             expiry:
-                type ===
-                    'special_birthday_coin'
+                (
+                    type ===
+                        'special_birthday_coin' ||
+                    type ===
+                        'mid_autumn_coin'
+                )
                     ? null
                     : now +
                     5 *
@@ -11008,6 +13595,20 @@ window.sendGiftMessage = async function () {
 
             payload.specialCoinScope =
                 'birthday_all_years';
+        }
+
+        if (
+            type ===
+            'mid_autumn_coin'
+        ) {
+            payload.midAutumnCoinName =
+                'Xu Trung Thu';
+
+            payload.midAutumnCoinNonExpiring =
+                true;
+
+            payload.midAutumnCoinScope =
+                'mid_autumn_all_years';
         }
 
         if (discountExpiry) {
@@ -11046,6 +13647,10 @@ window.sendGiftMessage = async function () {
             giftDescription =
                 `${Number(value)} Xu Đặc Biệt`;
 
+        } else if (type === 'mid_autumn_coin') {
+            giftDescription =
+                `${Number(value)} Xu Trung Thu`;
+
         } else if (type === 'item') {
             const selectedGiftItem =
                 StoreConfig.items.find(
@@ -11069,7 +13674,8 @@ window.sendGiftMessage = async function () {
             'money',
             'ticket',
             'discount',
-            'special_birthday_coin'
+            'special_birthday_coin',
+            'mid_autumn_coin'
         ];
 
         const giftUnitMap = {
@@ -11078,7 +13684,9 @@ window.sendGiftMessage = async function () {
             ticket: 'Vé',
             discount: '%',
             special_birthday_coin:
-                'Xu Đặc Biệt'
+                'Xu Đặc Biệt',
+            mid_autumn_coin:
+                'Xu Trung Thu'
         };
 
         for (const username of recipients) {
@@ -11099,12 +13707,63 @@ window.sendGiftMessage = async function () {
             const messagePath =
                 `inbox_messages/${username}/${messageId}`;
 
-            await messageRef.set({
-                ...payload,
+            let midAutumnCredited =
+                false;
 
-                messageId:
-                    messageId
-            });
+            if (
+                type ===
+                'mid_autumn_coin'
+            ) {
+                await window
+                    .TeacherMidAutumnCoins
+                    .credit(
+                        username,
+                        Number(value),
+                        messageId,
+                        now
+                    );
+
+                midAutumnCredited =
+                    true;
+            }
+
+            try {
+                const messagePayload = {
+                    ...payload,
+
+                    messageId:
+                        messageId
+                };
+
+                if (
+                    type ===
+                    'mid_autumn_coin'
+                ) {
+                    messagePayload.giftCredited =
+                        true;
+
+                    messagePayload.giftCreditedAt =
+                        now;
+                }
+
+                await messageRef.set(
+                    messagePayload
+                );
+            } catch (messageError) {
+                if (
+                    midAutumnCredited
+                ) {
+                    await window
+                        .TeacherMidAutumnCoins
+                        .rollbackCredit(
+                            username,
+                            messageId
+                        )
+                        .catch(() => {});
+                }
+
+                throw messageError;
+            }
 
             /*
              * Chỉ ghi nhật ký giao dịch khi
@@ -11160,7 +13819,16 @@ window.sendGiftMessage = async function () {
                          * thư vẫn còn trong hộp thư.
                          */
                         reversible:
-                            true,
+                            type ===
+                                'mid_autumn_coin'
+                                ? false
+                                : true,
+
+                        nonReversibleReason:
+                            type ===
+                                'mid_autumn_coin'
+                                ? 'Xu Trung Thu đã được cộng trực tiếp vào ví học sinh.'
+                                : '',
 
                         details: {
                             messageId:
@@ -11914,44 +14582,14 @@ window.applyMaterialFilters = function () {
 };
 
 window.applyAssignedFilters = function () {
-    let searchInput = document.getElementById('searchAssigned');
-    let searchText = searchInput ? searchInput.value.toLowerCase() : '';
-    // Quét tất cả các thẻ div đóng vai trò là card bài tập
-    let items = document.querySelectorAll('#assignedListContainer > .card');
-
-    items.forEach(item => {
-        let targetStudent = item.getAttribute('data-target') || 'all';
-        let targetArr = targetStudent.split(','); // Cắt chuỗi thành mảng
-        let text = item.innerText.toLowerCase();
-
-        let matchFilter = (activeAssignedStudentFilter === 'all') ||
-            targetArr.includes('all') ||
-            targetArr.includes(activeAssignedStudentFilter);
-
-        let matchSearch = text.includes(searchText);
-
-        item.style.display = (matchFilter && matchSearch) ? '' : 'none';
-    });
+    // Không quét innerText của hàng chục/hàng trăm card nữa.
+    // Tải lại trang 1 từ chỉ mục đã cache, sau 180ms để tránh gọi liên tục khi gõ.
+    window.queueTeacherAssignedSearch(180);
 };
 
 window.applySubmissionFilters = function () {
-    let searchInput = document.getElementById('searchSubmissions');
-    let searchText = searchInput ? searchInput.value.toLowerCase() : '';
-    // Quét tất cả các thẻ div đóng vai trò là card bài nộp
-    let items = document.querySelectorAll('#submissionsList > .card');
-
-    items.forEach(item => {
-        let studentId = item.getAttribute('data-student') || '';
-        let text = item.innerText.toLowerCase();
-
-        // Ở danh sách bài nộp, nút của ai thì chỉ hiện bài của người đó
-        let matchFilter = (activeSubmissionStudentFilter === 'all') ||
-            (studentId === activeSubmissionStudentFilter);
-
-        let matchSearch = text.includes(searchText);
-
-        item.style.display = (matchFilter && matchSearch) ? '' : 'none';
-    });
+    // Tìm trên dữ liệu, không chỉ trên các card đang hiển thị.
+    window.queueTeacherSubmissionSearch(180);
 };
 
 window.getMultiSelectValues = function (

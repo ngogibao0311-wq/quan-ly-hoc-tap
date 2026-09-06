@@ -1,5 +1,5 @@
 /*
- * store-collections-page-v12-auto-detect.js
+ * store-collections-page-v14-no-luxury.js
  *
  * Cách hoạt động:
  * 1. Thêm nút mũi tên cạnh tiêu đề "Cửa hàng Vật phẩm".
@@ -111,6 +111,30 @@
 
             // Mỗi mốc thưởng cao hơn bộ khác 30 Coin
             rewardBonusCoins: 30
+        },
+        {
+            id: 'national-day-2-9',
+            label: 'Quốc khánh 2/9',
+            icon: '🇻🇳',
+            tags: ['2/9']
+        },
+        {
+            id: 'tamon-b-side',
+            label: "Tamon's B-Side",
+            icon: '🎭',
+            tags: ["Tamon's B-Side"]
+        },
+        {
+            id: 'cam-mong',
+            label: 'Cầm Mộng',
+            icon: '琴',
+            tags: ['Cầm Mộng']
+        },
+        {
+            id: 'mid-autumn',
+            label: 'Trung Thu',
+            icon: '🌕',
+            tags: ['Trung thu']
         },
     ]);
 
@@ -598,6 +622,76 @@
         return true;
     }
 
+    /*
+     * ================================================================
+     * KHÔNG ĐƯA VẬT PHẨM CỬA HÀNG SANG TRỌNG VÀO SƯU TẦM
+     * ================================================================
+     *
+     * 3 lớp bảo vệ:
+     * 1. luxuryOnly === true
+     * 2. Danh sách ID Luxury hiện hành
+     * 3. Nếu LuxuryStore đã nạp, hỏi trực tiếp LuxuryStore.isLuxuryItem()
+     *
+     * Nhờ vậy vật phẩm Luxury sẽ không xuất hiện ở bất kỳ tab Sưu tầm nào,
+     * kể cả "Tất cả sưu tầm".
+     */
+    const COLLECTION_LUXURY_EXCLUDED_IDS = new Set([
+        'pet_luxury_mua_xuan',
+        'pet_luxury_mua_ha',
+        'pet_quoc_khanh_1',
+        'pet_mythic_nyx_1',
+        'pet_cam_co_cam_mong_1',
+        'pet_tamon_b_side_1',
+        'pet_tamon_b_side_2',
+        'pet_trung_thu_nguyet_cung_tien_tu'
+    ]);
+
+    function isLuxuryCollectionItem(itemOrId) {
+        const item =
+            typeof itemOrId === 'object' && itemOrId
+                ? itemOrId
+                : null;
+
+        const itemId = String(
+            item?.id ??
+            itemOrId ??
+            ''
+        ).trim();
+
+        if (!itemId) return false;
+
+        if (item?.luxuryOnly === true) {
+            return true;
+        }
+
+        if (
+            COLLECTION_LUXURY_EXCLUDED_IDS.has(
+                itemId
+            )
+        ) {
+            return true;
+        }
+
+        try {
+            if (
+                window.LuxuryStore &&
+                typeof window.LuxuryStore
+                    .isLuxuryItem === 'function' &&
+                window.LuxuryStore
+                    .isLuxuryItem(itemId)
+            ) {
+                return true;
+            }
+        } catch (error) {
+            console.warn(
+                '[Sưu tầm] Không kiểm tra được LuxuryStore:',
+                error
+            );
+        }
+
+        return false;
+    }
+
     function getStoreItems() {
         try {
             if (
@@ -609,7 +703,10 @@
                  * Lấy trực tiếp từ StoreConfig.items để vật phẩm vẫn xuất hiện
                  * dù cửa hàng chính đang ẩn vì ngày bán, khóa hoặc điều kiện khác.
                  */
-                return StoreConfig.items.filter(Boolean);
+                return StoreConfig.items.filter(item => (
+                    Boolean(item) &&
+                    !isLuxuryCollectionItem(item)
+                ));
             }
         } catch (error) {
             console.warn('[Sưu tầm] Không đọc được StoreConfig.items:', error);
@@ -635,7 +732,12 @@
     function itemMatchesCollection(item, collection) {
         if (!item || !collection || collection.isAll) return false;
 
-        // Bộ sưu tập có excludeLuxury sẽ bỏ vật phẩm Luxury
+        // Toàn bộ trang Sưu tầm tuyệt đối không nhận vật phẩm Luxury.
+        if (isLuxuryCollectionItem(item)) {
+            return false;
+        }
+
+        // Giữ tương thích cờ excludeLuxury cũ của từng bộ.
         if (
             collection.excludeLuxury === true &&
             item.luxuryOnly === true

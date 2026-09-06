@@ -35,6 +35,1866 @@ window.showToast = function (message, type = 'error') {
 
 const currentUser = JSON.parse(localStorage.getItem('currentUser'));
 
+
+// ======================================================
+// TRUNG THU · LỊCH ÂM VIỆT NAM (UTC+7)
+// Tính ngày 15/8 âm lịch mà không cần Cloud Function/Scheduler.
+// ======================================================
+window.MidAutumnCalendar = window.MidAutumnCalendar || (() => {
+    const TZ = 7;
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const INT = Math.floor;
+    const PI = Math.PI;
+
+    function jdFromDate(dd, mm, yy) {
+        const a = INT((14 - mm) / 12);
+        const y = yy + 4800 - a;
+        const m = mm + 12 * a - 3;
+        let jd =
+            dd +
+            INT((153 * m + 2) / 5) +
+            365 * y +
+            INT(y / 4) -
+            INT(y / 100) +
+            INT(y / 400) -
+            32045;
+
+        if (jd < 2299161) {
+            jd =
+                dd +
+                INT((153 * m + 2) / 5) +
+                365 * y +
+                INT(y / 4) -
+                32083;
+        }
+
+        return jd;
+    }
+
+    function jdToDate(jd) {
+        let a;
+        let b;
+        let c;
+
+        if (jd > 2299160) {
+            a = jd + 32044;
+            b = INT((4 * a + 3) / 146097);
+            c = a - INT((b * 146097) / 4);
+        } else {
+            b = 0;
+            c = jd + 32082;
+        }
+
+        const d = INT((4 * c + 3) / 1461);
+        const e = c - INT((1461 * d) / 4);
+        const m = INT((5 * e + 2) / 153);
+
+        const day =
+            e -
+            INT((153 * m + 2) / 5) +
+            1;
+
+        const month =
+            m +
+            3 -
+            12 * INT(m / 10);
+
+        const year =
+            b * 100 +
+            d -
+            4800 +
+            INT(m / 10);
+
+        return [day, month, year];
+    }
+
+    function newMoon(k) {
+        const T = k / 1236.85;
+        const T2 = T * T;
+        const T3 = T2 * T;
+        const dr = PI / 180;
+
+        let jd1 =
+            2415020.75933 +
+            29.53058868 * k +
+            0.0001178 * T2 -
+            0.000000155 * T3;
+
+        jd1 +=
+            0.00033 *
+            Math.sin(
+                (166.56 +
+                    132.87 * T -
+                    0.009173 * T2) *
+                    dr
+            );
+
+        const M =
+            359.2242 +
+            29.10535608 * k -
+            0.0000333 * T2 -
+            0.00000347 * T3;
+
+        const Mpr =
+            306.0253 +
+            385.81691806 * k +
+            0.0107306 * T2 +
+            0.00001236 * T3;
+
+        const F =
+            21.2964 +
+            390.67050646 * k -
+            0.0016528 * T2 -
+            0.00000239 * T3;
+
+        let C1 =
+            (0.1734 - 0.000393 * T) *
+                Math.sin(M * dr) +
+            0.0021 *
+                Math.sin(2 * M * dr) -
+            0.4068 *
+                Math.sin(Mpr * dr) +
+            0.0161 *
+                Math.sin(2 * Mpr * dr) -
+            0.0004 *
+                Math.sin(3 * Mpr * dr) +
+            0.0104 *
+                Math.sin(2 * F * dr) -
+            0.0051 *
+                Math.sin((M + Mpr) * dr) -
+            0.0074 *
+                Math.sin((M - Mpr) * dr) +
+            0.0004 *
+                Math.sin((2 * F + M) * dr) -
+            0.0004 *
+                Math.sin((2 * F - M) * dr) -
+            0.0006 *
+                Math.sin((2 * F + Mpr) * dr) +
+            0.0010 *
+                Math.sin((2 * F - Mpr) * dr) +
+            0.0005 *
+                Math.sin((2 * Mpr + M) * dr);
+
+        let deltaT;
+
+        if (T < -11) {
+            deltaT =
+                0.001 +
+                0.000839 * T +
+                0.0002261 * T2 -
+                0.00000845 * T3 -
+                0.000000081 * T * T3;
+        } else {
+            deltaT =
+                -0.000278 +
+                0.000265 * T +
+                0.000262 * T2;
+        }
+
+        return jd1 + C1 - deltaT;
+    }
+
+    function getNewMoonDay(k) {
+        return INT(
+            newMoon(k) +
+            0.5 +
+            TZ / 24
+        );
+    }
+
+    function sunLongitude(jdn) {
+        const T =
+            (jdn - 2451545.0) /
+            36525;
+
+        const T2 = T * T;
+        const dr = PI / 180;
+
+        const M =
+            357.52910 +
+            35999.05030 * T -
+            0.0001559 * T2 -
+            0.00000048 * T * T2;
+
+        const L0 =
+            280.46645 +
+            36000.76983 * T +
+            0.0003032 * T2;
+
+        let DL =
+            (1.914600 -
+                0.004817 * T -
+                0.000014 * T2) *
+            Math.sin(dr * M);
+
+        DL +=
+            (0.019993 -
+                0.000101 * T) *
+                Math.sin(dr * 2 * M) +
+            0.000290 *
+                Math.sin(dr * 3 * M);
+
+        let L =
+            (L0 + DL) * dr;
+
+        L =
+            L -
+            PI *
+                2 *
+                INT(L / (PI * 2));
+
+        return L;
+    }
+
+    function getSunLongitude(dayNumber) {
+        return INT(
+            sunLongitude(
+                dayNumber -
+                    0.5 -
+                    TZ / 24
+            ) /
+                PI *
+                6
+        );
+    }
+
+    function getLunarMonth11(year) {
+        const off =
+            jdFromDate(
+                31,
+                12,
+                year
+            ) -
+            2415021;
+
+        const k =
+            INT(
+                off /
+                    29.530588853
+            );
+
+        let nm =
+            getNewMoonDay(k);
+
+        const sunLong =
+            getSunLongitude(nm);
+
+        if (sunLong >= 9) {
+            nm =
+                getNewMoonDay(
+                    k - 1
+                );
+        }
+
+        return nm;
+    }
+
+    function getLeapMonthOffset(a11) {
+        const k =
+            INT(
+                0.5 +
+                    (a11 -
+                        2415021.076998695) /
+                        29.530588853
+            );
+
+        let last = 0;
+        let i = 1;
+        let arc =
+            getSunLongitude(
+                getNewMoonDay(
+                    k + i
+                )
+            );
+
+        do {
+            last = arc;
+            i += 1;
+
+            arc =
+                getSunLongitude(
+                    getNewMoonDay(
+                        k + i
+                    )
+                );
+        } while (
+            arc !== last &&
+            i < 14
+        );
+
+        return i - 1;
+    }
+
+    function lunarToSolar(
+        lunarDay,
+        lunarMonth,
+        lunarYear,
+        lunarLeap = 0
+    ) {
+        let a11;
+        let b11;
+
+        if (lunarMonth < 11) {
+            a11 =
+                getLunarMonth11(
+                    lunarYear - 1
+                );
+
+            b11 =
+                getLunarMonth11(
+                    lunarYear
+                );
+        } else {
+            a11 =
+                getLunarMonth11(
+                    lunarYear
+                );
+
+            b11 =
+                getLunarMonth11(
+                    lunarYear + 1
+                );
+        }
+
+        const k =
+            INT(
+                0.5 +
+                    (a11 -
+                        2415021.076998695) /
+                        29.530588853
+            );
+
+        let off =
+            lunarMonth - 11;
+
+        if (off < 0) {
+            off += 12;
+        }
+
+        if (b11 - a11 > 365) {
+            const leapOff =
+                getLeapMonthOffset(
+                    a11
+                );
+
+            let leapMonth =
+                leapOff - 2;
+
+            if (leapMonth < 0) {
+                leapMonth += 12;
+            }
+
+            if (
+                lunarLeap !== 0 &&
+                lunarMonth !==
+                    leapMonth
+            ) {
+                return [0, 0, 0];
+            }
+
+            if (
+                lunarLeap !== 0 ||
+                off >= leapOff
+            ) {
+                off += 1;
+            }
+        }
+
+        const monthStart =
+            getNewMoonDay(
+                k + off
+            );
+
+        return jdToDate(
+            monthStart +
+                lunarDay -
+                1
+        );
+    }
+
+    function formatDateKey(
+        day,
+        month,
+        year
+    ) {
+        return (
+            String(year).padStart(4, '0') +
+            '-' +
+            String(month).padStart(2, '0') +
+            '-' +
+            String(day).padStart(2, '0')
+        );
+    }
+
+    function getFestivalInfo(year) {
+        const lunarYear =
+            Number(year);
+
+        const [
+            day,
+            month,
+            solarYear
+        ] = lunarToSolar(
+            15,
+            8,
+            lunarYear,
+            0
+        );
+
+        if (
+            !day ||
+            !month ||
+            !solarYear
+        ) {
+            throw new Error(
+                'MID_AUTUMN_DATE_ERROR'
+            );
+        }
+
+        const festivalStartAt =
+            Date.UTC(
+                solarYear,
+                month - 1,
+                day,
+                0,
+                0,
+                0,
+                0
+            ) -
+            TZ *
+                60 *
+                60 *
+                1000;
+
+        const festivalEndAt =
+            festivalStartAt +
+            DAY_MS -
+            1;
+
+        const autoGrantStartAt =
+            festivalStartAt -
+            5 * DAY_MS;
+
+        return {
+            year:
+                lunarYear,
+
+            festivalDateKey:
+                formatDateKey(
+                    day,
+                    month,
+                    solarYear
+                ),
+
+            festivalStartAt,
+            festivalEndAt,
+
+            autoGrantStartAt,
+            autoGrantEndAt:
+                festivalEndAt
+        };
+    }
+
+    function getVietnamYear(
+        timestamp = Date.now()
+    ) {
+        return new Date(
+            timestamp +
+                TZ *
+                    60 *
+                    60 *
+                    1000
+        ).getUTCFullYear();
+    }
+
+    function getVietnamDateKey(
+        timestamp = Date.now()
+    ) {
+        return new Date(
+            timestamp +
+                TZ *
+                    60 *
+                    60 *
+                    1000
+        )
+            .toISOString()
+            .slice(0, 10);
+    }
+
+    return {
+        TZ,
+        DAY_MS,
+        getFestivalInfo,
+        getVietnamYear,
+        getVietnamDateKey
+    };
+})();
+
+
+// ======================================================
+// XU TRUNG THU · HỌC SINH
+// - Ví xu không hết hạn.
+// - Tự phát 1 xu từ mốc D-5 đến hết ngày Trung Thu,
+//   nhưng chỉ một lần cho mỗi năm.
+// - Không có Scheduler: kiểm tra khi học sinh mở trang
+//   và lặp lại mỗi giờ nếu trang vẫn đang mở.
+// - Nguyệt Cung Tiên Tử: 2 Xu, chỉ đúng ngày Trung Thu.
+// - 5 vật phẩm bộ Trung Thu ở cửa hàng thường: 1 Xu/món, không dùng Coin.
+// ======================================================
+window.MidAutumnCoinManager = (() => {
+    const ITEM_ID =
+        'pet_trung_thu_nguyet_cung_tien_tu';
+
+    const ITEM_NAME =
+        'Nguyệt Cung Tiên Tử';
+
+    const ITEM_COST = 2;
+    const AUTO_GRANT_AMOUNT = 1;
+
+    const STORE_ITEM_COST = 1;
+
+    const STORE_ITEM_IDS =
+        new Set([
+            'pet_trung_thu_hang_nga_chibi_1',
+            'theme_trung_thu_nguyet_hoi_hoa_dang',
+            'effect_trung_thu_nguyet_trieu_luu_quang',
+            'frame_trung_thu_nguyet_que_hoa_hoan',
+            'background_trung_thu_nguyet_cung_hoa_dang_da'
+        ]);
+
+    let wallet = {
+        balance: 0
+    };
+
+    let serverTimeOffset = 0;
+    let walletListenerInstalled = false;
+    let hourlyTimer = null;
+
+    function getUsername() {
+        return String(
+            currentUser?.username || ''
+        ).trim();
+    }
+
+    function getNow() {
+        return (
+            Date.now() +
+            Number(
+                serverTimeOffset || 0
+            )
+        );
+    }
+
+    function normalizeWallet(value) {
+        const source =
+            value &&
+            typeof value === 'object'
+                ? value
+                : {};
+
+        return {
+            ...source,
+
+            balance:
+                Math.max(
+                    0,
+                    Number(
+                        source.balance || 0
+                    )
+                ),
+
+            autoGrants: {
+                ...(source.autoGrants ||
+                    {})
+            },
+
+            teacherGrants: {
+                ...(source.teacherGrants ||
+                    {})
+            },
+
+            teacherClaims: {
+                ...(source.teacherClaims ||
+                    {})
+            },
+
+            redemptions: {
+                ...(source.redemptions ||
+                    {})
+            }
+        };
+    }
+
+    function getWalletRef() {
+        const username =
+            getUsername();
+
+        if (!username) {
+            return null;
+        }
+
+        return db.ref(
+            `mid_autumn_wallets/${username}`
+        );
+    }
+
+    async function getCalendar(year) {
+        const localInfo =
+            window
+                .MidAutumnCalendar
+                .getFestivalInfo(year);
+
+        try {
+            const snapshot =
+                await db
+                    .ref(
+                        `mid_autumn_calendar/${year}`
+                    )
+                    .once('value');
+
+            const remote =
+                snapshot.val();
+
+            if (
+                remote &&
+                Number(
+                    remote.festivalStartAt
+                ) > 0 &&
+                Number(
+                    remote.festivalEndAt
+                ) > 0
+            ) {
+                return {
+                    ...localInfo,
+                    ...remote,
+                    year:
+                        Number(
+                            remote.year ||
+                            year
+                        )
+                };
+            }
+        } catch (error) {
+            console.warn(
+                '[Xu Trung Thu] Không đọc được lịch Firebase, dùng lịch tính cục bộ:',
+                error
+            );
+        }
+
+        return localInfo;
+    }
+
+    function getBalance() {
+        return Math.max(
+            0,
+            Number(
+                wallet?.balance || 0
+            )
+        );
+    }
+
+    function updateBalanceUI() {
+        const balance =
+            getBalance();
+
+        document
+            .querySelectorAll(
+                '[data-midautumn-coin-balance]'
+            )
+            .forEach(element => {
+                element.textContent =
+                    balance.toLocaleString(
+                        'vi-VN'
+                    );
+            });
+
+        document.dispatchEvent(
+            new CustomEvent(
+                'midautumn-wallet-updated',
+                {
+                    detail: {
+                        balance
+                    }
+                }
+            )
+        );
+
+        // Nếu Túi đồ đang mở thì làm mới ngay để Xu Trung Thu
+        // vừa được phát / giáo viên tặng xuất hiện tức thời.
+        const bagModal =
+            document.getElementById(
+                'studentBagModal'
+            );
+
+        if (
+            bagModal &&
+            bagModal.classList.contains(
+                'active'
+            ) &&
+            typeof window
+                .renderStudentBag ===
+                'function'
+        ) {
+            window.renderStudentBag();
+        }
+    }
+
+    function installWalletListener() {
+        if (walletListenerInstalled) {
+            return;
+        }
+
+        const walletRef =
+            getWalletRef();
+
+        if (!walletRef) {
+            return;
+        }
+
+        walletListenerInstalled = true;
+
+        walletRef.on(
+            'value',
+            snapshot => {
+                wallet =
+                    normalizeWallet(
+                        snapshot.val()
+                    );
+
+                window.studentMidAutumnWallet =
+                    wallet;
+
+                window.studentMidAutumnCoinBalance =
+                    getBalance();
+
+                updateBalanceUI();
+            }
+        );
+    }
+
+    async function autoGrantIfEligible() {
+        const walletRef =
+            getWalletRef();
+
+        if (!walletRef) {
+            return;
+        }
+
+        const now = getNow();
+
+        const year =
+            window
+                .MidAutumnCalendar
+                .getVietnamYear(now);
+
+        const calendar =
+            await getCalendar(year);
+
+        if (
+            now <
+                Number(
+                    calendar.autoGrantStartAt
+                ) ||
+            now >
+                Number(
+                    calendar.autoGrantEndAt
+                )
+        ) {
+            return;
+        }
+
+        const grantKey =
+            String(year);
+
+        const operationId =
+            `auto_${year}`;
+
+        try {
+            const tx =
+                await walletRef.transaction(
+                    current => {
+                        const next =
+                            normalizeWallet(
+                                current
+                            );
+
+                        if (
+                            next.autoGrants[
+                                grantKey
+                            ]
+                        ) {
+                            return;
+                        }
+
+                        next.balance =
+                            Number(
+                                next.balance || 0
+                            ) +
+                            AUTO_GRANT_AMOUNT;
+
+                        next.autoGrants[
+                            grantKey
+                        ] = {
+                            year:
+                                grantKey,
+
+                            amount:
+                                AUTO_GRANT_AMOUNT,
+
+                            festivalDateKey:
+                                calendar
+                                    .festivalDateKey,
+
+                            grantedAt:
+                                now,
+
+                            source:
+                                'annual_auto'
+                        };
+
+                        next.lastOperation = {
+                            type:
+                                'auto_grant',
+
+                            operationId:
+                                operationId,
+
+                            year:
+                                grantKey,
+
+                            amount:
+                                AUTO_GRANT_AMOUNT,
+
+                            festivalDateKey:
+                                calendar
+                                    .festivalDateKey,
+
+                            operatedAt:
+                                now
+                        };
+
+                        return next;
+                    },
+                    undefined,
+                    false
+                );
+
+            if (tx.committed) {
+                wallet =
+                    normalizeWallet(
+                        tx.snapshot.val()
+                    );
+
+                updateBalanceUI();
+
+                if (
+                    typeof window
+                        .showToast ===
+                    'function'
+                ) {
+                    window.showToast(
+                        `🌕 Trung Thu ${year}: hệ thống đã tặng bạn ${AUTO_GRANT_AMOUNT} Xu Trung Thu.`,
+                        'success'
+                    );
+                }
+            }
+        } catch (error) {
+            console.warn(
+                '[Xu Trung Thu] Chưa thể tự phát xu:',
+                error
+            );
+        }
+    }
+
+    async function isFestivalDay() {
+        const now =
+            getNow();
+
+        const year =
+            window
+                .MidAutumnCalendar
+                .getVietnamYear(now);
+
+        const calendar =
+            await getCalendar(year);
+
+        return {
+            ok:
+                now >=
+                    Number(
+                        calendar
+                            .festivalStartAt
+                    ) &&
+                now <=
+                    Number(
+                        calendar
+                            .festivalEndAt
+                    ),
+
+            year,
+            now,
+            calendar
+        };
+    }
+
+    function getRedeemConfig(itemId) {
+        const normalizedId =
+            String(itemId || '');
+
+        if (normalizedId === ITEM_ID) {
+            return {
+                itemId:
+                    ITEM_ID,
+
+                itemName:
+                    ITEM_NAME,
+
+                cost:
+                    ITEM_COST,
+
+                festivalOnly:
+                    true
+            };
+        }
+
+        if (!STORE_ITEM_IDS.has(normalizedId)) {
+            return null;
+        }
+
+        const storeItem =
+            typeof StoreManager !==
+                'undefined' &&
+            typeof StoreManager
+                .getItemById ===
+                'function'
+                ? StoreManager
+                    .getItemById(
+                        normalizedId
+                    )
+                : null;
+
+        if (
+            !storeItem ||
+            String(
+                storeItem.currency || ''
+            ) !==
+                'mid_autumn_coin'
+        ) {
+            return null;
+        }
+
+        const configuredCost =
+            Number(
+                storeItem
+                    .midAutumnCoinCost ||
+                storeItem.price ||
+                STORE_ITEM_COST
+            );
+
+        if (
+            !Number.isInteger(
+                configuredCost
+            ) ||
+            configuredCost !==
+                STORE_ITEM_COST
+        ) {
+            return null;
+        }
+
+        return {
+            itemId:
+                normalizedId,
+
+            itemName:
+                String(
+                    storeItem.name ||
+                    normalizedId
+                ),
+
+            cost:
+                STORE_ITEM_COST,
+
+            festivalOnly:
+                false
+        };
+    }
+
+    async function rollbackRedemption(
+        redemptionId,
+        now
+    ) {
+        const walletRef =
+            getWalletRef();
+
+        if (!walletRef) {
+            return;
+        }
+
+        await walletRef.transaction(
+            current => {
+                const next =
+                    normalizeWallet(
+                        current
+                    );
+
+                const redemption =
+                    next.redemptions?.[
+                        redemptionId
+                    ];
+
+                if (
+                    !redemption ||
+                    redemption.status !==
+                        'reserved'
+                ) {
+                    return;
+                }
+
+                const amount =
+                    Number(
+                        redemption.amount || 0
+                    );
+
+                const validAmount =
+                    (
+                        redemption.itemId ===
+                            ITEM_ID &&
+                        amount === ITEM_COST
+                    ) ||
+                    (
+                        STORE_ITEM_IDS.has(
+                            String(
+                                redemption.itemId ||
+                                ''
+                            )
+                        ) &&
+                        amount ===
+                            STORE_ITEM_COST
+                    );
+
+                if (!validAmount) {
+                    return;
+                }
+
+                next.balance =
+                    Number(
+                        next.balance || 0
+                    ) +
+                    amount;
+
+                delete next.redemptions[
+                    redemptionId
+                ];
+
+                next.lastOperation = {
+                    type:
+                        'rollback_redeem',
+
+                    operationId:
+                        redemptionId,
+
+                    year:
+                        String(
+                            redemption.year ||
+                            ''
+                        ),
+
+                    amount:
+                        amount,
+
+                    operatedAt:
+                        now
+                };
+
+                return next;
+            },
+            undefined,
+            false
+        );
+    }
+
+    async function redeem(itemId) {
+        const config =
+            getRedeemConfig(itemId);
+
+        if (!config) {
+            return false;
+        }
+
+        if (
+            window.isOffline ||
+            !navigator.onLine
+        ) {
+            alert(
+                '❌ Mất kết nối mạng. Không thể đổi Xu Trung Thu lúc này.'
+            );
+            return true;
+        }
+
+        const username =
+            getUsername();
+
+        if (!username) {
+            alert(
+                '❌ Không xác định được tài khoản học sinh.'
+            );
+            return true;
+        }
+
+        const now =
+            getNow();
+
+        const year =
+            window
+                .MidAutumnCalendar
+                .getVietnamYear(now);
+
+        const calendar =
+            await getCalendar(year);
+
+        if (config.festivalOnly) {
+            const festivalNow =
+                now >=
+                    Number(
+                        calendar
+                            .festivalStartAt
+                    ) &&
+                now <=
+                    Number(
+                        calendar
+                            .festivalEndAt
+                    );
+
+            if (!festivalNow) {
+                alert(
+                    `🌕 ${config.itemName} chỉ đổi được đúng ngày Trung Thu.\n` +
+                    `Trung Thu ${year}: ${calendar.festivalDateKey}.\n\n` +
+                    `Xu Trung Thu không hết hạn sử dụng và được giữ lại cho các năm sau.\n` +
+                    `Khi đổi ${config.itemName}, hệ thống sẽ trừ ${config.cost} Xu khỏi số dư.`
+                );
+
+                return true;
+            }
+        }
+
+        const inventoryRef =
+            db.ref(
+                `student_inventory/${username}/${config.itemId}`
+            );
+
+        const existing =
+            await inventoryRef.once(
+                'value'
+            );
+
+        if (existing.exists()) {
+            alert(
+                `✅ Bạn đã sở hữu ${config.itemName}.`
+            );
+
+            return true;
+        }
+
+        const walletRef =
+            getWalletRef();
+
+        if (!walletRef) {
+            alert(
+                '❌ Ví Xu Trung Thu chưa sẵn sàng.'
+            );
+            return true;
+        }
+
+        const redemptionId =
+            config.festivalOnly
+                ? `nguyet_cung_${year}`
+                : (
+                    `midautumn_store_` +
+                    `${config.itemId}_` +
+                    `${now}_` +
+                    `${Math.random()
+                        .toString(36)
+                        .slice(2, 8)}`
+                );
+
+        let walletTx;
+
+        try {
+                walletTx =
+                    await walletRef.transaction(
+                    current => {
+                        const next =
+                            normalizeWallet(
+                                current
+                            );
+
+                        if (
+                            next.redemptions?.[
+                                redemptionId
+                            ]
+                        ) {
+                            return;
+                        }
+
+                        if (
+                            Number(
+                                next.balance || 0
+                            ) <
+                            config.cost
+                        ) {
+                            return;
+                        }
+
+                        next.balance =
+                            Number(
+                                next.balance || 0
+                            ) -
+                            config.cost;
+
+                        next.redemptions[
+                            redemptionId
+                        ] = {
+                            id:
+                                redemptionId,
+
+                            itemId:
+                                config.itemId,
+
+                            amount:
+                                config.cost,
+
+                            year:
+                                String(year),
+
+                            festivalDateKey:
+                                String(
+                                    calendar
+                                        .festivalDateKey ||
+                                    ''
+                                ),
+
+                            status:
+                                'reserved',
+
+                            redeemedAt:
+                                now
+                        };
+
+                        next.lastOperation = {
+                            type:
+                                'redeem',
+
+                            operationId:
+                                redemptionId,
+
+                            year:
+                                String(year),
+
+                            amount:
+                                config.cost,
+
+                            festivalDateKey:
+                                String(
+                                    calendar
+                                        .festivalDateKey ||
+                                    ''
+                                ),
+
+                            operatedAt:
+                                now
+                        };
+
+                        return next;
+                    },
+                    undefined,
+                    false
+                );
+        } catch (walletError) {
+            console.error(
+                '[Xu Trung Thu] Transaction bị Firebase từ chối:',
+                walletError
+            );
+
+            const denied =
+                String(
+                    walletError?.code ||
+                    walletError?.message ||
+                    ''
+                )
+                    .toLowerCase()
+                    .includes(
+                        'permission_denied'
+                    );
+
+            alert(
+                denied
+                    ? (
+                        '❌ Firebase Rules đang chặn giao dịch Xu Trung Thu.\n' +
+                        'Xu trong Túi đồ và Xu mua vật phẩm là CÙNG MỘT VÍ.\n' +
+                        'Hãy cập nhật Rules V10 rồi thử lại.'
+                    )
+                    : (
+                        '❌ Không thể xử lý giao dịch Xu Trung Thu lúc này.'
+                    )
+            );
+
+            return true;
+        }
+
+        if (!walletTx.committed) {
+            const latest =
+                normalizeWallet(
+                    walletTx.snapshot.val()
+                );
+
+            if (
+                Number(
+                    latest.balance || 0
+                ) <
+                config.cost
+            ) {
+                alert(
+                    `❌ Bạn cần ${config.cost} Xu Trung Thu để đổi ${config.itemName}.\n` +
+                    `Hiện có: ${Number(latest.balance || 0)} Xu.`
+                );
+            } else {
+                alert(
+                    '⚠️ Giao dịch này đã được xử lý ở một tab khác.'
+                );
+            }
+
+            return true;
+        }
+
+        let itemAdded = false;
+
+        try {
+            const itemTx =
+                await inventoryRef.transaction(
+                    existingItem => {
+                        if (
+                            existingItem &&
+                            existingItem.id
+                        ) {
+                            return;
+                        }
+
+                        return {
+                            id:
+                                config.itemId,
+
+                            purchaseTime:
+                                now,
+
+                            source:
+                                'mid_autumn_coin',
+
+                            midAutumnYear:
+                                String(year),
+
+                            midAutumnRedemptionId:
+                                redemptionId,
+
+                            midAutumnCoinCost:
+                                config.cost,
+
+                            isTrial:
+                                null,
+
+                            trialExpiry:
+                                null,
+
+                            isEquipped:
+                                true
+                        };
+                    },
+                    undefined,
+                    false
+                );
+
+            if (!itemTx.committed) {
+                throw new Error(
+                    'MID_AUTUMN_ITEM_ALREADY_OWNED'
+                );
+            }
+
+            itemAdded = true;
+
+            try {
+                await walletRef
+                    .child(
+                        `redemptions/${redemptionId}`
+                    )
+                    .update({
+                        status:
+                            'completed',
+
+                        completedAt:
+                            getNow()
+                    });
+            } catch (completeError) {
+                console.warn(
+                    '[Xu Trung Thu] Đã thêm vật phẩm nhưng chưa đánh dấu completed:',
+                    completeError
+                );
+            }
+
+            if (
+                typeof StoreManager !==
+                    'undefined' &&
+                typeof StoreManager
+                    .applyItem ===
+                    'function'
+            ) {
+                await StoreManager.applyItem(
+                    config.itemId
+                );
+            }
+
+            if (
+                window.TransactionHistory
+            ) {
+                await window
+                    .TransactionHistory
+                    .recordSafe({
+                        type:
+                            'store_purchase',
+
+                        summary:
+                            `Đổi vật phẩm: ${config.itemName}`,
+
+                        source:
+                            'mid_autumn_store',
+
+                        targetUsername:
+                            username,
+
+                        targetName:
+                            currentUser.name ||
+                            username,
+
+                        amount:
+                            -config.cost,
+
+                        unit:
+                            'Xu Trung Thu',
+
+                        reversible:
+                            false,
+
+                        nonReversibleReason:
+                            'Vật phẩm Trung Thu đã được đổi bằng Xu Trung Thu.',
+
+                        details: {
+                            itemId:
+                                config.itemId,
+
+                            itemName:
+                                config.itemName,
+
+                            redemptionId:
+                                redemptionId,
+
+                            midAutumnYear:
+                                String(year),
+
+                            festivalDateKey:
+                                String(
+                                    calendar
+                                        .festivalDateKey ||
+                                    ''
+                                ),
+
+                            festivalOnly:
+                                config
+                                    .festivalOnly ===
+                                true
+                        }
+                    });
+            }
+
+            const remainingMidAutumnCoins =
+                Math.max(
+                    0,
+                    Number(
+                        walletTx.snapshot
+                            .child('balance')
+                            .val() || 0
+                    )
+                );
+
+            alert(
+                `🎉 Đổi thành công ${config.itemName}!\n` +
+                `Đã trừ ${config.cost} Xu Trung Thu.\n` +
+                `Số dư còn lại: ${remainingMidAutumnCoins} Xu.`
+            );
+
+            if (
+                window.LuxuryStore &&
+                typeof window
+                    .LuxuryStore
+                    .refresh ===
+                    'function'
+            ) {
+                window
+                    .LuxuryStore
+                    .refresh();
+            }
+
+            if (
+                typeof window.filterStore ===
+                    'function'
+            ) {
+                window.filterStore(
+                    window
+                        .currentStoreFilterType ||
+                    'all'
+                );
+            }
+        } catch (error) {
+            console.error(
+                '[Xu Trung Thu] Đổi vật phẩm thất bại:',
+                error
+            );
+
+            if (!itemAdded) {
+                try {
+                    await rollbackRedemption(
+                        redemptionId,
+                        getNow()
+                    );
+                } catch (
+                    rollbackError
+                ) {
+                    console.error(
+                        '[Xu Trung Thu] Hoàn xu thất bại:',
+                        rollbackError
+                    );
+                }
+            }
+
+            alert(
+                error.message ===
+                    'MID_AUTUMN_ITEM_ALREADY_OWNED'
+                    ? `✅ Bạn đã sở hữu ${config.itemName}. Xu đã được hoàn lại.`
+                    : '❌ Không thể đổi vật phẩm. Hệ thống đã cố gắng hoàn lại Xu Trung Thu.'
+            );
+        }
+
+        return true;
+    }
+
+    async function claimTeacherGift(
+        msgKey,
+        quantity
+    ) {
+        const walletRef =
+            getWalletRef();
+
+        if (!walletRef) {
+            throw new Error(
+                'MID_AUTUMN_WALLET_NOT_READY'
+            );
+        }
+
+        const amount =
+            Number(quantity);
+
+        if (
+            !Number.isInteger(amount) ||
+            amount <= 0
+        ) {
+            throw new Error(
+                'INVALID_MID_AUTUMN_COIN_QUANTITY'
+            );
+        }
+
+        const now =
+            getNow();
+
+        const tx =
+            await walletRef.transaction(
+                current => {
+                    const next =
+                        normalizeWallet(
+                            current
+                        );
+
+                    if (
+                        next.teacherClaims?.[
+                            msgKey
+                        ] ||
+                        next.teacherGrants?.[
+                            msgKey
+                        ]
+                    ) {
+                        return;
+                    }
+
+                    next.balance =
+                        Number(
+                            next.balance || 0
+                        ) +
+                        amount;
+
+                    next.teacherClaims[
+                        msgKey
+                    ] = {
+                        id:
+                            msgKey,
+
+                        amount,
+                        claimedAt:
+                            now,
+
+                        source:
+                            'teacher_gift'
+                    };
+
+                    next.lastOperation = {
+                        type:
+                            'teacher_claim',
+
+                        operationId:
+                            msgKey,
+
+                        amount,
+                        operatedAt:
+                            now
+                    };
+
+                    return next;
+                },
+                undefined,
+                false
+            );
+
+        if (tx.committed) {
+            wallet =
+                normalizeWallet(
+                    tx.snapshot.val()
+                );
+
+            window.studentMidAutumnWallet =
+                wallet;
+
+            window.studentMidAutumnCoinBalance =
+                getBalance();
+
+            updateBalanceUI();
+        }
+
+        return tx;
+    }
+
+    async function init() {
+        const username =
+            getUsername();
+
+        if (
+            !username ||
+            currentUser?.role ===
+                'teacher'
+        ) {
+            return;
+        }
+
+        try {
+            db.ref(
+                '.info/serverTimeOffset'
+            ).on(
+                'value',
+                snapshot => {
+                    serverTimeOffset =
+                        Number(
+                            snapshot.val() ||
+                            0
+                        );
+                }
+            );
+        } catch (error) {
+            console.warn(
+                '[Xu Trung Thu] Không đọc được serverTimeOffset:',
+                error
+            );
+        }
+
+        installWalletListener();
+
+        await autoGrantIfEligible();
+
+        if (hourlyTimer) {
+            clearInterval(
+                hourlyTimer
+            );
+        }
+
+        hourlyTimer =
+            setInterval(
+                () => {
+                    autoGrantIfEligible()
+                        .catch(() => {});
+                },
+                60 *
+                    60 *
+                    1000
+            );
+    }
+
+    async function debugWallet() {
+        const username =
+            getUsername();
+
+        const authUser =
+            window.firebase?.auth
+                ? window.firebase.auth().currentUser
+                : (
+                    typeof firebase !== 'undefined' &&
+                    firebase.auth
+                        ? firebase.auth().currentUser
+                        : null
+                );
+
+        const uid =
+            authUser?.uid || '';
+
+        let profileUsername =
+            '';
+
+        try {
+            if (uid) {
+                profileUsername =
+                    String(
+                        (
+                            await db
+                                .ref(
+                                    `users/${uid}/username`
+                                )
+                                .once('value')
+                        ).val() || ''
+                    );
+            }
+        } catch (error) {
+            console.warn(
+                '[Xu Trung Thu] Không đọc được users/<uid>/username:',
+                error
+            );
+        }
+
+        const result = {
+            currentUserUsername:
+                username,
+
+            firebaseUid:
+                uid,
+
+            firebaseProfileUsername:
+                profileUsername,
+
+            walletPath:
+                username
+                    ? `mid_autumn_wallets/${username}`
+                    : null,
+
+            walletBalance:
+                getBalance(),
+
+            bagBalance:
+                Number(
+                    window
+                        .studentMidAutumnCoinBalance ||
+                    0
+                ),
+
+            sameUsername:
+                !uid ||
+                !profileUsername ||
+                profileUsername === username
+        };
+
+        console.table(result);
+
+        return result;
+    }
+
+    return {
+        ITEM_ID,
+        ITEM_NAME,
+        ITEM_COST,
+        STORE_ITEM_COST,
+        STORE_ITEM_IDS,
+        AUTO_GRANT_AMOUNT,
+
+        init,
+        getNow,
+        getBalance,
+        getCalendar,
+        isFestivalDay,
+        debugWallet,
+        redeem,
+        claimTeacherGift,
+        autoGrantIfEligible,
+        updateBalanceUI
+    };
+})();
+
+window.redeemMidAutumnItem =
+    function (itemId) {
+        return window
+            .MidAutumnCoinManager
+            .redeem(itemId);
+    };
+
+function initializeMidAutumnCoinSystem() {
+    let attempts = 0;
+
+    const start = () => {
+        attempts += 1;
+
+        if (
+            typeof db ===
+            'undefined'
+        ) {
+            if (attempts < 30) {
+                setTimeout(
+                    start,
+                    500
+                );
+            }
+
+            return;
+        }
+
+        window
+            .MidAutumnCoinManager
+            .init()
+            .catch(error => {
+                console.warn(
+                    '[Xu Trung Thu] Khởi tạo chưa hoàn tất:',
+                    error
+                );
+            });
+    };
+
+    start();
+}
+
+if (
+    document.readyState ===
+    'loading'
+) {
+    document.addEventListener(
+        'DOMContentLoaded',
+        initializeMidAutumnCoinSystem,
+        {
+            once: true
+        }
+    );
+} else {
+    initializeMidAutumnCoinSystem();
+}
+
+
 // ======================================================
 // HỖ TRỢ FILE ÂM THANH TRONG BÀI TẬP
 // ======================================================
@@ -450,6 +2310,268 @@ function getStudentCompatSubmissionUsername(submission) {
     );
 }
 
+// ======================================================
+// PHẠM VI LÀM LẠI + LỊCH SỬ VI PHẠM
+// ======================================================
+function getStudentRedoViolationHistory(submission) {
+    const raw =
+        submission &&
+        typeof submission.redoViolationHistory === 'object' &&
+        submission.redoViolationHistory !== null
+            ? submission.redoViolationHistory
+            : {};
+
+    return {
+        essayMissing: !!raw.essayMissing,
+        late: !!raw.late,
+        autoSubmitted: !!raw.autoSubmitted,
+        cheat: !!raw.cheat
+    };
+}
+
+function mergeStudentRedoViolationHistory(submission) {
+    const history = getStudentRedoViolationHistory(
+        submission
+    );
+
+    return {
+        essayMissing:
+            history.essayMissing ||
+            !!submission?.isEssayMissing,
+        late:
+            history.late ||
+            !!submission?.isLateFail,
+        autoSubmitted:
+            history.autoSubmitted ||
+            !!submission?.isAutoSubmitted,
+        cheat:
+            history.cheat ||
+            !!submission?.isCheatFail
+    };
+}
+
+function getStudentRedoScope(submission, assignment) {
+    if (!submission?.isRedoing) {
+        return 'both';
+    }
+
+    const raw = String(
+        submission.redoScope ||
+        'both'
+    ).toLowerCase();
+
+    if (
+        raw === 'essay' ||
+        raw === 'mc' ||
+        raw === 'both'
+    ) {
+        return raw;
+    }
+
+    // Bài làm lại cũ chưa có redoScope: giữ hành vi cũ, mở toàn bộ.
+    return 'both';
+}
+
+function studentRedoAllowsMultipleChoice(
+    submission,
+    assignment
+) {
+    if (!submission?.isRedoing) return true;
+
+    const scope = getStudentRedoScope(
+        submission,
+        assignment
+    );
+
+    return scope === 'mc' || scope === 'both';
+}
+
+function studentRedoAllowsEssay(
+    submission,
+    assignment
+) {
+    if (!submission?.isRedoing) return true;
+
+    const scope = getStudentRedoScope(
+        submission,
+        assignment
+    );
+
+    return scope === 'essay' || scope === 'both';
+}
+
+function getStudentRedoScopeLabel(scope) {
+    if (scope === 'essay') return 'chỉ phần Tự luận';
+    if (scope === 'mc') return 'chỉ phần Trắc nghiệm';
+    return 'cả Trắc nghiệm và Tự luận';
+}
+
+function getStudentStoredExamSet(submission, assignment) {
+    const storedQuestions =
+        Array.isArray(submission?.questionSnapshot) &&
+        submission.questionSnapshot.length > 0
+            ? submission.questionSnapshot
+            : null;
+
+    if (storedQuestions) {
+        return {
+            questions: storedQuestions,
+            versionCode:
+                submission?.examVersionCode ||
+                'Gốc',
+            versionIndex:
+                Number(
+                    submission?.examVersionIndex
+                ) || 0,
+            randomized:
+                Boolean(
+                    submission?.examVersionCode &&
+                    submission.examVersionCode !== 'Gốc'
+                )
+        };
+    }
+
+    return window.getStudentExamQuestions(
+        assignment
+    );
+}
+
+function getStudentStoredMultipleChoiceText(
+    submission,
+    assignment,
+    examSet
+) {
+    const existingAnswer = String(
+        submission?.answer ||
+        ''
+    );
+
+    const storedMatch = existingAnswer.match(
+        /\[PHẦN TRẮC NGHIỆM\]\s*([\s\S]*?)(?=\n{2,}\[PHẦN TỰ LUẬN\]|$)/i
+    );
+
+    if (storedMatch?.[1]?.trim()) {
+        return storedMatch[1].trim();
+    }
+
+    const questions =
+        Array.isArray(examSet?.questions)
+            ? examSet.questions
+            : [];
+
+    const answers =
+        submission?.mcAnswers &&
+        typeof submission.mcAnswers === 'object'
+            ? submission.mcAnswers
+            : {};
+
+    if (questions.length === 0) {
+        return '';
+    }
+
+    let score = 0;
+    const lines = questions.map((question, index) => {
+        const selected =
+            answers[index] ??
+            answers[String(index)] ??
+            '';
+
+        if (!selected) {
+            return `Câu ${index + 1}: Chưa chọn` +
+                (
+                    question?.correct
+                        ? ` (Đúng là ${question.correct})`
+                        : ''
+                );
+        }
+
+        const isCorrect =
+            question?.correct &&
+            String(selected) ===
+                String(question.correct);
+
+        if (isCorrect) score++;
+
+        return `Câu ${index + 1}: Chọn ${selected} ` +
+            (
+                question?.correct
+                    ? (
+                        isCorrect
+                            ? '✅'
+                            : `❌ (Đúng là ${question.correct})`
+                    )
+                    : ''
+            );
+    });
+
+    if (assignment?.assessmentType === 'trac_nghiem') {
+        const scale10 =
+            Math.round(
+                (score / questions.length) * 100
+            ) / 10;
+
+        lines.push(
+            '',
+            `=> 🎯 CHẤM ĐIỂM TỰ ĐỘNG: ${score} / ${questions.length} (Đạt ${scale10} / 10 điểm)`
+        );
+    } else {
+        const weight = Number(
+            assignment?.mcWeight || 5
+        );
+
+        const weightedScore =
+            Math.round(
+                (score / questions.length) *
+                weight *
+                100
+            ) / 100;
+
+        lines.push(
+            '',
+            `=> 🎯 CHẤM TỰ ĐỘNG PHẦN TRẮC NGHIỆM: ${score} / ${questions.length} (Đạt ${weightedScore} / ${weight} điểm)`
+        );
+    }
+
+    return lines.join('\n');
+}
+
+function getStudentStoredEssayText(submission) {
+    const rawEssay =
+        typeof submission?.rawEssay === 'string'
+            ? submission.rawEssay
+            : '';
+
+    if (rawEssay.trim()) {
+        return rawEssay;
+    }
+
+    const existingAnswer = String(
+        submission?.answer ||
+        ''
+    );
+
+    const essayMarker = '[PHẦN TỰ LUẬN]';
+    const markerIndex = existingAnswer.indexOf(
+        essayMarker
+    );
+
+    if (markerIndex >= 0) {
+        return existingAnswer
+            .slice(markerIndex + essayMarker.length)
+            .replace(/^\s+/, '');
+    }
+
+    // Bài tự luận cũ có thể chỉ lưu answer mà chưa có rawEssay/marker.
+    if (
+        existingAnswer &&
+        !existingAnswer.includes('[PHẦN TRẮC NGHIỆM]')
+    ) {
+        return existingAnswer;
+    }
+
+    return '';
+}
+
 function getStudentAssignmentDescHTML(value) {
     const normalized = String(value || '')
         .replace(
@@ -482,6 +2604,14 @@ function normalizeStoreItemId(value) {
  */
 function isCoinPurchasableStoreItem(item) {
     if (!item) return false;
+
+    if (
+        String(item.currency || '') ===
+            'mid_autumn_coin' ||
+        Number(item.midAutumnCoinCost || 0) > 0
+    ) {
+        return false;
+    }
 
     const price = Number(item.price);
 
@@ -1646,6 +3776,27 @@ window.onload = async function () {
         }
         if (startupLoader) startupLoader.markReady('student-wheel-settings');
     });
+
+
+    // Đồng bộ thời gian Firebase để Giờ Vàng không phụ thuộc hoàn toàn vào đồng hồ máy học sinh.
+    listenFirebase(
+        db.ref('.info/serverTimeOffset'),
+        'value',
+        snapshot => {
+            window.luckyWheelServerTimeOffset =
+                Number(snapshot.val()) || 0;
+
+            if (
+                typeof renderLuckyWheelGoldenHourNotice === 'function'
+            ) {
+                renderLuckyWheelGoldenHourNotice();
+            }
+        }
+    );
+
+    // Cấu hình Giờ Vàng: dùng listener Firebase trực tiếp để học sinh
+    // nhận thay đổi của giáo viên ngay lập tức, không cần F5.
+    startLuckyWheelGoldenHourRealtimeSync();
 
     // ==========================================
     // DÁN ĐOẠN LẮNG NGHE COIN VÀO ĐÂY LÀ HẾT LỖI
@@ -3707,10 +5858,604 @@ function getPreferredStudentSubmission(
     return preferred;
 }
 
+
+// ==============================================================
+// TỐI ƯU DANH SÁCH HỌC SINH
+// - Firebase assignments/submissions đã được listener tải vào cache.
+// - Tìm kiếm chạy trực tiếp trên cache, không quét innerText DOM.
+// - Chỉ render một "cửa sổ" card nhỏ cho Bài tập cần làm / Kết quả học tập.
+// - "Tải thêm" tăng cửa sổ đúng trong tập kết quả đang tìm.
+// ==============================================================
+const STUDENT_LIST_PAGE_SIZE = 16;
+const STUDENT_LIST_SEARCH_DELAY = 160;
+
+window.studentListViewState =
+    window.studentListViewState || {
+        todoQuery: '',
+        gradesQuery: '',
+        todoLimit: STUDENT_LIST_PAGE_SIZE,
+        gradesLimit: STUDENT_LIST_PAGE_SIZE
+    };
+
+let studentListSearchTimer = null;
+const studentVideoTrackingCache = new Map();
+const STUDENT_TRACKING_CACHE_TTL = 20 * 1000;
+
+function normalizeStudentListSearchText(value) {
+    return String(value ?? '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/đ/g, 'd')
+        .replace(/Đ/g, 'D')
+        .toLowerCase()
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function getStudentListAssignmentId(assign) {
+    return String(
+        assign?.id ||
+        assign?._fbKey ||
+        ''
+    );
+}
+
+function isStudentListAssignmentTargeted(assign) {
+    const targets = Array.isArray(assign?.targetStudent)
+        ? assign.targetStudent
+        : [assign?.targetStudent || 'all'];
+
+    return (
+        targets.includes('all') ||
+        targets.includes(currentUser.username)
+    );
+}
+
+function getStudentListDateMs(value) {
+    const text = String(value || '').trim();
+
+    if (!text) return null;
+
+    const parsed = new Date(
+        text.includes('T')
+            ? text
+            : text.replace(' ', 'T')
+    ).getTime();
+
+    return Number.isFinite(parsed)
+        ? parsed
+        : null;
+}
+
+function getStudentListBucket(assign, submissions, nowMs) {
+    const mySub =
+        getPreferredStudentSubmission(
+            submissions,
+            assign,
+            currentUser.username
+        );
+
+    const endMs =
+        getStudentListDateMs(
+            assign?.endDate
+        );
+
+    const isRedoing =
+        mySub?.isRedoing === true;
+
+    const isGracePeriod =
+        endMs !== null &&
+        nowMs > endMs &&
+        nowMs <= endMs + 5 * 60 * 1000;
+
+    return (
+        mySub &&
+        !isRedoing &&
+        !isGracePeriod
+    )
+        ? {
+            bucket: 'grades',
+            submission: mySub
+        }
+        : {
+            bucket: 'todo',
+            submission: mySub
+        };
+}
+
+function getStudentListSearchHaystack(
+    assign,
+    submission,
+    bucket
+) {
+    const typeLabels = {
+        trac_nghiem: 'trac nghiem',
+        ket_hop: 'ket hop',
+        thi: 'thi kiem tra',
+        tu_luan: 'tu luan'
+    };
+
+    const base = [
+        assign?.title,
+        assign?.description,
+        assign?.essayPrompt,
+        assign?.assessmentType,
+        typeLabels[assign?.assessmentType],
+        assign?.startDate,
+        assign?.endDate
+    ];
+
+    if (bucket === 'grades' && submission) {
+        base.push(
+            submission?.grade,
+            submission?.submitTime,
+            submission?.teacherComment,
+            submission?.isRegrading
+                ? 'dang cham lai'
+                : '',
+            submission?.isCheatFail
+                ? 'vi pham'
+                : ''
+        );
+    }
+
+    return normalizeStudentListSearchText(
+        base.filter(Boolean).join(' ')
+    );
+}
+
+function buildStudentListSelection(
+    assignments,
+    submissions,
+    nowMs
+) {
+    const state =
+        window.studentListViewState;
+
+    const todoQuery =
+        normalizeStudentListSearchText(
+            state.todoQuery
+        );
+
+    const gradesQuery =
+        normalizeStudentListSearchText(
+            state.gradesQuery
+        );
+
+    const todoMatches = [];
+    const gradeMatches = [];
+
+    assignments.forEach(assign => {
+        if (
+            !isStudentListAssignmentTargeted(
+                assign
+            )
+        ) {
+            return;
+        }
+
+        const {
+            bucket,
+            submission
+        } = getStudentListBucket(
+            assign,
+            submissions,
+            nowMs
+        );
+
+        const haystack =
+            getStudentListSearchHaystack(
+                assign,
+                submission,
+                bucket
+            );
+
+        if (bucket === 'grades') {
+            if (
+                !gradesQuery ||
+                haystack.includes(gradesQuery)
+            ) {
+                gradeMatches.push(assign);
+            }
+        } else if (
+            !todoQuery ||
+            haystack.includes(todoQuery)
+        ) {
+            todoMatches.push(assign);
+        }
+    });
+
+    const visibleTodo =
+        todoMatches.slice(
+            0,
+            state.todoLimit
+        );
+
+    const visibleGrades =
+        gradeMatches.slice(
+            0,
+            state.gradesLimit
+        );
+
+    return {
+        todoIds: new Set(
+            visibleTodo.map(
+                getStudentListAssignmentId
+            )
+        ),
+        gradeIds: new Set(
+            visibleGrades.map(
+                getStudentListAssignmentId
+            )
+        ),
+        visibleTodo,
+        visibleGrades,
+        todoTotal: todoMatches.length,
+        gradesTotal: gradeMatches.length
+    };
+}
+
+function pruneStudentListContainer(
+    container,
+    keepIds
+) {
+    if (!container) return;
+
+    Array.from(
+        container.querySelectorAll(
+            ':scope > .card[data-id]'
+        )
+    ).forEach(card => {
+        const id =
+            String(
+                card.getAttribute(
+                    'data-id'
+                ) || ''
+            );
+
+        if (!keepIds.has(id)) {
+            if (
+                window.assignTimersObj?.[id]
+            ) {
+                clearInterval(
+                    window.assignTimersObj[id]
+                );
+                delete window.assignTimersObj[id];
+            }
+
+            card.remove();
+        }
+    });
+}
+
+function upsertStudentLoadMoreButton(
+    container,
+    type,
+    shown,
+    total
+) {
+    if (!container) return;
+
+    const id =
+        type === 'todo'
+            ? 'btnLoadMoreStudentTodo'
+            : 'btnLoadMoreStudentGrades';
+
+    let button =
+        document.getElementById(id);
+
+    if (!button) {
+        button =
+            document.createElement(
+                'button'
+            );
+
+        button.id = id;
+        button.type = 'button';
+        button.className =
+            'btn-approve student-list-load-more';
+
+        button.style.cssText =
+            'display:block; margin:14px auto 22px; padding:10px 20px; width:auto;';
+
+        button.onclick = () =>
+            window.loadMoreStudentList(
+                type
+            );
+
+        container.after(button);
+    }
+
+    const hasMore =
+        shown < total;
+
+    button.style.display =
+        hasMore ? 'block' : 'none';
+
+    button.disabled = false;
+
+    button.textContent =
+        type === 'todo'
+            ? `⬇️ Tải thêm bài tập (${shown}/${total})`
+            : `⬇️ Tải thêm kết quả (${shown}/${total})`;
+}
+
+function renderStudentListEmptyState(
+    container,
+    type,
+    total
+) {
+    if (!container) return;
+
+    const className =
+        'student-list-empty-state';
+
+    const old =
+        container.querySelector(
+            `:scope > .${className}`
+        );
+
+    if (total > 0) {
+        old?.remove();
+        return;
+    }
+
+    if (old) return;
+
+    const state =
+        window.studentListViewState;
+
+    const hasQuery =
+        type === 'todo'
+            ? normalizeStudentListSearchText(
+                state.todoQuery
+            ) !== ''
+            : normalizeStudentListSearchText(
+                state.gradesQuery
+            ) !== '';
+
+    const p =
+        document.createElement('p');
+
+    p.className = className;
+    p.style.cssText =
+        'text-align:center; color:#64748b; padding:18px; font-style:italic;';
+
+    p.textContent = hasQuery
+        ? '🔎 Không tìm thấy bài phù hợp trong toàn bộ dữ liệu.'
+        : (
+            type === 'todo'
+                ? 'Hiện không có bài tập cần làm.'
+                : 'Chưa có kết quả học tập.'
+        );
+
+    container.appendChild(p);
+}
+
+function refreshStudentListControls(
+    selection,
+    list,
+    grades
+) {
+    upsertStudentLoadMoreButton(
+        list,
+        'todo',
+        selection.visibleTodo.length,
+        selection.todoTotal
+    );
+
+    upsertStudentLoadMoreButton(
+        grades,
+        'grades',
+        selection.visibleGrades.length,
+        selection.gradesTotal
+    );
+
+    renderStudentListEmptyState(
+        list,
+        'todo',
+        selection.todoTotal
+    );
+
+    renderStudentListEmptyState(
+        grades,
+        'grades',
+        selection.gradesTotal
+    );
+}
+
+async function getStudentVideoTrackingForAssignments(
+    assignments
+) {
+    const trackingData = {};
+    const now = Date.now();
+    const username =
+        String(
+            currentUser.username || ''
+        );
+
+    const uniqueAssignments = [
+        ...new Map(
+            (assignments || [])
+                .filter(
+                    assign =>
+                        assign?.videoLink
+                )
+                .map(assign => [
+                    getStudentListAssignmentId(
+                        assign
+                    ),
+                    assign
+                ])
+        ).values()
+    ];
+
+    await Promise.all(
+        uniqueAssignments.map(
+            async assign => {
+                const assignmentId =
+                    getStudentListAssignmentId(
+                        assign
+                    );
+
+                const cacheKey =
+                    `${assignmentId}\u0000${username}`;
+
+                const cached =
+                    studentVideoTrackingCache.get(
+                        cacheKey
+                    );
+
+                let seconds = 0;
+
+                if (
+                    cached &&
+                    now - cached.loadedAt <
+                        STUDENT_TRACKING_CACHE_TTL
+                ) {
+                    seconds =
+                        cached.seconds;
+                } else {
+                    try {
+                        const snapshot =
+                            await db.ref(
+                                `video_tracking/${assignmentId}/${username}`
+                            ).once('value');
+
+                        seconds =
+                            Number(
+                                snapshot.val()
+                            ) || 0;
+
+                        studentVideoTrackingCache.set(
+                            cacheKey,
+                            {
+                                loadedAt: now,
+                                seconds
+                            }
+                        );
+                    } catch (error) {
+                        console.warn(
+                            'Không tải được tiến độ video:',
+                            assignmentId,
+                            error
+                        );
+                    }
+                }
+
+                trackingData[
+                    assignmentId
+                ] = {
+                    [username]:
+                        seconds
+                };
+            }
+        )
+    );
+
+    return trackingData;
+}
+
+window.queueStudentListSearch = function (
+    type,
+    value
+) {
+    const state =
+        window.studentListViewState;
+
+    if (type === 'grades') {
+        state.gradesQuery =
+            String(value ?? '');
+
+        state.gradesLimit =
+            STUDENT_LIST_PAGE_SIZE;
+    } else {
+        state.todoQuery =
+            String(value ?? '');
+
+        state.todoLimit =
+            STUDENT_LIST_PAGE_SIZE;
+    }
+
+    clearTimeout(
+        studentListSearchTimer
+    );
+
+    studentListSearchTimer =
+        setTimeout(() => {
+            loadAssignments()
+                .catch(console.error);
+        }, STUDENT_LIST_SEARCH_DELAY);
+};
+
+window.loadMoreStudentList = function (
+    type
+) {
+    const state =
+        window.studentListViewState;
+
+    if (type === 'grades') {
+        state.gradesLimit +=
+            STUDENT_LIST_PAGE_SIZE;
+    } else {
+        state.todoLimit +=
+            STUDENT_LIST_PAGE_SIZE;
+    }
+
+    loadAssignments()
+        .catch(console.error);
+};
+
+// Giữ tương thích với HTML/common.js cũ.
+// Chỉ thay cách lọc 2 danh sách bài tập; các danh sách khác vẫn dùng filterItems cũ.
+const studentPreviousFilterItems =
+    window.filterItems;
+
+window.filterItems = function (
+    containerId,
+    value
+) {
+    if (
+        containerId ===
+        'assignmentsList'
+    ) {
+        window.queueStudentListSearch(
+            'todo',
+            value
+        );
+        return;
+    }
+
+    if (
+        containerId ===
+        'gradesList'
+    ) {
+        window.queueStudentListSearch(
+            'grades',
+            value
+        );
+        return;
+    }
+
+    if (
+        typeof studentPreviousFilterItems ===
+        'function'
+    ) {
+        return studentPreviousFilterItems(
+            containerId,
+            value
+        );
+    }
+};
+
+
 async function loadAssignments() {
     const assignmentSource =
-        window.cachedAssignments &&
-            window.cachedAssignments.length > 0
+        Array.isArray(
+            window.cachedAssignments
+        )
             ? window.cachedAssignments
             : await getDB('assignments');
 
@@ -3718,11 +6463,21 @@ async function loadAssignments() {
     const assignments = Array.isArray(assignmentSource)
         ? [...assignmentSource]
         : [];
-    const submissions = (window.cachedSubmissions && window.cachedSubmissions.length > 0) ? window.cachedSubmissions : await getDB('submissions');
+
+    /*
+     * Cache [] cũng là trạng thái hợp lệ (học sinh chưa từng nộp bài).
+     * Không được vì length === 0 mà tải toàn bộ submissions của hệ thống.
+     */
+    const submissions =
+        Array.isArray(
+            window.cachedSubmissions
+        )
+            ? window.cachedSubmissions
+            : await getDB('submissions');
     const list = document.getElementById('assignmentsList');
 
-    const trackingSnap = await db.ref('video_tracking').once('value');
-    const trackingData = trackingSnap.val() || {};
+    // Tiến độ video sẽ chỉ tải cho các card thực sự cần render.
+    let trackingData = {};
     const grades = document.getElementById('gradesList');
 
     // Dọn dẹp trình phát Video cũ (giữ nguyên các đoạn if typeof ytPlayers...)
@@ -4309,6 +7064,44 @@ async function loadAssignments() {
 
     // --- KẾT THÚC LOGIC SẮP XẾP ---
 
+    // Chọn đúng các bài cần render theo trang/từ khóa trước khi dựng DOM nặng.
+    const studentListSelection =
+        buildStudentListSelection(
+            assignments,
+            submissions,
+            nowSortMs
+        );
+
+    pruneStudentListContainer(
+        list,
+        studentListSelection.todoIds
+    );
+
+    pruneStudentListContainer(
+        grades,
+        studentListSelection.gradeIds
+    );
+
+    const visibleAssignmentMap =
+        new Map();
+
+    [
+        ...studentListSelection.visibleTodo,
+        ...studentListSelection.visibleGrades
+    ].forEach(assign => {
+        visibleAssignmentMap.set(
+            getStudentListAssignmentId(
+                assign
+            ),
+            assign
+        );
+    });
+
+    trackingData =
+        await getStudentVideoTrackingForAssignments(
+            [...visibleAssignmentMap.values()]
+        );
+
     assignments.forEach(assign => {
         // [THÊM MỚI] Xử lý mảng đối tượng học sinh
         const targetArr = Array.isArray(assign.targetStudent) ? assign.targetStudent : [assign.targetStudent || 'all'];
@@ -4330,9 +7123,51 @@ async function loadAssignments() {
         const isGracePeriod = (now > endTime && now <= gracePeriodEndTime);
         // =================================================================
 
+        const assignmentListId =
+            getStudentListAssignmentId(
+                assign
+            );
+
+        const isGradeBucket =
+            Boolean(mySub) &&
+            !isRedoing &&
+            !isGracePeriod;
+
+        const isSelectedForRender =
+            isGradeBucket
+                ? studentListSelection
+                    .gradeIds
+                    .has(assignmentListId)
+                : studentListSelection
+                    .todoIds
+                    .has(assignmentListId);
+
+        /*
+         * Bài đã quá hạn mà chưa có submission vẫn phải chạy qua
+         * logic tự thu bài, kể cả khi nằm ngoài trang đang xem.
+         * Các bài bình thường ngoài cửa sổ hiển thị được bỏ qua hoàn toàn.
+         */
+        const mustProcessAutoSubmit =
+            !isGradeBucket &&
+            !mySub &&
+            now > endTime;
+
+        if (
+            !isSelectedForRender &&
+            !mustProcessAutoSubmit
+        ) {
+            return;
+        }
+
         // === TỐI ƯU HÓA: DOM DIFFING BẰNG MÃ BĂM (HASH) ===
         // 1. Tạo chuỗi Hash đại diện cho trạng thái hiện tại của bài tập
-        let subState = mySub ? `${mySub.submitTime}_${mySub.grade}_${mySub.isRedoing}_${mySub.isAutoSubmitted}` : 'none';
+        const redoHistoryForHash = mySub
+            ? getStudentRedoViolationHistory(mySub)
+            : {};
+
+        let subState = mySub
+            ? `${mySub.submitTime}_${mySub.grade}_${mySub.isRedoing}_${mySub.isAutoSubmitted}_${mySub.isEssayMissing}_${mySub.redoScope || ''}_${redoHistoryForHash.essayMissing ? 'histEssay' : ''}_${redoHistoryForHash.late ? 'histLate' : ''}_${redoHistoryForHash.cheat ? 'histCheat' : ''}`
+            : 'none';
         let cardHash =
             `${assign.id}_` +
             `${subState}_` +
@@ -4347,7 +7182,29 @@ async function loadAssignments() {
             `${assign.examTimeLimitMinutes || 0}_` +
             `${window.currentActiveExamId || 'none'}`;
 
-        let existingCard = document.querySelector(`.card[data-id="${assign.id}"]`);
+        const targetContainer =
+            isGradeBucket
+                ? grades
+                : list;
+
+        const otherContainer =
+            isGradeBucket
+                ? list
+                : grades;
+
+        let existingCard =
+            targetContainer?.querySelector(
+                `.card[data-id="${assign.id}"]`
+            ) || null;
+
+        const staleOtherCard =
+            otherContainer?.querySelector(
+                `.card[data-id="${assign.id}"]`
+            );
+
+        if (staleOtherCard) {
+            staleOtherCard.remove();
+        }
 
         if (existingCard && existingCard.getAttribute('data-hash') === cardHash) {
             // NẾU HASH KHÔNG ĐỔI -> Trạng thái y nguyên -> Cập nhật vị trí rồi BỎ QUA vẽ lại DOM
@@ -4378,12 +7235,23 @@ async function loadAssignments() {
                 statusText = `<span style="color: #e11d48; font-weight: bold;">❌ Vi phạm quy chế thi</span>`;
             }
 
-            // THÊM ĐOẠN NÀY ĐỂ HIỂN THỊ LỖI THIẾU TỰ LUẬN
+            // Hiển thị lỗi tự luận hiện tại hoặc lịch sử lỗi sau khi đã làm lại.
+            const redoViolationHistory =
+                getStudentRedoViolationHistory(mySub);
+
             if (mySub.isEssayMissing) {
                 violationHTML += `<div style="background: rgba(245, 158, 11, 0.1); border-left: 4px solid #f59e0b; padding: 15px; margin-top: 15px; border-radius: 8px;"><h4 style="color: #d97706; margin: 0 0 5px 0;">⚠️ THIẾU PHẦN TỰ LUẬN</h4><p style="margin: 0; color: #b45309;">Hệ thống ghi nhận bạn chưa nộp bài tự luận hợp lệ (chưa đủ 25 từ hoặc thiếu file đính kèm). Phần tự luận của bạn được tính 0 điểm.</p></div>`;
+            } else if (redoViolationHistory.essayMissing) {
+                violationHTML += `<div style="background: rgba(59, 130, 246, 0.08); border-left: 4px solid #3b82f6; padding: 15px; margin-top: 15px; border-radius: 8px;"><h4 style="color: #1d4ed8; margin: 0 0 5px 0;">⚠️ TỪNG THIẾU PHẦN TỰ LUẬN</h4><p style="margin: 0; color: #1e40af;">Bạn đã nộp lại phần tự luận, nhưng lỗi ở lần nộp trước vẫn được ghi nhận trong Bảng Xếp Hạng Thi Đua. Lỗi chỉ được xóa khi giáo viên chủ động bấm <strong>Tha lỗi</strong>.</p></div>`;
             }
 
-            let missingEssayBadgeHTML = mySub.isEssayMissing ? `<span style="color: #e11d48; font-weight: bold; font-size: 0.9em; margin-left: 8px;">[❌ Chưa nộp tự luận]</span>` : '';
+            let missingEssayBadgeHTML = '';
+
+            if (mySub.isEssayMissing) {
+                missingEssayBadgeHTML = `<span style="color: #e11d48; font-weight: bold; font-size: 0.9em; margin-left: 8px;">[❌ Chưa nộp tự luận]</span>`;
+            } else if (redoViolationHistory.essayMissing) {
+                missingEssayBadgeHTML = `<span style="color: #2563eb; font-weight: bold; font-size: 0.9em; margin-left: 8px;">[⚠️ Từng thiếu tự luận]</span>`;
+            }
 
             let teacherFileHTML = '';
 
@@ -4757,6 +7625,14 @@ async function loadAssignments() {
                     // === KẾT THÚC FIX LOGIC THU NHÁP CÓ FILE ===
                 }
 
+                /*
+                 * Bài ngoài trang/từ khóa vẫn được tự thu ở trên,
+                 * nhưng không được chen một card không liên quan vào kết quả tìm kiếm.
+                 */
+                if (!isSelectedForRender) {
+                    return;
+                }
+
                 if (isGracePeriod) {
                     const div = document.createElement('div'); div.className = 'card submit-box';
                     div.innerHTML = `<h4 style="font-size: 1.3em; color: #764ba2; font-weight: 800; opacity: 0.6;">${assign.title}</h4>
@@ -4783,7 +7659,29 @@ async function loadAssignments() {
                 }
             }
             else {
-                let redoNotice = isRedoing ? `<div class="glass-alert success" style="padding: 10px; margin-bottom: 15px;"><p style="margin:0; font-size:0.9em; font-weight:bold;">🔁 Bạn đang ở chế độ làm lại bài.</p></div>` : '';
+                const redoScope =
+                    getStudentRedoScope(
+                        mySub,
+                        assign
+                    );
+
+                const redoAllowsMultipleChoice =
+                    !isRedoing ||
+                    studentRedoAllowsMultipleChoice(
+                        mySub,
+                        assign
+                    );
+
+                const redoAllowsEssay =
+                    !isRedoing ||
+                    studentRedoAllowsEssay(
+                        mySub,
+                        assign
+                    );
+
+                let redoNotice = isRedoing
+                    ? `<div class="glass-alert success student-redo-scope-notice" style="padding: 12px; margin-bottom: 15px;"><p style="margin:0; font-size:0.95em; font-weight:bold;">🔁 Giáo viên cho bạn làm lại <strong>${getStudentRedoScopeLabel(redoScope)}</strong>.</p><p style="margin:6px 0 0; font-size:0.86em;">Phần không được chọn đã bị khóa và dữ liệu cũ của phần đó sẽ được giữ nguyên khi bạn nộp lại.</p></div>`
+                    : '';
 
                 let countdownHTML = '';
                 if (!isRedoing) {
@@ -4956,6 +7854,23 @@ async function loadAssignments() {
                     quizHTML += '</div>';
                 }
 
+                if (
+                    isRedoing &&
+                    !redoAllowsMultipleChoice &&
+                    (
+                        assign.assessmentType === 'trac_nghiem' ||
+                        assign.assessmentType === 'ket_hop' ||
+                        assign.assessmentType === 'thi'
+                    )
+                ) {
+                    quizHTML = `
+                        <div class="student-redo-locked-section">
+                            <strong>🔒 Phần Trắc nghiệm đã khóa</strong>
+                            <span>Giáo viên chỉ cho làm lại phần Tự luận. Đáp án trắc nghiệm và kết quả cũ sẽ được giữ nguyên.</span>
+                        </div>
+                    `;
+                }
+
                 const initialVideoWatchSeconds =
                     Number(
                         trackingData?.[assign.id]
@@ -5063,6 +7978,18 @@ async function loadAssignments() {
                                        <label style="display: block; margin: 10px 0 8px 0;"><strong>📎 Đính kèm file bài làm:</strong></label>
                                        ${prevFileHTML}
                                        <input type="file" id="studentFile-${assign.id}" accept="${ASSIGNMENT_ATTACHMENT_ACCEPT}" multiple onclick="window.isSelectingFile = true;" onchange="handleStudentFileAccumulate(this, '${assign.id}')" style="margin-bottom: 15px; background: rgba(255,255,255,0.5);">`;
+
+                    if (
+                        isRedoing &&
+                        !redoAllowsEssay
+                    ) {
+                        tuLuanInputHTML = `
+                            <div class="student-redo-locked-section">
+                                <strong>🔒 Phần Tự luận đã khóa</strong>
+                                <span>Giáo viên chỉ cho làm lại phần Trắc nghiệm. Bạn không thể nhập chữ hoặc nộp file mới; nội dung và file tự luận cũ sẽ được giữ nguyên.</span>
+                            </div>
+                        `;
+                    }
                 }
 
                 let submitBtnHTML = currentUser.isLocked
@@ -5320,6 +8247,12 @@ async function loadAssignments() {
             }
         }
     });
+
+    refreshStudentListControls(
+        studentListSelection,
+        list,
+        grades
+    );
 
     // Khởi tạo editor: lazy khi bật tối ưu, giữ nguyên hành vi cũ khi tắt.
     initStudentQuillEditors(document);
@@ -6888,6 +9821,26 @@ async function submitAssignment(assignId, isAuto = false, isCheat = false) {
     // Ép kiểu boolean tuyệt đối để tránh xung đột
     const isCurrentlyRedoing = mySub ? !!mySub.isRedoing : false;
 
+    const redoScope =
+        getStudentRedoScope(
+            mySub,
+            assign
+        );
+
+    const redoAllowsMultipleChoice =
+        !isCurrentlyRedoing ||
+        studentRedoAllowsMultipleChoice(
+            mySub,
+            assign
+        );
+
+    const redoAllowsEssay =
+        !isCurrentlyRedoing ||
+        studentRedoAllowsEssay(
+            mySub,
+            assign
+        );
+
     // --- KHÓA CHẶN 15 GIÂY TRƯỚC HẠN CHÓT ---
     const timeRemaining = endTime.getTime() - now.getTime();
 
@@ -6929,9 +9882,12 @@ async function submitAssignment(assignId, isAuto = false, isCheat = false) {
     let activeQuestions = [];
 
     if (
-        assign.assessmentType === 'trac_nghiem' ||
-        assign.assessmentType === 'ket_hop' ||
-        assign.assessmentType === 'thi'
+        redoAllowsMultipleChoice &&
+        (
+            assign.assessmentType === 'trac_nghiem' ||
+            assign.assessmentType === 'ket_hop' ||
+            assign.assessmentType === 'thi'
+        )
     ) {
         activeExamSet =
             window.getStudentExamQuestions(assign);
@@ -7125,7 +10081,43 @@ async function submitAssignment(assignId, isAuto = false, isCheat = false) {
                 }
             }
         }
+    } else if (
+        isCurrentlyRedoing &&
+        !redoAllowsMultipleChoice &&
+        (
+            assign.assessmentType === 'trac_nghiem' ||
+            assign.assessmentType === 'ket_hop' ||
+            assign.assessmentType === 'thi'
+        )
+    ) {
+        // Giáo viên chỉ cho làm lại Tự luận:
+        // giữ nguyên toàn bộ dữ liệu trắc nghiệm cũ, không đọc radio trên DOM.
+        activeExamSet =
+            getStudentStoredExamSet(
+                mySub,
+                assign
+            );
+
+        activeQuestions =
+            activeExamSet.questions || [];
+
+        mcAnswersObj = {
+            ...(
+                mySub?.mcAnswers &&
+                typeof mySub.mcAnswers === 'object'
+                    ? mySub.mcAnswers
+                    : {}
+            )
+        };
+
+        mcText =
+            getStudentStoredMultipleChoiceText(
+                mySub,
+                assign,
+                activeExamSet
+            );
     }
+
 
     let answer = '';
     let filesArray = null;
@@ -7133,7 +10125,15 @@ async function submitAssignment(assignId, isAuto = false, isCheat = false) {
 
     // --- BẮT ĐẦU ĐOẠN ĐÃ FIX LỖI ---
     // 1. Thêm assign.assessmentType === 'thi' vào điều kiện để chịu đọc file khi thi
-    if (assign.assessmentType === 'tu_luan' || assign.assessmentType === 'ket_hop' || assign.assessmentType === 'thi' || !assign.assessmentType) {
+    if (
+        redoAllowsEssay &&
+        (
+            assign.assessmentType === 'tu_luan' ||
+            assign.assessmentType === 'ket_hop' ||
+            assign.assessmentType === 'thi' ||
+            !assign.assessmentType
+        )
+    ) {
         const answerEl = document.getElementById(`answer-${assignId}`);
         if (answerEl) {
             const qlEditor = answerEl.querySelector('.ql-editor');
@@ -7210,7 +10210,28 @@ async function submitAssignment(assignId, isAuto = false, isCheat = false) {
                 if (finalCalculatedGrade === null) finalCalculatedGrade = 0; // Chỉ tính điểm Trắc nghiệm
             }
         }
+    } else if (
+        isCurrentlyRedoing &&
+        !redoAllowsEssay &&
+        (
+            assign.assessmentType === 'tu_luan' ||
+            assign.assessmentType === 'ket_hop' ||
+            assign.assessmentType === 'thi' ||
+            !assign.assessmentType
+        )
+    ) {
+        // Giáo viên chỉ cho làm lại Trắc nghiệm:
+        // giữ nguyên chữ/file và trạng thái tự luận cũ.
+        answer = getStudentStoredEssayText(
+            mySub
+        );
+
+        isEssayMissing =
+            !!mySub?.isEssayMissing;
+
+        filesArray = null;
     }
+
 
     let finalAnswerText = "";
     if (isCheat) finalAnswerText += "🚨 [HỆ THỐNG TỰ ĐỘNG THU BÀI DO VI PHẠM QUY CHẾ - TỰ Ý THOÁT TOÀN MÀN HÌNH]\n\n";
@@ -7237,9 +10258,11 @@ async function submitAssignment(assignId, isAuto = false, isCheat = false) {
         if (
             !hasNewUploadedFiles &&
             mySub &&
-            mySub.file &&
-            !isCurrentlyRedoing
+            mySub.file
         ) {
+            // Không upload file mới thì luôn giữ file cũ.
+            // Đặc biệt quan trọng khi chỉ làm lại Trắc nghiệm
+            // hoặc khi sửa chữ tự luận mà vẫn dùng file cũ.
             finalFile = mySub.file;
         }
 
@@ -7268,10 +10291,16 @@ async function submitAssignment(assignId, isAuto = false, isCheat = false) {
                 activeQuestions,
 
             questionResults:
-                window.buildStudentQuestionResults(
-                    activeExamSet,
-                    mcAnswersObj
-                ),
+                (
+                    isCurrentlyRedoing &&
+                    !redoAllowsMultipleChoice &&
+                    mySub?.questionResults
+                )
+                    ? mySub.questionResults
+                    : window.buildStudentQuestionResults(
+                        activeExamSet,
+                        mcAnswersObj
+                    ),
 
             grade: finalCalculatedGrade,
             submittedAt: submitNow.getTime(),
@@ -7281,10 +10310,17 @@ async function submitAssignment(assignId, isAuto = false, isCheat = false) {
             isAutoSubmitted: isAuto || isCheat,
             isCheatFail: isCheat,
             isRedoing: false,
-            isEssayMissing: isEssayMissing // <--- THÊM DÒNG NÀY ĐỂ LƯU VÀO DATABASE
+            isEssayMissing: isEssayMissing
         };
 
-        if (mySub && mySub.isLateFail) {
+        if (isCurrentlyRedoing) {
+            // Bài làm lại sạch sẽ không bị mang cờ "nộp trễ" cũ sang bài mới.
+            // Lỗi cũ được giữ riêng trong redoViolationHistory để BXH vẫn tính vi phạm.
+            payload.isLateFail = false;
+            payload.redoScope = null;
+            payload.lastRedoScope = redoScope;
+            payload.redoCompletedAt = submitNow.getTime();
+        } else if (mySub && mySub.isLateFail) {
             payload.isLateFail = true;
         }
 
@@ -7315,6 +10351,134 @@ async function submitAssignment(assignId, isAuto = false, isCheat = false) {
                     assign,
                     currentUser.username
                 );
+
+            if (isCurrentlyRedoing) {
+                /*
+                 * Chụp lịch sử vi phạm từ bản Firebase MỚI NHẤT.
+                 * Nếu giáo viên vừa bấm Tha lỗi trong lúc học sinh đang làm,
+                 * các cờ đã được xóa sẽ không bị dữ liệu cũ trên trình duyệt khôi phục lại.
+                 */
+                payload.redoViolationHistory =
+                    mergeStudentRedoViolationHistory(
+                        latestSubmission
+                    );
+
+                /*
+                 * Nếu giáo viên CHỈ cho làm lại Trắc nghiệm thì phần Tự luận
+                 * đang bị khóa phải lấy lại từ Firebase mới nhất ngay trước khi ghi.
+                 * Nhờ vậy:
+                 * - học sinh không thể sửa chữ/file bằng DOM hoặc DevTools;
+                 * - thao tác "Tha lỗi" của giáo viên trong lúc học sinh đang làm
+                 *   không bị dữ liệu cũ trên trình duyệt ghi đè trở lại;
+                 * - file tự luận cũ luôn được giữ nguyên nếu giáo viên không mở phần đó.
+                 */
+                if (
+                    !redoAllowsMultipleChoice &&
+                    latestSubmission
+                ) {
+                    const latestExamSet =
+                        getStudentStoredExamSet(
+                            latestSubmission,
+                            assign
+                        );
+
+                    const latestMcAnswers = {
+                        ...(
+                            latestSubmission.mcAnswers &&
+                            typeof latestSubmission.mcAnswers === 'object'
+                                ? latestSubmission.mcAnswers
+                                : {}
+                        )
+                    };
+
+                    const latestMcText =
+                        getStudentStoredMultipleChoiceText(
+                            latestSubmission,
+                            assign,
+                            latestExamSet
+                        );
+
+                    payload.mcAnswers =
+                        latestMcAnswers;
+                    payload.examVersionCode =
+                        latestExamSet.versionCode;
+                    payload.examVersionIndex =
+                        latestExamSet.versionIndex;
+                    payload.questionSnapshot =
+                        latestExamSet.questions || [];
+                    payload.questionResults =
+                        latestSubmission.questionResults ||
+                        window.buildStudentQuestionResults(
+                            latestExamSet,
+                            latestMcAnswers
+                        );
+
+                    let lockedMcAnswer = '';
+
+                    if (isCheat) {
+                        lockedMcAnswer +=
+                            '🚨 [HỆ THỐNG TỰ ĐỘNG THU BÀI DO VI PHẠM QUY CHẾ - TỰ Ý THOÁT TOÀN MÀN HÌNH]\n\n';
+                    } else if (isAuto) {
+                        lockedMcAnswer +=
+                            '⚠️ [HỆ THỐNG TỰ ĐỘNG THU BÀI DO HẾT GIỜ LÀM]\n\n';
+                    }
+
+                    if (latestMcText) {
+                        lockedMcAnswer +=
+                            `[PHẦN TRẮC NGHIỆM]\n${latestMcText}\n\n`;
+                    }
+
+                    if (payload.rawEssay) {
+                        lockedMcAnswer +=
+                            `[PHẦN TỰ LUẬN]\n${payload.rawEssay}`;
+                    }
+
+                    payload.answer =
+                        lockedMcAnswer ||
+                        payload.answer;
+                }
+
+                if (
+                    !redoAllowsEssay &&
+                    latestSubmission
+                ) {
+                    const latestEssay =
+                        getStudentStoredEssayText(
+                            latestSubmission
+                        );
+
+                    payload.rawEssay = latestEssay;
+                    payload.file =
+                        latestSubmission.file || null;
+                    payload.isEssayMissing =
+                        !!latestSubmission.isEssayMissing;
+
+                    let lockedEssayAnswer = '';
+
+                    if (isCheat) {
+                        lockedEssayAnswer +=
+                            '🚨 [HỆ THỐNG TỰ ĐỘNG THU BÀI DO VI PHẠM QUY CHẾ - TỰ Ý THOÁT TOÀN MÀN HÌNH]\n\n';
+                    } else if (isAuto) {
+                        lockedEssayAnswer +=
+                            '⚠️ [HỆ THỐNG TỰ ĐỘNG THU BÀI DO HẾT GIỜ LÀM]\n\n';
+                    }
+
+                    if (mcText) {
+                        lockedEssayAnswer +=
+                            `[PHẦN TRẮC NGHIỆM]\n${mcText}\n\n`;
+                    }
+
+                    if (latestEssay) {
+                        lockedEssayAnswer +=
+                            `[PHẦN TỰ LUẬN]\n${latestEssay}`;
+                    }
+
+                    payload.answer =
+                        lockedEssayAnswer ||
+                        latestSubmission.answer ||
+                        payload.answer;
+                }
+            }
 
             /*
  * Chỉ lấy file cũ để xóa khi học sinh
@@ -8532,23 +11696,395 @@ async function readMultipleFiles(
 let isSpinning = false;
 
 // ======================================================
-// GIỜ VÀNG VÒNG QUAY MAY MẮN
-// - Chỉ tăng phần thưởng Coin.
-// - Không đổi tỉ lệ trúng, vé quay hoặc vật phẩm.
-// - Mỗi lượt trúng Coin trong Giờ Vàng được cộng thêm 50 Coin.
-// - Thời gian tính theo múi giờ Việt Nam (Asia/Ho_Chi_Minh).
+// GIỜ VÀNG VÒNG QUAY MAY MẮN V2
+// - Dùng cấu hình giáo viên từ Firebase.
+// - Dùng serverTimeOffset để giảm lệch giờ máy học sinh.
+// - Chỉ tăng giá trị Coin, không đổi tỉ lệ/vật phẩm/vé.
+// - Nhãn Coin trên bánh xe đổi TẠM THỜI khi Giờ Vàng hoạt động.
+// - Hết Giờ Vàng nhãn tự trở về 50 / 70 / 200 Coin.
 // ======================================================
-const LUCKY_WHEEL_GOLDEN_HOUR_BONUS = 50;
+const LUCKY_WHEEL_GOLDEN_HOUR_DEFAULTS = Object.freeze({
+    enabled: true,
+    bonusCoin: 50,
+    windows: Object.freeze([
+        Object.freeze({ start: '00:00', end: '01:00' }),
+        Object.freeze({ start: '09:00', end: '10:00' }),
+        Object.freeze({ start: '12:00', end: '13:00' }),
+        Object.freeze({ start: '14:00', end: '15:00' }),
+        Object.freeze({ start: '20:00', end: '20:30' })
+    ])
+});
 
-const LUCKY_WHEEL_GOLDEN_WINDOWS = Object.freeze([
-    { start: 0, end: 60, label: '00:00 - 01:00' },
-    { start: 9 * 60, end: 10 * 60, label: '09:00 - 10:00' },
-    { start: 12 * 60, end: 13 * 60, label: '12:00 - 13:00' },
-    { start: 14 * 60, end: 15 * 60, label: '14:00 - 15:00' },
-    { start: 20 * 60, end: 20 * 60 + 30, label: '20:00 - 20:30' }
-]);
+window.luckyWheelGoldenHourConfig =
+    window.luckyWheelGoldenHourConfig || null;
 
-function getLuckyWheelVietnamClock(date = new Date()) {
+window.luckyWheelServerTimeOffset =
+    Number(window.luckyWheelServerTimeOffset || 0);
+
+let luckyWheelGoldenHourUiTimer = null;
+let luckyWheelGoldenStatusLocked = null;
+
+// REALTIME V4
+let luckyWheelGoldenRealtimeRef = null;
+let luckyWheelGoldenRealtimeHandler = null;
+let luckyWheelGoldenRealtimeCancelHandler = null;
+let luckyWheelGoldenRealtimeInitialized = false;
+let luckyWheelGoldenRealtimeFingerprint = '';
+let luckyWheelGoldenRealtimeFallbackTimer = null;
+
+function normalizeLuckyWheelGoldenHourConfig(raw) {
+    const source =
+        raw && typeof raw === 'object'
+            ? raw
+            : {};
+
+    const bonus = Math.max(
+        0,
+        Math.min(
+            100000,
+            Math.floor(
+                Number(
+                    source.bonusCoin ??
+                    LUCKY_WHEEL_GOLDEN_HOUR_DEFAULTS.bonusCoin
+                ) || 0
+            )
+        )
+    );
+
+    const rawWindows = Array.isArray(source.windows)
+        ? source.windows
+        : LUCKY_WHEEL_GOLDEN_HOUR_DEFAULTS.windows;
+
+    const windows = rawWindows
+        .map(entry => ({
+            start: String(entry?.start || '').trim(),
+            end: String(entry?.end || '').trim()
+        }))
+        .filter(entry =>
+            /^([01]\d|2[0-3]):[0-5]\d$/.test(entry.start) &&
+            /^([01]\d|2[0-3]):[0-5]\d$/.test(entry.end) &&
+            entry.start !== entry.end
+        );
+
+    return {
+        enabled: source.enabled !== false,
+        bonusCoin: bonus,
+        windows: windows.length
+            ? windows
+            : LUCKY_WHEEL_GOLDEN_HOUR_DEFAULTS.windows.map(entry => ({ ...entry }))
+    };
+}
+
+function getLuckyWheelGoldenConfigFingerprint(config) {
+    const normalized =
+        normalizeLuckyWheelGoldenHourConfig(
+            config
+        );
+
+    return JSON.stringify({
+        enabled:
+            normalized.enabled,
+
+        bonusCoin:
+            normalized.bonusCoin,
+
+        windows:
+            normalized.windows.map(
+                entry => ({
+                    start:
+                        entry.start,
+
+                    end:
+                        entry.end
+                })
+            )
+    });
+}
+
+function applyLuckyWheelGoldenHourRealtimeConfig(
+    raw,
+    {
+        notify = true
+    } = {}
+) {
+    const previousFingerprint =
+        luckyWheelGoldenRealtimeFingerprint;
+
+    const nextConfig =
+        normalizeLuckyWheelGoldenHourConfig(
+            raw
+        );
+
+    const nextFingerprint =
+        getLuckyWheelGoldenConfigFingerprint(
+            nextConfig
+        );
+
+    window.luckyWheelGoldenHourConfig =
+        nextConfig;
+
+    luckyWheelGoldenRealtimeFingerprint =
+        nextFingerprint;
+
+    const liveStatus =
+        getLuckyWheelGoldenHourStatus();
+
+    /*
+     * Nếu giáo viên đổi cấu hình ngay lúc học sinh đang quay,
+     * bỏ trạng thái Giờ Vàng cũ đã khóa và chuyển UI sang dữ liệu mới.
+     * Phần thưởng lúc thanh toán cũng sẽ đọc lại Firebase lần cuối.
+     */
+    if (isSpinning) {
+        luckyWheelGoldenStatusLocked =
+            liveStatus;
+    }
+
+    if (
+        typeof renderLuckyWheelGoldenHourNotice ===
+        'function'
+    ) {
+        renderLuckyWheelGoldenHourNotice();
+    }
+
+    const changed =
+        luckyWheelGoldenRealtimeInitialized &&
+        previousFingerprint &&
+        previousFingerprint !==
+            nextFingerprint;
+
+    if (
+        changed &&
+        notify &&
+        typeof window.showToast ===
+            'function'
+    ) {
+        if (!nextConfig.enabled) {
+            window.showToast(
+                'Giáo viên vừa tắt Giờ Vàng. Vòng quay đã cập nhật ngay.',
+                'warning'
+            );
+        } else if (liveStatus.active) {
+            window.showToast(
+                `Giờ Vàng vừa được cập nhật: +${liveStatus.bonus} Coin/lượt trúng Coin.`,
+                'warning'
+            );
+        } else {
+            window.showToast(
+                'Giáo viên vừa cập nhật lịch Giờ Vàng. Vòng quay đã đồng bộ.',
+                'warning'
+            );
+        }
+    }
+
+    luckyWheelGoldenRealtimeInitialized =
+        true;
+
+    return liveStatus;
+}
+
+function stopLuckyWheelGoldenHourRealtimeSync() {
+    if (
+        luckyWheelGoldenRealtimeRef &&
+        luckyWheelGoldenRealtimeHandler
+    ) {
+        luckyWheelGoldenRealtimeRef.off(
+            'value',
+            luckyWheelGoldenRealtimeHandler
+        );
+    }
+
+    luckyWheelGoldenRealtimeRef = null;
+    luckyWheelGoldenRealtimeHandler = null;
+    luckyWheelGoldenRealtimeCancelHandler = null;
+
+    if (
+        luckyWheelGoldenRealtimeFallbackTimer
+    ) {
+        clearInterval(
+            luckyWheelGoldenRealtimeFallbackTimer
+        );
+
+        luckyWheelGoldenRealtimeFallbackTimer =
+            null;
+    }
+}
+
+async function refreshLuckyWheelGoldenHourFromServer(
+    {
+        notify = false,
+        failClosed = false
+    } = {}
+) {
+    try {
+        const snapshot =
+            await db
+                .ref(
+                    'game_settings/lucky_wheel_golden_hour'
+                )
+                .once(
+                    'value'
+                );
+
+        return applyLuckyWheelGoldenHourRealtimeConfig(
+            snapshot.val(),
+            {
+                notify
+            }
+        );
+    } catch (error) {
+        console.error(
+            '[Giờ Vàng] Không đọc được cấu hình mới nhất từ Firebase:',
+            error
+        );
+
+        if (failClosed) {
+            const config =
+                getLuckyWheelGoldenHourConfig();
+
+            return {
+                active:
+                    false,
+
+                bonus:
+                    0,
+
+                configuredBonus:
+                    config.bonusCoin,
+
+                windowLabel:
+                    '',
+
+                clock:
+                    getLuckyWheelVietnamClock(),
+
+                config
+            };
+        }
+
+        return getLuckyWheelGoldenHourStatus();
+    }
+}
+
+function startLuckyWheelGoldenHourRealtimeSync() {
+    stopLuckyWheelGoldenHourRealtimeSync();
+
+    const ref =
+        db.ref(
+            'game_settings/lucky_wheel_golden_hour'
+        );
+
+    luckyWheelGoldenRealtimeRef =
+        ref;
+
+    luckyWheelGoldenRealtimeHandler =
+        snapshot => {
+            applyLuckyWheelGoldenHourRealtimeConfig(
+                snapshot.val(),
+                {
+                    notify:
+                        true
+                }
+            );
+        };
+
+    luckyWheelGoldenRealtimeCancelHandler =
+        error => {
+            console.error(
+                '[Giờ Vàng] Listener realtime bị lỗi:',
+                error
+            );
+        };
+
+    /*
+     * Dùng trực tiếp .on('value') thay vì wrapper listener dùng chung.
+     * Khi teacher .set/.update cấu hình, học sinh đang mở web nhận ngay snapshot.
+     */
+    ref.on(
+        'value',
+        luckyWheelGoldenRealtimeHandler,
+        luckyWheelGoldenRealtimeCancelHandler
+    );
+
+    /*
+     * Fallback nhẹ mỗi 15 giây để tự phục hồi nếu trình duyệt vừa mất mạng,
+     * tab ngủ lâu hoặc WebSocket Firebase bị trình duyệt tạm ngắt.
+     */
+    luckyWheelGoldenRealtimeFallbackTimer =
+        setInterval(
+            () => {
+                refreshLuckyWheelGoldenHourFromServer({
+                    notify:
+                        false
+                });
+            },
+            15000
+        );
+
+    if (
+        !window
+            .__luckyWheelGoldenVisibilityRefreshBound
+    ) {
+        window
+            .__luckyWheelGoldenVisibilityRefreshBound =
+            true;
+
+        document.addEventListener(
+            'visibilitychange',
+            () => {
+                if (
+                    document.visibilityState ===
+                    'visible'
+                ) {
+                    refreshLuckyWheelGoldenHourFromServer({
+                        notify:
+                            false
+                    });
+                }
+            }
+        );
+
+        window.addEventListener(
+            'online',
+            () => {
+                refreshLuckyWheelGoldenHourFromServer({
+                    notify:
+                        false
+                });
+            }
+        );
+    }
+}
+
+window.startLuckyWheelGoldenHourRealtimeSync =
+    startLuckyWheelGoldenHourRealtimeSync;
+
+window.refreshLuckyWheelGoldenHourFromServer =
+    refreshLuckyWheelGoldenHourFromServer;
+
+function getLuckyWheelGoldenHourConfig() {
+    return normalizeLuckyWheelGoldenHourConfig(
+        window.luckyWheelGoldenHourConfig
+    );
+}
+
+function luckyWheelTimeToMinutes(value) {
+    const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(
+        String(value || '').trim()
+    );
+
+    if (!match) return null;
+
+    return Number(match[1]) * 60 + Number(match[2]);
+}
+
+function getLuckyWheelVietnamClock(date = null) {
+    const effectiveDate = date instanceof Date
+        ? date
+        : new Date(
+            Date.now() +
+            Number(window.luckyWheelServerTimeOffset || 0)
+        );
+
     const parts = new Intl.DateTimeFormat(
         'en-GB',
         {
@@ -8558,7 +12094,7 @@ function getLuckyWheelVietnamClock(date = new Date()) {
             second: '2-digit',
             hourCycle: 'h23'
         }
-    ).formatToParts(date);
+    ).formatToParts(effectiveDate);
 
     const values = {};
 
@@ -8576,78 +12112,136 @@ function getLuckyWheelVietnamClock(date = new Date()) {
         hour,
         minute,
         second,
-        totalMinutes:
-            hour * 60 +
-            minute +
-            second / 60
+        totalMinutes: hour * 60 + minute + second / 60,
+        text: `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}`
     };
 }
 
-function getLuckyWheelGoldenHourStatus(date = new Date()) {
+function getLuckyWheelGoldenHourStatus(date = null) {
+    const config = getLuckyWheelGoldenHourConfig();
     const clock = getLuckyWheelVietnamClock(date);
 
-    const activeWindow =
-        LUCKY_WHEEL_GOLDEN_WINDOWS.find(windowConfig =>
-            clock.totalMinutes >= windowConfig.start &&
-            clock.totalMinutes < windowConfig.end
-        ) || null;
+    if (!config.enabled || config.bonusCoin <= 0) {
+        return {
+            active: false,
+            bonus: 0,
+            configuredBonus: config.bonusCoin,
+            windowLabel: '',
+            clock,
+            config
+        };
+    }
+
+    const activeWindow = config.windows.find(windowConfig => {
+        const start = luckyWheelTimeToMinutes(windowConfig.start);
+        const end = luckyWheelTimeToMinutes(windowConfig.end);
+
+        if (start === null || end === null || start === end) {
+            return false;
+        }
+
+        // Hỗ trợ cả khung qua nửa đêm, ví dụ 23:30 -> 00:30.
+        return start < end
+            ? (
+                clock.totalMinutes >= start &&
+                clock.totalMinutes < end
+            )
+            : (
+                clock.totalMinutes >= start ||
+                clock.totalMinutes < end
+            );
+    }) || null;
 
     return {
         active: Boolean(activeWindow),
-        bonus: activeWindow
-            ? LUCKY_WHEEL_GOLDEN_HOUR_BONUS
-            : 0,
-        windowLabel: activeWindow?.label || '',
-        clock
+        bonus: activeWindow ? config.bonusCoin : 0,
+        configuredBonus: config.bonusCoin,
+        windowLabel: activeWindow
+            ? `${activeWindow.start} - ${activeWindow.end}`
+            : '',
+        clock,
+        config
     };
 }
 
 window.getLuckyWheelGoldenHourStatus =
     getLuckyWheelGoldenHourStatus;
 
-function renderLuckyWheelGoldenHourNotice() {
-    const modal =
-        document.getElementById('luckyWheelModal');
+function getLuckyWheelGoldenHourUiStatus() {
+    // UI luôn phản ánh cấu hình mới nhất mà Firebase vừa đẩy xuống.
+    return getLuckyWheelGoldenHourStatus();
+}
 
+function renderLuckyWheelCoinLabels(status = getLuckyWheelGoldenHourUiStatus()) {
+    const modal = document.getElementById('luckyWheelModal');
     if (!modal) return;
 
-    const title =
-        modal.querySelector('h3');
+    const wheel = document.getElementById('wheelContainer');
+    const bonus = status.active ? Number(status.bonus || 0) : 0;
 
+    modal
+        .querySelectorAll('[data-wheel-base-coin]')
+        .forEach(label => {
+            const baseCoin = Math.max(
+                0,
+                Number(label.dataset.wheelBaseCoin || 0)
+            );
+
+            label.textContent = `${baseCoin + bonus} Coin`;
+
+            if (status.active) {
+                label.dataset.goldenHour = 'true';
+                label.style.color = '#fff2a6';
+                label.style.textShadow =
+                    '0 0 7px rgba(255,215,0,.95), 1px 2px 5px rgba(0,0,0,.9)';
+            } else {
+                delete label.dataset.goldenHour;
+                label.style.color = '';
+                label.style.textShadow = '';
+            }
+        });
+
+    if (wheel) {
+        wheel.style.borderColor = status.active
+            ? '#ffd54a'
+            : '#f8f9fa';
+
+        wheel.style.boxShadow = status.active
+            ? '0 15px 35px rgba(0,0,0,.5), inset 0 0 25px rgba(0,0,0,.6), 0 0 28px rgba(255,193,7,.55)'
+            : '0 15px 35px rgba(0,0,0,.5), inset 0 0 25px rgba(0,0,0,.6)';
+    }
+}
+
+function renderLuckyWheelGoldenHourNotice() {
+    const modal = document.getElementById('luckyWheelModal');
+    if (!modal) return;
+
+    const title = modal.querySelector('h3');
     if (!title) return;
 
-    let notice =
-        document.getElementById(
-            'luckyWheelGoldenHourNotice'
-        );
+    let notice = document.getElementById('luckyWheelGoldenHourNotice');
 
     if (!notice) {
         notice = document.createElement('div');
         notice.id = 'luckyWheelGoldenHourNotice';
-
-        title.insertAdjacentElement(
-            'afterend',
-            notice
-        );
+        title.insertAdjacentElement('afterend', notice);
     }
 
-    const status =
-        getLuckyWheelGoldenHourStatus();
+    const status = getLuckyWheelGoldenHourUiStatus();
+    const config = status.config || getLuckyWheelGoldenHourConfig();
+
+    renderLuckyWheelCoinLabels(status);
 
     notice.style.cssText = status.active
         ? `
             margin: 10px auto 12px;
             max-width: 520px;
             padding: 10px 14px;
-            border: 1px solid rgba(255, 215, 0, .75);
+            border: 1px solid rgba(255, 215, 0, .82);
             border-radius: 12px;
-            background: linear-gradient(
-                135deg,
-                rgba(255, 111, 0, .22),
-                rgba(255, 215, 0, .18)
-            );
-            box-shadow: 0 0 18px rgba(255, 193, 7, .22);
-            color: #ffd700;
+            background: linear-gradient(135deg, rgba(255,111,0,.28), rgba(255,215,0,.22));
+            box-shadow: 0 0 22px rgba(255,193,7,.30);
+            color: #ffe36e;
             font-size: .9em;
             font-weight: 800;
             line-height: 1.45;
@@ -8667,26 +12261,114 @@ function renderLuckyWheelGoldenHourNotice() {
             text-align: center;
         `;
 
-    notice.innerHTML = status.active
-        ? `
-            🔥 <strong>GIỜ VÀNG ĐANG DIỄN RA</strong><br>
-            Trúng Coin được cộng thêm
-            <strong>+${LUCKY_WHEEL_GOLDEN_HOUR_BONUS} Coin</strong>
-            mỗi lượt · ${status.windowLabel}
-        `
-        : `
-            🕒 Giờ Vàng:
-            00:00–01:00 · 09:00–10:00 ·
-            12:00–13:00 · 14:00–15:00 ·
-            20:00–20:30<br>
-            Trong Giờ Vàng:
-            <strong>+${LUCKY_WHEEL_GOLDEN_HOUR_BONUS} Coin</strong>
-            cho mỗi lượt trúng Coin
-        `;
+    const windowsText = config.windows
+        .map(entry => `${entry.start}–${entry.end}`)
+        .join(' · ');
+
+    notice.innerHTML = !config.enabled
+        ? `🕒 Giờ Vàng hiện đang <strong>TẮT</strong> theo cấu hình giáo viên.`
+        : status.active
+            ? `
+                🔥 <strong>GIỜ VÀNG ĐANG DIỄN RA</strong><br>
+                Các ô Coin trên vòng quay đã tăng tạm thời
+                <strong>+${status.bonus} Coin</strong> · ${status.windowLabel}<br>
+                <small>Giờ hệ thống: ${status.clock.text}</small>
+            `
+            : `
+                🕒 Giờ Vàng: ${windowsText}<br>
+                Khi bắt đầu: các ô Coin tăng tạm thời
+                <strong>+${config.bonusCoin} Coin</strong>;
+                hết giờ sẽ tự trở lại giá gốc.<br>
+                <small>Giờ hệ thống: ${status.clock.text}</small>
+            `;
 }
 
 window.renderLuckyWheelGoldenHourNotice =
     renderLuckyWheelGoldenHourNotice;
+
+function startLuckyWheelGoldenHourUiTicker() {
+    if (luckyWheelGoldenHourUiTimer) {
+        clearInterval(luckyWheelGoldenHourUiTimer);
+    }
+
+    renderLuckyWheelGoldenHourNotice();
+
+    luckyWheelGoldenHourUiTimer = setInterval(() => {
+        const modal = document.getElementById('luckyWheelModal');
+
+        if (!modal || !modal.classList.contains('active')) {
+            return;
+        }
+
+        renderLuckyWheelGoldenHourNotice();
+    }, 1000);
+}
+
+function stopLuckyWheelGoldenHourUiTicker() {
+    if (!luckyWheelGoldenHourUiTimer) return;
+
+    clearInterval(luckyWheelGoldenHourUiTimer);
+    luckyWheelGoldenHourUiTimer = null;
+}
+
+async function creditLuckyWheelCoinsReal(amount) {
+    const normalizedAmount = Math.max(
+        0,
+        Math.floor(Number(amount) || 0)
+    );
+
+    if (normalizedAmount <= 0) {
+        return {
+            credited: 0,
+            balance: null
+        };
+    }
+
+    const coinRef = db.ref(
+        'student_coins/' + currentUser.username
+    );
+
+    const transaction = await coinRef.transaction(
+        currentCoins =>
+            (Number(currentCoins) || 0) + normalizedAmount,
+        undefined,
+        false
+    );
+
+    if (!transaction.committed) {
+        throw new Error('LUCKY_WHEEL_COIN_TRANSACTION_NOT_COMMITTED');
+    }
+
+    return {
+        credited: normalizedAmount,
+        balance: Number(transaction.snapshot.val()) || 0
+    };
+}
+
+async function rollbackLuckyWheelSpinUsage(amount) {
+    const normalizedAmount = Math.max(
+        0,
+        Math.floor(Number(amount) || 0)
+    );
+
+    if (normalizedAmount <= 0) return;
+
+    await db
+        .ref('spin_counts/' + currentUser.username)
+        .transaction(currentData => {
+            const currentCount = Math.max(
+                0,
+                Number(currentData?.count || 0)
+            );
+
+            return {
+                count: Math.max(
+                    0,
+                    currentCount - normalizedAmount
+                )
+            };
+        });
+}
 
 // HÀM DÙNG CHUNG: Tính vé chính xác (Vé từ điểm + Vé quà tặng - Số lần đã quay)
 window.calculateTotalTickets = async function () {
@@ -9069,6 +12751,7 @@ window.openLuckyWheel = async function () {
     }
 
     document.getElementById('luckyWheelModal').classList.add('active');
+    startLuckyWheelGoldenHourUiTicker();
 };
 
 window.spinWheel = async function () {
@@ -9091,10 +12774,14 @@ window.spinWheel = async function () {
 
     isSpinning = true;
 
-    // Chốt Giờ Vàng ngay tại thời điểm bắt đầu quay.
-    // Animation kết thúc sau giờ vẫn giữ đúng quyền lợi của lượt đã bấm.
+    // Ghi nhận trạng thái khi bắt đầu chỉ để hiển thị ban đầu.
+    // Trước lúc cộng Coin sẽ đọc lại Firebase để chống dùng cấu hình Giờ Vàng cũ.
     const goldenHourAtSpin =
         getLuckyWheelGoldenHourStatus();
+
+    luckyWheelGoldenStatusLocked =
+        goldenHourAtSpin;
+    renderLuckyWheelGoldenHourNotice();
 
     const wheel = document.getElementById('wheelContainer');
     const resultText = document.getElementById('spinResultText');
@@ -9210,14 +12897,27 @@ window.spinWheel = async function () {
             }
         }
 
-        // GIỜ VÀNG:
-        // Nếu lượt này nhận Coin thì cộng thêm đúng 50 Coin.
-        // Vật phẩm thật không bị chuyển đổi và không nhận bonus.
+        // GIỜ VÀNG REALTIME:
+        // Đọc lại Firebase NGAY TRƯỚC KHI CHỐT PHẦN THƯỞNG.
+        // Nếu giáo viên vừa tắt/đổi khung giờ trong lúc animation đang chạy,
+        // lượt này sẽ dùng cấu hình mới nhất chứ không dùng snapshot cũ.
+        const goldenHourAtPayout =
+            await refreshLuckyWheelGoldenHourFromServer({
+                notify:
+                    false,
+
+                failClosed:
+                    true
+            });
+
         const baseWonCoins = wonCoins;
         const goldenHourBonus =
             wonCoins > 0 &&
-                goldenHourAtSpin.active
-                ? LUCKY_WHEEL_GOLDEN_HOUR_BONUS
+                goldenHourAtPayout.active
+                ? Number(
+                    goldenHourAtPayout.bonus ||
+                    0
+                )
                 : 0;
 
         if (goldenHourBonus > 0) {
@@ -9252,7 +12952,7 @@ window.spinWheel = async function () {
         resultText.innerText = `🎁 KẾT QUẢ: ${displayResult.toUpperCase()}!`;
         setTimeout(() => { resultText.style.transform = 'scale(1)'; }, 300);
 
-        isSpinning = false;
+        // Giữ khóa quay cho tới khi cập nhật phần thưởng + lịch sử hoàn tất.
 
         // Cập nhật số lượt đã quay (Tăng thêm 1)
         ticketData.spinTracking.count = ticketData.used + 1;
@@ -9266,17 +12966,49 @@ window.spinWheel = async function () {
             titleWheel.innerHTML = `🎡 Vòng Quay Nhân Phẩm<br><span style="font-size: 0.5em; color: #ffd700; text-transform: none;">🎫 Vé hiện có: ${ticketData.remaining - 1}</span>`;
         }
 
-        // Cộng Coin
+        // Cộng Coin THẬT vào student_coins và xác nhận transaction committed.
         if (wonCoins > 0) {
-            const coinRef = db.ref('student_coins/' + currentUser.username);
-            await coinRef.transaction(
-                currentCoins => {
-                    return (
-                        Number(currentCoins) ||
-                        0
-                    ) + wonCoins;
+            try {
+                const creditResult =
+                    await creditLuckyWheelCoinsReal(
+                        wonCoins
+                    );
+
+                actualRewardRecord +=
+                    ` · Số dư sau nhận: ${creditResult.balance} Coin`;
+            } catch (coinError) {
+                console.error(
+                    '[Vòng quay] Không cộng được Coin thật:',
+                    coinError
+                );
+
+                // Hoàn lại lượt quay để học sinh không mất vé khi phần thưởng Coin lỗi.
+                try {
+                    await rollbackLuckyWheelSpinUsage(1);
+                } catch (rollbackError) {
+                    console.error(
+                        '[Vòng quay] Không hoàn lại được lượt quay:',
+                        rollbackError
+                    );
                 }
-            );
+
+                resultText.style.color = '#ff6b6b';
+                resultText.innerText =
+                    '❌ KHÔNG CỘNG ĐƯỢC COIN. LƯỢT QUAY ĐÃ ĐƯỢC HOÀN LẠI.';
+
+                isSpinning = false;
+                luckyWheelGoldenStatusLocked = null;
+                renderLuckyWheelGoldenHourNotice();
+
+                if (typeof window.showToast === 'function') {
+                    window.showToast(
+                        'Vòng quay chưa cộng được Coin; hệ thống đã hoàn lại lượt quay.',
+                        'error'
+                    );
+                }
+
+                return;
+            }
         }
 
         if (
@@ -9379,11 +13111,17 @@ window.spinWheel = async function () {
             quickSpinBtn.style.display = (ticketData.remaining - 1) > 1 ? 'block' : 'none';
         }
 
+        isSpinning = false;
+        luckyWheelGoldenStatusLocked = null;
+        renderLuckyWheelGoldenHourNotice();
+
     }, 4050);
 };
 
 window.closeLuckyWheel = function () {
     if (isSpinning) return;
+    stopLuckyWheelGoldenHourUiTicker();
+    luckyWheelGoldenStatusLocked = null;
     document.getElementById('luckyWheelModal').classList.remove('active');
     const wheel = document.getElementById('wheelContainer');
     const resultText = document.getElementById('spinResultText');
@@ -9424,10 +13162,14 @@ window.spinMultipleWheel = async function () {
 
     isSpinning = true;
 
-    // Toàn bộ lượt trong một lần Quay Nhanh dùng trạng thái
-    // Giờ Vàng tại thời điểm người dùng bấm bắt đầu.
+    // Trạng thái lúc bấm chỉ dùng cho thông báo ban đầu.
+    // Bonus thật sẽ xác nhận lại Firebase ngay trước khi cộng Coin.
     const goldenHourAtMultiSpin =
         getLuckyWheelGoldenHourStatus();
+
+    luckyWheelGoldenStatusLocked =
+        goldenHourAtMultiSpin;
+    renderLuckyWheelGoldenHourNotice();
 
     const resultText = document.getElementById('spinResultText');
     const titleWheel = document.querySelector('#luckyWheelModal h3');
@@ -9443,7 +13185,7 @@ window.spinMultipleWheel = async function () {
     resultText.style.transform = 'scale(1)';
     resultText.innerText =
         goldenHourAtMultiSpin.active
-            ? `🔥 GIỜ VÀNG +${LUCKY_WHEEL_GOLDEN_HOUR_BONUS} Coin/lượt trúng Coin · Đang quay ${spinsToDo} lần...`
+            ? `🔥 GIỜ VÀNG +${goldenHourAtMultiSpin.bonus} Coin/lượt trúng Coin · Đang quay ${spinsToDo} lần...`
             : `⚡ Đang xử lý quay ${spinsToDo} lần... 🌀`;
 
     // Chạy ngầm thuật toán quay y hệt hàm spinWheel gốc
@@ -9464,21 +13206,17 @@ window.spinMultipleWheel = async function () {
 
     const addMultiWheelCoinReward = baseAmount => {
         const normalizedBase =
-            Math.max(0, Number(baseAmount) || 0);
+            Math.max(
+                0,
+                Number(baseAmount) || 0
+            );
 
         if (normalizedBase <= 0) return;
 
-        baseCoinsWon += normalizedBase;
-        totalCoinsWon += normalizedBase;
+        baseCoinsWon +=
+            normalizedBase;
+
         coinRewardSpinCount++;
-
-        if (goldenHourAtMultiSpin.active) {
-            totalCoinsWon +=
-                LUCKY_WHEEL_GOLDEN_HOUR_BONUS;
-
-            goldenHourBonusCoins +=
-                LUCKY_WHEEL_GOLDEN_HOUR_BONUS;
-        }
     };
 
     const p = window.wheelProbs || { miss: 50, c100: 20, c150: 25, c500: 4, gift: 1 };
@@ -9509,6 +13247,36 @@ window.spinMultipleWheel = async function () {
         }
     }
 
+    /*
+     * Chốt bonus Quay Nhanh theo cấu hình Firebase MỚI NHẤT.
+     * Nếu teacher tắt Giờ Vàng trong lúc học sinh đang xử lý lượt quay,
+     * goldenHourBonusCoins lập tức = 0.
+     */
+    const goldenHourAtMultiPayout =
+        await refreshLuckyWheelGoldenHourFromServer({
+            notify:
+                false,
+
+            failClosed:
+                true
+        });
+
+    goldenHourBonusCoins =
+        goldenHourAtMultiPayout.active
+            ? (
+                coinRewardSpinCount *
+                Number(
+                    goldenHourAtMultiPayout
+                        .bonus ||
+                    0
+                )
+            )
+            : 0;
+
+    totalCoinsWon =
+        baseCoinsWon +
+        goldenHourBonusCoins;
+
     // Cập nhật Database
     ticketData.spinTracking.count = ticketData.used + spinsToDo;
     await db.ref('spin_counts/' + currentUser.username).transaction((currentData) => {
@@ -9517,8 +13285,44 @@ window.spinMultipleWheel = async function () {
     });
 
     if (totalCoinsWon > 0) {
-        const coinRef = db.ref('student_coins/' + currentUser.username);
-        await coinRef.transaction((currentCoins) => { return (currentCoins || 0) + totalCoinsWon; });
+        try {
+            await creditLuckyWheelCoinsReal(
+                totalCoinsWon
+            );
+        } catch (coinError) {
+            console.error(
+                '[Vòng quay nhanh] Không cộng được Coin thật:',
+                coinError
+            );
+
+            try {
+                await rollbackLuckyWheelSpinUsage(
+                    spinsToDo
+                );
+            } catch (rollbackError) {
+                console.error(
+                    '[Vòng quay nhanh] Không hoàn lại được lượt quay:',
+                    rollbackError
+                );
+            }
+
+            resultText.style.color = '#ff6b6b';
+            resultText.innerText =
+                `❌ KHÔNG CỘNG ĐƯỢC COIN. ĐÃ HOÀN LẠI ${spinsToDo} LƯỢT QUAY.`;
+
+            isSpinning = false;
+            luckyWheelGoldenStatusLocked = null;
+            renderLuckyWheelGoldenHourNotice();
+
+            if (typeof window.showToast === 'function') {
+                window.showToast(
+                    `Không cộng được Coin; đã hoàn lại ${spinsToDo} lượt quay.`,
+                    'error'
+                );
+            }
+
+            return;
+        }
     }
 
     if (newlyWonItems.length > 0) {
@@ -9680,6 +13484,8 @@ window.spinMultipleWheel = async function () {
 
         setTimeout(() => { resultText.style.transform = 'scale(1)'; }, 300);
         isSpinning = false;
+        luckyWheelGoldenStatusLocked = null;
+        renderLuckyWheelGoldenHourNotice();
 
         if (typeof studentOwnedItems !== 'undefined' && newlyWonItems.length > 0) {
             newlyWonItems.forEach(item => studentOwnedItems.push(item.id));
@@ -10131,30 +13937,48 @@ window.WebBackgroundManager = {
         );
 
 
+        /*
+         * Cho phép từng vật phẩm nền tự khai báo cách fit.
+         * Mặc định vẫn y hệt cơ chế cũ:
+         * cover + center center + no-repeat + fixed.
+         */
+        const backgroundFit =
+            String(item.backgroundFit || 'cover');
+
+        const backgroundPosition =
+            String(item.backgroundPosition || 'center center');
+
+        const backgroundRepeat =
+            String(item.backgroundRepeat || 'no-repeat');
+
+        const backgroundAttachment =
+            String(item.backgroundAttachment || 'fixed');
+
+
         body.style.setProperty(
             'background-size',
-            'cover',
+            backgroundFit,
             'important'
         );
 
 
         body.style.setProperty(
             'background-position',
-            'center center',
+            backgroundPosition,
             'important'
         );
 
 
         body.style.setProperty(
             'background-repeat',
-            'no-repeat',
+            backgroundRepeat,
             'important'
         );
 
 
         body.style.setProperty(
             'background-attachment',
-            'fixed',
+            backgroundAttachment,
             'important'
         );
 
@@ -10424,6 +14248,18 @@ window.buyItem = async function (itemId, isUpgradingFromTrial = false) {
     const item = StoreManager.getItemById(itemId);
     if (!item) return;
     if (item.isLocked) return alert("🔒 Vật phẩm này hiện đang bị Giáo viên khóa!");
+
+    if (
+        String(itemId) ===
+            'pet_trung_thu_nguyet_cung_tien_tu' ||
+        String(item.currency || '') ===
+            'mid_autumn_coin'
+    ) {
+        return window
+            .MidAutumnCoinManager
+            .redeem(itemId);
+    }
+
     if (item.isNonCoin && (!item.price || item.price <= 0)) return alert(`🎁 Vật phẩm sự kiện!`);
 
     const coinRef = db.ref('student_coins/' + currentUser.username);
@@ -12905,6 +16741,33 @@ window.renderStudentInbox = function () {
             let giftDisplay = '';
             if (msg.giftType === 'coin') giftDisplay = `🪙 ${parseInt(msg.giftValue).toLocaleString('vi-VN')} Coin`;
             else if (
+                msg.giftType === 'mid_autumn_coin'
+            ) {
+                const quantity =
+                    Math.max(
+                        1,
+                        parseInt(
+                            msg.giftValue,
+                            10
+                        ) || 1
+                    );
+
+                giftDisplay =
+                    `🌕 ${quantity} Xu Trung Thu` +
+                    `<br>` +
+                    `<span style="
+                        font-size:0.82em;
+                        color:#a16207;
+                        font-weight:600;
+                    ">` +
+                    (
+                        msg.giftCredited
+                            ? `Đã cộng tự động vào ví · Không hết hạn.`
+                            : `Không hết hạn · Nhấn nhận để cộng vào ví.`
+                    ) +
+                    `</span>`;
+            }
+            else if (
                 msg.giftType === 'birthday_coin'
             ) {
                 const birthdayYear =
@@ -13048,17 +16911,26 @@ window.renderStudentInbox = function () {
 
             if (isExpiredDiscountInInbox) {
                 btnHTML = `<button onclick="deleteMessage('${msg._fbKey}')" style="background: rgba(225, 29, 72, 0.1); color: #e11d48; width: 100%; padding: 10px; border-radius: 8px; font-weight: bold; border: 1px solid #e11d48; cursor: pointer;">🗑️ Thẻ đã hết hạn (Xóa thư)</button>`;
+            } else if (
+                msg.giftType === 'mid_autumn_coin' &&
+                msg.giftCredited === true
+            ) {
+                btnHTML = `<button onclick="deleteMessage('${msg._fbKey}')" style="background: linear-gradient(135deg,#f7d774,#d6a438); color:#47320d; width:100%; padding:10px; border-radius:8px; font-weight:900; border:none; cursor:pointer;">🌕 Đã nhận Xu Trung Thu · Xóa thư</button>`;
             } else {
                 const claimButtonText =
                     msg.giftType ===
-                        'birthday_coin'
-                        ? '🎂 Nhận Xu Sinh Nhật vào túi'
+                        'mid_autumn_coin'
+                        ? '🌕 Nhận Xu Trung Thu vào ví'
 
                         : msg.giftType ===
-                            'special_birthday_coin'
-                            ? '✨ Nhận Xu Đặc Biệt vào túi'
+                            'birthday_coin'
+                            ? '🎂 Nhận Xu Sinh Nhật vào túi'
 
-                            : '🧧 Mở quà & Nhận vào túi';
+                            : msg.giftType ===
+                                'special_birthday_coin'
+                                ? '✨ Nhận Xu Đặc Biệt vào túi'
+
+                                : '🧧 Mở quà & Nhận vào túi';
                 btnHTML = `
     <button
         onclick="
@@ -13155,6 +17027,79 @@ window.claimGift = async function (msgKey, clientGiftType, clientGiftValue) {
                 `${parseInt(giftValue).toLocaleString('vi-VN')} Coin!`
             );
 
+        } else if (
+            giftType === 'mid_autumn_coin'
+        ) {
+            const quantity =
+                parseInt(
+                    giftValue,
+                    10
+                );
+
+            if (
+                !Number.isInteger(
+                    quantity
+                ) ||
+                quantity <= 0
+            ) {
+                throw new Error(
+                    'INVALID_MID_AUTUMN_COIN_QUANTITY'
+                );
+            }
+
+            if (
+                msgData.giftCredited ===
+                true
+            ) {
+                claimSucceeded = true;
+
+                claimedPath =
+                    `mid_autumn_wallets/` +
+                    `${currentUser.username}`;
+
+                claimedExtra = {
+                    quantity,
+                    alreadyCredited:
+                        true,
+                    sourceMessageId:
+                        msgKey
+                };
+            } else {
+                const walletTx =
+                    await window
+                        .MidAutumnCoinManager
+                        .claimTeacherGift(
+                            msgKey,
+                            quantity
+                        );
+
+                if (
+                    !walletTx.committed
+                ) {
+                    alert(
+                        '🌕 Xu Trung Thu trong thư này đã được nhận trước đó.'
+                    );
+                } else {
+                    claimSucceeded =
+                        true;
+
+                    claimedPath =
+                        `mid_autumn_wallets/` +
+                        `${currentUser.username}`;
+
+                    claimedExtra = {
+                        quantity,
+                        sourceMessageId:
+                            msgKey
+                    };
+
+                    alert(
+                        `🌕 Bạn đã nhận ${quantity} Xu Trung Thu!\n` +
+                        `Xu không hết hạn. Hiện có: ` +
+                        `${window.MidAutumnCoinManager.getBalance()} Xu.`
+                    );
+                }
+            }
         } else if (
             giftType === 'birthday_coin'
         ) {
@@ -13565,6 +17510,19 @@ window.claimGift = async function (msgKey, clientGiftType, clientGiftValue) {
 
                 giftDescription =
                     `Thẻ giảm giá ${logAmount}%`;
+
+            } else if (
+                giftType ===
+                'mid_autumn_coin'
+            ) {
+                logAmount =
+                    Number(giftValue);
+
+                logUnit =
+                    'Xu Trung Thu';
+
+                giftDescription =
+                    `${logAmount} Xu Trung Thu`;
 
             } else if (
                 giftType ===
@@ -17859,6 +21817,40 @@ window.showBagItemPopup = function (item) {
     }
     else if (
         item.type ===
+        'mid_autumn_coin'
+    ) {
+        actionButtonHtml = `
+            <button
+                onclick="
+                    openMidAutumnStoreFromBag()
+                "
+                style="
+                    margin-top:15px;
+                    width:100%;
+                    background:
+                        linear-gradient(
+                            135deg,
+                            #0f766e,
+                            #f59e0b
+                        );
+                    border:none;
+                    padding:10px;
+                    border-radius:8px;
+                    font-weight:bold;
+                    color:white;
+                    cursor:pointer;
+                    box-shadow:
+                        0 4px 10px
+                        rgba(15,118,110,0.28);
+                    font-size:0.95em;
+                "
+            >
+                🏮 Mở Cửa hàng Sang trọng
+            </button>
+        `;
+    }
+    else if (
+        item.type ===
         'special_birthday_coin'
     ) {
         actionButtonHtml =
@@ -17922,13 +21914,44 @@ window.showBagItemPopup = function (item) {
         <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; font-size: 0.88em; color: #475569; text-align: left; line-height: 1.4;">
             ${item.description}
             <p style="margin: 8px 0 0 0; font-weight: bold; color: #1e293b; border-top: 1px dashed #cbd5e1; padding-top: 6px; text-align: right;">
-                Xếp chồng: ${item.quantity}/50
+                ${
+                    item.type === 'mid_autumn_coin'
+                        ? `Số dư: ${Number(item.quantity || 0).toLocaleString('vi-VN')} Xu`
+                        : `Xếp chồng: ${item.quantity}/50`
+                }
             </p>
         </div>
         ${actionButtonHtml}
     `;
 
     popup.style.display = 'block';
+};
+
+// Mở Cửa hàng Sang trọng trực tiếp từ ô Xu Trung Thu trong Túi đồ.
+window.openMidAutumnStoreFromBag = function () {
+    try {
+        window.closeBagItemPopup?.();
+        window.closeStudentBag?.();
+
+        if (
+            window.LuxuryStore &&
+            typeof window.LuxuryStore.open ===
+                'function'
+        ) {
+            window.LuxuryStore.open();
+            return;
+        }
+
+        alert(
+            '🏮 Cửa hàng Sang trọng chưa sẵn sàng. ' +
+            'Vui lòng mở mục Cửa hàng → Sang trọng.'
+        );
+    } catch (error) {
+        console.error(
+            '[Xu Trung Thu] Không thể mở Cửa hàng Sang trọng:',
+            error
+        );
+    }
 };
 
 // Thực hiện giao dịch bán thẻ từ Popup thông tin
@@ -17965,7 +21988,8 @@ window.renderStudentBag = async function () {
             discountSnap,
             invSnap,
             birthdayCoinSnap,
-            specialBirthdayCoinSnap
+            specialBirthdayCoinSnap,
+            midAutumnWalletSnap
         ] = await Promise.all([
             window.calculateTotalTickets(),
 
@@ -17987,6 +22011,11 @@ window.renderStudentBag = async function () {
 
             db.ref(
                 'student_special_birthday_coins/' +
+                currentUser.username
+            ).once('value'),
+
+            db.ref(
+                'mid_autumn_wallets/' +
                 currentUser.username
             ).once('value')
         ]);
@@ -18012,7 +22041,56 @@ window.renderStudentBag = async function () {
             totalTickets -= count;
         }
 
-        // --- 2. XỬ LÝ XU ĐẶC BIỆT ---
+        // --- 2. XỬ LÝ XU TRUNG THU ---
+        // Xu Trung Thu là tiền tệ sự kiện nên không ghi vào student_inventory.
+        // Túi đồ đọc trực tiếp số dư thật từ mid_autumn_wallets.
+        const midAutumnWallet =
+            midAutumnWalletSnap.val() || {};
+
+        const midAutumnBalance =
+            Math.max(
+                0,
+                Number(
+                    midAutumnWallet.balance || 0
+                )
+            );
+
+        window.studentMidAutumnWallet =
+            midAutumnWallet;
+
+        window.studentMidAutumnCoinBalance =
+            midAutumnBalance;
+
+        if (midAutumnBalance > 0) {
+            slotsData.push({
+                type:
+                    'mid_autumn_coin',
+
+                name:
+                    'Xu Trung Thu',
+
+                icon:
+                    '🌕',
+
+                isImg:
+                    false,
+
+                quantity:
+                    midAutumnBalance,
+
+                isExpired:
+                    false,
+
+                description:
+                    `🌕 <b>Xu Trung Thu</b><br>` +
+                    `♾️ <b>Không hết hạn:</b> số Xu còn dư được giữ lại qua các năm.<br>` +
+                    `🏮 Chỉ dùng đổi vật phẩm Trung Thu vào <b>đúng ngày Trung Thu</b> của năm đó.<br>` +
+                    `🐇 <b>Nguyệt Cung Tiên Tử:</b> 2 Xu.<br>` +
+                    `⚠️ Khi đổi vật phẩm, hệ thống sẽ <b>trừ đúng số Xu đã dùng</b>.`
+            });
+        }
+
+        // --- 3. XỬ LÝ XU ĐẶC BIỆT ---
         const specialBirthdayGrants =
             specialBirthdayCoinSnap.val() || {};
 
@@ -18082,7 +22160,7 @@ window.renderStudentBag = async function () {
                 });
             });
 
-        // --- 2. XỬ LÝ XU SINH NHẬT THEO TỪNG NĂM ---
+        // --- 4. XỬ LÝ XU SINH NHẬT THEO TỪNG NĂM ---
         const birthdayWallets =
             birthdayCoinSnap.val() || {};
 
@@ -18136,7 +22214,7 @@ window.renderStudentBag = async function () {
                 });
             });
 
-        // --- 2. XỬ LÝ GỘP Ô: THẺ GIẢM GIÁ (HIỂN THỊ CẢ THẺ HẾT HẠN) ---
+        // --- 5. XỬ LÝ GỘP Ô: THẺ GIẢM GIÁ (HIỂN THỊ CẢ THẺ HẾT HẠN) ---
         const discounts = discountSnap.val() || {};
         let groupedDiscounts = {};
 
@@ -18289,7 +22367,7 @@ window.renderStudentBag = async function () {
             slotsData.push({ type: 'empty' });
         }
 
-        // --- 3. RENDER GIAO DIỆN LƯỚI Ô ĐỒ ---
+        // --- 6. RENDER GIAO DIỆN LƯỚI Ô ĐỒ ---
         let gridHtml = '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(75px, 1fr)); gap: 10px; padding: 4px;">';
 
         slotsData.forEach(slot => {

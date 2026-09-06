@@ -2,6 +2,20 @@
 
 class PetManager {
     static container = document.getElementById('virtual-pet-container');
+    // EFFECT QUALITY MANAGER v1.2.0
+    // Pet/Premium mới giảm số hạt trước khi tạo DOM; Cao/tắt giữ nguyên.
+    static getQualityCount(baseCount, minimum = 1) {
+        const base = Math.max(0, Number(baseCount) || 0);
+        try {
+            const manager = window.EffectQualityManager;
+            if (manager && typeof manager.getRecommendedCount === 'function') {
+                const next = manager.getRecommendedCount(base);
+                return base > 0 ? Math.max(minimum, next) : 0;
+            }
+        } catch (_) {}
+        return Math.ceil(base);
+    }
+
     static interactionAbortController = null;
     static premiumSpringObserver = null;
     static nationalDayObserver = null;
@@ -170,7 +184,7 @@ class PetManager {
                 '(max-width: 768px), (pointer: coarse), (prefers-reduced-motion: reduce)'
             ).matches;
 
-        const particleCount = reduced ? 10 : 22;
+        const particleCount = this.getQualityCount(reduced ? 10 : 22);
 
         for (
             let index = 0;
@@ -865,7 +879,7 @@ class PetManager {
         ).matches;
 
         const stars = ultimate.querySelector('.nyx-mythic-ultimate-stars');
-        const starCount = reduced ? 22 : 54;
+        const starCount = this.getQualityCount(reduced ? 22 : 54);
         for (let index = 0; index < starCount; index++) {
             const star = document.createElement('span');
             star.textContent = index % 5 === 0 ? '✦' : '';
@@ -889,7 +903,7 @@ class PetManager {
         });
 
         const shardField = ultimate.querySelector('.nyx-v3-shard-field');
-        const shardCount = reduced ? 14 : 34;
+        const shardCount = this.getQualityCount(reduced ? 14 : 34);
         for (let index = 0; index < shardCount; index++) {
             const shard = document.createElement('i');
             shard.style.setProperty('--nyx-v3-shard-angle', `${(index * 137.5) % 360}deg`);
@@ -944,6 +958,20 @@ class PetManager {
         document
             .querySelectorAll('.tbc1-fullscreen-ultimate')
             .forEach(node => node.remove());
+        // Dọn ultimate toàn màn hình Cầm Mộng Chibi nếu đổi / tháo pet khi đang chạy.
+        document
+            .querySelectorAll(
+                '.cam-mong-chibi-screen-ultimate-v2'
+            )
+            .forEach(node => node.remove());
+
+        // Dọn riêng Trung Thu · Tiểu Hằng Nga nếu đổi/tháo pet khi ultimate còn chạy.
+        document
+            .querySelectorAll(
+                '.mafc-screen-ultimate, .mafc-local-click-burst'
+            )
+            .forEach(node => node.remove());
+
         // Dọn toàn bộ tương tác và vòng lặp của thú cưng trước
         if (
             typeof PetInteractionManager !== 'undefined' &&
@@ -969,6 +997,9 @@ class PetManager {
             'pet-spring-vintage-stage',
             'spring-vintage-awakening',
             'spring-vintage-casting',
+            'pet-summer-solstice-stage',
+            'summer-solstice-awakening',
+            'summer-solstice-casting',
             'pet-national-day-stage',
             'national-day-awakening',
             'national-day-casting',
@@ -986,6 +1017,29 @@ class PetManager {
             'tamon-bside-chibi-casting',
             'pet-tamon-pinkstatic-stage',
             'tamon-pinkstatic-casting',
+            'pet-cam-mong-chibi-stage',
+            'cam-mong-chibi-casting',
+            'pet-midautumn-hangnga-chibi-stage',
+            'mafc-awakening',
+            'mafc-casting',
+            'pet-summer-solstice-stage',
+            'summer-solstice-awakening',
+            'summer-solstice-casting',
+            'summer-solstice-v3-casting',
+        );
+
+        // Dọn hiệu ứng tạm Mùa Hạ nếu người dùng đổi pet giữa lúc skill đang chạy.
+        document
+            .querySelectorAll(
+                '.summer-solstice-ultimate,' +
+                '.summer-solstice-click-burst,' +
+                '.summer-solstice-drag-trail,' +
+                '.summer-solstice-pet-dialogue'
+            )
+            .forEach(node => node.remove());
+
+        document.documentElement.classList.remove(
+            'summer-solstice-skill-active'
         );
 
         // Dọn lớp Nyx toàn màn hình nếu người dùng đổi pet khi kỹ năng đang chạy.
@@ -994,6 +1048,27 @@ class PetManager {
             .forEach(node => node.remove());
         document.documentElement.classList.remove(
             'nyx-mythic-pet-equipped'
+        );
+
+        // Dọn lớp Mùa Hạ Premium V3 nếu đổi/tháo pet trong lúc skill còn chạy.
+        document
+            .querySelectorAll(
+                '.summer-solstice-screen-burst-v3,' +
+                '.summer-solstice-ultimate,' +
+                '.summer-solstice-click-burst,' +
+                '.summer-solstice-drag-trail,' +
+                '.summer-solstice-pet-dialogue'
+            )
+            .forEach(node => node.remove());
+
+        document.documentElement.classList.remove(
+            'summer-solstice-equipped',
+            'summer-solstice-skill-active',
+            'summer-solstice-v3-equipped'
+        );
+
+        document.body?.classList.remove(
+            'theme-summer-solstice-stage'
         );
 
         let petElement;
@@ -1019,6 +1094,161 @@ class PetManager {
             petElement.style.filter = '';
         }
 
+
+        // =========================================================
+        // LẠC THANH HUYỀN · TIỂU MỘNG — CẦM MỘNG CHIBI V1
+        // HIỆU ỨNG MỚI HOÀN TOÀN, CHỈ QUANH PET.
+        // Namespace: cmc2-* / cam-mong-chibi-*
+        // Không gọi ThemeManager / EffectManager.
+        // Không tạo world/full-web và không tái sử dụng effect cũ.
+        // =========================================================
+        if (
+            petData.id === 'pet_cam_mong_chibi_1' ||
+            petData.petEffect === 'cam-mong-chibi-qin-spirit-magic'
+        ) {
+            petElement.setAttribute('draggable', 'false');
+            petElement.classList.add('cam-mong-chibi-avatar-v1');
+
+            this.container.classList.add(
+                'pet-cam-mong-chibi-stage'
+            );
+
+            const realm = document.createElement('div');
+            realm.className = 'cam-mong-chibi-realm-v1';
+            realm.setAttribute('aria-hidden', 'true');
+            realm.innerHTML = `
+                <span class="cmc2-aura aura-a"></span>
+                <span class="cmc2-aura aura-b"></span>
+
+                <span class="cmc2-jade-disc">
+                    <i></i><b></b><em>琴</em>
+                </span>
+
+                <span class="cmc2-ring ring-a"></span>
+                <span class="cmc2-ring ring-b"></span>
+                <span class="cmc2-ring ring-c"></span>
+
+                <span class="cmc2-cloud cloud-a"></span>
+                <span class="cmc2-cloud cloud-b"></span>
+
+                <span class="cmc2-qin-arc">
+                    <i></i><i></i><i></i><i></i>
+                    <i></i><i></i><i></i>
+                </span>
+
+                <span class="cmc2-tassel tassel-a"></span>
+                <span class="cmc2-tassel tassel-b"></span>
+
+                <span class="cmc2-note-field"></span>
+                <span class="cmc2-petal-field"></span>
+                <span class="cmc2-spark-field"></span>
+            `;
+
+            const reduced =
+                window.matchMedia?.(
+                    '(max-width: 768px), (pointer: coarse), (prefers-reduced-motion: reduce)'
+                ).matches;
+
+            const noteField =
+                realm.querySelector('.cmc2-note-field');
+
+            const noteSymbols = [
+                '♪', '♫', '✦', '梦', '琴', '❀', '♪', '✧', '云'
+            ];
+
+            noteSymbols.forEach((symbol, index) => {
+                const note = document.createElement('i');
+
+                note.textContent = symbol;
+
+                note.style.setProperty(
+                    '--cmc2-na',
+                    `${index * (360 / noteSymbols.length)}deg`
+                );
+
+                note.style.setProperty(
+                    '--cmc2-na-back',
+                    `${index * -(360 / noteSymbols.length)}deg`
+                );
+
+                note.style.setProperty(
+                    '--cmc2-nr-neg',
+                    `${-(62 + (index % 4) * 14)}px`
+                );
+
+                note.style.setProperty(
+                    '--cmc2-nd',
+                    `${-(index % 6) * .34}s`
+                );
+
+                noteField?.appendChild(note);
+            });
+
+            const petalField =
+                realm.querySelector('.cmc2-petal-field');
+
+            const petalCount = this.getQualityCount(reduced ? 10 : 18);
+
+            for (let index = 0; index < petalCount; index++) {
+                const petal = document.createElement('i');
+
+                petal.style.setProperty(
+                    '--cmc2-pa',
+                    `${index * (360 / petalCount)}deg`
+                );
+
+                petal.style.setProperty(
+                    '--cmc2-pa-back',
+                    `${index * -(360 / petalCount)}deg`
+                );
+
+                petal.style.setProperty(
+                    '--cmc2-pr-neg',
+                    `${-(48 + (index % 6) * 14)}px`
+                );
+
+                petal.style.setProperty(
+                    '--cmc2-pd',
+                    `${-(index % 9) * .23}s`
+                );
+
+                petalField?.appendChild(petal);
+            }
+
+            const sparkField =
+                realm.querySelector('.cmc2-spark-field');
+
+            const sparkCount = this.getQualityCount(reduced ? 12 : 26);
+
+            for (let index = 0; index < sparkCount; index++) {
+                const spark = document.createElement('i');
+
+                spark.style.setProperty(
+                    '--cmc2-sx',
+                    `${9 + ((index * 41) % 82)}%`
+                );
+
+                spark.style.setProperty(
+                    '--cmc2-sy',
+                    `${8 + ((index * 59) % 83)}%`
+                );
+
+                spark.style.setProperty(
+                    '--cmc2-ss',
+                    `${2 + (index % 4) * .8}px`
+                );
+
+                spark.style.setProperty(
+                    '--cmc2-sd',
+                    `${-(index % 10) * .27}s`
+                );
+
+                sparkField?.appendChild(spark);
+            }
+
+            this.container.appendChild(realm);
+        }
+
         // =========================================================
         // TAMON'S B-SIDE — FALLBACK LOCAL STAGE
         // Luôn gắn class kích thước / idle trực tiếp từ PetManager.
@@ -1036,6 +1266,350 @@ class PetManager {
             );
         }
 
+
+        // =========================================================
+        // TRUNG THU · TIỂU HẰNG NGA — NGUYỆT ĐĂNG VÂN VŨ
+        // Runtime MỚI hoàn toàn, namespace mafc-*.
+        // Chỉ thao tác DOM của pet này + overlay click tạm thời.
+        // KHÔNG gọi ThemeManager / EffectManager và không dùng class effect cũ.
+        // =========================================================
+        if (
+            petData.id === 'pet_trung_thu_hang_nga_chibi_1' ||
+            petData.petEffect ===
+                'midautumn-chibi-moon-lantern-magic'
+        ) {
+            petElement.setAttribute('draggable', 'false');
+            petElement.classList.add('mafc-avatar');
+
+            this.container.classList.add(
+                'pet-midautumn-hangnga-chibi-stage',
+                'mafc-awakening'
+            );
+
+            const realm = document.createElement('div');
+            realm.className = 'mafc-local-realm';
+            realm.setAttribute('aria-hidden', 'true');
+            realm.innerHTML = `
+                <span class="mafc-local-aura"></span>
+                <span class="mafc-local-moon"></span>
+                <span class="mafc-local-ring ring-a"></span>
+                <span class="mafc-local-ring ring-b"></span>
+                <span class="mafc-local-ring ring-c"></span>
+
+                <span class="mafc-local-cloud cloud-a"></span>
+                <span class="mafc-local-cloud cloud-b"></span>
+                <span class="mafc-local-cloud cloud-c"></span>
+
+                <span class="mafc-local-lantern lantern-a">◆</span>
+                <span class="mafc-local-lantern lantern-b">◆</span>
+                <span class="mafc-local-lantern lantern-c">◆</span>
+                <span class="mafc-local-lantern lantern-d">◆</span>
+
+                <div class="mafc-local-star-field"></div>
+                <div class="mafc-local-petal-field"></div>
+                <span class="mafc-local-ground"></span>
+            `;
+
+            const reducedMotion = window.matchMedia?.(
+                '(max-width: 768px), (pointer: coarse), ' +
+                '(prefers-reduced-motion: reduce)'
+            ).matches;
+
+            const starField = realm.querySelector(
+                '.mafc-local-star-field'
+            );
+            const starCount = this.getQualityCount(
+                reducedMotion ? 10 : 22
+            );
+
+            for (let index = 0; index < starCount; index++) {
+                const star = document.createElement('i');
+                star.className = 'mafc-local-star';
+                star.textContent =
+                    index % 5 === 0
+                        ? '✦'
+                        : index % 3 === 0
+                            ? '·'
+                            : '✧';
+                star.style.setProperty(
+                    '--mafc-sa',
+                    `${index * (360 / starCount)}deg`
+                );
+                star.style.setProperty(
+                    '--mafc-sab',
+                    `${index * -(360 / starCount)}deg`
+                );
+                star.style.setProperty(
+                    '--mafc-sr',
+                    `${57 + (index % 6) * 10}px`
+                );
+                star.style.setProperty(
+                    '--mafc-sd',
+                    `${-index * .18}s`
+                );
+                starField?.appendChild(star);
+            }
+
+            const petalField = realm.querySelector(
+                '.mafc-local-petal-field'
+            );
+            const petalCount = this.getQualityCount(
+                reducedMotion ? 8 : 16
+            );
+
+            for (let index = 0; index < petalCount; index++) {
+                const petal = document.createElement('i');
+                petal.className = 'mafc-local-petal';
+                petal.style.setProperty(
+                    '--mafc-px',
+                    `${8 + ((index * 43) % 84)}%`
+                );
+                petal.style.setProperty(
+                    '--mafc-py',
+                    `${12 + ((index * 61) % 76)}%`
+                );
+                petal.style.setProperty(
+                    '--mafc-pd',
+                    `${-(index % 9) * .31}s`
+                );
+                petal.style.setProperty(
+                    '--mafc-pr',
+                    `${-28 + (index % 7) * 11}deg`
+                );
+                petalField?.appendChild(petal);
+            }
+
+            this.container.appendChild(realm);
+
+            window.setTimeout(() => {
+                this.container?.classList.remove(
+                    'mafc-awakening'
+                );
+            }, 1500);
+
+            let mafcClickLocked = false;
+
+            petElement.addEventListener('click', event => {
+                if (mafcClickLocked) return;
+
+                if (
+                    typeof PetInteractionManager !== 'undefined' &&
+                    PetInteractionManager.isPetDragging
+                ) {
+                    return;
+                }
+
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+
+                mafcClickLocked = true;
+
+                this.container.classList.remove('mafc-casting');
+                void this.container.offsetWidth;
+                this.container.classList.add('mafc-casting');
+
+                // -----------------------------
+                // NỔ CỤC BỘ QUANH NHÂN VẬT
+                // -----------------------------
+                const localBurst = document.createElement('div');
+                localBurst.className = 'mafc-local-click-burst';
+                localBurst.setAttribute('aria-hidden', 'true');
+                localBurst.innerHTML = `
+                    <span class="mafc-click-moon"></span>
+                    <span class="mafc-click-ring ring-a"></span>
+                    <span class="mafc-click-ring ring-b"></span>
+                    <div class="mafc-click-rays"></div>
+                    <div class="mafc-click-sparks"></div>
+                `;
+
+                const clickSparks = localBurst.querySelector(
+                    '.mafc-click-sparks'
+                );
+                const clickCount = this.getQualityCount(
+                    reducedMotion ? 10 : 20
+                );
+
+                for (let index = 0; index < clickCount; index++) {
+                    const spark = document.createElement('i');
+                    spark.className = 'mafc-click-spark';
+                    spark.textContent = index % 4 === 0 ? '✦' : '';
+                    spark.style.setProperty(
+                        '--mafc-ca',
+                        `${index * (360 / clickCount)}deg`
+                    );
+                    spark.style.setProperty(
+                        '--mafc-cd',
+                        `${76 + (index % 5) * 18}px`
+                    );
+                    spark.style.setProperty(
+                        '--mafc-cdelay',
+                        `${(index % 5) * .025}s`
+                    );
+                    clickSparks?.appendChild(spark);
+                }
+
+                this.container.appendChild(localBurst);
+
+                // -----------------------------
+                // ULTIMATE TOÀN MÀN HÌNH RIÊNG
+                // -----------------------------
+                document
+                    .querySelectorAll('.mafc-screen-ultimate')
+                    .forEach(node => node.remove());
+
+                const ultimate = document.createElement('div');
+                ultimate.className = 'mafc-screen-ultimate';
+                ultimate.setAttribute('aria-hidden', 'true');
+                ultimate.innerHTML = `
+                    <div class="mafc-screen-flash"></div>
+                    <div class="mafc-screen-vignette"></div>
+                    <div class="mafc-screen-night"></div>
+
+                    <div class="mafc-screen-moon">
+                        <span class="moon-glow"></span>
+                        <span class="moon-disc"></span>
+                        <span class="moon-rabbit"></span>
+                    </div>
+
+                    <span class="mafc-screen-ring ring-one"></span>
+                    <span class="mafc-screen-ring ring-two"></span>
+                    <span class="mafc-screen-ring ring-three"></span>
+
+                    <div class="mafc-screen-cloud cloud-left"></div>
+                    <div class="mafc-screen-cloud cloud-right"></div>
+                    <div class="mafc-screen-cloud cloud-bottom"></div>
+
+                    <div class="mafc-screen-lantern-field"></div>
+                    <div class="mafc-screen-star-field"></div>
+                    <div class="mafc-screen-petal-field"></div>
+
+                    <div class="mafc-screen-title">
+                        <small>TRUNG THU · NGUYỆT ĐĂNG</small>
+                        <strong>NGUYỆT HẠ HOA ĐĂNG</strong>
+                        <span>✦ 月下花燈 ✦</span>
+                    </div>
+                `;
+
+                const lanternField = ultimate.querySelector(
+                    '.mafc-screen-lantern-field'
+                );
+                const lanternCount = this.getQualityCount(
+                    reducedMotion ? 8 : 16
+                );
+
+                for (
+                    let index = 0;
+                    index < lanternCount;
+                    index++
+                ) {
+                    const lantern = document.createElement('i');
+                    lantern.className = 'mafc-screen-lantern';
+                    lantern.innerHTML = '<b></b><span></span>';
+                    lantern.style.setProperty(
+                        '--mafc-lx',
+                        `${5 + ((index * 37) % 90)}%`
+                    );
+                    lantern.style.setProperty(
+                        '--mafc-ly',
+                        `${8 + ((index * 53) % 78)}%`
+                    );
+                    lantern.style.setProperty(
+                        '--mafc-ld',
+                        `${-(index % 8) * .24}s`
+                    );
+                    lantern.style.setProperty(
+                        '--mafc-ls',
+                        `${.7 + (index % 4) * .12}`
+                    );
+                    lanternField?.appendChild(lantern);
+                }
+
+                const screenStarField = ultimate.querySelector(
+                    '.mafc-screen-star-field'
+                );
+                const screenStarCount = this.getQualityCount(
+                    reducedMotion ? 16 : 38
+                );
+
+                for (
+                    let index = 0;
+                    index < screenStarCount;
+                    index++
+                ) {
+                    const star = document.createElement('i');
+                    star.className = 'mafc-screen-star';
+                    star.textContent = index % 6 === 0 ? '✦' : '·';
+                    star.style.setProperty(
+                        '--mafc-fx',
+                        `${(index * 41 + 7) % 100}%`
+                    );
+                    star.style.setProperty(
+                        '--mafc-fy',
+                        `${(index * 67 + 11) % 100}%`
+                    );
+                    star.style.setProperty(
+                        '--mafc-fd',
+                        `${-(index % 11) * .13}s`
+                    );
+                    screenStarField?.appendChild(star);
+                }
+
+                const screenPetalField = ultimate.querySelector(
+                    '.mafc-screen-petal-field'
+                );
+                const screenPetalCount = this.getQualityCount(
+                    reducedMotion ? 12 : 28
+                );
+
+                for (
+                    let index = 0;
+                    index < screenPetalCount;
+                    index++
+                ) {
+                    const petal = document.createElement('i');
+                    petal.className = 'mafc-screen-petal';
+                    petal.style.setProperty(
+                        '--mafc-ppx',
+                        `${(index * 29 + 5) % 100}%`
+                    );
+                    petal.style.setProperty(
+                        '--mafc-ppy',
+                        `${(index * 47 + 9) % 100}%`
+                    );
+                    petal.style.setProperty(
+                        '--mafc-ppd',
+                        `${-(index % 10) * .17}s`
+                    );
+                    screenPetalField?.appendChild(petal);
+                }
+
+                document.body.appendChild(ultimate);
+
+                requestAnimationFrame(() => {
+                    ultimate.classList.add('is-active');
+                });
+
+                window.setTimeout(() => {
+                    ultimate.classList.add('is-leaving');
+                }, 2800);
+
+                window.setTimeout(() => {
+                    ultimate.remove();
+                }, 3700);
+
+                window.setTimeout(() => {
+                    localBurst.remove();
+                    this.container?.classList.remove(
+                        'mafc-casting'
+                    );
+                }, 1300);
+
+                window.setTimeout(() => {
+                    mafcClickLocked = false;
+                }, 4100);
+            });
+        }
 
         // =========================================================
         // TAMON'S B-SIDE · CHIBI SIGNAL — EFFECT RIÊNG
@@ -1066,7 +1640,7 @@ class PetManager {
             const reducedMotion = window.matchMedia?.(
                 '(max-width: 768px), (pointer: coarse), (prefers-reduced-motion: reduce)'
             ).matches;
-            const sparkCount = reducedMotion ? 8 : 16;
+            const sparkCount = this.getQualityCount(reducedMotion ? 8 : 16);
 
             for (let index = 0; index < sparkCount; index++) {
                 const spark = document.createElement('i');
@@ -1158,7 +1732,7 @@ class PetManager {
                     '(max-width: 768px), (pointer: coarse), (prefers-reduced-motion: reduce)'
                 ).matches;
 
-                const shardCount = ultimateReduced ? 12 : 28;
+                const shardCount = this.getQualityCount(ultimateReduced ? 12 : 28);
                 for (let index = 0; index < shardCount; index++) {
                     const shard = document.createElement('i');
                     shard.className = 'tbc1-screen-shard';
@@ -1170,7 +1744,7 @@ class PetManager {
                     shardField?.appendChild(shard);
                 }
 
-                const eqCount = ultimateReduced ? 14 : 30;
+                const eqCount = this.getQualityCount(ultimateReduced ? 14 : 30);
                 for (let index = 0; index < eqCount; index++) {
                     const bar = document.createElement('i');
                     bar.className = 'tbc1-screen-eq-bar';
@@ -1266,7 +1840,7 @@ class PetManager {
                 ).matches;
 
             const particleCount =
-                reducedMotion ? 8 : 16;
+                this.getQualityCount(reducedMotion ? 8 : 16);
 
             for (
                 let index = 0;
@@ -1489,7 +2063,7 @@ class PetManager {
                 '(max-width: 768px), (pointer: coarse), (prefers-reduced-motion: reduce)'
             ).matches;
 
-            const starCount = reduced ? 10 : 18;
+            const starCount = this.getQualityCount(reduced ? 10 : 18);
             for (let index = 0; index < starCount; index++) {
                 const star = document.createElement('span');
                 star.className = 'nyx-mythic-orbit-star';
@@ -1500,7 +2074,7 @@ class PetManager {
                 orbit?.appendChild(star);
             }
 
-            const moteCount = reduced ? 12 : 28;
+            const moteCount = this.getQualityCount(reduced ? 12 : 28);
             for (let index = 0; index < moteCount; index++) {
                 const mote = document.createElement('span');
                 mote.className = 'nyx-mythic-void-mote';
@@ -2336,7 +2910,7 @@ class PetManager {
             );
 
             grapeOrbits.forEach((orbit, orbitIndex) => {
-                const grapeCount = orbitIndex === 0 ? 9 : 7;
+                const grapeCount = this.getQualityCount(orbitIndex === 0 ? 9 : 7);
 
                 for (let index = 0; index < grapeCount; index++) {
                     const grape = document.createElement('span');
@@ -2361,9 +2935,9 @@ class PetManager {
                 '.spring-vintage-gem-field'
             );
 
-            const gemCount = window.matchMedia?.(
+            const gemCount = this.getQualityCount(window.matchMedia?.(
                 '(max-width: 768px), (pointer: coarse)'
-            ).matches ? 10 : 18;
+            ).matches ? 10 : 18);
 
             for (let index = 0; index < gemCount; index++) {
                 const gem = document.createElement('span');
@@ -3184,13 +3758,13 @@ class PetManager {
                         );
 
                     const starCount =
-                        window.matchMedia?.(
+                        this.getQualityCount(window.matchMedia?.(
                             '(max-width: 768px), ' +
                             '(pointer: coarse), ' +
                             '(prefers-reduced-motion: reduce)'
                         ).matches
                             ? 18
-                            : 36;
+                            : 36);
 
                     for (
                         let index = 0;
@@ -3244,9 +3818,9 @@ class PetManager {
                         );
 
                     const sparkCount =
-                        starCount < 30
+                        this.getQualityCount(starCount < 30
                             ? 28
-                            : 58;
+                            : 58);
 
                     for (
                         let index = 0;
@@ -3801,7 +4375,7 @@ class PetManager {
                     )
                 );
 
-                const particleCount = hasNightDomain ? 3 : 1;
+                const particleCount = this.getQualityCount(hasNightDomain ? 3 : 1);
 
                 for (let i = 0; i < particleCount; i++) {
                     const particle = document.createElement('span');
@@ -3853,9 +4427,9 @@ class PetManager {
 
             if (amonPet && Math.random() < 0.72) {
                 const trailCount =
-                    document.body.classList.contains('theme-lotm-mysteries')
+                    this.getQualityCount(document.body.classList.contains('theme-lotm-mysteries')
                         ? 3
-                        : 2;
+                        : 2);
 
                 for (let i = 0; i < trailCount; i++) {
                     const stolenSecond = document.createElement('span');
@@ -3906,7 +4480,7 @@ class PetManager {
             );
 
             if (springVintagePet && Math.random() < 0.58) {
-                const trailCount = Math.random() < 0.35 ? 2 : 1;
+                const trailCount = this.getQualityCount(Math.random() < 0.35 ? 2 : 1);
 
                 for (let i = 0; i < trailCount; i++) {
                     const trail = document.createElement('span');
@@ -3958,6 +4532,305 @@ class PetManager {
             // Sau khi kéo thì không vô tình kích hoạt kỹ năng
             if (didDrag) {
                 didDrag = false;
+                return;
+            }
+
+
+            // =================================================
+            // LẠC THANH HUYỀN · TIỂU MỘNG
+            // "NHẤT HUYỀN NHẬP MỘNG"
+            // CLICK PET = local cast + ULTIMATE TOÀN MÀN HÌNH.
+            // Namespace hoàn toàn riêng: cmc2-*.
+            // =================================================
+            if (
+                e.target &&
+                e.target.id === 'virtual-pet-img' &&
+                e.target.classList.contains(
+                    'cam-mong-chibi-qin-spirit-magic'
+                )
+            ) {
+                const petImg = e.target;
+
+                const container =
+                    document.getElementById(
+                        'virtual-pet-container'
+                    );
+
+                if (
+                    !container ||
+                    container.dataset.camMongChibiClickLocked === '1'
+                ) {
+                    return;
+                }
+
+                const rect =
+                    petImg.getBoundingClientRect();
+
+                const originX =
+                    Number.isFinite(e.clientX) &&
+                    e.clientX > 0
+                        ? e.clientX
+                        : rect.left + rect.width / 2;
+
+                const originY =
+                    Number.isFinite(e.clientY) &&
+                    e.clientY > 0
+                        ? e.clientY
+                        : rect.top + rect.height / 2;
+
+                container.dataset.camMongChibiClickLocked = '1';
+
+                container.classList.remove(
+                    'cam-mong-chibi-casting'
+                );
+
+                void container.offsetWidth;
+
+                container.classList.add(
+                    'cam-mong-chibi-casting'
+                );
+
+                // Dọn ultimate cũ nếu người dùng nhấn lại đúng lúc.
+                document
+                    .querySelectorAll(
+                        '.cam-mong-chibi-screen-ultimate-v2'
+                    )
+                    .forEach(node => node.remove());
+
+                const ultimate =
+                    document.createElement('div');
+
+                ultimate.className =
+                    'cam-mong-chibi-screen-ultimate-v2';
+
+                ultimate.setAttribute(
+                    'aria-hidden',
+                    'true'
+                );
+
+                ultimate.style.setProperty(
+                    '--cmc2-origin-x',
+                    `${originX}px`
+                );
+
+                ultimate.style.setProperty(
+                    '--cmc2-origin-y',
+                    `${originY}px`
+                );
+
+                ultimate.innerHTML = `
+                    <div class="cmc2-screen-wash"></div>
+                    <div class="cmc2-screen-flash"></div>
+
+                    <div class="cmc2-screen-mountain mountain-a"></div>
+                    <div class="cmc2-screen-mountain mountain-b"></div>
+
+                    <div class="cmc2-screen-moon">
+                        <i>琴</i>
+                        <b>梦</b>
+                    </div>
+
+                    <div class="cmc2-screen-cloud cloud-a"></div>
+                    <div class="cmc2-screen-cloud cloud-b"></div>
+                    <div class="cmc2-screen-cloud cloud-c"></div>
+
+                    <div class="cmc2-screen-ribbon ribbon-a"></div>
+                    <div class="cmc2-screen-ribbon ribbon-b"></div>
+                    <div class="cmc2-screen-ribbon ribbon-c"></div>
+
+                    <div class="cmc2-screen-qin"></div>
+                    <div class="cmc2-screen-petals"></div>
+                    <div class="cmc2-screen-stars"></div>
+                    <div class="cmc2-screen-seals"></div>
+
+                    <span class="cmc2-screen-wave wave-a"></span>
+                    <span class="cmc2-screen-wave wave-b"></span>
+                    <span class="cmc2-screen-wave wave-c"></span>
+                    <span class="cmc2-screen-wave wave-d"></span>
+
+                    <div class="cmc2-screen-title">
+                        <small>琴 梦 · TIÊN ÂM NHẬP CẢNH</small>
+                        <strong>NHẤT HUYỀN NHẬP MỘNG</strong>
+                        <span>LẠC THANH HUYỀN · TIỂU MỘNG</span>
+                    </div>
+                `;
+
+                const qin =
+                    ultimate.querySelector(
+                        '.cmc2-screen-qin'
+                    );
+
+                for (let index = 0; index < 17; index++) {
+                    const string =
+                        document.createElement('i');
+
+                    string.style.setProperty(
+                        '--cmc2-qindex',
+                        index
+                    );
+
+                    string.style.setProperty(
+                        '--cmc2-qdelay',
+                        `${index * .025}s`
+                    );
+
+                    qin?.appendChild(string);
+                }
+
+                const petals =
+                    ultimate.querySelector(
+                        '.cmc2-screen-petals'
+                    );
+
+                const reduced =
+                    window.matchMedia?.(
+                        '(max-width: 768px), (pointer: coarse), (prefers-reduced-motion: reduce)'
+                    ).matches;
+
+                const petalCount =
+                    this.getQualityCount(reduced ? 26 : 58);
+
+                for (
+                    let index = 0;
+                    index < petalCount;
+                    index++
+                ) {
+                    const petal =
+                        document.createElement('i');
+
+                    petal.style.setProperty(
+                        '--cmc2-upa',
+                        `${index * (360 / petalCount)}deg`
+                    );
+
+                    petal.style.setProperty(
+                        '--cmc2-upa-back',
+                        `${index * -(360 / petalCount)}deg`
+                    );
+
+                    petal.style.setProperty(
+                        '--cmc2-upr-neg',
+                        `${-(125 + (index % 11) * 30)}px`
+                    );
+
+                    petal.style.setProperty(
+                        '--cmc2-upd',
+                        `${(index % 13) * .026}s`
+                    );
+
+                    petals?.appendChild(petal);
+                }
+
+                const stars =
+                    ultimate.querySelector(
+                        '.cmc2-screen-stars'
+                    );
+
+                const starCount =
+                    this.getQualityCount(reduced ? 24 : 48);
+
+                for (
+                    let index = 0;
+                    index < starCount;
+                    index++
+                ) {
+                    const star =
+                        document.createElement('i');
+
+                    star.style.setProperty(
+                        '--cmc2-usx',
+                        `${3 + ((index * 47) % 94)}%`
+                    );
+
+                    star.style.setProperty(
+                        '--cmc2-usy',
+                        `${5 + ((index * 71) % 88)}%`
+                    );
+
+                    star.style.setProperty(
+                        '--cmc2-uss',
+                        `${2.2 + (index % 5) * 1.15}px`
+                    );
+
+                    star.style.setProperty(
+                        '--cmc2-usd',
+                        `${-(index % 12) * .14}s`
+                    );
+
+                    stars?.appendChild(star);
+                }
+
+                const seals =
+                    ultimate.querySelector(
+                        '.cmc2-screen-seals'
+                    );
+
+                const symbols = [
+                    '琴', '梦', '云', '月',
+                    '灵', '弦', '仙', '花',
+                    '音', '心', '玄', '境'
+                ];
+
+                symbols.forEach((symbol, index) => {
+                    const seal =
+                        document.createElement('i');
+
+                    seal.textContent = symbol;
+
+                    seal.style.setProperty(
+                        '--cmc2-usa',
+                        `${index * 30}deg`
+                    );
+
+                    seal.style.setProperty(
+                        '--cmc2-usa-back',
+                        `${index * -30}deg`
+                    );
+
+                    seal.style.setProperty(
+                        '--cmc2-usr-neg',
+                        `${-(150 + (index % 3) * 40)}px`
+                    );
+
+                    seal.style.setProperty(
+                        '--cmc2-used',
+                        `${index * .035}s`
+                    );
+
+                    seals?.appendChild(seal);
+                });
+
+                document.body.appendChild(ultimate);
+
+                requestAnimationFrame(() => {
+                    ultimate.classList.add(
+                        'is-active'
+                    );
+                });
+
+                window.setTimeout(() => {
+                    ultimate.classList.add(
+                        'is-climax'
+                    );
+                }, 560);
+
+                window.setTimeout(() => {
+                    ultimate.classList.add(
+                        'is-ending'
+                    );
+                }, 2650);
+
+                window.setTimeout(() => {
+                    ultimate.remove();
+
+                    container.classList.remove(
+                        'cam-mong-chibi-casting'
+                    );
+
+                    delete container.dataset
+                        .camMongChibiClickLocked;
+                }, 3400);
+
                 return;
             }
 
