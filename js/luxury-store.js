@@ -9578,12 +9578,12 @@ if (isNationalDay) {
                         ui-theme-immune
                     "
                     data-locked-by-teacher="true"
-                    aria-label="Vật phẩm đang bị giáo viên khóa"
+                    aria-label="Vật phẩm đang cập nhật, sẽ xuất hiện trong tương lai"
                 >
                     <div
                         class="store-teacher-lock-overlay"
                         role="status"
-                        title="Vật phẩm đang bị giáo viên khóa"
+                        title="Vật phẩm đang cập nhật, sẽ xuất hiện trong tương lai"
                     >
                         <div class="store-teacher-lock-content">
                             <span
@@ -9592,11 +9592,11 @@ if (isNationalDay) {
                             >?</span>
 
                             <strong>
-                                Vật phẩm tạm khóa
+                                Vật phẩm đang cập nhật
                             </strong>
 
                             <small>
-                                Giáo viên chưa mở vật phẩm này.
+                                Sẽ xuất hiện trong tương lai.
                             </small>
                         </div>
                     </div>
