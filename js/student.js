@@ -37,6 +37,43 @@ const currentUser = JSON.parse(localStorage.getItem('currentUser'));
 
 
 // ======================================================
+// STORE LOCK HOTFIX v4.0.1
+// Chuẩn hóa dữ liệu isLocked từ Firebase.
+// Tránh lỗi !!"false" === true và tự trả về false khi node bị xóa.
+// ======================================================
+window.normalizeStoreItemLockState =
+    window.normalizeStoreItemLockState ||
+    function (value) {
+        if (value === true || value === 1) {
+            return true;
+        }
+
+        if (
+            value === false ||
+            value === 0 ||
+            value === null ||
+            value === undefined ||
+            value === ''
+        ) {
+            return false;
+        }
+
+        const normalized =
+            String(value)
+                .trim()
+                .toLowerCase();
+
+        return (
+            normalized === 'true' ||
+            normalized === '1' ||
+            normalized === 'yes' ||
+            normalized === 'on' ||
+            normalized === 'locked'
+        );
+    };
+
+
+// ======================================================
 // TRUNG THU · LỊCH ÂM VIỆT NAM (UTC+7)
 // Tính ngày 15/8 âm lịch mà không cần Cloud Function/Scheduler.
 // ======================================================
@@ -3827,30 +3864,45 @@ window.onload = async function () {
         if (activeView) activeView.style.display = isOpen ? 'block' : 'none';
         if (lockedView) lockedView.style.display = isOpen ? 'none' : 'block';
 
-        if (settings) {
-            StoreConfig.items.forEach(item => {
-                if (settings[item.id]) {
-                    if (settings[item.id].price !== undefined) item.price = settings[item.id].price;
-                    if (settings[item.id].startDate !== undefined) item.startDate = settings[item.id].startDate;
-                    if (settings[item.id].endDate !== undefined) item.endDate = settings[item.id].endDate;
-                    item.isLocked = !!settings[item.id].isLocked; // ĐỒNG BỘ TRẠNG THÁI KHÓA VỀ HỌC SINH
-                    if (settings[item.id].musicUrl !== undefined) {
-                        item.musicUrl =
-                            settings[item.id].musicUrl;
-                    }
+        /*
+         * Luôn duyệt toàn bộ StoreConfig.
+         * Nếu node store_settings/<itemId> bị xóa thì phải trả isLocked về false
+         * ngay trong phiên hiện tại, không chờ F5.
+         */
+        StoreConfig.items.forEach(item => {
+            const itemSettings =
+                settings &&
+                settings[item.id] &&
+                typeof settings[item.id] === 'object'
+                    ? settings[item.id]
+                    : null;
 
-                    if (settings[item.id].volume !== undefined) {
-                        item.volume =
-                            settings[item.id].volume;
-                    }
+            if (itemSettings) {
+                if (itemSettings.price !== undefined) item.price = itemSettings.price;
+                if (itemSettings.startDate !== undefined) item.startDate = itemSettings.startDate;
+                if (itemSettings.endDate !== undefined) item.endDate = itemSettings.endDate;
 
-                    if (settings[item.id].loop !== undefined) {
-                        item.loop =
-                            settings[item.id].loop;
-                    }
+                if (itemSettings.musicUrl !== undefined) {
+                    item.musicUrl =
+                        itemSettings.musicUrl;
                 }
-            });
-        }
+
+                if (itemSettings.volume !== undefined) {
+                    item.volume =
+                        itemSettings.volume;
+                }
+
+                if (itemSettings.loop !== undefined) {
+                    item.loop =
+                        itemSettings.loop;
+                }
+            }
+
+            item.isLocked =
+                window.normalizeStoreItemLockState(
+                    itemSettings?.isLocked
+                );
+        });
 
         if (typeof window.filterStore === 'function') {
             window.filterStore(window.currentStoreFilterType || 'all');
@@ -15135,6 +15187,24 @@ window.applyEquippedItems = function () {
         );
 
         if (!itemDef) return;
+
+        /*
+         * Giáo viên khóa vật phẩm:
+         * - không áp lại vật phẩm dù Firebase kho vẫn đang đánh dấu isEquipped;
+         * - theme bị khóa phải trả về mặc định ngay;
+         * - effect/pet/frame/background đã được dọn ở đầu hàm;
+         * - music không được gán equippedMusic nên cuối hàm sẽ stopMusic().
+         *
+         * Không sửa isEquipped trong Firebase để khi Giáo viên mở khóa,
+         * trạng thái trang bị cũ có thể hoạt động lại.
+         */
+        if (itemDef.isLocked === true) {
+            if (itemDef.type === 'theme') {
+                ThemeManager.applyTheme('default');
+            }
+
+            return;
+        }
 
         // Theme vẫn được sử dụng khi thi
         if (itemDef.type === 'theme') {

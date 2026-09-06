@@ -2,6 +2,43 @@ const currentUser = JSON.parse(localStorage.getItem('currentUser')) || {};
 
 
 // ======================================================
+// STORE LOCK HOTFIX v4.0.1
+// Chuẩn hóa dữ liệu isLocked từ Firebase.
+// Tránh lỗi !!"false" === true và tự trả về false khi node bị xóa.
+// ======================================================
+window.normalizeStoreItemLockState =
+    window.normalizeStoreItemLockState ||
+    function (value) {
+        if (value === true || value === 1) {
+            return true;
+        }
+
+        if (
+            value === false ||
+            value === 0 ||
+            value === null ||
+            value === undefined ||
+            value === ''
+        ) {
+            return false;
+        }
+
+        const normalized =
+            String(value)
+                .trim()
+                .toLowerCase();
+
+        return (
+            normalized === 'true' ||
+            normalized === '1' ||
+            normalized === 'yes' ||
+            normalized === 'on' ||
+            normalized === 'locked'
+        );
+    };
+
+
+// ======================================================
 // TRUNG THU · LỊCH ÂM VIỆT NAM (UTC+7)
 // Tính ngày 15/8 âm lịch mà không cần Cloud Function/Scheduler.
 // ======================================================
@@ -3470,18 +3507,28 @@ window.onload = async function () {
             storeToggleInput.checked = settings.isOpen;
         }
 
-        if (settings) {
-            StoreConfig.items.forEach(item => {
-                if (settings[item.id]) {
-                    if (settings[item.id].price !== undefined) item.price = settings[item.id].price;
-                    if (settings[item.id].startDate !== undefined) item.startDate = settings[item.id].startDate;
-                    if (settings[item.id].endDate !== undefined) item.endDate = settings[item.id].endDate;
-                    item.isLocked = !!settings[item.id].isLocked;
-                }
-            });
-            if (typeof initTeacherStoreManagement === 'function') initTeacherStoreManagement();
-            if (typeof initTeacherLuxuryStoreManagement === 'function') initTeacherLuxuryStoreManagement();
-        }
+        StoreConfig.items.forEach(item => {
+            const itemSettings =
+                settings &&
+                settings[item.id] &&
+                typeof settings[item.id] === 'object'
+                    ? settings[item.id]
+                    : null;
+
+            if (itemSettings) {
+                if (itemSettings.price !== undefined) item.price = itemSettings.price;
+                if (itemSettings.startDate !== undefined) item.startDate = itemSettings.startDate;
+                if (itemSettings.endDate !== undefined) item.endDate = itemSettings.endDate;
+            }
+
+            item.isLocked =
+                window.normalizeStoreItemLockState(
+                    itemSettings?.isLocked
+                );
+        });
+
+        if (typeof initTeacherStoreManagement === 'function') initTeacherStoreManagement();
+        if (typeof initTeacherLuxuryStoreManagement === 'function') initTeacherLuxuryStoreManagement();
         if (startupLoader) startupLoader.markReady('teacher-store-settings');
     });
 
@@ -11374,21 +11421,32 @@ window.updateStoreItem = async function () {
 // Bộ lắng nghe tự động cập nhật bảng quản lý của giáo viên khi database có thay đổi
 listenFirebase(db.ref('store_settings'), 'value', (snapshot) => {
     const settings = snapshot.val();
-    if (settings) {
-        StoreConfig.items.forEach(item => {
-            if (settings[item.id]) {
-                if (settings[item.id].price !== undefined) item.price = settings[item.id].price;
-                if (settings[item.id].startDate !== undefined) item.startDate = settings[item.id].startDate;
-                if (settings[item.id].endDate !== undefined) item.endDate = settings[item.id].endDate;
-                item.isLocked = !!settings[item.id].isLocked;
-            }
-        });
-        if (typeof initTeacherStoreManagement === 'function') {
-            initTeacherStoreManagement();
+
+    StoreConfig.items.forEach(item => {
+        const itemSettings =
+            settings &&
+            settings[item.id] &&
+            typeof settings[item.id] === 'object'
+                ? settings[item.id]
+                : null;
+
+        if (itemSettings) {
+            if (itemSettings.price !== undefined) item.price = itemSettings.price;
+            if (itemSettings.startDate !== undefined) item.startDate = itemSettings.startDate;
+            if (itemSettings.endDate !== undefined) item.endDate = itemSettings.endDate;
         }
-        if (typeof initTeacherLuxuryStoreManagement === 'function') {
-            initTeacherLuxuryStoreManagement();
-        }
+
+        item.isLocked =
+            window.normalizeStoreItemLockState(
+                itemSettings?.isLocked
+            );
+    });
+
+    if (typeof initTeacherStoreManagement === 'function') {
+        initTeacherStoreManagement();
+    }
+    if (typeof initTeacherLuxuryStoreManagement === 'function') {
+        initTeacherLuxuryStoreManagement();
     }
 });
 
@@ -11722,8 +11780,9 @@ window.toggleLockStoreItem = async function (itemId, isCurrentlyLocked) {
     const actionText = isCurrentlyLocked ? "MỞ KHÓA" : "KHÓA TẠM THỜI";
     if (!confirm(
         `Bạn có chắc chắn muốn ${actionText} vật phẩm này không?\n\n` +
-        `Khi khóa, toàn bộ thẻ vật phẩm phía học sinh sẽ bị che đen, ` +
-        `hiện dấu ? và không thể mua, dùng thử hoặc sử dụng.`
+        `Khi khóa, vật phẩm phía học sinh sẽ chuyển thành thẻ ẩn, ` +
+        `không thể mua, dùng thử hoặc sử dụng. Nếu đang được trang bị, ` +
+        `vật phẩm sẽ tạm ngừng hiển thị cho đến khi được mở khóa.`
     )) return;
 
     try {

@@ -1750,7 +1750,7 @@ class StoreManager {
             return;
         }
 
-        if (item.isLocked) {
+        if (item.isLocked === true) {
             window.alert(
                 `🔒 ${item.name} đang bị Giáo viên khóa.`
             );
@@ -1811,7 +1811,7 @@ class StoreManager {
             return;
         }
 
-        if (item.isLocked) {
+        if (item.isLocked === true) {
             window.alert(
                 `🔒 ${item.name} đang bị Giáo viên khóa.`
             );
@@ -1976,7 +1976,7 @@ class StoreManager {
             ) || 0;
 
         // --- LOGIC 1: XỬ LÝ VẬT PHẨM BỊ GIÁO VIÊN KHÓA SỬ DỤNG VÀ MUA ---
-        if (item.isLocked) {
+        if (item.isLocked === true) {
             trialButton =
                 `<button class="btn-preview disabled" disabled>` +
                 `🔒 Đã bị khóa` +
@@ -2428,7 +2428,7 @@ class StoreManager {
             'store-item-card'
         ];
 
-        if (item.isLocked) {
+        if (item.isLocked === true) {
             cardClasses.push('is-teacher-locked');
         }
 
@@ -2608,6 +2608,45 @@ class StoreManager {
             isThemeImmune = true;
         }
 
+        /*
+         * HOTFIX v4.0.1:
+         * Vật phẩm bị khóa không render icon / tên / tag / nút ở dưới lớp che.
+         * Điều này tránh lộ nội dung mờ, tránh CSS của card đặc biệt xuyên qua
+         * overlay và giúp thẻ khóa chỉ có đúng một lớp placeholder.
+         */
+        if (item.isLocked === true) {
+            return `
+                <div
+                    class="${cardClasses.join(' ')}"
+                    data-type="${item.type}"
+                    data-locked-by-teacher="true"
+                    data-theme-immune="true"
+                    aria-label="Vật phẩm đang bị giáo viên khóa"
+                >
+                    <div
+                        class="store-teacher-lock-overlay"
+                        role="status"
+                        title="Vật phẩm đang bị giáo viên khóa"
+                    >
+                        <div class="store-teacher-lock-content">
+                            <span
+                                class="store-teacher-lock-question"
+                                aria-hidden="true"
+                            >?</span>
+
+                            <strong>
+                                Vật phẩm tạm khóa
+                            </strong>
+
+                            <small>
+                                Giáo viên chưa mở vật phẩm này.
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
         const annualSaleBadge =
             annualSaleState.hasAnnualSale
                 ? `
@@ -2649,7 +2688,7 @@ class StoreManager {
 
         style=""
     >
-        ${item.isLocked
+        ${item.isLocked === true
                 ? `
         <div
             class="store-teacher-lock-overlay"
@@ -2709,59 +2748,127 @@ class StoreManager {
 
 
 /* =========================================================
-   HIỂN THỊ VẬT PHẨM BỊ GIÁO VIÊN KHÓA
-   - Che đen toàn bộ thẻ thay vì chỉ khóa nút Mua / Dùng thử.
-   - Dấu ? lớn ở giữa thẻ.
-   - Dùng chung cho Cửa hàng thường và Cửa hàng Sang trọng.
+   HIỂN THỊ VẬT PHẨM BỊ GIÁO VIÊN KHÓA · HOTFIX v4.0.1
+   - Một lớp che duy nhất.
+   - Không render nội dung nhận diện của card bị khóa.
+   - Không để theme/premium CSS xuyên qua lớp che.
+   - Dấu ? luôn là hình tròn, không bị kéo thành hình bầu dục.
    ========================================================= */
 (function installTeacherLockedStoreCardStyle() {
-    if (document.getElementById('teacherLockedStoreCardStyle')) {
-        return;
+    const oldStyle =
+        document.getElementById(
+            'teacherLockedStoreCardStyle'
+        );
+
+    if (oldStyle) {
+        oldStyle.remove();
     }
 
-    const style = document.createElement('style');
-    style.id = 'teacherLockedStoreCardStyle';
+    const style =
+        document.createElement('style');
+
+    style.id =
+        'teacherLockedStoreCardStyle';
+
     style.textContent = `
         .is-teacher-locked {
             position: relative !important;
+            min-height: 340px !important;
+            height: 340px !important;
+            max-height: 340px !important;
             overflow: hidden !important;
-            isolation: isolate;
+            isolation: isolate !important;
+            background: #050607 !important;
+            background-image: none !important;
+            border: 1px solid rgba(255, 255, 255, .10) !important;
+            box-shadow: 0 16px 38px rgba(0, 0, 0, .38) !important;
+            cursor: not-allowed !important;
         }
 
-        .is-teacher-locked > :not(.store-teacher-lock-overlay) {
-            filter: grayscale(1) brightness(.05) !important;
-            opacity: .08 !important;
-            pointer-events: none !important;
-            user-select: none !important;
+        .is-teacher-locked::before,
+        .is-teacher-locked::after {
+            content: none !important;
+            display: none !important;
+            background: none !important;
+            background-image: none !important;
+            opacity: 0 !important;
         }
 
         .store-teacher-lock-overlay {
-            position: absolute;
-            inset: 0;
-            z-index: 2147483000;
-            display: grid;
-            place-items: center;
-            border-radius: inherit;
-            background: rgba(0, 0, 0, .96);
-            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08);
-            cursor: not-allowed;
-            pointer-events: auto;
+            position: absolute !important;
+            inset: 0 !important;
+            z-index: 2147483000 !important;
+            display: grid !important;
+            place-items: center !important;
+            padding: 24px !important;
+            border-radius: inherit !important;
+            background:
+                radial-gradient(
+                    circle at 50% 36%,
+                    rgba(255, 255, 255, .07),
+                    transparent 30%
+                ),
+                linear-gradient(
+                    180deg,
+                    #080a0c 0%,
+                    #020304 100%
+                ) !important;
+            box-shadow:
+                inset 0 0 0 1px rgba(255, 255, 255, .06) !important;
+            cursor: not-allowed !important;
+            pointer-events: auto !important;
+            user-select: none !important;
+        }
+
+        .store-teacher-lock-content {
+            width: min(100%, 240px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            text-align: center;
+            color: #fff;
         }
 
         .store-teacher-lock-question {
-            display: grid;
-            place-items: center;
-            width: min(42%, 118px);
-            aspect-ratio: 1;
-            border-radius: 50%;
-            color: #fff;
-            font-size: clamp(4.8rem, 9vw, 7.8rem);
-            font-weight: 1000;
-            line-height: 1;
-            text-shadow: 0 0 18px rgba(255, 255, 255, .45);
-            border: 3px solid rgba(255, 255, 255, .88);
-            background: rgba(255, 255, 255, .05);
-            box-shadow: 0 0 35px rgba(255, 255, 255, .12);
+            display: grid !important;
+            place-items: center !important;
+            flex: 0 0 auto !important;
+            width: 92px !important;
+            height: 92px !important;
+            min-width: 92px !important;
+            min-height: 92px !important;
+            max-width: 92px !important;
+            max-height: 92px !important;
+            overflow: hidden !important;
+            border-radius: 999px !important;
+            color: #fff !important;
+            font-size: 64px !important;
+            font-weight: 1000 !important;
+            line-height: 1 !important;
+            letter-spacing: 0 !important;
+            text-indent: 0 !important;
+            border: 3px solid rgba(255, 255, 255, .88) !important;
+            background: rgba(255, 255, 255, .04) !important;
+            text-shadow: 0 0 18px rgba(255, 255, 255, .28) !important;
+            box-shadow:
+                0 0 30px rgba(255, 255, 255, .08) !important;
+            box-sizing: border-box !important;
+        }
+
+        .store-teacher-lock-content strong {
+            font-size: 1rem !important;
+            font-weight: 900 !important;
+            letter-spacing: .01em !important;
+            color: #f8fafc !important;
+        }
+
+        .store-teacher-lock-content small {
+            max-width: 210px;
+            color: #94a3b8 !important;
+            font-size: .82rem !important;
+            line-height: 1.45 !important;
         }
     `;
 
