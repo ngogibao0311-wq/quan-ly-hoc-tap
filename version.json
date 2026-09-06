@@ -1,18 +1,18 @@
 {
-  "version": "3.3.0",
-  "build": "2026.09.01.1",
+  "version": "4.0.0",
+  "build": "2026.09.06.1",
   "channel": "stable",
-  "releasedAt": "2026-09-01T13:00:00+07:00",
-  "title": "Trung tâm cập nhật hệ thống mới",
-  "summary": "Nâng cấp toàn bộ cơ chế kiểm tra và cài đặt phiên bản mới cho cả trang Giáo viên và Học sinh.",
+  "releasedAt": "2026-09-06T16:17:00+07:00",
+  "title": "Bản cập nhật hệ thống v4.0.0",
+  "summary": "Đồng bộ phiên bản 4.0.0 cho hệ thống, tăng độ tin cậy khi khởi động, cập nhật và chẩn đoán kết nối.",
   "mandatory": false,
   "minSupportedVersion": "3.0.0",
   "changes": [
-    "Hiển thị phiên bản đang chạy, phiên bản mới nhất, build, ngày phát hành và ghi chú thay đổi.",
-    "So sánh phiên bản theo SemVer để tránh nhận nhầm bản cũ là bản cập nhật mới.",
-    "Cập nhật Service Worker và dọn cache theo thứ tự, có trạng thái và phần trăm tiến trình.",
-    "Chỉ xác nhận cập nhật thành công sau khi trang mới thực sự chạy đúng phiên bản.",
-    "Tự kiểm tra lại khi có Internet, khi quay lại tab và định kỳ mà không làm gián đoạn bài tập hoặc bài nộp.",
-    "Hỗ trợ Để sau và sẵn cơ chế cập nhật bắt buộc bằng trường mandatory hoặc minSupportedVersion."
+    "Đồng bộ APP_VERSION và appVersion lên 4.0.0 trên trang Giáo viên và trang đăng nhập.",
+    "Làm mới cache-buster của các tài nguyên nền tảng 3.x lên 4.0.0 để trình duyệt lấy đúng bản phát hành mới.",
+    "Giữ nguyên version riêng của các module 4.2.x và các build chuyên biệt để không làm sai lịch sử phiên bản tính năng.",
+    "Trang khởi động tiếp tục chỉ mở giao diện khi dữ liệu bắt buộc và kết nối Firebase đã sẵn sàng.",
+    "Trang Offline/404 hiển thị thêm phiên bản 4.0.0 trong chẩn đoán để dễ xác định bản đang chạy.",
+    "Giữ cơ chế cập nhật SemVer, Service Worker, dọn cache và xác nhận phiên bản sau cập nhật."
   ]
 }
