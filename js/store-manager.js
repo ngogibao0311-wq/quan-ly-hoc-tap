@@ -2621,12 +2621,12 @@ class StoreManager {
                     data-type="${item.type}"
                     data-locked-by-teacher="true"
                     data-theme-immune="true"
-                    aria-label="Vật phẩm đang bị giáo viên khóa"
+                    aria-label="Vật phẩm đang cập nhật, sẽ xuất hiện trong tương lai"
                 >
                     <div
                         class="store-teacher-lock-overlay"
                         role="status"
-                        title="Vật phẩm đang bị giáo viên khóa"
+                        title="Vật phẩm đang cập nhật, sẽ xuất hiện trong tương lai"
                     >
                         <div class="store-teacher-lock-content">
                             <span
@@ -2635,11 +2635,11 @@ class StoreManager {
                             >?</span>
 
                             <strong>
-                                Vật phẩm tạm khóa
+                                Vật phẩm đang cập nhật
                             </strong>
 
                             <small>
-                                Giáo viên chưa mở vật phẩm này.
+                                Sẽ xuất hiện trong tương lai.
                             </small>
                         </div>
                     </div>
@@ -2693,8 +2693,8 @@ class StoreManager {
         <div
             class="store-teacher-lock-overlay"
             role="status"
-            aria-label="Vật phẩm đang bị giáo viên khóa"
-            title="Vật phẩm đang bị giáo viên khóa"
+            aria-label="Vật phẩm đang cập nhật, sẽ xuất hiện trong tương lai"
+            title="Vật phẩm đang cập nhật, sẽ xuất hiện trong tương lai"
         >
             <span class="store-teacher-lock-question">?</span>
         </div>
@@ -2774,8 +2774,10 @@ class StoreManager {
         .is-teacher-locked {
             position: relative !important;
             min-height: 340px !important;
-            height: 340px !important;
-            max-height: 340px !important;
+            height: auto !important;
+            max-height: none !important;
+            align-self: stretch !important;
+            box-sizing: border-box !important;
             overflow: hidden !important;
             isolation: isolate !important;
             background: #050607 !important;
@@ -2783,6 +2785,16 @@ class StoreManager {
             border: 1px solid rgba(255, 255, 255, .10) !important;
             box-shadow: 0 16px 38px rgba(0, 0, 0, .38) !important;
             cursor: not-allowed !important;
+        }
+
+        /* Cửa hàng Sang trọng: thẻ khóa phải giãn theo đúng chiều cao của hàng grid.
+           Không cố định 340px để tránh thấp hơn các card Premium/Luxury bên cạnh. */
+        #luxuryStoreGrid > .luxury-product-card.is-teacher-locked,
+        #luxuryStoreGrid > .luxury-product-card.luxury-teacher-locked-card {
+            height: auto !important;
+            max-height: none !important;
+            align-self: stretch !important;
+            box-sizing: border-box !important;
         }
 
         .is-teacher-locked::before,
