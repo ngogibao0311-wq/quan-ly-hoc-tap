@@ -769,6 +769,250 @@ const StoreConfig = {
             ]
         },
         {
+            id: 'pet_premium_mua_ha_chibi_2',
+            name: 'Tiểu Hạ Quang',
+            type: 'pet',
+            price: 900,
+            isNonCoin: false,
+            tag: 'Mùa Hạ',
+            value: 'assets/Premium/Bốn mùa/ha_chibi2.png',
+            isIcon: false,
+            petEffect: 'ha2-limited-sunleaf-magic',
+            disableClickEffect: true,
+
+            // ==========================================
+            // PREMIUM MÙA HẠ · PET GIỚI HẠN
+            // Chỉ ngày 01 → 05 của tháng 5, 6, 7 và 8.
+            // Người đã sở hữu vẫn có thể trang bị quanh năm.
+            // ==========================================
+            annualSaleIcon: '☀️',
+            annualSaleTitle:
+                'Chỉ mở bán ngày 01–05 của tháng 05, 06, 07 và 08 hằng năm',
+            annualSaleWindows: [
+                {
+                    startMonth: 5,
+                    startDay: 1,
+                    endMonth: 5,
+                    endDay: 5
+                },
+                {
+                    startMonth: 6,
+                    startDay: 1,
+                    endMonth: 6,
+                    endDay: 5
+                },
+                {
+                    startMonth: 7,
+                    startDay: 1,
+                    endMonth: 7,
+                    endDay: 5
+                },
+                {
+                    startMonth: 8,
+                    startDay: 1,
+                    endMonth: 8,
+                    endDay: 5
+                }
+            ]
+        },
+
+        {
+            id: 'theme_mua_ha_ha_quang_luu_ly',
+            name: 'Hạ Quang Lưu Ly',
+            type: 'theme',
+            price: 800,
+            isNonCoin: false,
+            tag: 'Mùa Hạ',
+            value: 'theme-summer-prismatic-garden',
+            customIcon: '🌤️',
+
+            // ==========================================
+            // PREMIUM MÙA HẠ · GIAO DIỆN GIỚI HẠN
+            // Chỉ ngày 01 → 05 của tháng 5, 6, 7 và 8.
+            // Người đã sở hữu vẫn có thể trang bị quanh năm.
+            // ==========================================
+            annualSaleIcon: '☀️',
+            annualSaleTitle:
+                'Chỉ mở bán ngày 01–05 của tháng 05, 06, 07 và 08 hằng năm',
+            annualSaleWindows: [
+                {
+                    startMonth: 5,
+                    startDay: 1,
+                    endMonth: 5,
+                    endDay: 5
+                },
+                {
+                    startMonth: 6,
+                    startDay: 1,
+                    endMonth: 6,
+                    endDay: 5
+                },
+                {
+                    startMonth: 7,
+                    startDay: 1,
+                    endMonth: 7,
+                    endDay: 5
+                },
+                {
+                    startMonth: 8,
+                    startDay: 1,
+                    endMonth: 8,
+                    endDay: 5
+                }
+            ]
+        },
+        {
+            id: 'effect_mua_ha_phong_linh_ha_nhat',
+            name: 'Phong Linh Hạ Nhật',
+            type: 'effect',
+            price: 850,
+            isNonCoin: false,
+            tag: 'Mùa Hạ',
+            value: 'effect_mua_ha_phong_linh_ha_nhat',
+            customIcon: '🎐',
+
+            // ==========================================
+            // PREMIUM MÙA HẠ · HIỆU ỨNG TOÀN WEB GIỚI HẠN
+            // Chỉ ngày 01 → 05 của tháng 5, 6, 7 và 8.
+            // Người đã sở hữu vẫn có thể trang bị quanh năm.
+            // ==========================================
+            annualSaleIcon: '☀️',
+            annualSaleTitle:
+                'Chỉ mở bán ngày 01–05 của tháng 05, 06, 07 và 08 hằng năm',
+            annualSaleWindows: [
+                {
+                    startMonth: 5,
+                    startDay: 1,
+                    endMonth: 5,
+                    endDay: 5
+                },
+                {
+                    startMonth: 6,
+                    startDay: 1,
+                    endMonth: 6,
+                    endDay: 5
+                },
+                {
+                    startMonth: 7,
+                    startDay: 1,
+                    endMonth: 7,
+                    endDay: 5
+                },
+                {
+                    startMonth: 8,
+                    startDay: 1,
+                    endMonth: 8,
+                    endDay: 5
+                }
+            ]
+        },
+        {
+            id: 'frame_mua_ha_nhat_diep_chi_hoan',
+            name: 'Hạ Quang · Nhật Diệp Chi Hoàn',
+            type: 'frame',
+            price: 250,
+            isNonCoin: false,
+            tag: 'Mùa Hạ',
+            tags: ['Mùa Hạ'],
+            value: 'assets/Premium/Bốn mùa/ha_khung2.png',
+            isIcon: false,
+            frameEffect: 'ha2f-summer-sunleaf-frame',
+
+            // ==========================================
+            // PREMIUM MÙA HẠ · KHUNG VIỀN GIỚI HẠN
+            // Chỉ ngày 01 → 05 của tháng 5, 6, 7 và 8.
+            // Người đã sở hữu vẫn có thể trang bị quanh năm.
+            // ==========================================
+            annualSaleIcon: '☀️',
+            annualSaleTitle:
+                'Chỉ mở bán ngày 01–05 của tháng 05, 06, 07 và 08 hằng năm',
+            annualSaleWindows: [
+                {
+                    startMonth: 5,
+                    startDay: 1,
+                    endMonth: 5,
+                    endDay: 5
+                },
+                {
+                    startMonth: 6,
+                    startDay: 1,
+                    endMonth: 6,
+                    endDay: 5
+                },
+                {
+                    startMonth: 7,
+                    startDay: 1,
+                    endMonth: 7,
+                    endDay: 5
+                },
+                {
+                    startMonth: 8,
+                    startDay: 1,
+                    endMonth: 8,
+                    endDay: 5
+                }
+            ]
+        },
+        {
+            id: 'background_mua_ha_luu_phong_mong_canh',
+            name: 'Hạ Quang · Lưu Phong Mộng Cảnh',
+            type: 'background',
+            price: 150,
+            isNonCoin: false,
+            tag: 'Mùa Hạ',
+            tags: ['Mùa Hạ'],
+
+            value: 'assets/Premium/Bốn mùa/ha_nen2.png',
+            isIcon: false,
+
+            // ==========================================
+            // PREMIUM MÙA HẠ · NỀN GIỚI HẠN
+            // Chỉ ngày 01 → 05 của tháng 5, 6, 7 và 8.
+            // Người đã sở hữu vẫn có thể trang bị quanh năm.
+            // ==========================================
+            annualSaleIcon: '☀️',
+            annualSaleTitle:
+                'Chỉ mở bán ngày 01–05 của tháng 05, 06, 07 và 08 hằng năm',
+            annualSaleWindows: [
+                {
+                    startMonth: 5,
+                    startDay: 1,
+                    endMonth: 5,
+                    endDay: 5
+                },
+                {
+                    startMonth: 6,
+                    startDay: 1,
+                    endMonth: 6,
+                    endDay: 5
+                },
+                {
+                    startMonth: 7,
+                    startDay: 1,
+                    endMonth: 7,
+                    endDay: 5
+                },
+                {
+                    startMonth: 8,
+                    startDay: 1,
+                    endMonth: 8,
+                    endDay: 5
+                }
+            ],
+
+            /*
+             * NỀN ĐỘC LẬP VỚI GIAO DIỆN:
+             * cover = lấp đầy viewport nhưng không kéo méo ảnh.
+             * center center = cắt đều hai bên khi tỉ lệ màn hình khác ảnh gốc.
+             * WebBackgroundManager chuẩn của hệ thống đọc các thuộc tính này.
+             */
+            backgroundFit: 'cover',
+            backgroundPosition: 'center center',
+            backgroundRepeat: 'no-repeat',
+            backgroundAttachment: 'fixed',
+            premiumSuite: 'ha2bg-summer-limited-background-v1'
+        },
+        {
             id: 'effect_premium_mua_xuan',
             name: 'Xuân Tửu Hoa Viên',
             type: 'effect',
@@ -1921,6 +2165,7 @@ class StoreManager {
             'Sinh nhật 2026': 'tag-sinh-nhat-2026',
             'Cơn mưa': 'tag-con-mua',
             'Mùa xuân': 'tag-mua-xuan',
+            'Mùa Hạ': 'tag-mua-ha-limited',
             '2/9': 'tag-quoc-khanh-2-9',
             'Cầm Mộng': 'tag-cam-mong-chibi',
             'Trung thu': 'tag-trung-thu-chibi',
@@ -2315,6 +2560,14 @@ class StoreManager {
             'background_premium_mua_xuan_hoa_mong'
         ]);
 
+        const premiumSummerLimitedIds = new Set([
+            'pet_premium_mua_ha_chibi_2',
+            'theme_mua_ha_ha_quang_luu_ly',
+            'effect_mua_ha_phong_linh_ha_nhat',
+            'frame_mua_ha_nhat_diep_chi_hoan',
+            'background_mua_ha_luu_phong_mong_canh'
+        ]);
+
         const amonTrinityIds = new Set([
             'pet_lotm_amon',
             'effect_lotm_amon',
@@ -2471,6 +2724,18 @@ class StoreManager {
             );
 
             specialCardGroup = 'premium-spring';
+            isThemeImmune = true;
+        }
+
+        /* PREMIUM MÙA HẠ · thẻ riêng nhưng giữ nguyên DOM/bố cục chuẩn */
+        if (premiumSummerLimitedIds.has(item.id)) {
+            cardClasses.push(
+                'store-card-premium-summer-limited',
+                'store-theme-locked',
+                'ui-theme-immune'
+            );
+
+            specialCardGroup = 'premium-summer-limited';
             isThemeImmune = true;
         }
 
@@ -3848,6 +4113,364 @@ class StoreManager {
         document.readyState ===
         'loading'
     ) {
+        document.addEventListener(
+            'DOMContentLoaded',
+            startObserver,
+            { once: true }
+        );
+    } else {
+        startObserver();
+    }
+})();
+
+/* === PREMIUM MÙA HẠ · KHUNG NHẬT DIỆP · namespace ha2f-* · FIX R2 === */
+(function installSummerHa2FrameBridge() {
+    'use strict';
+
+    const ITEM_ID = 'frame_mua_ha_nhat_diep_chi_hoan';
+    const FRAME_EFFECT = 'ha2f-summer-sunleaf-frame';
+    const FRAME_ASSET = 'assets/Premium/Bốn mùa/ha_khung2.png';
+    let installed = false;
+
+    function getItem(itemOrId) {
+        if (itemOrId && typeof itemOrId === 'object') return itemOrId;
+        if (
+            typeof StoreManager === 'undefined' ||
+            typeof StoreManager.getItemById !== 'function'
+        ) return null;
+        return StoreManager.getItemById(String(itemOrId || ''));
+    }
+
+    function isTarget(itemOrId) {
+        const item = getItem(itemOrId);
+        return !!(item && item.id === ITEM_ID && item.type === 'frame');
+    }
+
+    function hasOwnHa2fLayer(host) {
+        if (!host || host.nodeType !== 1) return false;
+        return !!host.querySelector(
+            ':scope > .avatar-frame-decoration[data-ha2f-frame="1"],' +
+            ':scope > .ha2f-frame-decoration,' +
+            ':scope > .ha2f-frame-aura,' +
+            ':scope > .ha2f-frame-glint,' +
+            ':scope > img.avatar-frame-decoration[src*="ha_khung2.png"]'
+        );
+    }
+
+    function isHa2fHost(host) {
+        if (!host || host.nodeType !== 1) return false;
+        return (
+            host.classList.contains('ha2f-frame-host') ||
+            host.getAttribute('data-avatar-frame-id') === ITEM_ID ||
+            host.getAttribute('data-avatar-frame-effect') === FRAME_EFFECT ||
+            hasOwnHa2fLayer(host)
+        );
+    }
+
+    function removeOwnLayers(host) {
+        if (!host) return;
+        host.querySelectorAll(
+            ':scope > .avatar-frame-decoration[data-ha2f-frame="1"],' +
+            ':scope > .ha2f-frame-decoration,' +
+            ':scope > .ha2f-frame-aura,' +
+            ':scope > .ha2f-frame-glint,' +
+            ':scope > img.avatar-frame-decoration[src*="ha_khung2.png"]'
+        ).forEach(node => node.remove());
+    }
+
+    function clearTargetHost(host) {
+        if (!isHa2fHost(host)) return;
+
+        const currentId = host.getAttribute('data-avatar-frame-id') || '';
+        const currentEffect = host.getAttribute('data-avatar-frame-effect') || '';
+        const anotherFrameIsActive =
+            (currentId && currentId !== ITEM_ID) ||
+            (currentEffect && currentEffect !== FRAME_EFFECT);
+
+        removeOwnLayers(host);
+        host.classList.remove('ha2f-frame-host');
+
+        /*
+         * Nếu một frame khác đã được manager áp vào host, tuyệt đối không
+         * xóa class/data của frame đó. Chỉ dọn namespace ha2f của khung Mùa Hạ.
+         */
+        if (!anotherFrameIsActive) {
+            host.classList.remove(
+                'avatar-frame-equipped',
+                'avatar-frame-profile-host',
+                'avatar-frame-modal-host'
+            );
+
+            if (currentId === ITEM_ID || !currentId) {
+                host.removeAttribute('data-avatar-frame-id');
+            }
+            if (currentEffect === FRAME_EFFECT || !currentEffect) {
+                host.removeAttribute('data-avatar-frame-effect');
+            }
+        }
+
+        if (host.dataset.ha2fThemeImmune === '1') {
+            /* Chỉ gỡ data-theme-immune nếu chính bridge này đã thêm. */
+            host.removeAttribute('data-theme-immune');
+            delete host.dataset.ha2fThemeImmune;
+        }
+    }
+
+    function clearOnlyTargetFrame() {
+        const hosts = new Set();
+
+        document.querySelectorAll(
+            '.ha2f-frame-host,' +
+            '[data-avatar-frame-id="' + ITEM_ID + '"],' +
+            '[data-avatar-frame-effect="' + FRAME_EFFECT + '"]'
+        ).forEach(host => hosts.add(host));
+
+        /*
+         * Quan trọng: manager chuẩn có thể xóa data-avatar-frame-* trước,
+         * nên phải truy ngược từ các node ha2f còn sót để tìm host.
+         */
+        document.querySelectorAll(
+            '.ha2f-frame-aura,' +
+            '.ha2f-frame-glint,' +
+            '.ha2f-frame-decoration,' +
+            '.avatar-frame-decoration[data-ha2f-frame="1"],' +
+            'img.avatar-frame-decoration[src*="ha_khung2.png"]'
+        ).forEach(node => {
+            if (node.parentElement) hosts.add(node.parentElement);
+        });
+
+        hosts.forEach(clearTargetHost);
+
+        /* Lưới an toàn cuối: không để ký hiệu ✦ ha2f thành phần tử mồ côi. */
+        document.querySelectorAll(
+            '.ha2f-frame-aura,' +
+            '.ha2f-frame-glint,' +
+            '.ha2f-frame-decoration,' +
+            '.avatar-frame-decoration[data-ha2f-frame="1"],' +
+            'img.avatar-frame-decoration[src*="ha_khung2.png"]'
+        ).forEach(node => node.remove());
+    }
+
+    function ensureLayer(host, item, variant) {
+        if (!host || !item) return;
+
+        host.classList.add(
+            'avatar-frame-equipped',
+            'ha2f-frame-host',
+            variant === 'profile'
+                ? 'avatar-frame-profile-host'
+                : 'avatar-frame-modal-host'
+        );
+        host.setAttribute('data-avatar-frame-id', ITEM_ID);
+        host.setAttribute('data-avatar-frame-effect', FRAME_EFFECT);
+
+        if (!host.hasAttribute('data-theme-immune')) {
+            host.setAttribute('data-theme-immune', 'true');
+            host.dataset.ha2fThemeImmune = '1';
+        }
+
+        /*
+         * Idempotent: observer có thể gọi repair nhiều lần. Không tháo/dựng lại
+         * layer đúng để tránh vòng lặp MutationObserver và nhấp nháy avatar.
+         */
+        let frame = host.querySelector(':scope > .avatar-frame-decoration');
+        const frameSrc = frame?.getAttribute('src') || '';
+
+        if (!frame || !frameSrc.includes('ha_khung2.png')) {
+            if (frame) frame.remove();
+            frame = document.createElement('img');
+            frame.className = 'avatar-frame-decoration ha2f-frame-decoration';
+            frame.src = item.value || FRAME_ASSET;
+            frame.alt = '';
+            frame.draggable = false;
+            frame.setAttribute('aria-hidden', 'true');
+            host.appendChild(frame);
+        } else {
+            frame.classList.add('ha2f-frame-decoration');
+        }
+
+        frame.dataset.ha2fFrame = '1';
+        frame.style.removeProperty('display');
+        frame.style.removeProperty('visibility');
+        frame.style.removeProperty('opacity');
+
+        let aura = host.querySelector(':scope > .ha2f-frame-aura');
+        if (!aura) {
+            aura = document.createElement('span');
+            aura.className = 'ha2f-frame-aura';
+            aura.setAttribute('aria-hidden', 'true');
+            host.appendChild(aura);
+        }
+
+        /* Chỉ nút hồ sơ cần các điểm sáng; popup giữ sạch để không che bút chì. */
+        if (variant === 'profile') {
+            for (let i = 1; i <= 4; i++) {
+                const className = 'glint-' + i;
+                if (host.querySelector(':scope > .ha2f-frame-glint.' + className)) {
+                    continue;
+                }
+                const glint = document.createElement('span');
+                glint.className = 'ha2f-frame-glint ' + className;
+                glint.textContent = '✦';
+                glint.setAttribute('aria-hidden', 'true');
+                host.appendChild(glint);
+            }
+        } else {
+            host.querySelectorAll(':scope > .ha2f-frame-glint')
+                .forEach(node => node.remove());
+        }
+    }
+
+    function repairFrame(itemOrId) {
+        const item = getItem(itemOrId);
+        if (!isTarget(item)) return false;
+
+        ensureLayer(
+            document.querySelector('.profile-trigger-btn'),
+            item,
+            'profile'
+        );
+        ensureLayer(
+            document.querySelector(
+                '#studentInfoModal .avatar-upload-container'
+            ),
+            item,
+            'modal'
+        );
+        return true;
+    }
+
+    function wrapAvatarFrameManager() {
+        const manager = window.AvatarFrameManager;
+        if (!manager || manager.__ha2fSummerFrameBridgeR2) return !!manager;
+
+        const originalApply =
+            typeof manager.applyFrame === 'function'
+                ? manager.applyFrame.bind(manager)
+                : null;
+        const originalClear =
+            typeof manager.clearFrame === 'function'
+                ? manager.clearFrame.bind(manager)
+                : null;
+
+        if (originalApply) {
+            manager.applyFrame = function (itemOrId) {
+                /* Khi đổi sang frame khác, dọn sạch ha2f trước khi manager dựng frame mới. */
+                if (!isTarget(itemOrId)) clearOnlyTargetFrame();
+
+                const result = originalApply(itemOrId);
+
+                if (isTarget(itemOrId)) {
+                    repairFrame(itemOrId);
+                    requestAnimationFrame(() => repairFrame(itemOrId));
+                }
+                return result;
+            };
+        }
+
+        if (originalClear) {
+            manager.clearFrame = function (...args) {
+                /*
+                 * Dọn CẢ TRƯỚC VÀ SAU originalClear. Đây là fix chính cho lỗi
+                 * data-* bị xóa trước khiến span ha2f còn sót cạnh nút hồ sơ.
+                 */
+                clearOnlyTargetFrame();
+                const result = originalClear(...args);
+                clearOnlyTargetFrame();
+                return result;
+            };
+        }
+
+        manager.__ha2fSummerFrameBridge = true;
+        manager.__ha2fSummerFrameBridgeR2 = true;
+        return true;
+    }
+
+    function wrapStoreManager() {
+        if (
+            typeof StoreManager === 'undefined' ||
+            StoreManager.__ha2fSummerFrameStoreBridgeR2
+        ) return typeof StoreManager !== 'undefined';
+
+        const originalApply =
+            typeof StoreManager.applyItem === 'function'
+                ? StoreManager.applyItem.bind(StoreManager)
+                : null;
+        const originalUnapply =
+            typeof StoreManager.unapplyItem === 'function'
+                ? StoreManager.unapplyItem.bind(StoreManager)
+                : null;
+
+        if (originalApply) {
+            StoreManager.applyItem = async function (itemId) {
+                const result = await originalApply(itemId);
+                if (isTarget(itemId)) {
+                    const item = getItem(itemId);
+                    if (
+                        window.AvatarFrameManager &&
+                        typeof window.AvatarFrameManager.applyFrame === 'function'
+                    ) {
+                        window.AvatarFrameManager.applyFrame(item);
+                    } else {
+                        repairFrame(item);
+                    }
+                    setTimeout(() => repairFrame(item), 80);
+                    setTimeout(() => repairFrame(item), 350);
+                }
+                return result;
+            };
+        }
+
+        if (originalUnapply) {
+            StoreManager.unapplyItem = async function (itemId) {
+                if (isTarget(itemId)) clearOnlyTargetFrame();
+                const result = await originalUnapply(itemId);
+                if (isTarget(itemId)) {
+                    clearOnlyTargetFrame();
+                    requestAnimationFrame(clearOnlyTargetFrame);
+                    setTimeout(clearOnlyTargetFrame, 80);
+                }
+                return result;
+            };
+        }
+
+        StoreManager.__ha2fSummerFrameStoreBridge = true;
+        StoreManager.__ha2fSummerFrameStoreBridgeR2 = true;
+        return true;
+    }
+
+    function install() {
+        if (installed) return;
+        installed = wrapAvatarFrameManager() && wrapStoreManager();
+    }
+
+    setTimeout(install, 0);
+
+    let tries = 0;
+    const retryTimer = setInterval(() => {
+        tries += 1;
+        install();
+        if (installed || tries >= 80) clearInterval(retryTimer);
+    }, 100);
+
+    const observer = new MutationObserver(() => {
+        const activeHost = document.querySelector(
+            '[data-avatar-frame-id="' + ITEM_ID + '"]'
+        );
+        if (!activeHost) return;
+        const item = getItem(ITEM_ID);
+        if (item) repairFrame(item);
+    });
+
+    const startObserver = () => {
+        if (!document.body) return;
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+    };
+
+    if (document.readyState === 'loading') {
         document.addEventListener(
             'DOMContentLoaded',
             startObserver,

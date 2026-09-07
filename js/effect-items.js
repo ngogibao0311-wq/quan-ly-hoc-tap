@@ -134,6 +134,19 @@ class EffectManager {
     static clearEffects(removeSavedEffect = false) {
         this.stopIntervals();
 
+
+        /*
+         * PREMIUM MÙA HẠ · PHONG LINH HẠ NHẬT
+         * Root được mount trực tiếp vào <body> để phủ toàn web.
+         * Chỉ dọn namespace ha2efx-* của chính effect này;
+         * không chỉnh sửa / truy cập DOM riêng của effect khác.
+         */
+        document
+            .querySelectorAll(
+                '.ha2efx-summer-windchime[data-ha2efx-portal="1"]'
+            )
+            .forEach(node => node.remove());
+
         /*
          * TRUNG THU · NGUYỆT TRIỀU LƯU QUANG
          * Root mount thẳng vào body và dùng namespace mtefx3-* riêng.
@@ -281,6 +294,11 @@ class EffectManager {
                 break;
             case 'effect_tamon_bside_spectrum_break':
                 this.createTamonBsideSpectrumBreakEffect();
+                break;
+
+            // PREMIUM MÙA HẠ · PHONG LINH HẠ NHẬT
+            case 'effect_mua_ha_phong_linh_ha_nhat':
+                this.createSummerWindChimeEffect();
                 break;
 
             // CẦM MỘNG · THANH HUYỀN VẠN CẦM LƯU QUANG
@@ -4475,6 +4493,283 @@ class EffectManager {
             lanternField?.appendChild(
                 lantern
             );
+        }
+
+        document.body.appendChild(root);
+
+        requestAnimationFrame(() => {
+            root.classList.add('is-active');
+        });
+
+        return root;
+    }
+
+    // =========================================================
+    // PREMIUM MÙA HẠ · PHONG LINH HẠ NHẬT
+    // Effect toàn web mới hoàn toàn — namespace: ha2efx-*
+    // Concept: phong linh thủy tinh + dải gió + sóng âm ánh nắng.
+    // Không gọi/tái sử dụng method, class hay keyframe của effect cũ.
+    // =========================================================
+    static createSummerWindChimeEffect() {
+        this.stopIntervals();
+
+        const oldRoot = document.querySelector(
+            '.ha2efx-summer-windchime[data-ha2efx-portal="1"]'
+        );
+        oldRoot?.remove();
+
+        const root = document.createElement('div');
+        root.className =
+            'ha2efx-summer-windchime ui-theme-immune';
+        root.dataset.ha2efxPortal = '1';
+        root.dataset.themeImmune = 'true';
+        root.setAttribute('aria-hidden', 'true');
+
+        root.innerHTML = `
+            <div class="ha2efx-sun-veil"></div>
+            <div class="ha2efx-breeze breeze-a"></div>
+            <div class="ha2efx-breeze breeze-b"></div>
+            <div class="ha2efx-breeze breeze-c"></div>
+
+            <div class="ha2efx-chime chime-left">
+                <span class="ha2efx-chime-cap"></span>
+                <span class="ha2efx-chime-line line-a"></span>
+                <span class="ha2efx-chime-line line-b"></span>
+                <span class="ha2efx-chime-line line-c"></span>
+                <span class="ha2efx-chime-tube tube-a"></span>
+                <span class="ha2efx-chime-tube tube-b"></span>
+                <span class="ha2efx-chime-tube tube-c"></span>
+                <span class="ha2efx-chime-clapper"></span>
+                <span class="ha2efx-chime-tail">夏</span>
+            </div>
+
+            <div class="ha2efx-chime chime-right">
+                <span class="ha2efx-chime-cap"></span>
+                <span class="ha2efx-chime-line line-a"></span>
+                <span class="ha2efx-chime-line line-b"></span>
+                <span class="ha2efx-chime-line line-c"></span>
+                <span class="ha2efx-chime-tube tube-a"></span>
+                <span class="ha2efx-chime-tube tube-b"></span>
+                <span class="ha2efx-chime-tube tube-c"></span>
+                <span class="ha2efx-chime-clapper"></span>
+                <span class="ha2efx-chime-tail">風</span>
+            </div>
+
+            <div class="ha2efx-ray-field"></div>
+            <div class="ha2efx-resonance-field"></div>
+            <div class="ha2efx-ribbon-field"></div>
+            <div class="ha2efx-leaf-field"></div>
+            <div class="ha2efx-pollen-field"></div>
+            <div class="ha2efx-glass-field"></div>
+            <div class="ha2efx-glint-field"></div>
+        `;
+
+        const rayField = root.querySelector(
+            '.ha2efx-ray-field'
+        );
+        const resonanceField = root.querySelector(
+            '.ha2efx-resonance-field'
+        );
+        const ribbonField = root.querySelector(
+            '.ha2efx-ribbon-field'
+        );
+        const leafField = root.querySelector(
+            '.ha2efx-leaf-field'
+        );
+        const pollenField = root.querySelector(
+            '.ha2efx-pollen-field'
+        );
+        const glassField = root.querySelector(
+            '.ha2efx-glass-field'
+        );
+        const glintField = root.querySelector(
+            '.ha2efx-glint-field'
+        );
+
+        const compact = IS_MOBILE_EFFECT;
+
+        // Bản dày hiệu ứng: vẫn đi qua EffectQualityManager để máy yếu
+        // có thể tự giảm số lượng DOM, nhưng ở mức Cao/Tắt sẽ hiển thị đầy đủ.
+        const rayCount = this.getQualityCount(compact ? 5 : 9);
+        const ringCount = this.getQualityCount(compact ? 12 : 24);
+        const ribbonCount = this.getQualityCount(compact ? 14 : 30);
+        const leafCount = this.getQualityCount(compact ? 10 : 24);
+        const pollenCount = this.getQualityCount(compact ? 24 : 58);
+        const glassCount = this.getQualityCount(compact ? 8 : 18);
+        const glintCount = this.getQualityCount(compact ? 30 : 76);
+
+        for (let index = 0; index < rayCount; index++) {
+            const ray = document.createElement('span');
+            ray.className = 'ha2efx-sun-ray';
+            ray.style.setProperty(
+                '--ha2efx-ray-x',
+                `${-8 + ((index * 19) % 118)}%`
+            );
+            ray.style.setProperty(
+                '--ha2efx-ray-rot',
+                `${-19 + (index % 7) * 6}deg`
+            );
+            ray.style.setProperty(
+                '--ha2efx-ray-delay',
+                `${-(index % 6) * 1.17}s`
+            );
+            ray.style.setProperty(
+                '--ha2efx-ray-width',
+                `${7 + (index % 4) * 3}vw`
+            );
+            rayField?.appendChild(ray);
+        }
+
+        for (let index = 0; index < ringCount; index++) {
+            const ring = document.createElement('span');
+            ring.className = 'ha2efx-resonance-ring';
+            ring.style.setProperty(
+                '--ha2efx-rx',
+                `${8 + ((index * 61) % 85)}%`
+            );
+            ring.style.setProperty(
+                '--ha2efx-ry',
+                `${10 + ((index * 37) % 76)}%`
+            );
+            ring.style.setProperty(
+                '--ha2efx-rd',
+                `${-(index % 7) * .74}s`
+            );
+            ring.style.setProperty(
+                '--ha2efx-rs',
+                `${.66 + (index % 5) * .16}`
+            );
+            ring.style.setProperty(
+                '--ha2efx-rsize',
+                `${58 + (index % 6) * 14}px`
+            );
+            resonanceField?.appendChild(ring);
+        }
+
+        for (let index = 0; index < ribbonCount; index++) {
+            const ribbon = document.createElement('i');
+            ribbon.className =
+                index % 3 === 0
+                    ? 'ha2efx-wind-ribbon is-aqua'
+                    : 'ha2efx-wind-ribbon';
+            ribbon.style.setProperty(
+                '--ha2efx-wy',
+                `${5 + ((index * 43) % 90)}%`
+            );
+            ribbon.style.setProperty(
+                '--ha2efx-wd',
+                `${-(index % 8) * .91}s`
+            );
+            ribbon.style.setProperty(
+                '--ha2efx-ww',
+                `${18 + (index % 5) * 7}vw`
+            );
+            ribbonField?.appendChild(ribbon);
+        }
+
+        for (let index = 0; index < leafCount; index++) {
+            const leaf = document.createElement('span');
+            leaf.className =
+                index % 4 === 0
+                    ? 'ha2efx-summer-leaf is-gold'
+                    : 'ha2efx-summer-leaf';
+            leaf.style.setProperty(
+                '--ha2efx-lx',
+                `${2 + ((index * 53) % 96)}%`
+            );
+            leaf.style.setProperty(
+                '--ha2efx-ly',
+                `${-12 - (index % 5) * 13}%`
+            );
+            leaf.style.setProperty(
+                '--ha2efx-ld',
+                `${-(index % 11) * .73}s`
+            );
+            leaf.style.setProperty(
+                '--ha2efx-ls',
+                `${.72 + (index % 5) * .12}`
+            );
+            leaf.style.setProperty(
+                '--ha2efx-ldr',
+                `${-80 + (index % 9) * 20}px`
+            );
+            leafField?.appendChild(leaf);
+        }
+
+        for (let index = 0; index < pollenCount; index++) {
+            const mote = document.createElement('span');
+            mote.className =
+                index % 7 === 0
+                    ? 'ha2efx-pollen is-aqua'
+                    : 'ha2efx-pollen';
+            mote.style.setProperty(
+                '--ha2efx-px',
+                `${1 + ((index * 41) % 98)}%`
+            );
+            mote.style.setProperty(
+                '--ha2efx-py',
+                `${4 + ((index * 67) % 92)}%`
+            );
+            mote.style.setProperty(
+                '--ha2efx-pd',
+                `${-(index % 14) * .43}s`
+            );
+            mote.style.setProperty(
+                '--ha2efx-ps',
+                `${2 + (index % 4)}px`
+            );
+            pollenField?.appendChild(mote);
+        }
+
+        for (let index = 0; index < glassCount; index++) {
+            const shard = document.createElement('span');
+            shard.className =
+                index % 3 === 0
+                    ? 'ha2efx-glass-shard is-aqua'
+                    : 'ha2efx-glass-shard';
+            shard.style.setProperty(
+                '--ha2efx-sx',
+                `${3 + ((index * 59) % 94)}%`
+            );
+            shard.style.setProperty(
+                '--ha2efx-sy',
+                `${8 + ((index * 31) % 84)}%`
+            );
+            shard.style.setProperty(
+                '--ha2efx-sd',
+                `${-(index % 9) * .82}s`
+            );
+            shard.style.setProperty(
+                '--ha2efx-sr',
+                `${-24 + (index % 8) * 11}deg`
+            );
+            glassField?.appendChild(shard);
+        }
+
+        for (let index = 0; index < glintCount; index++) {
+            const glint = document.createElement('b');
+            glint.className =
+                index % 4 === 0
+                    ? 'ha2efx-glint is-star'
+                    : 'ha2efx-glint';
+            glint.textContent = index % 4 === 0 ? (index % 8 === 0 ? '✦' : '✧') : '';
+            glint.style.setProperty(
+                '--ha2efx-gx',
+                `${3 + ((index * 47) % 94)}%`
+            );
+            glint.style.setProperty(
+                '--ha2efx-gy',
+                `${4 + ((index * 71) % 92)}%`
+            );
+            glint.style.setProperty(
+                '--ha2efx-gd',
+                `${-(index % 10) * .52}s`
+            );
+            glint.style.setProperty(
+                '--ha2efx-gs',
+                `${.65 + (index % 5) * .13}`
+            );
+            glintField?.appendChild(glint);
         }
 
         document.body.appendChild(root);

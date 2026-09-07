@@ -19,6 +19,7 @@ class PetManager {
     static interactionAbortController = null;
     static premiumSpringObserver = null;
     static nationalDayObserver = null;
+    static summerLimitedHa2Observer = null;
 
     // =========================================================
     // PREMIUM MÙA XUÂN — DỌN / QUẢN LÝ THẦN VỰC
@@ -101,6 +102,81 @@ class PetManager {
     }
 
     // =========================================================
+    // PREMIUM MÙA HẠ · TIỂU HẠ QUANG
+    // Namespace hoàn toàn mới: ha2l-*.
+    // Không dùng summer-solstice-* và không gọi ThemeManager/EffectManager.
+    // =========================================================
+    static clearSummerLimitedHa2Realm() {
+        if (this.summerLimitedHa2Observer) {
+            this.summerLimitedHa2Observer.disconnect();
+            this.summerLimitedHa2Observer = null;
+        }
+
+        document
+            .querySelectorAll('.ha2l-screen-ultimate')
+            .forEach(node => node.remove());
+
+        document.documentElement.classList.remove(
+            'ha2l-pet-equipped',
+            'ha2l-screen-active'
+        );
+
+        this.container =
+            document.getElementById('virtual-pet-container') ||
+            this.container;
+
+        this.container?.classList.remove(
+            'pet-ha2l-summer-stage',
+            'ha2l-awakening',
+            'ha2l-casting'
+        );
+
+        if (this.container?.dataset) {
+            delete this.container.dataset.ha2lClickLocked;
+        }
+    }
+
+    static installSummerLimitedHa2Observer() {
+        this.container =
+            document.getElementById('virtual-pet-container') ||
+            this.container;
+
+        if (!this.container) return;
+
+        if (this.summerLimitedHa2Observer) {
+            this.summerLimitedHa2Observer.disconnect();
+        }
+
+        this.summerLimitedHa2Observer = new MutationObserver(() => {
+            const activePet = this.container?.querySelector(
+                '#virtual-pet-img.ha2-limited-sunleaf-magic'
+            );
+
+            const style = this.container
+                ? window.getComputedStyle(this.container)
+                : null;
+
+            const isVisible =
+                style?.display !== 'none' &&
+                style?.visibility !== 'hidden';
+
+            if (!activePet || !isVisible) {
+                this.clearSummerLimitedHa2Realm();
+            }
+        });
+
+        this.summerLimitedHa2Observer.observe(
+            this.container,
+            {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                attributeFilter: ['class', 'style']
+            }
+        );
+    }
+
+    // =========================================================
     // QUỐC KHÁNH — HÀO KHÍ ĐỘC LẬP
     // Concept riêng: trống đồng Đông Sơn + sơn son + sao vàng.
     // Không dùng lại realm, class hoặc animation của pet cũ.
@@ -142,6 +218,7 @@ class PetManager {
 
     static createNationalDayRealm() {
         this.clearNationalDayRealm();
+        this.clearSummerLimitedHa2Realm();
 
         this.container =
             document.getElementById('virtual-pet-container') ||
@@ -997,6 +1074,9 @@ class PetManager {
             'pet-spring-vintage-stage',
             'spring-vintage-awakening',
             'spring-vintage-casting',
+            'pet-ha2l-summer-stage',
+            'ha2l-awakening',
+            'ha2l-casting',
             'pet-summer-solstice-stage',
             'summer-solstice-awakening',
             'summer-solstice-casting',
@@ -1248,6 +1328,83 @@ class PetManager {
 
             this.container.appendChild(realm);
         }
+
+        // =========================================================
+        // PREMIUM MÙA HẠ · TIỂU HẠ QUANG
+        // Hiệu ứng quanh pet hoàn toàn mới: nắng xuyên tán lá,
+        // kính quang phổ và ve mùa hạ. Không dùng hiệu ứng Mùa Hạ cũ.
+        // =========================================================
+        if (
+            petData.id === 'pet_premium_mua_ha_chibi_2' ||
+            petData.petEffect === 'ha2-limited-sunleaf-magic'
+        ) {
+            petElement.setAttribute('draggable', 'false');
+            petElement.classList.add('ha2l-avatar');
+
+            this.container.classList.add(
+                'pet-ha2l-summer-stage',
+                'ha2l-awakening'
+            );
+
+            document.documentElement.classList.add(
+                'ha2l-pet-equipped'
+            );
+
+            const localRealm = document.createElement('div');
+            localRealm.className = 'ha2l-local-realm';
+            localRealm.setAttribute('aria-hidden', 'true');
+            localRealm.innerHTML = `
+                <span class="ha2l-local-sun-disc"></span>
+                <span class="ha2l-local-prism prism-a"></span>
+                <span class="ha2l-local-prism prism-b"></span>
+                <span class="ha2l-local-leaf leaf-a"></span>
+                <span class="ha2l-local-leaf leaf-b"></span>
+                <span class="ha2l-local-leaf leaf-c"></span>
+                <span class="ha2l-local-cicada">◇</span>
+                <span class="ha2l-local-ring ring-a"></span>
+                <span class="ha2l-local-ring ring-b"></span>
+                <span class="ha2l-local-ground"></span>
+                <div class="ha2l-local-spark-field"></div>
+            `;
+
+            const reducedMotion = window.matchMedia?.(
+                '(max-width: 768px), (pointer: coarse), ' +
+                '(prefers-reduced-motion: reduce)'
+            ).matches;
+
+            const sparkField = localRealm.querySelector(
+                '.ha2l-local-spark-field'
+            );
+
+            const sparkCount = this.getQualityCount(
+                reducedMotion ? 9 : 18
+            );
+
+            for (let index = 0; index < sparkCount; index++) {
+                const spark = document.createElement('i');
+                spark.className = 'ha2l-local-spark';
+                spark.style.setProperty(
+                    '--ha2l-angle',
+                    `${index * (360 / sparkCount)}deg`
+                );
+                spark.style.setProperty(
+                    '--ha2l-radius',
+                    `${58 + (index % 5) * 10}px`
+                );
+                spark.style.setProperty(
+                    '--ha2l-delay',
+                    `${-(index % 8) * .27}s`
+                );
+                spark.style.setProperty(
+                    '--ha2l-size',
+                    `${2 + (index % 4) * .8}px`
+                );
+                sparkField?.appendChild(spark);
+            }
+
+            this.container.appendChild(localRealm);
+        }
+
 
         // =========================================================
         // TAMON'S B-SIDE — FALLBACK LOCAL STAGE
@@ -2092,6 +2249,183 @@ class PetManager {
                     'nyx-mythic-awakening'
                 );
             }, 1500);
+        }
+
+        // =========================================================
+        // PREMIUM MÙA HẠ · CLICK TOÀN MÀN HÌNH
+        // "HẠ QUANG VẠN ẢNH" — namespace ha2l-* độc lập.
+        // =========================================================
+        if (
+            petData.id === 'pet_premium_mua_ha_chibi_2' ||
+            petData.petEffect === 'ha2-limited-sunleaf-magic'
+        ) {
+            requestAnimationFrame(() => {
+                this.installSummerLimitedHa2Observer();
+
+                window.setTimeout(() => {
+                    this.container?.classList.remove('ha2l-awakening');
+                }, 1250);
+            });
+
+            petElement.addEventListener(
+                'click',
+                event => {
+                    if (
+                        typeof PetInteractionManager !== 'undefined' &&
+                        PetInteractionManager.isPetDragging
+                    ) {
+                        return;
+                    }
+
+                    if (
+                        this.container?.dataset?.ha2lClickLocked === '1'
+                    ) {
+                        return;
+                    }
+
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    if (this.container?.dataset) {
+                        this.container.dataset.ha2lClickLocked = '1';
+                    }
+
+                    this.container?.classList.remove('ha2l-casting');
+                    void this.container?.offsetWidth;
+                    this.container?.classList.add('ha2l-casting');
+
+                    document
+                        .querySelectorAll('.ha2l-screen-ultimate')
+                        .forEach(node => node.remove());
+
+                    document.documentElement.classList.add(
+                        'ha2l-screen-active'
+                    );
+
+                    const rect = petElement.getBoundingClientRect();
+                    const originX =
+                        Number.isFinite(event.clientX) && event.clientX > 0
+                            ? event.clientX
+                            : rect.left + rect.width / 2;
+                    const originY =
+                        Number.isFinite(event.clientY) && event.clientY > 0
+                            ? event.clientY
+                            : rect.top + rect.height / 2;
+
+                    const ultimate = document.createElement('div');
+                    ultimate.className = 'ha2l-screen-ultimate';
+                    ultimate.setAttribute('aria-hidden', 'true');
+                    ultimate.style.setProperty(
+                        '--ha2l-origin-x',
+                        `${originX}px`
+                    );
+                    ultimate.style.setProperty(
+                        '--ha2l-origin-y',
+                        `${originY}px`
+                    );
+
+                    ultimate.innerHTML = `
+                        <div class="ha2l-screen-wash"></div>
+                        <div class="ha2l-screen-canopy"></div>
+                        <div class="ha2l-screen-flare"></div>
+                        <div class="ha2l-screen-prism prism-a"></div>
+                        <div class="ha2l-screen-prism prism-b"></div>
+                        <div class="ha2l-screen-prism prism-c"></div>
+                        <span class="ha2l-screen-ring ring-a"></span>
+                        <span class="ha2l-screen-ring ring-b"></span>
+                        <span class="ha2l-screen-ring ring-c"></span>
+                        <div class="ha2l-screen-leaf-field"></div>
+                        <div class="ha2l-screen-glint-field"></div>
+                        <div class="ha2l-screen-cicada-seal">◇</div>
+                        <div class="ha2l-screen-title">
+                            <small>PREMIUM · MÙA HẠ</small>
+                            <strong>HẠ QUANG VẠN ẢNH</strong>
+                            <span>TIỂU HẠ QUANG · ÁNH NẮNG XUYÊN TÁN LÁ</span>
+                        </div>
+                    `;
+
+                    const leafField = ultimate.querySelector(
+                        '.ha2l-screen-leaf-field'
+                    );
+                    const glintField = ultimate.querySelector(
+                        '.ha2l-screen-glint-field'
+                    );
+                    const reducedMotion = window.matchMedia?.(
+                        '(max-width: 768px), (pointer: coarse), ' +
+                        '(prefers-reduced-motion: reduce)'
+                    ).matches;
+
+                    const leafCount = this.getQualityCount(
+                        reducedMotion ? 14 : 30
+                    );
+                    const glintCount = this.getQualityCount(
+                        reducedMotion ? 12 : 26
+                    );
+
+                    for (let index = 0; index < leafCount; index++) {
+                        const leaf = document.createElement('i');
+                        leaf.className = 'ha2l-screen-leaf';
+                        leaf.style.setProperty(
+                            '--ha2l-leaf-x',
+                            `${(index * 37 + 9) % 100}%`
+                        );
+                        leaf.style.setProperty(
+                            '--ha2l-leaf-delay',
+                            `${(index % 9) * .045}s`
+                        );
+                        leaf.style.setProperty(
+                            '--ha2l-leaf-spin',
+                            `${-42 + (index % 8) * 13}deg`
+                        );
+                        leaf.style.setProperty(
+                            '--ha2l-leaf-scale',
+                            `${.62 + (index % 5) * .12}`
+                        );
+                        leafField?.appendChild(leaf);
+                    }
+
+                    for (let index = 0; index < glintCount; index++) {
+                        const glint = document.createElement('i');
+                        glint.className = 'ha2l-screen-glint';
+                        glint.style.setProperty(
+                            '--ha2l-glint-angle',
+                            `${index * (360 / glintCount)}deg`
+                        );
+                        glint.style.setProperty(
+                            '--ha2l-glint-distance',
+                            `${24 + (index % 7) * 7}vmin`
+                        );
+                        glint.style.setProperty(
+                            '--ha2l-glint-delay',
+                            `${(index % 8) * .035}s`
+                        );
+                        glintField?.appendChild(glint);
+                    }
+
+                    document.body.appendChild(ultimate);
+                    requestAnimationFrame(() => {
+                        ultimate.classList.add('is-active');
+                    });
+
+                    window.setTimeout(() => {
+                        ultimate.classList.add('is-ending');
+                    }, 3650);
+
+                    window.setTimeout(() => {
+                        ultimate.remove();
+                        document.documentElement.classList.remove(
+                            'ha2l-screen-active'
+                        );
+                        this.container?.classList.remove('ha2l-casting');
+                        if (this.container?.dataset) {
+                            delete this.container.dataset.ha2lClickLocked;
+                        }
+                    }, 4550);
+                },
+                {
+                    signal: this.interactionAbortController?.signal
+                }
+            );
         }
 
         // =========================================================

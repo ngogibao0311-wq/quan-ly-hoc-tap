@@ -5871,6 +5871,113 @@ function mergeTeacherRedoViolationHistory(submission) {
     };
 }
 
+
+// ======================================================
+// HUY HIỆU "NỘP TRỄ" CHO BÀI TỰ THU ĐÃ LÀM ĐỦ
+// ======================================================
+function isTeacherCompleteLateAutoSubmission(
+    submission,
+    assignment
+) {
+    if (
+        !submission?.isAutoSubmitted ||
+        !submission?.isLateFail ||
+        submission?.isCheatFail
+    ) {
+        return false;
+    }
+
+    if (submission.isLateComplete === true) {
+        return true;
+    }
+
+    if (submission.isLateComplete === false) {
+        return false;
+    }
+
+    // Tương thích bản ghi cũ chưa có isLateComplete.
+    const type = String(
+        assignment?.assessmentType ||
+        'tu_luan'
+    );
+
+    const questions =
+        Array.isArray(submission?.questionSnapshot) &&
+        submission.questionSnapshot.length > 0
+            ? submission.questionSnapshot
+            : (
+                Array.isArray(assignment?.questions)
+                    ? assignment.questions
+                    : []
+            );
+
+    const mcAnswers =
+        submission?.mcAnswers &&
+        typeof submission.mcAnswers === 'object'
+            ? submission.mcAnswers
+            : {};
+
+    const requiresMultipleChoice =
+        type === 'trac_nghiem' ||
+        type === 'ket_hop' ||
+        type === 'thi';
+
+    const multipleChoiceComplete =
+        !requiresMultipleChoice ||
+        (
+            questions.length > 0 &&
+            questions.every((question, index) => {
+                const value =
+                    mcAnswers[index] ??
+                    mcAnswers[String(index)] ??
+                    '';
+
+                return String(value).trim() !== '';
+            })
+        );
+
+    const requiresEssay =
+        type !== 'trac_nghiem';
+
+    let essayComplete = true;
+
+    if (requiresEssay) {
+        const files = Array.isArray(submission?.file)
+            ? submission.file
+            : (
+                submission?.file
+                    ? [submission.file]
+                    : []
+            );
+
+        const hasFile = files.length > 0;
+        const rawEssay = String(
+            submission?.rawEssay ||
+            ''
+        ).trim();
+
+        const wordCount = rawEssay
+            ? rawEssay
+                .split(/\s+/)
+                .filter(Boolean)
+                .length
+            : 0;
+
+        essayComplete = assignment?.hideEssayText
+            ? hasFile
+            : (
+                wordCount >= 25 ||
+                hasFile
+            );
+    }
+
+    return (
+        multipleChoiceComplete &&
+        essayComplete &&
+        !submission?.isEssayMissing
+    );
+}
+
 function hasTeacherPardonableViolation(submission) {
     const history = getTeacherRedoViolationHistory(submission);
 
@@ -6767,6 +6874,17 @@ async function loadSubmissions(isLoadMore = false) {
         const redoViolationHistory =
             getTeacherRedoViolationHistory(sub);
 
+        let lateSubmissionBadge = '';
+
+        if (
+            isTeacherCompleteLateAutoSubmission(
+                sub,
+                assign
+            )
+        ) {
+            lateSubmissionBadge = '<span style="background: rgba(244, 63, 94, 0.10); color: #e11d48; border: 1px solid rgba(244, 63, 94, 0.55); padding: 2px 7px; border-radius: 5px; font-size: 0.8em; margin-left: 8px; font-weight: 800; vertical-align: middle; white-space: nowrap;">⏰ Nộp trễ</span>';
+        }
+
         let missingEssayBadge = '';
 
         if (sub.isEssayMissing) {
@@ -6992,7 +7110,7 @@ style="
                 : '';
 
         div.innerHTML = `<div class="accordion-header" onclick="toggleAccordion('${uniqueId}', this)">
-    <div class="accordion-title"><h4>${assign.title}</h4><span>HS: <strong>${sub.studentName}</strong> ${missingEssayBadge}</span></div>
+    <div class="accordion-title"><h4>${assign.title}</h4><span>HS: <strong>${sub.studentName}</strong> ${lateSubmissionBadge} ${missingEssayBadge}</span></div>
     <div class="accordion-meta"><span>${gradeStatus}</span><span class="toggle-icon">▼</span></div>
 </div>
             <div id="${uniqueId}" class="accordion-content">${violationHTML}<span style="color: #888; font-size: 0.85em; display: block; margin-bottom: 10px;">🕒 Lần nộp cuối: ${sub.submitTime || 'Chưa rõ'}</span>
@@ -10456,6 +10574,15 @@ window.openAssignmentStatusModal = async function (assignId) {
                 statusText = '🔁 Đang làm lại'; // Trạng thái học sinh đang phải làm lại bài
                 statusBg = '#f3e8ff';
                 statusColor = '#9333ea';
+            } else if (
+                isTeacherCompleteLateAutoSubmission(
+                    sub,
+                    assign
+                )
+            ) {
+                statusText = '⏰ Nộp trễ (đã thu đủ bài)';
+                statusBg = '#fff1f2';
+                statusColor = '#e11d48';
             } else if (sub.isAutoSubmitted) {
                 statusText = '⏳ Bị thu tự động';
                 statusBg = '#fff7ed';

@@ -1,6 +1,6 @@
 // leaderboard.js — giao diện Bảng Xếp Hạng Thi Đua phiên bản mới
 
-window.__LEADERBOARD_BUILD_ID__ = '20260901-chest-exclusive-pool-v2';
+window.__LEADERBOARD_BUILD_ID__ = '20260907-strong-violation-penalty-v1';
 console.info('[Leaderboard] build:', window.__LEADERBOARD_BUILD_ID__);
 
 
@@ -39,6 +39,15 @@ const LB_ICONS = {
 const LB_HISTORY_MONTH_LIMIT = 3;
 let leaderboardViewMonthOffset = 0;
 let leaderboardRenderRequestId = 0;
+
+
+// Mức trừ điểm thi đua mới — đủ mạnh để vi phạm ảnh hưởng rõ đến thứ hạng.
+// Các loại khác nhau trong cùng một bài có thể cộng dồn; cùng một loại chỉ tính một lần.
+const LB_VIOLATION_PENALTIES = Object.freeze({
+    late: 1.5,
+    essayMissing: 1.0,
+    cheat: 3.0
+});
 
 
 function getLeaderboardViewPeriod(
@@ -402,8 +411,10 @@ function initLeaderboardSystem() {
                             <li>
                                 <strong>Điểm xếp hạng</strong>
                                 = Điểm trung bình bài hợp lệ
-                                + Điểm thưởng video,
-                                tối đa <strong>+1,0 điểm</strong>.
+                                + Điểm thưởng video
+                                − Điểm phạt vi phạm.
+                                Điểm thưởng video tối đa <strong>+1,0 điểm</strong>
+                                và điểm xếp hạng không thấp hơn <strong>0</strong>.
                             </li>
 
                             <li>
@@ -430,21 +441,32 @@ function initLeaderboardSystem() {
                         <ul>
                             <li>
                                 <strong>Nộp trễ hoặc bị thu tự động:</strong>
-                                bài không được tính vào điểm trung bình
-                                và ghi nhận 1 lần vi phạm.
+                                bài không được tính vào điểm trung bình,
+                                ghi nhận vi phạm và bị trừ
+                                <strong>1,5 điểm xếp hạng</strong>.
                             </li>
 
                             <li>
                                 <strong>Gian lận thi cử:</strong>
                                 thoát toàn màn hình hoặc mở tab khác;
-                                bài bị thu, không tính điểm trung bình.
+                                bài bị thu, không tính điểm trung bình
+                                và bị trừ <strong>3,0 điểm xếp hạng</strong>.
                             </li>
 
                             <li>
                                 <strong>Thiếu phần tự luận:</strong>
                                 không có tệp hoặc nội dung theo yêu cầu;
-                                phần tự luận nhận 0 điểm
-                                và ghi nhận vi phạm.
+                                phần tự luận nhận 0 điểm,
+                                ghi nhận vi phạm và bị trừ
+                                <strong>1,0 điểm xếp hạng</strong>.
+                            </li>
+
+                            <li>
+                                <strong>Cộng dồn mức phạt:</strong>
+                                nếu một bài đồng thời có nhiều loại vi phạm,
+                                hệ thống cộng mức trừ của từng loại.
+                                Cùng một loại vi phạm trong lịch sử làm lại
+                                chỉ bị tính một lần cho bài đó.
                             </li>
 
                             <li>
@@ -1301,6 +1323,49 @@ function hasLeaderboardHistoricalViolation(submission) {
     );
 }
 
+
+function getLeaderboardViolationBreakdown(submission) {
+    const history =
+        getLeaderboardRedoViolationHistory(
+            submission
+        );
+
+    const late = !!(
+        submission?.isLateFail ||
+        submission?.isAutoSubmitted ||
+        history.late ||
+        history.autoSubmitted
+    );
+
+    const essayMissing = !!(
+        submission?.isEssayMissing ||
+        history.essayMissing
+    );
+
+    const cheat = !!(
+        submission?.isCheatFail ||
+        history.cheat
+    );
+
+    const count =
+        Number(late) +
+        Number(essayMissing) +
+        Number(cheat);
+
+    const penalty =
+        (late ? LB_VIOLATION_PENALTIES.late : 0) +
+        (essayMissing ? LB_VIOLATION_PENALTIES.essayMissing : 0) +
+        (cheat ? LB_VIOLATION_PENALTIES.cheat : 0);
+
+    return {
+        late,
+        essayMissing,
+        cheat,
+        count,
+        penalty
+    };
+}
+
 /*
  * Hàm tính BXH dùng chung cho:
  * - tháng hiện tại;
@@ -1352,6 +1417,7 @@ function buildLeaderboardDataForPeriod({
         let validCount = 0;
         let count10s = 0;
         let violationCount = 0;
+        let violationPenalty = 0;
         let totalVideoBonus = 0;
 
         assignedAssignments.forEach(
@@ -1429,22 +1495,19 @@ function buildLeaderboardDataForPeriod({
                 const isMissingEssay =
                     submission.isEssayMissing;
 
-                const hasHistoricalViolation =
-                    hasLeaderboardHistoricalViolation(
+                const violationBreakdown =
+                    getLeaderboardViolationBreakdown(
                         submission
                     );
 
                 // Vi phạm được tính độc lập với điểm/forcePass và cả trạng thái đang làm lại.
-                // Vì requestRedo đặt grade = null, phải đếm lịch sử vi phạm TRƯỚC khi bỏ qua bài chưa chấm.
+                // Vì requestRedo đặt grade = null, phải cộng phạt TRƯỚC khi bỏ qua bài chưa chấm.
                 // Chỉ nút "Tha lỗi" mới xóa các cờ vi phạm và lịch sử vi phạm.
-                if (
-                    isLate ||
-                    isCheat ||
-                    isMissingEssay ||
-                    hasHistoricalViolation
-                ) {
-                    violationCount++;
-                }
+                violationCount +=
+                    violationBreakdown.count;
+
+                violationPenalty +=
+                    violationBreakdown.penalty;
 
                 if (
                     submission.grade === null ||
@@ -1498,9 +1561,18 @@ function buildLeaderboardDataForPeriod({
                 average * 100
             ) / 100;
 
+        const roundedViolationPenalty =
+            Math.round(
+                violationPenalty * 100
+            ) / 100;
+
         const finalScore =
-            roundedAverage +
-            totalVideoBonus;
+            Math.max(
+                0,
+                roundedAverage +
+                totalVideoBonus -
+                roundedViolationPenalty
+            );
 
         if (validCount > 0) {
             rankedData.push({
@@ -1534,6 +1606,9 @@ function buildLeaderboardDataForPeriod({
 
                 violations:
                     violationCount,
+
+                violationPenalty:
+                    roundedViolationPenalty,
 
                 validCount
             });
@@ -3443,6 +3518,11 @@ function renderPodium(
                             vi phạm
                         </span>
 
+                        ${student.violationPenalty > 0
+                    ? `<span class="lb-stat-pill is-danger">🔻 -${formatScore(student.violationPenalty)} điểm</span>`
+                    : ''
+                }
+
                     </div>
 
                 </article>
@@ -3539,6 +3619,11 @@ function renderRankRow(
                             vi phạm
                         </span>
 
+                        ${student.violationPenalty > 0
+                    ? `<span class="lb-stat-pill is-danger">🔻 -${formatScore(student.violationPenalty)} điểm</span>`
+                    : ''
+                }
+
                     </div>
 
                 </div>
@@ -3561,6 +3646,10 @@ function renderRankRow(
                     +${formatScore(
             student.videoBonus
         )}
+                    ${student.violationPenalty > 0
+            ? ` · Phạt -${formatScore(student.violationPenalty)}`
+            : ''
+        }
                 </span>
 
                 <div

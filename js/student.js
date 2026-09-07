@@ -2387,6 +2387,115 @@ function mergeStudentRedoViolationHistory(submission) {
     };
 }
 
+
+// ======================================================
+// HUY HIỆU "NỘP TRỄ" CHO BÀI TỰ THU ĐÃ LÀM ĐỦ
+// Chỉ gắn khi hệ thống tự thu sau hạn và phần bắt buộc đã hoàn thành.
+// ======================================================
+function isStudentCompleteLateAutoSubmission(
+    submission,
+    assignment
+) {
+    if (
+        !submission?.isAutoSubmitted ||
+        !submission?.isLateFail ||
+        submission?.isCheatFail
+    ) {
+        return false;
+    }
+
+    // Bản ghi mới lưu kết quả kiểm tra ngay lúc tự thu.
+    if (submission.isLateComplete === true) {
+        return true;
+    }
+
+    if (submission.isLateComplete === false) {
+        return false;
+    }
+
+    // Tương thích bản ghi cũ chưa có isLateComplete.
+    const type = String(
+        assignment?.assessmentType ||
+        'tu_luan'
+    );
+
+    const questions =
+        Array.isArray(submission?.questionSnapshot) &&
+        submission.questionSnapshot.length > 0
+            ? submission.questionSnapshot
+            : (
+                Array.isArray(assignment?.questions)
+                    ? assignment.questions
+                    : []
+            );
+
+    const mcAnswers =
+        submission?.mcAnswers &&
+        typeof submission.mcAnswers === 'object'
+            ? submission.mcAnswers
+            : {};
+
+    const requiresMultipleChoice =
+        type === 'trac_nghiem' ||
+        type === 'ket_hop' ||
+        type === 'thi';
+
+    const multipleChoiceComplete =
+        !requiresMultipleChoice ||
+        (
+            questions.length > 0 &&
+            questions.every((question, index) => {
+                const value =
+                    mcAnswers[index] ??
+                    mcAnswers[String(index)] ??
+                    '';
+
+                return String(value).trim() !== '';
+            })
+        );
+
+    const requiresEssay =
+        type !== 'trac_nghiem';
+
+    let essayComplete = true;
+
+    if (requiresEssay) {
+        const files = Array.isArray(submission?.file)
+            ? submission.file
+            : (
+                submission?.file
+                    ? [submission.file]
+                    : []
+            );
+
+        const hasFile = files.length > 0;
+        const rawEssay = String(
+            submission?.rawEssay ||
+            ''
+        ).trim();
+
+        const wordCount = rawEssay
+            ? rawEssay
+                .split(/\s+/)
+                .filter(Boolean)
+                .length
+            : 0;
+
+        essayComplete = assignment?.hideEssayText
+            ? hasFile
+            : (
+                wordCount >= 25 ||
+                hasFile
+            );
+    }
+
+    return (
+        multipleChoiceComplete &&
+        essayComplete &&
+        !submission?.isEssayMissing
+    );
+}
+
 function getStudentRedoScope(submission, assignment) {
     if (!submission?.isRedoing) {
         return 'both';
@@ -7218,7 +7327,7 @@ async function loadAssignments() {
             : {};
 
         let subState = mySub
-            ? `${mySub.submitTime}_${mySub.grade}_${mySub.isRedoing}_${mySub.isAutoSubmitted}_${mySub.isEssayMissing}_${mySub.redoScope || ''}_${redoHistoryForHash.essayMissing ? 'histEssay' : ''}_${redoHistoryForHash.late ? 'histLate' : ''}_${redoHistoryForHash.cheat ? 'histCheat' : ''}`
+            ? `${mySub.submitTime}_${mySub.grade}_${mySub.isRedoing}_${mySub.isAutoSubmitted}_${mySub.isLateFail}_${mySub.isLateComplete}_${mySub.isEssayMissing}_${mySub.redoScope || ''}_${redoHistoryForHash.essayMissing ? 'histEssay' : ''}_${redoHistoryForHash.late ? 'histLate' : ''}_${redoHistoryForHash.cheat ? 'histCheat' : ''}`
             : 'none';
         let cardHash =
             `${assign.id}_` +
@@ -7295,6 +7404,17 @@ async function loadAssignments() {
                 violationHTML += `<div style="background: rgba(245, 158, 11, 0.1); border-left: 4px solid #f59e0b; padding: 15px; margin-top: 15px; border-radius: 8px;"><h4 style="color: #d97706; margin: 0 0 5px 0;">⚠️ THIẾU PHẦN TỰ LUẬN</h4><p style="margin: 0; color: #b45309;">Hệ thống ghi nhận bạn chưa nộp bài tự luận hợp lệ (chưa đủ 25 từ hoặc thiếu file đính kèm). Phần tự luận của bạn được tính 0 điểm.</p></div>`;
             } else if (redoViolationHistory.essayMissing) {
                 violationHTML += `<div style="background: rgba(59, 130, 246, 0.08); border-left: 4px solid #3b82f6; padding: 15px; margin-top: 15px; border-radius: 8px;"><h4 style="color: #1d4ed8; margin: 0 0 5px 0;">⚠️ TỪNG THIẾU PHẦN TỰ LUẬN</h4><p style="margin: 0; color: #1e40af;">Bạn đã nộp lại phần tự luận, nhưng lỗi ở lần nộp trước vẫn được ghi nhận trong Bảng Xếp Hạng Thi Đua. Lỗi chỉ được xóa khi giáo viên chủ động bấm <strong>Tha lỗi</strong>.</p></div>`;
+            }
+
+            let lateSubmissionBadgeHTML = '';
+
+            if (
+                isStudentCompleteLateAutoSubmission(
+                    mySub,
+                    assign
+                )
+            ) {
+                lateSubmissionBadgeHTML = `<span style="background: rgba(244, 63, 94, 0.10); color: #e11d48; border: 1px solid rgba(244, 63, 94, 0.55); padding: 3px 7px; border-radius: 6px; font-size: 0.86em; margin-left: 8px; font-weight: 800; white-space: nowrap;">⏰ Nộp trễ</span>`;
             }
 
             let missingEssayBadgeHTML = '';
@@ -7393,7 +7513,7 @@ async function loadAssignments() {
             div.style.position = 'relative'; // Bắt buộc để lớp phủ kính (glassmorphism) định vị chính xác
             div.style.marginBottom = '20px';
 
-            div.innerHTML = `${glassLockHTML}<div class="accordion-header" onclick="${clickHandler}"><div class="accordion-title"><h4>${assign.title}</h4><span>${statusText} ${missingEssayBadgeHTML}</span></div><div class="accordion-meta"><span>Điểm: <strong style="${(mySub.grade !== null && mySub.grade !== undefined && mySub.grade !== '' && !mySub.isRegrading) ? 'color:#059669;' : 'color:#d35400;'}">${gradeDisplay}</strong></span><span class="toggle-icon">▼</span></div></div>
+            div.innerHTML = `${glassLockHTML}<div class="accordion-header" onclick="${clickHandler}"><div class="accordion-title"><h4>${assign.title}</h4><span>${statusText} ${lateSubmissionBadgeHTML} ${missingEssayBadgeHTML}</span></div><div class="accordion-meta"><span>Điểm: <strong style="${(mySub.grade !== null && mySub.grade !== undefined && mySub.grade !== '' && !mySub.isRegrading) ? 'color:#059669;' : 'color:#d35400;'}">${gradeDisplay}</strong></span><span class="toggle-icon">▼</span></div></div>
                 <div id="${uniqueId}" class="accordion-content">
                     <div class="assignment-meta"><p>🕒 <strong>Bạn đã nộp lúc:</strong> ${mySub.submitTime || 'Không rõ'}</p></div>
                     ${violationHTML}
@@ -7554,6 +7674,38 @@ async function loadAssignments() {
                                 if (finalCalculatedGrade === null) finalCalculatedGrade = 0;
                             }
                         }
+
+                        // Chỉ gắn "Nộp trễ" khi bản nháp tự thu đã đủ toàn bộ
+                        // phần bắt buộc của bài: trắc nghiệm (nếu có) + tự luận (nếu có).
+                        const requiresMultipleChoiceAuto =
+                            assign.assessmentType === 'trac_nghiem' ||
+                            assign.assessmentType === 'ket_hop' ||
+                            assign.assessmentType === 'thi';
+
+                        const isMultipleChoiceCompleteAuto =
+                            !requiresMultipleChoiceAuto ||
+                            (
+                                autoQuestions.length > 0 &&
+                                autoQuestions.every((question, index) => {
+                                    const value =
+                                        mcAnswersObj[index] ??
+                                        mcAnswersObj[String(index)] ??
+                                        '';
+
+                                    return String(value).trim() !== '';
+                                })
+                            );
+
+                        const requiresEssayAuto =
+                            assign.assessmentType !== 'trac_nghiem';
+
+                        const isEssayCompleteAuto =
+                            !requiresEssayAuto ||
+                            !isEssayMissingAuto;
+
+                        const isLateCompleteAuto =
+                            isMultipleChoiceCompleteAuto &&
+                            isEssayCompleteAuto;
                         // =======================================================
 
                         // 3. Đẩy lên Firebase
@@ -7599,6 +7751,7 @@ async function loadAssignments() {
                                 isAutoSubmitted: true,
                                 isRedoing: false,
                                 isLateFail: true,
+                                isLateComplete: isLateCompleteAuto,
                                 isEssayMissing: isEssayMissingAuto
                             };
 

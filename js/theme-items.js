@@ -140,6 +140,18 @@ class ThemeManager {
             background: '#f4f0df',
             className: 'theme-spring-celadon-almanac'
         },
+
+        // =========================================================
+        // MÙA HẠ · HẠ QUANG LƯU LY
+        // Concept riêng: kính nắng lăng kính + gợn nhiệt + hạt quang.
+        // Không dùng lại summer-solstice-* hoặc ha2l-* của pet.
+        // =========================================================
+        'theme_mua_ha_ha_quang_luu_ly': {
+            primary: '#d89b2b',
+            secondary: '#2f9f9a',
+            background: '#f7f2d8',
+            className: 'theme-summer-prismatic-garden'
+        },
         // =========================================================
         // QUỐC KHÁNH 2/9
         // VIỆT DIỆU · HỒNG KỲ TÂN CHƯƠNG
@@ -276,6 +288,20 @@ class ThemeManager {
 
             className:
                 'store-card-birthday-2026'
+        }),
+
+        /* =========================================================
+           MÙA HẠ · TIỂU HẠ QUANG + HẠ QUANG LƯU LY
+           Cùng tag, cùng thẻ; card miễn mọi giao diện toàn web khác.
+           ========================================================= */
+        'summer-limited-pair': Object.freeze({
+            itemIds: Object.freeze([
+                'pet_premium_mua_ha_chibi_2',
+                'theme_mua_ha_ha_quang_luu_ly'
+            ]),
+
+            className:
+                'store-card-premium-summer-limited'
         }),
 
         /* MÙA HẠ PREMIUM — card riêng, không nhận skin từ theme khác. */
@@ -1336,12 +1362,92 @@ class ThemeManager {
         });
     }
 
+    // =========================================================
+    // MÙA HẠ · HẠ QUANG LƯU LY — AMBIENT RIÊNG
+    // Namespace: ha2theme-* (không dùng ha2l-* / summer-solstice-*).
+    // =========================================================
+    static clearSummerPrismaticGardenDecor() {
+        const oldDecor =
+            document.getElementById('ha2theme-prismatic-garden-decor');
+
+        oldDecor?.remove();
+
+        document.documentElement.classList.remove(
+            'ha2theme-prismatic-mounted'
+        );
+    }
+
+    static createSummerPrismaticGardenDecor() {
+        this.clearSummerPrismaticGardenDecor();
+
+        if (!document.body) return;
+
+        const decor = document.createElement('div');
+        decor.id = 'ha2theme-prismatic-garden-decor';
+        decor.className = 'ha2theme-prismatic-garden-decor';
+        decor.setAttribute('aria-hidden', 'true');
+
+        decor.innerHTML = `
+            <div class="ha2theme-heat-haze haze-a"></div>
+            <div class="ha2theme-heat-haze haze-b"></div>
+            <div class="ha2theme-prism-band band-a"></div>
+            <div class="ha2theme-prism-band band-b"></div>
+            <div class="ha2theme-prism-band band-c"></div>
+            <div class="ha2theme-caustic-field"></div>
+            <div class="ha2theme-mote-field"></div>
+        `;
+
+        const causticField =
+            decor.querySelector('.ha2theme-caustic-field');
+
+        const moteField =
+            decor.querySelector('.ha2theme-mote-field');
+
+        const reduced = window.matchMedia?.(
+            '(max-width: 768px), (pointer: coarse), (prefers-reduced-motion: reduce)'
+        ).matches;
+
+        const causticCount = reduced ? 8 : 18;
+        const moteCount = reduced ? 12 : 30;
+
+        for (let index = 0; index < causticCount; index++) {
+            const shard = document.createElement('i');
+            shard.className = 'ha2theme-caustic';
+            shard.style.setProperty('--ha2theme-x', `${(index * 47 + 9) % 96}%`);
+            shard.style.setProperty('--ha2theme-y', `${(index * 61 + 13) % 92}%`);
+            shard.style.setProperty('--ha2theme-r', `${(index * 29) % 180}deg`);
+            shard.style.setProperty('--ha2theme-d', `${-(index % 9) * .73}s`);
+            shard.style.setProperty('--ha2theme-s', `${.72 + (index % 5) * .13}`);
+            causticField?.appendChild(shard);
+        }
+
+        for (let index = 0; index < moteCount; index++) {
+            const mote = document.createElement('i');
+            mote.className = 'ha2theme-mote';
+            mote.style.setProperty('--ha2theme-mx', `${(index * 37 + 5) % 98}%`);
+            mote.style.setProperty('--ha2theme-my', `${(index * 53 + 17) % 96}%`);
+            mote.style.setProperty('--ha2theme-md', `${-(index % 13) * .52}s`);
+            mote.style.setProperty('--ha2theme-ms', `${2 + (index % 3)}px`);
+            moteField?.appendChild(mote);
+        }
+
+        document.body.prepend(decor);
+        document.documentElement.classList.add(
+            'ha2theme-prismatic-mounted'
+        );
+
+        requestAnimationFrame(() => {
+            decor.classList.add('is-mounted');
+        });
+    }
+
     static applyTheme(themeId) {
         this.initThemePopupIsolation();
         this.clearAcediaPalaceDecor();
         this.clearTamonBsideBackstageDecor();
         this.clearCamMongThanhHuyenDecor();
         this.clearMidAutumnLanternFestivalDecor();
+        this.clearSummerPrismaticGardenDecor();
         const theme = this.themes[themeId] || this.themes['default'];
         const root = document.documentElement;
 
@@ -1388,6 +1494,13 @@ class ThemeManager {
             'theme_trung_thu_nguyet_hoi_hoa_dang'
         ) {
             this.createMidAutumnLanternFestivalDecor();
+        }
+
+        if (
+            themeId ===
+            'theme_mua_ha_ha_quang_luu_ly'
+        ) {
+            this.createSummerPrismaticGardenDecor();
         }
 
         // Lưu lựa chọn vào bộ nhớ trình duyệt
