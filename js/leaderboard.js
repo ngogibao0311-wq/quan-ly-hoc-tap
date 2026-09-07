@@ -1,6 +1,6 @@
 // leaderboard.js — giao diện Bảng Xếp Hạng Thi Đua phiên bản mới
 
-window.__LEADERBOARD_BUILD_ID__ = '20260907-strong-violation-penalty-v1';
+window.__LEADERBOARD_BUILD_ID__ = '20260907-video5-clean-finish-bonus-v1';
 console.info('[Leaderboard] build:', window.__LEADERBOARD_BUILD_ID__);
 
 
@@ -48,6 +48,57 @@ const LB_VIOLATION_PENALTIES = Object.freeze({
     essayMissing: 1.0,
     cheat: 3.0
 });
+
+// Thưởng thi đua:
+// - Video có thể cộng tối đa +5 điểm mỗi mùa.
+// - 5 ngày cuối mùa: học sinh chưa có bất kỳ vi phạm nào được +1 điểm.
+//   Điểm +1 này được tính động, nên nếu phát sinh vi phạm trước khi sang tháng mới
+//   thì hệ thống tự thu hồi ngay, đồng thời vẫn áp dụng mức trừ điểm của vi phạm.
+const LB_VIDEO_BONUS_MAX = 5;
+const LB_CLEAN_FINISH_BONUS = 1;
+const LB_CLEAN_FINISH_BONUS_WINDOW_DAYS = 5;
+
+function isLeaderboardCleanFinishBonusWindow(
+    year,
+    monthIndex,
+    now = new Date()
+) {
+    const current =
+        now instanceof Date
+            ? now
+            : new Date(now);
+
+    if (Number.isNaN(current.getTime())) {
+        return false;
+    }
+
+    const seasonStart =
+        new Date(year, monthIndex, 1);
+
+    const nextSeasonStart =
+        new Date(year, monthIndex + 1, 1);
+
+    // Không bao giờ áp dụng cho một mùa ở tương lai.
+    if (current < seasonStart) {
+        return false;
+    }
+
+    // Mùa đã kết thúc: khi xem lịch sử/phát thưởng, giữ +1
+    // cho học sinh kết thúc mùa mà không có vi phạm.
+    if (current >= nextSeasonStart) {
+        return true;
+    }
+
+    const bonusWindowStart =
+        new Date(nextSeasonStart);
+
+    bonusWindowStart.setDate(
+        bonusWindowStart.getDate() -
+        LB_CLEAN_FINISH_BONUS_WINDOW_DAYS
+    );
+
+    return current >= bonusWindowStart;
+}
 
 
 function getLeaderboardViewPeriod(
@@ -412,8 +463,9 @@ function initLeaderboardSystem() {
                                 <strong>Điểm xếp hạng</strong>
                                 = Điểm trung bình bài hợp lệ
                                 + Điểm thưởng video
+                                + Thưởng sạch cuối mùa
                                 − Điểm phạt vi phạm.
-                                Điểm thưởng video tối đa <strong>+1,0 điểm</strong>
+                                Điểm thưởng video tối đa <strong>+5,0 điểm</strong>
                                 và điểm xếp hạng không thấp hơn <strong>0</strong>.
                             </li>
 
@@ -479,6 +531,16 @@ function initLeaderboardSystem() {
                             <li>
                                 <strong>Chưa hoàn thành video:</strong>
                                 không được mở khóa bài tập tương ứng.
+                            </li>
+
+                            <li>
+                                <strong>Thưởng sạch cuối mùa:</strong>
+                                trong <strong>${LB_CLEAN_FINISH_BONUS_WINDOW_DAYS} ngày cuối tháng</strong>,
+                                học sinh chưa có bất kỳ vi phạm nào trong mùa được cộng
+                                <strong>+${formatScore(LB_CLEAN_FINISH_BONUS)} điểm xếp hạng</strong>.
+                                Nếu từ lúc nhận thưởng đến khi sang tháng mới phát sinh vi phạm,
+                                hệ thống <strong>tự thu hồi toàn bộ +${formatScore(LB_CLEAN_FINISH_BONUS)} điểm</strong>
+                                và vẫn trừ thêm điểm theo lỗi tương ứng.
                             </li>
                         </ul>
                     </article>
@@ -915,14 +977,18 @@ function formatScore(value) {
 
 
 function getProgressPercent(score) {
-    // Điểm tối đa:
-    // 10 điểm trung bình + 1 điểm video.
+    // Điểm tối đa lý thuyết:
+    // 10 điểm trung bình + 5 điểm video + 1 điểm sạch cuối mùa.
+    const maxScore =
+        10 +
+        LB_VIDEO_BONUS_MAX +
+        LB_CLEAN_FINISH_BONUS;
 
     return Math.max(
         0,
         Math.min(
             100,
-            (Number(score) / 11) * 100
+            (Number(score) / maxScore) * 100
         )
     );
 }
@@ -1548,7 +1614,7 @@ function buildLeaderboardDataForPeriod({
         totalVideoBonus =
             Math.min(
                 totalVideoBonus,
-                1
+                LB_VIDEO_BONUS_MAX
             );
 
         const average =
@@ -1566,11 +1632,27 @@ function buildLeaderboardDataForPeriod({
                 violationPenalty * 100
             ) / 100;
 
+        const cleanFinishBonusActive =
+            isLeaderboardCleanFinishBonusWindow(
+                year,
+                monthIndex
+            );
+
+        // +1 chỉ tồn tại khi đã vào giai đoạn cuối mùa VÀ toàn mùa chưa có vi phạm.
+        // Vì được tính lại từ dữ liệu vi phạm mỗi lần render, nếu học sinh vi phạm sau đó
+        // thì +1 tự biến mất ngay, không cần lưu một cờ thưởng riêng trên Firebase.
+        const cleanFinishBonus =
+            cleanFinishBonusActive &&
+            violationCount === 0
+                ? LB_CLEAN_FINISH_BONUS
+                : 0;
+
         const finalScore =
             Math.max(
                 0,
                 roundedAverage +
-                totalVideoBonus -
+                totalVideoBonus +
+                cleanFinishBonus -
                 roundedViolationPenalty
             );
 
@@ -1609,6 +1691,12 @@ function buildLeaderboardDataForPeriod({
 
                 violationPenalty:
                     roundedViolationPenalty,
+
+                cleanFinishBonus:
+                    cleanFinishBonus,
+
+                cleanFinishBonusActive:
+                    cleanFinishBonusActive,
 
                 validCount
             });
@@ -3518,6 +3606,11 @@ function renderPodium(
                             vi phạm
                         </span>
 
+                        ${student.cleanFinishBonus > 0
+                    ? `<span class="lb-stat-pill is-good">🏅 +${formatScore(student.cleanFinishBonus)} sạch cuối mùa</span>`
+                    : ''
+                }
+
                         ${student.violationPenalty > 0
                     ? `<span class="lb-stat-pill is-danger">🔻 -${formatScore(student.violationPenalty)} điểm</span>`
                     : ''
@@ -3619,6 +3712,11 @@ function renderRankRow(
                             vi phạm
                         </span>
 
+                        ${student.cleanFinishBonus > 0
+                    ? `<span class="lb-stat-pill is-good">🏅 +${formatScore(student.cleanFinishBonus)} sạch cuối mùa</span>`
+                    : ''
+                }
+
                         ${student.violationPenalty > 0
                     ? `<span class="lb-stat-pill is-danger">🔻 -${formatScore(student.violationPenalty)} điểm</span>`
                     : ''
@@ -3646,6 +3744,10 @@ function renderRankRow(
                     +${formatScore(
             student.videoBonus
         )}
+                    ${student.cleanFinishBonus > 0
+            ? ` · Sạch cuối mùa +${formatScore(student.cleanFinishBonus)}`
+            : ''
+        }
                     ${student.violationPenalty > 0
             ? ` · Phạt -${formatScore(student.violationPenalty)}`
             : ''
