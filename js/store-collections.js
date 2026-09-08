@@ -120,8 +120,8 @@
             // Tuyệt đối không đưa vật phẩm Cửa hàng Sang trọng vào bộ này.
             excludeLuxury: true,
 
-            // Giữ mức thưởng cũ để không thay đổi cơ chế phần thưởng hiện tại.
-            rewardBonusCoins: 30
+            // Bốn mùa: bonus cũ +30 Coin, nay cộng thêm +40 Coin = +70 Coin/mốc.
+            rewardBonusCoins: 70
         },
         {
             id: 'national-day-2-9',
@@ -133,7 +133,10 @@
             id: 'tamon-b-side',
             label: "Tamon's B-Side",
             icon: '🎭',
-            tags: ["Tamon's B-Side"]
+            tags: ["Tamon's B-Side"],
+
+            // Thưởng tiến độ riêng: cộng thêm +50 Coin vào mỗi mốc.
+            rewardBonusCoins: 50
         },
         {
             id: 'cam-mong',
@@ -145,7 +148,10 @@
             id: 'mid-autumn',
             label: 'Trung Thu',
             icon: '🌕',
-            tags: ['Trung thu']
+            tags: ['Trung thu'],
+
+            // Thưởng tiến độ riêng: cộng thêm +50 Coin vào mỗi mốc.
+            rewardBonusCoins: 50
         },
     ]);
 
