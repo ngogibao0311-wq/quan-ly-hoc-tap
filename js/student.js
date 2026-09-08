@@ -4017,6 +4017,18 @@ window.onload = async function () {
             window.filterStore(window.currentStoreFilterType || 'all');
         }
 
+        /*
+         * Đồng bộ ngay trang Sưu tầm khi giáo viên khóa/mở khóa vật phẩm.
+         * StoreCollectionPage có thể chưa nạp ở lần callback đầu tiên, nên
+         * chỉ gọi khi API đã tồn tại.
+         */
+        if (
+            window.StoreCollectionPage &&
+            typeof window.StoreCollectionPage.refresh === 'function'
+        ) {
+            window.StoreCollectionPage.refresh();
+        }
+
         if (
             window.LuxuryStore &&
             typeof window.LuxuryStore.refresh === 'function'

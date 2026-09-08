@@ -102,14 +102,25 @@
             tags: ['Doraemon']
         },
         {
+            /*
+             * Giữ id "spring" để không làm mất/nhận trùng các mốc thưởng
+             * mà học sinh đã nhận từ phiên bản Mùa xuân cũ. Phần hiển thị
+             * và bộ lọc nay là Bốn mùa.
+             */
             id: 'spring',
-            label: 'Mùa xuân',
-            icon: '🌸',
-            tags: ['Mùa xuân'],
+            label: 'Bốn mùa',
+            icon: '🌈',
+            tags: [
+                'Mùa xuân',
+                'Mùa hạ',
+                'Mùa thu',
+                'Mùa đông'
+            ],
 
+            // Tuyệt đối không đưa vật phẩm Cửa hàng Sang trọng vào bộ này.
             excludeLuxury: true,
 
-            // Mỗi mốc thưởng cao hơn bộ khác 30 Coin
+            // Giữ mức thưởng cũ để không thay đổi cơ chế phần thưởng hiện tại.
             rewardBonusCoins: 30
         },
         {
@@ -1081,6 +1092,21 @@
         const ways = detectItemAcquisitionWays(item);
         const collected = isItemCollected(item);
         const typeInfo = getTypeInfo(item?.type);
+        const teacherLocked = item?.isLocked === true;
+
+        if (teacherLocked) {
+            return `
+                <article class="store-collection-acquisition-item is-collection-teacher-locked">
+                    <div class="store-collection-acquisition-item__teacher-lock" role="status">
+                        <span class="store-collection-acquisition-item__teacher-question" aria-hidden="true">?</span>
+                        <div>
+                            <strong>Vật phẩm đang cập nhật</strong>
+                            <small>Giáo viên đang khóa vật phẩm này.</small>
+                        </div>
+                    </div>
+                </article>
+            `;
+        }
 
         return `
             <article class="store-collection-acquisition-item${collected ? ' is-owned' : ''}">
@@ -1468,8 +1494,33 @@
         const typeInfo = getTypeInfo(item.type);
         const tag = item.tag || 'Chưa phân loại';
         const collected = isItemCollected(item);
+        const teacherLocked = item?.isLocked === true;
         const ownershipClass = collected ? 'is-collected' : 'is-uncollected';
         const ownershipLabel = collected ? 'Đã sưu tầm' : 'Chưa sở hữu';
+
+        /*
+         * Khóa của giáo viên phải che hoàn toàn vật phẩm trong Sưu tầm giống
+         * Cửa hàng chính: không lộ tên, tag, ảnh hay trạng thái sở hữu.
+         * Vật phẩm vẫn ở đúng vị trí trong danh sách và quyền sở hữu vẫn được
+         * giữ nguyên để không làm sai tiến độ/mốc thưởng.
+         */
+        if (teacherLocked) {
+            return `
+                <article
+                    class="store-collection-card is-collection-teacher-locked"
+                    data-collection-item-id="${escapeAttribute(item.id || '')}"
+                    data-collection-item-locked="true"
+                    data-collected="${String(collected)}"
+                    aria-label="Vật phẩm đang bị giáo viên khóa"
+                >
+                    <div class="store-collection-card__teacher-lock" role="status">
+                        <span class="store-collection-card__teacher-question" aria-hidden="true">?</span>
+                        <strong>Vật phẩm đang cập nhật</strong>
+                        <small>Sẽ xuất hiện trong tương lai.</small>
+                    </div>
+                </article>
+            `;
+        }
 
         return `
             <article
@@ -1617,7 +1668,7 @@
             </div>
             <span>
                 <b>${collectedCount}/${items.length}</b> vật phẩm đã sưu tầm
-                · vật phẩm chưa sở hữu sẽ hiển thị màu xám
+                · chưa sở hữu: màu xám · giáo viên khóa: nền đen và dấu ?
             </span>
         `;
 
@@ -2021,7 +2072,17 @@
         close: closeCollectionPage,
         toggleMenu: toggleDropdown,
         show: openCollectionPage,
-        refresh: () => renderCollection(activeCollectionId),
+        refresh: () => {
+            renderCollection(activeCollectionId);
+
+            const modal = document.getElementById(IDS.acquisitionModal);
+            const body = document.getElementById(IDS.acquisitionBody);
+            if (modal?.classList.contains('is-open') && body) {
+                body.innerHTML = createAcquisitionReportHTML(
+                    acquisitionModalCollectionId
+                );
+            }
+        },
         refreshInventory: () => installInventoryListener(),
         checkRewards: () => queueCollectionRewardScan(),
         showAcquisitionWays: (collectionId = activeCollectionId) =>
