@@ -12055,35 +12055,78 @@ function updateAvatarDisplay(avatarData) {
     const avatarPlaceholder = document.getElementById('avatarPlaceholder');
     const triggerBtn = document.querySelector('.profile-trigger-btn');
 
-    // FIX: Thêm dòng rào chắn này để ngăn JS bị sập nếu không tìm thấy thẻ HTML
+    // Không để lỗi avatar làm gián đoạn phần còn lại của trang.
     if (!avatarImg || !avatarPlaceholder || !triggerBtn) return;
 
-    if (
-        avatarData &&
-        (
-            avatarData.startsWith(
-                'data:image'
-            ) ||
-            avatarData.startsWith(
-                'https://'
-            ) ||
-            avatarData.startsWith(
-                'http://'
-            )
-        )
-    ) {
-        // Nếu đã có ảnh
-        avatarImg.src = avatarData;
-        avatarImg.style.display = 'block'; // Hiện ảnh
-        avatarPlaceholder.style.display = 'none'; // Ẩn emoji 👤
-        triggerBtn.style.background = 'transparent'; // Xóa nền mờ để ảnh đẹp hơn
-        triggerBtn.style.border = 'none'; // Xóa viền
-    } else {
-        // Nếu chưa có ảnh (hoặc ảnh lỗi) -> Hiện mặc định
-        avatarImg.style.display = 'none'; // Ẩn ảnh
-        avatarPlaceholder.style.display = 'flex'; // Hiện emoji 👤
-        triggerBtn.style.background = 'rgba(255,255,255,0.7)'; // Trở lại nền kính
-        triggerBtn.style.border = '2px solid rgba(255,255,255,0.9)'; // Trở lại viền
+    const normalizedAvatar =
+        typeof avatarData === 'string'
+            ? avatarData.trim()
+            : '';
+
+    const hasValidAvatar =
+        normalizedAvatar.startsWith('data:image') ||
+        normalizedAvatar.startsWith('https://') ||
+        normalizedAvatar.startsWith('http://') ||
+        normalizedAvatar.startsWith('blob:');
+
+    // Mỗi lần đổi avatar dùng một request id để ảnh cũ tải chậm không thể
+    // ghi đè lên avatar mới hơn.
+    const requestId = String(
+        (Number(avatarImg.dataset.avatarRequestId) || 0) + 1
+    );
+    avatarImg.dataset.avatarRequestId = requestId;
+
+    const showPlaceholder = () => {
+        avatarImg.style.display = 'none';
+        avatarPlaceholder.style.display = 'flex';
+        triggerBtn.style.background = 'rgba(255,255,255,0.7)';
+        triggerBtn.style.border = '2px solid rgba(255,255,255,0.9)';
+        triggerBtn.classList.remove('avatar-ready');
+    };
+
+    const showAvatar = () => {
+        if (avatarImg.dataset.avatarRequestId !== requestId) return;
+        if (!avatarImg.complete || avatarImg.naturalWidth <= 0) return;
+
+        avatarImg.style.display = 'block';
+        avatarPlaceholder.style.display = 'none';
+        triggerBtn.style.background = 'transparent';
+        triggerBtn.style.border = 'none';
+        triggerBtn.classList.add('avatar-ready');
+    };
+
+    // Quan trọng: nút hồ sơ + biểu tượng 👤 luôn hiện NGAY. Chỉ thay bằng ảnh
+    // sau khi ảnh đã tải thành công, tránh khoảng trống trong lúc mạng chậm.
+    showPlaceholder();
+
+    if (!hasValidAvatar) {
+        avatarImg.onload = null;
+        avatarImg.onerror = null;
+        avatarImg.removeAttribute('src');
+        return;
+    }
+
+    avatarImg.loading = 'eager';
+    avatarImg.decoding = 'async';
+    try {
+        avatarImg.fetchPriority = 'high';
+    } catch (_) { }
+
+    avatarImg.onload = showAvatar;
+    avatarImg.onerror = () => {
+        if (avatarImg.dataset.avatarRequestId !== requestId) return;
+        showPlaceholder();
+    };
+
+    // Nếu cùng URL đã nằm trong cache trình duyệt thì hiện ngay, không tạo
+    // một request mạng thừa. Nếu chưa có, gán src để bắt đầu tải.
+    const currentSrc = avatarImg.getAttribute('src') || '';
+    if (currentSrc !== normalizedAvatar) {
+        avatarImg.src = normalizedAvatar;
+    }
+
+    if (avatarImg.complete && avatarImg.naturalWidth > 0) {
+        showAvatar();
     }
 }
 
