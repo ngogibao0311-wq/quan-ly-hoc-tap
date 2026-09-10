@@ -46,7 +46,7 @@
 
     if (window.StudentFeatureLoader) return;
 
-    const VERSION = '2.0.2';
+    const VERSION = '2.0.3';
 
     const cssPromises = new Map();
     const scriptPromises = new Map();
@@ -90,7 +90,7 @@
         collections: 'js/store-collections.js?v=20260908.four-seasons-lock-v1',
 
         royalBall: 'js/royal-ball.js?v=20260908.lazy-v1',
-        leaderboard: 'js/leaderboard.js?v=20260907.strong-violation-penalty-v1',
+        leaderboard: 'js/leaderboard.js?v=20260910.trigger-autoload-v1',
         painting: 'js/painting.js?v=20260908.round-query-v1',
         history: 'js/lich-su-hao-hung.js?v=20260831.1',
 
@@ -382,6 +382,15 @@
             ]);
         },
 
+        async leaderboard() {
+            /*
+             * BXH có nút truy cập ở mọi tab, nên tải riêng sau khi core đã mở.
+             * Không kéo Royal Ball / Hội họa / toàn bộ visual runtime chỉ để hiện nút.
+             */
+            await loadCss(CSS.leaderboard);
+            await loadScript(SCRIPT.leaderboard);
+        },
+
         async game() {
             /*
              * Royal Ball và một số phần thưởng game tra StoreConfig.
@@ -532,11 +541,19 @@
 
         const run = () => {
             /*
-             * Hai tính năng tự động:
+             * Các tính năng hậu khởi động:
+             * - BXH phải có nút truy cập ở mọi tab.
              * - Điểm danh có thể tự bật popup.
              * - Hướng dẫn người mới có thể tự kiểm tra trạng thái.
              * Chúng tải sau khi giao diện đã mở nên không chặn startup.
              */
+            ensure('leaderboard').catch(error => {
+                console.warn(
+                    '[StudentFeatureLoader] Leaderboard lazy-load lỗi:',
+                    error
+                );
+            });
+
             ensure('daily-login').catch(error => {
                 console.warn(
                     '[StudentFeatureLoader] Daily Login lazy-load lỗi:',
