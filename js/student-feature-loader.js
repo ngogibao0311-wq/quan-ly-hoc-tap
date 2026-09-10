@@ -46,7 +46,7 @@
 
     if (window.StudentFeatureLoader) return;
 
-    const VERSION = '2.0.1';
+    const VERSION = '2.0.2';
 
     const cssPromises = new Map();
     const scriptPromises = new Map();
@@ -83,8 +83,8 @@
         effectItems: 'js/effect-items.js?v=4.2',
         petItems: 'js/pet-items.js?v=4.2',
         petInteractions: 'js/pet-interactions.js?v=3.8',
-        musicManager: 'js/music-manager.js?v=20260910.music-reliability-v2',
-        storeManager: 'js/store-manager.js?v=20260910.music-reliability-v1',
+        musicManager: 'js/music-manager.js?v=20260910.music-reliability-v3',
+        storeManager: 'js/store-manager.js?v=20260910.music-library-v2',
 
         luxuryStore: 'js/luxury-store.js?v=4.2.4-lockfix-ui-isolation-r2',
         collections: 'js/store-collections.js?v=20260908.four-seasons-lock-v1',

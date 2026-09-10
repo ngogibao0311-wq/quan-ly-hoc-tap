@@ -363,7 +363,21 @@ const StoreConfig = {
             customIcon: '🎧',
             musicUrl: 'https://youtu.be/TWX6Eq8v46M?si=xOz5ZQcJmbKI1Paa',
             volume: 0.35,
-            loop: true
+            loop: true,
+            hideFromMediaControls: true
+        },
+        {
+            id: 'music_nga_01',
+            name: 'Nhạc Nga',
+            type: 'music',
+            price: 250,
+            isNonCoin: false,
+            tag: 'Âm nhạc',
+            customIcon: '🎼',
+            musicUrl: 'https://youtu.be/ujA0Hlg5-_g?si=Al3qxeIzjAx6oo6Y',
+            volume: 0.35,
+            loop: true,
+            hideFromMediaControls: true
         },
         {
             id: 'pet_truyenthuyet_nyx',

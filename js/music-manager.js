@@ -149,6 +149,8 @@
             );
 
             this.loop = item.loop !== false;
+            this.hideFromMediaControls =
+                item.hideFromMediaControls !== false;
 
             // Nếu đúng bài nhạc đang phát thì không tạo lại player
             if (sameMusic && this.hasPlayer()) {
@@ -452,6 +454,7 @@
                         if (event.data === 1) {
                             this.youtubeIsPlaying = true;
                             this.clearRetryAfterUserClick();
+                            this.startMediaSessionSuppression();
                             return;
                         }
 
@@ -609,6 +612,85 @@
             });
         }
 
+        static clearPageMediaSession() {
+            if (!('mediaSession' in navigator)) {
+                return;
+            }
+
+            try {
+                navigator.mediaSession.metadata = null;
+            } catch (_) { }
+
+            try {
+                navigator.mediaSession.playbackState = 'none';
+            } catch (_) { }
+
+            [
+                'play',
+                'pause',
+                'stop',
+                'seekbackward',
+                'seekforward',
+                'seekto',
+                'previoustrack',
+                'nexttrack'
+            ].forEach(action => {
+                try {
+                    navigator.mediaSession.setActionHandler(
+                        action,
+                        null
+                    );
+                } catch (_) { }
+            });
+        }
+
+        static startMediaSessionSuppression() {
+            if (
+                this.hideFromMediaControls !== true ||
+                !this.shouldPlay ||
+                this.videoTokens.size > 0
+            ) {
+                return;
+            }
+
+            this.clearPageMediaSession();
+
+            if (this.mediaSessionSuppressionTimer) {
+                return;
+            }
+
+            /*
+             * Best-effort: trang top-level liên tục xóa Media Session trong khi
+             * NHẠC NỀN phát. YouTube iframe là cross-origin nên trình duyệt vẫn
+             * có quyền tự tạo Media Controls trên một số nền tảng; web không có
+             * API chuẩn để ép ẩn 100% trường hợp đó.
+             */
+            this.mediaSessionSuppressionTimer = setInterval(() => {
+                if (
+                    this.hideFromMediaControls === true &&
+                    this.shouldPlay &&
+                    this.videoTokens.size === 0
+                ) {
+                    this.clearPageMediaSession();
+                } else {
+                    this.stopMediaSessionSuppression(false);
+                }
+            }, 1000);
+        }
+
+        static stopMediaSessionSuppression(clearNow = false) {
+            if (this.mediaSessionSuppressionTimer) {
+                clearInterval(
+                    this.mediaSessionSuppressionTimer
+                );
+                this.mediaSessionSuppressionTimer = null;
+            }
+
+            if (clearNow) {
+                this.clearPageMediaSession();
+            }
+        }
+
         static hasPlayer() {
             return Boolean(
                 this.audioElement ||
@@ -642,12 +724,14 @@
             try {
                 if (this.audioElement) {
                     await this.audioElement.play();
+                    this.startMediaSessionSuppression();
                 } else if (
                     this.youtubePlayer &&
                     this.youtubeReady === true &&
                     typeof this.youtubePlayer.playVideo === 'function'
                 ) {
                     this.youtubePlayer.playVideo();
+                    this.startMediaSessionSuppression();
 
                     /*
                      * YouTube IFrame API không trả Promise và trên một số Safari/
@@ -662,11 +746,13 @@
                     typeof this.spotifyController.resume === 'function'
                 ) {
                     this.spotifyController.resume();
+                    this.startMediaSessionSuppression();
                 } else if (
                     this.spotifyController &&
                     typeof this.spotifyController.play === 'function'
                 ) {
                     this.spotifyController.play();
+                    this.startMediaSessionSuppression();
                 } else {
                     // Player/API chưa sẵn sàng: đừng đánh mất thao tác người dùng.
                     this.retryAfterUserClick();
@@ -775,6 +861,7 @@
         static stopMusic() {
             this.shouldPlay = false;
             this.clearRetryAfterUserClick();
+            this.stopMediaSessionSuppression(true);
             this.currentItemId = '';
             this.currentUrl = '';
             this.sourceType = '';
@@ -785,6 +872,8 @@
         }
 
         static destroyPlayer() {
+            this.stopMediaSessionSuppression(false);
+
             if (this.audioElement) {
                 this.audioElement.pause();
                 this.audioElement.removeAttribute('src');
@@ -839,6 +928,8 @@
             this.videoTokens.add(key);
 
             if (wasEmpty && this.shouldPlay) {
+                // Nhường Media Session cho video thật của website.
+                this.stopMediaSessionSuppression(false);
                 this.pauseCurrent();
             }
         }
@@ -952,6 +1043,8 @@
     MusicManager.shouldPlay = false;
     MusicManager.volume = 0.35;
     MusicManager.loop = true;
+    MusicManager.hideFromMediaControls = true;
+    MusicManager.mediaSessionSuppressionTimer = null;
     MusicManager.generation = 0;
 
     MusicManager.videoTokens = new Set();
