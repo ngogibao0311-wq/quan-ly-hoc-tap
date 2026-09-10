@@ -235,6 +235,16 @@
             };
         }
 
+        if (state.status === 'local-file') {
+            return {
+                icon: '🗂️',
+                badge: 'CHẾ ĐỘ FILE CỤC BỘ',
+                title: 'Tự kiểm tra cập nhật đang tạm tắt',
+                description:
+                    'Trang đang mở bằng file:// nên trình duyệt không cho fetch version.json. Chạy bằng http://localhost hoặc máy chủ HTTPS để bật kiểm tra cập nhật.'
+            };
+        }
+
         if (state.status === 'checking') {
             return {
                 icon: '🔎',
@@ -595,6 +605,12 @@
     }
 
     async function fetchVersionInfo() {
+        if (window.location.protocol === 'file:') {
+            throw new Error(
+                'LOCAL_FILE_PROTOCOL: fetch version.json không được hỗ trợ khi chạy bằng file://.'
+            );
+        }
+
         const url = new URL(config.versionUrl, document.baseURI);
         url.searchParams.set('_updateCheck', Date.now().toString());
 
@@ -637,6 +653,22 @@
         }
 
         const manual = options?.manual === true;
+
+        if (window.location.protocol === 'file:') {
+            state.status = 'local-file';
+            state.error = '';
+            state.checking = false;
+            renderBanner();
+
+            if (manual) {
+                notify(
+                    'Không thể kiểm tra version.json khi mở bằng file://. Hãy chạy website bằng http://localhost hoặc HTTPS.',
+                    'warning'
+                );
+            }
+
+            return null;
+        }
 
         if (!navigator.onLine) {
             state.status = 'offline';
@@ -1045,6 +1077,11 @@
     function scheduleChecks() {
         clearInterval(state.periodicTimer);
 
+        if (window.location.protocol === 'file:') {
+            state.periodicTimer = null;
+            return;
+        }
+
         state.periodicTimer = setInterval(() => {
             if (
                 document.visibilityState === 'visible' &&
@@ -1075,6 +1112,14 @@
         }
 
         ensureModal();
+
+        if (window.location.protocol === 'file:') {
+            state.status = 'local-file';
+            state.error = '';
+            renderBanner();
+            return;
+        }
+
         renderBanner();
         checkPostUpdateResult();
         scheduleChecks();

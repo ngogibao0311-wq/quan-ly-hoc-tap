@@ -1,4 +1,6 @@
-const CACHE_VERSION = 'study-shell-v4';
+const APP_VERSION = '4.0.1';
+const APP_BUILD = '2026.09.09.1-health-center';
+const CACHE_VERSION = `study-shell-v${APP_VERSION}-${APP_BUILD}`;
 const OFFLINE_CACHE = `${CACHE_VERSION}-offline`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const OFFLINE_PAGE = './offline.html';
@@ -237,7 +239,27 @@ self.addEventListener('message', event => {
         return;
     }
 
-    if (type === 'PING' && event.source) {
-        event.source.postMessage({ type: 'PONG', cacheVersion: CACHE_VERSION });
+    if (type === 'PING') {
+        const payload = {
+            type: 'PONG',
+            requestId: event.data && event.data.requestId
+                ? event.data.requestId
+                : '',
+            appVersion: APP_VERSION,
+            build: APP_BUILD,
+            cacheVersion: CACHE_VERSION
+        };
+
+        // Health Center 2.0 dùng MessageChannel để nhận đúng phản hồi
+        // của lần quét hiện tại. Đây chỉ là đọc metadata, không đổi cache.
+        if (event.ports && event.ports[0]) {
+            event.ports[0].postMessage(payload);
+            return;
+        }
+
+        // Giữ tương thích với client PING cũ.
+        if (event.source) {
+            event.source.postMessage(payload);
+        }
     }
 });

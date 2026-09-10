@@ -37,6 +37,348 @@ const currentUser = JSON.parse(localStorage.getItem('currentUser'));
 
 
 // ======================================================
+// STUDENT LAZY FEATURE RUNTIME v2
+// ======================================================
+// Firebase listeners vẫn chạy ngay để dữ liệu luôn realtime.
+// Module Store/Pet/Effect chỉ được nạp khi thực sự cần.
+// ======================================================
+window.__studentLazyStoreSettings = null;
+window.__studentLazyStoreItemsDirty = false;
+window.__studentPendingDiscountMigration = null;
+window.__studentDiscountMigrationDone = false;
+window.__studentLazyRuntimeSyncPromise = null;
+window.__studentDeferredMusicInventory = null;
+window.__studentStartupCompleted = false;
+
+function isStudentStoreRuntimeReady() {
+    return Boolean(
+        typeof StoreConfig !== 'undefined' &&
+        StoreConfig &&
+        Array.isArray(StoreConfig.items) &&
+        typeof StoreManager !== 'undefined'
+    );
+}
+
+function applyStudentCachedStoreSettingsToRuntime() {
+    if (!isStudentStoreRuntimeReady()) {
+        return false;
+    }
+
+    const settings =
+        window.__studentLazyStoreSettings;
+
+    StoreConfig.items.forEach(item => {
+        const itemSettings =
+            settings &&
+            settings[item.id] &&
+            typeof settings[item.id] === 'object'
+                ? settings[item.id]
+                : null;
+
+        if (itemSettings) {
+            if (itemSettings.price !== undefined) {
+                item.price = itemSettings.price;
+            }
+
+            if (itemSettings.startDate !== undefined) {
+                item.startDate = itemSettings.startDate;
+            }
+
+            if (itemSettings.endDate !== undefined) {
+                item.endDate = itemSettings.endDate;
+            }
+
+            if (itemSettings.musicUrl !== undefined) {
+                item.musicUrl = itemSettings.musicUrl;
+            }
+
+            if (itemSettings.volume !== undefined) {
+                item.volume = itemSettings.volume;
+            }
+
+            if (itemSettings.loop !== undefined) {
+                item.loop = itemSettings.loop;
+            }
+        }
+
+        item.isLocked =
+            window.normalizeStoreItemLockState(
+                itemSettings?.isLocked
+            );
+    });
+
+    return true;
+}
+
+async function runStudentDeferredDiscountMigration() {
+    if (
+        window.__studentDiscountMigrationDone ||
+        !isStudentStoreRuntimeReady()
+    ) {
+        return false;
+    }
+
+    const discounts =
+        window.__studentPendingDiscountMigration;
+
+    if (!discounts) {
+        window.__studentDiscountMigrationDone = true;
+        return true;
+    }
+
+    const validItems =
+        StoreConfig.items
+            .filter(item => {
+                const price =
+                    Number(item.price);
+
+                return (
+                    Number.isFinite(price) &&
+                    price > 0 &&
+                    price <= 500 &&
+                    item.isNonCoin !== true &&
+                    item.tag !== 'Doraemon' &&
+                    item.tag !== 'Truyền thuyết'
+                );
+            })
+            .map(item => item.id);
+
+    const updates = {};
+
+    Object.keys(discounts).forEach(key => {
+        const discount =
+            discounts[key] || {};
+
+        const targetItems =
+            Array.isArray(
+                discount.targetItem
+            )
+                ? discount.targetItem
+                : [];
+
+        const isLegacyHoiHoaRunnerUp =
+            key.startsWith('hh_discount_') &&
+            !discount.source;
+
+        const isLegacyHoiHoaChest =
+            key.startsWith(
+                'hh_chest_discount_'
+            ) &&
+            !discount.source;
+
+        if (isLegacyHoiHoaRunnerUp) {
+            updates[
+                `student_discounts/${currentUser.username}/${key}/source`
+            ] = 'hoihoa_runner_up';
+
+            updates[
+                `student_discounts/${currentUser.username}/${key}/usageLimit`
+            ] = 1;
+
+            updates[
+                `student_discounts/${currentUser.username}/${key}/maxEligiblePriceExclusive`
+            ] = 600;
+        }
+
+        if (isLegacyHoiHoaChest) {
+            updates[
+                `student_discounts/${currentUser.username}/${key}/source`
+            ] = 'hoihoa_chest';
+
+            updates[
+                `student_discounts/${currentUser.username}/${key}/usageLimit`
+            ] = 1;
+
+            updates[
+                `student_discounts/${currentUser.username}/${key}/maxEligiblePriceExclusive`
+            ] = 700;
+        }
+
+        const isHoiHoaDiscount =
+            key.startsWith('hh_discount_') ||
+            key.startsWith(
+                'hh_chest_discount_'
+            ) ||
+            discount.source ===
+                'hoihoa_chest' ||
+            discount.source ===
+                'hoihoa_runner_up' ||
+            discount.source ===
+                'hoihoa_season';
+
+        const isLegacyDailyLogin =
+            discount.source ===
+                'daily_login';
+
+        if (
+            !discount.isUsed &&
+            !isHoiHoaDiscount &&
+            isLegacyDailyLogin &&
+            targetItems.includes('all')
+        ) {
+            updates[
+                `student_discounts/${currentUser.username}/${key}/targetItem`
+            ] = validItems;
+
+            updates[
+                `student_discounts/${currentUser.username}/${key}/source`
+            ] = 'daily_login';
+        }
+    });
+
+    if (
+        Object.keys(updates).length > 0
+    ) {
+        await db.ref().update(updates);
+    }
+
+    window.__studentDiscountMigrationDone =
+        true;
+
+    window.__studentPendingDiscountMigration =
+        null;
+
+    return true;
+}
+
+window.syncStudentLazyStoreRuntime =
+    async function () {
+        if (
+            window.__studentLazyRuntimeSyncPromise
+        ) {
+            return window
+                .__studentLazyRuntimeSyncPromise;
+        }
+
+        window.__studentLazyRuntimeSyncPromise =
+            (async () => {
+                if (
+                    !applyStudentCachedStoreSettingsToRuntime()
+                ) {
+                    return false;
+                }
+
+                /*
+                 * StoreManager được lazy-load. Các override dành riêng cho
+                 * trang Học sinh chỉ được gắn SAU KHI runtime đã sẵn sàng.
+                 * Tránh ReferenceError làm dừng toàn bộ student.js ở startup.
+                 */
+                installStudentStoreManagerOverrides();
+
+                if (
+                    typeof loadStoreItems ===
+                    'function'
+                ) {
+                    await loadStoreItems();
+                }
+
+                if (
+                    typeof applyEquippedItems ===
+                    'function'
+                ) {
+                    await Promise.resolve(
+                        applyEquippedItems()
+                    );
+                }
+
+                if (
+                    window.StoreCollectionPage &&
+                    typeof window
+                        .StoreCollectionPage
+                        .refresh ===
+                        'function'
+                ) {
+                    window
+                        .StoreCollectionPage
+                        .refresh();
+                }
+
+                if (
+                    window.LuxuryStore &&
+                    typeof window.LuxuryStore
+                        .refresh ===
+                        'function'
+                ) {
+                    window.LuxuryStore
+                        .refresh();
+                }
+
+                await runStudentDeferredDiscountMigration();
+
+                window.__studentLazyStoreItemsDirty =
+                    false;
+
+                return true;
+            })();
+
+        try {
+            return await window
+                .__studentLazyRuntimeSyncPromise;
+        } finally {
+            window.__studentLazyRuntimeSyncPromise =
+                null;
+        }
+    };
+
+async function bootstrapStudentDeferredMusic() {
+    const inventory =
+        window.__studentDeferredMusicInventory;
+
+    if (
+        !Array.isArray(inventory) ||
+        !inventory.length ||
+        !window.StudentFeatureLoader
+    ) {
+        return false;
+    }
+
+    window.__studentDeferredMusicInventory = null;
+
+    try {
+        await window.StudentFeatureLoader
+            .ensureForEquippedItems(inventory);
+
+        if (isStudentStoreRuntimeReady()) {
+            await window.syncStudentLazyStoreRuntime();
+        }
+
+        return true;
+    } catch (error) {
+        console.warn(
+            '[Music Startup] Không thể khởi tạo nhạc nền sau khi mở giao diện:',
+            error
+        );
+        return false;
+    }
+}
+
+window.addEventListener(
+    'student-feature-loaded',
+    event => {
+        const group =
+            String(
+                event.detail?.group || ''
+            );
+
+        if (
+            group === 'visual-runtime' ||
+            group === 'store-ui'
+        ) {
+            window
+                .syncStudentLazyStoreRuntime()
+                .catch(error => {
+                    console.error(
+                        '[Student Lazy Runtime] Không đồng bộ được Store:',
+                        error
+                    );
+                });
+        }
+    }
+);
+
+
+
+// ======================================================
 // STORE LOCK HOTFIX v4.0.1
 // Chuẩn hóa dữ liệu isLocked từ Firebase.
 // Tránh lỗi !!"false" === true và tự trả về false khi node bị xóa.
@@ -3528,25 +3870,14 @@ window.onload = async function () {
             'Quill',
             'DOMPurify.sanitize',
             'mammoth.convertToHtml',
-            'CloudflareR2Storage'
+            'CloudflareR2Storage',
+            'StudentFeatureLoader.ensure',
+            'EffectQualityManager'
         ])) {
             return;
         }
 
         if (!startupLoader.checkStylesheets()) {
-            return;
-        }
-
-        if (
-            typeof StoreConfig === 'undefined' ||
-            !StoreConfig ||
-            !Array.isArray(StoreConfig.items)
-        ) {
-            startupLoader.fail(
-                'Module cửa hàng chưa sẵn sàng.',
-                'Không tìm thấy StoreConfig.items. Hãy kiểm tra store-manager.js và các module vật phẩm.',
-                'runtime'
-            );
             return;
         }
 
@@ -3964,110 +4295,197 @@ window.onload = async function () {
     });
 
     // === LẮNG NGHE HỆ THỐNG CỬA HÀNG (REAL-TIME PHÍA HỌC SINH) ===
-    listenFirebase(db.ref('store_settings'), 'value', (snapshot) => {
-        const settings = snapshot.val();
-        const activeView = document.getElementById('storeActiveView');
-        const lockedView = document.getElementById('storeLockedView');
+    listenFirebase(
+        db.ref('store_settings'),
+        'value',
+        async snapshot => {
+            const settings =
+                snapshot.val();
 
-        const isOpen = (settings !== null && settings.isOpen !== undefined) ? settings.isOpen : true;
-        if (activeView) activeView.style.display = isOpen ? 'block' : 'none';
-        if (lockedView) lockedView.style.display = isOpen ? 'none' : 'block';
+            window.__studentLazyStoreSettings =
+                settings;
 
-        /*
-         * Luôn duyệt toàn bộ StoreConfig.
-         * Nếu node store_settings/<itemId> bị xóa thì phải trả isLocked về false
-         * ngay trong phiên hiện tại, không chờ F5.
-         */
-        StoreConfig.items.forEach(item => {
-            const itemSettings =
-                settings &&
-                settings[item.id] &&
-                typeof settings[item.id] === 'object'
-                    ? settings[item.id]
-                    : null;
+            const activeView =
+                document.getElementById(
+                    'storeActiveView'
+                );
 
-            if (itemSettings) {
-                if (itemSettings.price !== undefined) item.price = itemSettings.price;
-                if (itemSettings.startDate !== undefined) item.startDate = itemSettings.startDate;
-                if (itemSettings.endDate !== undefined) item.endDate = itemSettings.endDate;
+            const lockedView =
+                document.getElementById(
+                    'storeLockedView'
+                );
 
-                if (itemSettings.musicUrl !== undefined) {
-                    item.musicUrl =
-                        itemSettings.musicUrl;
-                }
+            const isOpen =
+                (
+                    settings !== null &&
+                    settings.isOpen !==
+                        undefined
+                )
+                    ? settings.isOpen
+                    : true;
 
-                if (itemSettings.volume !== undefined) {
-                    item.volume =
-                        itemSettings.volume;
-                }
-
-                if (itemSettings.loop !== undefined) {
-                    item.loop =
-                        itemSettings.loop;
-                }
+            if (activeView) {
+                activeView.style.display =
+                    isOpen
+                        ? 'block'
+                        : 'none';
             }
 
-            item.isLocked =
-                window.normalizeStoreItemLockState(
-                    itemSettings?.isLocked
+            if (lockedView) {
+                lockedView.style.display =
+                    isOpen
+                        ? 'none'
+                        : 'block';
+            }
+
+            /*
+             * Khi visual/store runtime chưa nạp:
+             * chỉ cache Firebase settings.
+             * Khi runtime xuất hiện, syncStudentLazyStoreRuntime()
+             * áp lại toàn bộ giá/lock/date/music một lần.
+             */
+            if (
+                isStudentStoreRuntimeReady()
+            ) {
+                await window
+                    .syncStudentLazyStoreRuntime();
+            }
+
+            if (startupLoader) {
+                startupLoader.markReady(
+                    'student-store-settings'
                 );
-        });
+            }
+        }
+    );
 
-        if (typeof window.filterStore === 'function') {
-            window.filterStore(window.currentStoreFilterType || 'all');
-        }
+    listenFirebase(
+        db.ref('store_items'),
+        'value',
+        async () => {
+            window.__studentLazyStoreItemsDirty =
+                true;
 
-        /*
-         * Đồng bộ ngay trang Sưu tầm khi giáo viên khóa/mở khóa vật phẩm.
-         * StoreCollectionPage có thể chưa nạp ở lần callback đầu tiên, nên
-         * chỉ gọi khi API đã tồn tại.
-         */
-        if (
-            window.StoreCollectionPage &&
-            typeof window.StoreCollectionPage.refresh === 'function'
-        ) {
-            window.StoreCollectionPage.refresh();
-        }
+            if (
+                isStudentStoreRuntimeReady()
+            ) {
+                await window
+                    .syncStudentLazyStoreRuntime();
+            }
 
-        if (
-            window.LuxuryStore &&
-            typeof window.LuxuryStore.refresh === 'function'
-        ) {
-            window.LuxuryStore.refresh();
+            if (startupLoader) {
+                startupLoader.markReady(
+                    'student-store-items'
+                );
+            }
         }
+    );
 
-        if (
-            typeof window.applyEquippedItems ===
-            'function'
-        ) {
-            window.applyEquippedItems();
-        }
-        if (startupLoader) {
-            startupLoader.markReady(
-                'student-store-settings'
-            );
-        }
-    });
+    listenFirebase(
+        db.ref(
+            'student_inventory/' +
+            currentUser.username
+        ),
+        'value',
+        async snapshot => {
+            myInventory =
+                snapshot.val()
+                    ? Object.values(
+                        snapshot.val()
+                    )
+                    : [];
 
-    listenFirebase(db.ref('store_items'), 'value', async () => {
-        if (typeof loadStoreItems === 'function') await loadStoreItems();
-        if (startupLoader) {
-            startupLoader.markReady(
-                'student-store-items'
-            );
-        }
-    });
+            window.myInventory =
+                myInventory;
 
-    listenFirebase(db.ref('student_inventory/' + currentUser.username), 'value', async (snapshot) => {
-        myInventory = snapshot.val() ? Object.values(snapshot.val()) : [];
-        if (typeof loadStoreItems === 'function') await loadStoreItems();
-        if (typeof applyEquippedItems === 'function') await Promise.resolve(applyEquippedItems());
-        if (startupLoader) {
-            startupLoader.markReady(
-                'student-inventory'
-            );
+            const equippedItems =
+                myInventory.filter(
+                    item =>
+                        item &&
+                        item.isEquipped ===
+                            true
+                );
+
+            const hasEquippedItem =
+                equippedItems.length > 0;
+
+            const hasOnlyEquippedMusic =
+                hasEquippedItem &&
+                equippedItems.every(item =>
+                    /^music(?:_|-)/i.test(
+                        String(item.id || '')
+                    )
+                );
+
+            /*
+             * Nhạc nền không làm thay đổi giao diện nên không cần bắt màn hình
+             * khởi động chờ toàn bộ Store/Pet/Effect runtime. Với trường hợp chỉ
+             * trang bị nhạc, ghi nhận inventory đã về và khởi tạo nhạc ngay sau
+             * khi loader đóng. Các loại vật phẩm hình ảnh vẫn giữ nguyên cơ chế
+             * await cũ để không xuất hiện FOUC.
+             */
+            if (
+                startupLoader &&
+                window.__studentStartupCompleted !== true &&
+                hasOnlyEquippedMusic &&
+                window.StudentFeatureLoader
+            ) {
+                window.__studentDeferredMusicInventory =
+                    myInventory.slice();
+                startupLoader.markReady(
+                    'student-inventory'
+                );
+                return;
+            }
+
+            try {
+                if (
+                    hasEquippedItem &&
+                    window.StudentFeatureLoader
+                ) {
+                    /*
+                     * CSS của item trang bị được await TRƯỚC visual runtime,
+                     * rồi mới applyEquippedItems. student-inventory chỉ ready
+                     * sau bước này => startup loader không biến mất gây FOUC.
+                     */
+                    await window
+                        .StudentFeatureLoader
+                        .ensureForEquippedItems(
+                            myInventory
+                        );
+                }
+
+                if (
+                    isStudentStoreRuntimeReady()
+                ) {
+                    await window
+                        .syncStudentLazyStoreRuntime();
+                }
+            } catch (error) {
+                console.error(
+                    '[Student Lazy Runtime] Không tải được vật phẩm đang trang bị:',
+                    error
+                );
+
+                if (startupLoader) {
+                    startupLoader.fail(
+                        'Không tải được giao diện vật phẩm đang trang bị.',
+                        error.message ||
+                            String(error),
+                        'runtime'
+                    );
+                }
+
+                return;
+            }
+
+            if (startupLoader) {
+                startupLoader.markReady(
+                    'student-inventory'
+                );
+            }
         }
-    });
+    );
 
     // Ví Xu Sinh Nhật được tách riêng theo từng năm.
     listenFirebase(
@@ -4240,9 +4658,15 @@ window.onload = async function () {
             if (child.val()) notifications.push({ ...child.val(), _fbKey: child.key });
         });
 
-        if (notifications.length > 0) {
-            // Sắp xếp: Mới nhất lên đầu
-            const sorted = notifications.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        const retainedNotifications =
+            window.HistoryRetention &&
+            typeof window.HistoryRetention.filterRecent === 'function'
+                ? window.HistoryRetention.filterRecent(notifications, 'global_notifications')
+                : notifications;
+
+        if (retainedNotifications.length > 0) {
+            // Sắp xếp: Mới nhất lên đầu; dữ liệu quá 2 tháng không còn xuất hiện trên web.
+            const sorted = retainedNotifications.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
             // Quét tìm thông báo MỚI NHẤT mà học sinh CHƯA ĐỌC
             let unreadNoti = null;
@@ -4365,6 +4789,10 @@ window.onload = async function () {
             } else {
                 if (modal) modal.classList.remove('active');
             }
+        } else {
+            window.currentMandatoryNotification = null;
+            const modal = document.getElementById('studentNotificationModal');
+            if (modal) modal.classList.remove('active');
         }
     });
 
@@ -4376,9 +4804,15 @@ window.onload = async function () {
             if (child.val()) surveys.push({ ...child.val(), _fbKey: child.key });
         });
 
-        if (surveys.length > 0) {
-            // Sắp xếp: Mới nhất lên đầu
-            const sorted = surveys.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        const retainedSurveys =
+            window.HistoryRetention &&
+            typeof window.HistoryRetention.filterRecent === 'function'
+                ? window.HistoryRetention.filterRecent(surveys, 'global_surveys')
+                : surveys;
+
+        if (retainedSurveys.length > 0) {
+            // Sắp xếp: Mới nhất lên đầu; khảo sát quá 2 tháng không còn bật lại.
+            const sorted = retainedSurveys.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
             // Quét tìm Khảo sát MỚI NHẤT mà học sinh CHƯA LÀM
             let unreadSurvey = null;
@@ -4401,6 +4835,10 @@ window.onload = async function () {
             } else {
                 if (modal) modal.classList.remove('active');
             }
+        } else {
+            window.currentActiveSurvey = null;
+            const modal = document.getElementById('studentSurveyModal');
+            if (modal) modal.classList.remove('active');
         }
     });
 
@@ -5326,6 +5764,42 @@ window.onload = async function () {
         if (typeof myInventory === 'undefined' || !myInventory.length) return;
 
         const now = Date.now();
+
+        const hasExpiredTrialCandidate =
+            myInventory.some(item =>
+                item &&
+                item.isTrial &&
+                item.trialExpiry &&
+                now > item.trialExpiry
+            );
+
+        /*
+         * Chỉ kéo visual runtime khi thật sự có vật phẩm thử đã hết hạn.
+         * Không phá cơ chế lazy-load trong các phiên bình thường.
+         */
+        if (
+            hasExpiredTrialCandidate &&
+            !isStudentStoreRuntimeReady()
+        ) {
+            try {
+                await window.StudentFeatureLoader
+                    ?.ensure?.('visual-runtime');
+            } catch (error) {
+                console.warn(
+                    '[Student Lazy Runtime] Chưa thể tải runtime để thu hồi vật phẩm thử:',
+                    error
+                );
+                return;
+            }
+        }
+
+        if (
+            hasExpiredTrialCandidate &&
+            !isStudentStoreRuntimeReady()
+        ) {
+            return;
+        }
+
         let hasExpired = false;
         let updates = {};
 
@@ -5424,116 +5898,46 @@ window.onload = async function () {
     await LimitedEventAnnouncementManager.init();
     if (startupLoader) startupLoader.markReady('student-limited-event');
 
-    // Quét và cập nhật lại điều kiện cho các thẻ giảm giá CŨ của học sinh
-    db.ref('student_discounts/' + currentUser.username).once('value', (snap) => {
-        const discounts = snap.val();
-        if (!discounts) {
-            if (startupLoader) startupLoader.markReady('student-discounts');
-            return;
-        }
+    // Quét dữ liệu giảm giá ngay, nhưng migration phụ thuộc StoreConfig
+    // được hoãn đến khi visual/store runtime thực sự được lazy-load.
+    db.ref(
+        'student_discounts/' +
+        currentUser.username
+    ).once(
+        'value',
+        async snap => {
+            const discounts =
+                snap.val();
 
-        let updates = {};
-        // Lấy danh sách ID vật phẩm hợp lệ (<= 500 coin)
-        const validItems = StoreConfig.items
-            .filter(item => {
-                const price = Number(item.price);
-
-                return (
-                    Number.isFinite(price) &&
-                    price > 0 &&
-                    price <= 500 &&
-                    item.isNonCoin !== true &&
-                    item.tag !== 'Doraemon' &&
-                    item.tag !== 'Truyền thuyết'
-                );
-            })
-            .map(item => item.id);
-
-        Object.keys(discounts).forEach(key => {
-            const discount = discounts[key];
-
-            const targetItems =
-                Array.isArray(discount.targetItem)
-                    ? discount.targetItem
-                    : [];
-
-            /*
-             * Không sửa các thẻ phần thưởng Hội Họa.
-             */
-            /*
- * Bổ sung nguồn cho thẻ Hội Họa cũ để chúng
- * không bị nhận nhầm thành thẻ giáo viên.
- */
-            const isLegacyHoiHoaRunnerUp =
-                key.startsWith('hh_discount_') &&
-                !discount.source;
-
-            const isLegacyHoiHoaChest =
-                key.startsWith('hh_chest_discount_') &&
-                !discount.source;
-
-            if (isLegacyHoiHoaRunnerUp) {
-                updates[
-                    `student_discounts/${currentUser.username}/${key}/source`
-                ] = 'hoihoa_runner_up';
-
-                updates[
-                    `student_discounts/${currentUser.username}/${key}/usageLimit`
-                ] = 1;
-
-                updates[
-                    `student_discounts/${currentUser.username}/${key}/maxEligiblePriceExclusive`
-                ] = 600;
-            }
-
-            if (isLegacyHoiHoaChest) {
-                updates[
-                    `student_discounts/${currentUser.username}/${key}/source`
-                ] = 'hoihoa_chest';
-
-                updates[
-                    `student_discounts/${currentUser.username}/${key}/usageLimit`
-                ] = 1;
-
-                updates[
-                    `student_discounts/${currentUser.username}/${key}/maxEligiblePriceExclusive`
-                ] = 700;
-            }
-
-            const isHoiHoaDiscount =
-                key.startsWith('hh_discount_') ||
-                key.startsWith('hh_chest_discount_') ||
-                discount.source === 'hoihoa_chest' ||
-                discount.source === 'hoihoa_runner_up' ||
-                discount.source === 'hoihoa_season';
-
-            /*
-             * Chỉ chuyển đổi các thẻ đăng nhập cũ.
-             */
-            const isLegacyDailyLogin =
-                discount.source === 'daily_login';
+            window
+                .__studentPendingDiscountMigration =
+                discounts;
 
             if (
-                !discount.isUsed &&
-                !isHoiHoaDiscount &&
-                isLegacyDailyLogin &&
-                targetItems.includes('all')
+                isStudentStoreRuntimeReady()
             ) {
-                updates[
-                    `student_discounts/${currentUser.username}/${key}/targetItem`
-                ] = validItems;
-
-                updates[
-                    `student_discounts/${currentUser.username}/${key}/source`
-                ] = 'daily_login';
+                try {
+                    await runStudentDeferredDiscountMigration();
+                } catch (error) {
+                    console.warn(
+                        '[Student Lazy Runtime] Chưa migration được thẻ giảm giá cũ:',
+                        error
+                    );
+                }
             }
-        });
 
-        if (Object.keys(updates).length > 0) {
-            db.ref().update(updates);
+            /*
+             * Migration cũ không phải dữ liệu bắt buộc để mở giao diện.
+             * Node Firebase đã phản hồi thì startup có thể tiếp tục.
+             */
+            if (startupLoader) {
+                startupLoader.markReady(
+                    'student-discounts'
+                );
+            }
         }
-        if (startupLoader) startupLoader.markReady('student-discounts');
-    });
+    );
+
     if (startupLoader) {
         const allCloudReady = await startupLoader.waitForExpected({
             timeoutMs: 30000
@@ -5555,7 +5959,23 @@ window.onload = async function () {
         }).catch(() => { });
 
         startupLoader.hide();
+        window.__studentStartupCompleted = true;
+
+        /*
+         * Không await: nhạc nền khởi tạo sau khi giao diện đã mở, không giữ
+         * người dùng ở màn hình loading nếu YouTube/mạng của máy phản hồi chậm.
+         */
+        bootstrapStudentDeferredMusic().catch(() => { });
+    } else {
+        window.__studentStartupCompleted = true;
     }
+
+    /*
+     * Daily Login + hướng dẫn tự động vẫn tồn tại,
+     * nhưng chỉ tải sau khi giao diện chính đã mở.
+     */
+    window.StudentFeatureLoader
+        ?.schedulePostCore?.();
 };
 
 
@@ -5769,6 +6189,43 @@ window.addEventListener(
 
 function getEmbedHTML(url) {
     if (!url) return '';
+
+    const rawUrl = String(url).trim();
+    let resolvedUrl = rawUrl;
+
+    try {
+        const parsed = new URL(rawUrl, document.baseURI);
+
+        /*
+         * Chrome coi mỗi file:// là một unique origin. Không nhúng lại
+         * chính student.html hoặc tài nguyên file:// vào iframe vì sẽ
+         * sinh cảnh báo "Unsafe attempt to load URL ...".
+         */
+        if (
+            parsed.protocol === 'file:' ||
+            parsed.href === window.location.href
+        ) {
+            return `
+                <div class="video-wrapper" style="margin-bottom:20px;padding:14px;border:1px solid #f59e0b;border-radius:10px;background:#fffbeb;color:#92400e;">
+                    ⚠️ Không thể nhúng liên kết cục bộ <code>file://</code> trong iframe.
+                    Hãy chạy website bằng <code>http://localhost</code> hoặc dùng URL HTTPS.
+                </div>
+            `;
+        }
+
+        if (
+            parsed.protocol !== 'http:' &&
+            parsed.protocol !== 'https:'
+        ) {
+            return '';
+        }
+
+        resolvedUrl = parsed.href;
+    } catch (_) {
+        return '';
+    }
+
+    url = resolvedUrl;
     let videoId = '';
     if (url.includes('watch?v=')) { videoId = url.split('v=')[1].split('&')[0]; }
     else if (url.includes('youtu.be/')) { videoId = url.split('youtu.be/')[1].split('?')[0]; }
@@ -10989,44 +11446,21 @@ async function syncUserData(
     updateAvatarDisplay(currentUser.avatar);
 }
 
-async function updateProfile() { if (currentUser.isLocked) return alert("🔒 Tài khoản đang bị khóa!"); const newName = document.getElementById('settingName').value.trim(); const newPass = document.getElementById('settingPass').value.trim(); if (!newName) return alert("Tên hiển thị trống!"); if (newName === currentUser.name && !newPass) return alert("Chưa đổi thông tin!"); const requests = await getDB('profile_requests'); if (requests.find(r => r.username === currentUser.username && r.status === 'pending')) return alert("Yêu cầu trước đang chờ duyệt!"); const now = new Date(); await pushDB('profile_requests', { username: currentUser.username, currentName: currentUser.name, newName: newName, newPass: newPass, status: 'pending', time: now.toLocaleTimeString('vi-VN') + ' ' + now.toLocaleDateString('vi-VN') }); document.getElementById('settingPass').value = ''; alert("Đã gửi yêu cầu thay đổi!"); }
+async function updateProfile() { if (currentUser.isLocked) return alert("🔒 Tài khoản đang bị khóa!"); const newName = document.getElementById('settingName').value.trim(); const newPass = document.getElementById('settingPass').value.trim(); if (!newName) return alert("Tên hiển thị trống!"); if (newName === currentUser.name && !newPass) return alert("Chưa đổi thông tin!"); const requests = await getDB('profile_requests'); if (requests.find(r => r.username === currentUser.username && r.status === 'pending')) return alert("Yêu cầu trước đang chờ duyệt!"); const now = new Date(); await pushDB('profile_requests', { username: currentUser.username, currentName: currentUser.name, newName: newName, newPass: newPass, status: 'pending', timestamp: Date.now(), time: now.toLocaleTimeString('vi-VN') + ' ' + now.toLocaleDateString('vi-VN') }); document.getElementById('settingPass').value = ''; alert("Đã gửi yêu cầu thay đổi!"); }
 async function checkProfileRequests() {
     const requests = await getDB('profile_requests');
     let myReqs = requests.filter(r => r.username === currentUser.username);
     const container = document.getElementById('requestNotifications');
     if (!container) return;
 
-    // Bước 1: Lọc và tự động xóa các yêu cầu cũ hơn 7 ngày
-    const validReqs = [];
-    for (let req of myReqs) {
-        let isExpired = false;
-        if (req.time) {
-            try {
-                // Tách chuỗi "15:56:34 30/5/2026" thành thời gian và ngày
-                const parts = req.time.split(' ');
-                if (parts.length === 2) {
-                    const dateP = parts[1].split('/'); // [Ngày, Tháng, Năm]
-                    const timeP = parts[0].split(':'); // [Giờ, Phút, Giây]
-
-                    // Tạo Object Date (Lưu ý tháng trong JS bắt đầu từ 0)
-                    const reqDate = new Date(dateP[2], dateP[1] - 1, dateP[0], timeP[0], timeP[1], timeP[2] || 0);
-                    const now = new Date();
-
-                    // Kiểm tra xem đã qua 7 ngày chưa (7 ngày * 24h * 60m * 60s * 1000ms)
-                    if ((now - reqDate.getTime()) > 7 * 24 * 60 * 60 * 1000) {
-                        isExpired = true;
-                    }
-                }
-            } catch (e) { console.log("Lỗi tính toán thời gian", e); }
-        }
-
-        if (isExpired) {
-            // Đã quá 1 tuần -> Xóa vĩnh viễn khỏi Firebase để nhẹ dữ liệu
-            await removeDB('profile_requests', req._fbKey);
-        } else {
-            validReqs.push(req);
-        }
-    }
+    // Bước 1: Ẩn lịch sử yêu cầu ĐÃ XỬ LÝ khi quá 2 tháng.
+    // Học sinh không tự xóa Firebase; việc xóa cloud do Giáo viên/Cloud Function xử lý.
+    // Yêu cầu pending luôn được giữ để không mất việc đang chờ giáo viên xử lý.
+    const validReqs = myReqs.filter(req => !(
+        window.HistoryRetention &&
+        typeof window.HistoryRetention.isExpired === 'function' &&
+        window.HistoryRetention.isExpired('profile_requests', req)
+    ));
 
     // Nếu không còn yêu cầu nào hợp lệ thì thoát
     if (validReqs.length === 0) {
@@ -11088,7 +11522,7 @@ window.toggleOldRequests = function () {
     }
 };
 
-window.switchTab = function (tabId, btnElement) {
+window.switchTab = async function (tabId, btnElement) {
     // --- BỔ SUNG: CHẶN CHUYỂN TAB KHI ĐANG THI ---
     if (window.currentActiveExamId) {
         window.showExamLockWarning("⚠️ Hệ thống đã khóa menu để đảm bảo tính minh bạch!");
@@ -11096,13 +11530,40 @@ window.switchTab = function (tabId, btnElement) {
     }
     // ---------------------------------------------
 
+    try {
+        if (
+            window.StudentFeatureLoader &&
+            typeof window.StudentFeatureLoader
+                .ensureForTab === 'function'
+        ) {
+            await window.StudentFeatureLoader
+                .ensureForTab(tabId);
+        }
+    } catch (error) {
+        console.error(
+            '[StudentFeatureLoader] Không tải được tab:',
+            tabId,
+            error
+        );
+
+        window.showToast?.(
+            'Không tải được module của mục này. Vui lòng thử lại.',
+            'error'
+        );
+
+        return;
+    }
+
     // 1. Reset trạng thái active của các tab
     document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
 
     // 2. Kích hoạt tab mới
-    document.getElementById(tabId).classList.add('active');
-    btnElement.classList.add('active');
+    const nextTab = document.getElementById(tabId);
+    if (!nextTab) return;
+
+    nextTab.classList.add('active');
+    btnElement?.classList.add('active');
 
     // 3. Xóa vị trí cuộn cũ, cuộn mượt mà lên vị trí cao nhất
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -11941,13 +12402,18 @@ window.luckyWheelServerTimeOffset =
 let luckyWheelGoldenHourUiTimer = null;
 let luckyWheelGoldenStatusLocked = null;
 
-// REALTIME V4
+// REALTIME V5
+// Realtime là nguồn chính.
+// Polling 15 giây chỉ chạy khi listener lỗi hoặc Firebase mất kết nối.
 let luckyWheelGoldenRealtimeRef = null;
 let luckyWheelGoldenRealtimeHandler = null;
 let luckyWheelGoldenRealtimeCancelHandler = null;
 let luckyWheelGoldenRealtimeInitialized = false;
 let luckyWheelGoldenRealtimeFingerprint = '';
 let luckyWheelGoldenRealtimeFallbackTimer = null;
+let luckyWheelGoldenRealtimeConnectionRef = null;
+let luckyWheelGoldenRealtimeConnectionHandler = null;
+let luckyWheelGoldenRealtimeFallbackReason = '';
 
 function normalizeLuckyWheelGoldenHourConfig(raw) {
     const source =
@@ -12099,6 +12565,58 @@ function applyLuckyWheelGoldenHourRealtimeConfig(
     return liveStatus;
 }
 
+function stopLuckyWheelGoldenHourFallbackPolling() {
+    if (
+        luckyWheelGoldenRealtimeFallbackTimer
+    ) {
+        clearInterval(
+            luckyWheelGoldenRealtimeFallbackTimer
+        );
+
+        luckyWheelGoldenRealtimeFallbackTimer =
+            null;
+    }
+
+    luckyWheelGoldenRealtimeFallbackReason =
+        '';
+}
+
+function startLuckyWheelGoldenHourFallbackPolling(
+    reason = 'realtime-unavailable'
+) {
+    luckyWheelGoldenRealtimeFallbackReason =
+        String(reason || 'realtime-unavailable');
+
+    if (
+        luckyWheelGoldenRealtimeFallbackTimer
+    ) {
+        return;
+    }
+
+    /*
+     * Không đọc ngay lập tức ở đây.
+     * Firebase thường chỉ mất kết nối thoáng qua vài giây;
+     * nếu realtime hồi phục trước 15 giây thì sẽ không phát sinh
+     * bất kỳ .once('value') dự phòng nào.
+     */
+    luckyWheelGoldenRealtimeFallbackTimer =
+        setInterval(
+            () => {
+                if (
+                    navigator.onLine === false
+                ) {
+                    return;
+                }
+
+                refreshLuckyWheelGoldenHourFromServer({
+                    notify:
+                        false
+                });
+            },
+            15000
+        );
+}
+
 function stopLuckyWheelGoldenHourRealtimeSync() {
     if (
         luckyWheelGoldenRealtimeRef &&
@@ -12110,20 +12628,23 @@ function stopLuckyWheelGoldenHourRealtimeSync() {
         );
     }
 
+    if (
+        luckyWheelGoldenRealtimeConnectionRef &&
+        luckyWheelGoldenRealtimeConnectionHandler
+    ) {
+        luckyWheelGoldenRealtimeConnectionRef.off(
+            'value',
+            luckyWheelGoldenRealtimeConnectionHandler
+        );
+    }
+
     luckyWheelGoldenRealtimeRef = null;
     luckyWheelGoldenRealtimeHandler = null;
     luckyWheelGoldenRealtimeCancelHandler = null;
+    luckyWheelGoldenRealtimeConnectionRef = null;
+    luckyWheelGoldenRealtimeConnectionHandler = null;
 
-    if (
-        luckyWheelGoldenRealtimeFallbackTimer
-    ) {
-        clearInterval(
-            luckyWheelGoldenRealtimeFallbackTimer
-        );
-
-        luckyWheelGoldenRealtimeFallbackTimer =
-            null;
-    }
+    stopLuckyWheelGoldenHourFallbackPolling();
 }
 
 async function refreshLuckyWheelGoldenHourFromServer(
@@ -12190,11 +12711,26 @@ function startLuckyWheelGoldenHourRealtimeSync() {
             'game_settings/lucky_wheel_golden_hour'
         );
 
+    const connectionRef =
+        db.ref(
+            '.info/connected'
+        );
+
     luckyWheelGoldenRealtimeRef =
         ref;
 
+    luckyWheelGoldenRealtimeConnectionRef =
+        connectionRef;
+
     luckyWheelGoldenRealtimeHandler =
         snapshot => {
+            /*
+             * Một snapshot realtime thành công là tín hiệu chắc chắn nhất
+             * rằng kênh realtime đã hoạt động trở lại.
+             * Tắt polling ngay để tránh đọc Firebase trùng.
+             */
+            stopLuckyWheelGoldenHourFallbackPolling();
+
             applyLuckyWheelGoldenHourRealtimeConfig(
                 snapshot.val(),
                 {
@@ -12210,11 +12746,38 @@ function startLuckyWheelGoldenHourRealtimeSync() {
                 '[Giờ Vàng] Listener realtime bị lỗi:',
                 error
             );
+
+            startLuckyWheelGoldenHourFallbackPolling(
+                'listener-error'
+            );
+        };
+
+    luckyWheelGoldenRealtimeConnectionHandler =
+        snapshot => {
+            const connected =
+                snapshot.val() === true;
+
+            if (!connected) {
+                /*
+                 * Chỉ bật chế độ dự phòng.
+                 * Timer chờ đủ 15 giây mới đọc, nên một disconnect
+                 * thoáng qua không tạo thêm Firebase read.
+                 */
+                startLuckyWheelGoldenHourFallbackPolling(
+                    'firebase-disconnected'
+                );
+            }
+
+            /*
+             * Khi connected=true chưa tắt polling ngay.
+             * Chỉ khi listener cấu hình nhận được snapshot thành công
+             * mới coi realtime đã hồi phục hoàn toàn.
+             */
         };
 
     /*
-     * Dùng trực tiếp .on('value') thay vì wrapper listener dùng chung.
-     * Khi teacher .set/.update cấu hình, học sinh đang mở web nhận ngay snapshot.
+     * Realtime là nguồn chuẩn.
+     * Teacher .set/.update cấu hình -> học sinh nhận snapshot ngay.
      */
     ref.on(
         'value',
@@ -12223,19 +12786,13 @@ function startLuckyWheelGoldenHourRealtimeSync() {
     );
 
     /*
-     * Fallback nhẹ mỗi 15 giây để tự phục hồi nếu trình duyệt vừa mất mạng,
-     * tab ngủ lâu hoặc WebSocket Firebase bị trình duyệt tạm ngắt.
+     * Theo dõi trạng thái kết nối Firebase.
+     * .info/connected là metadata kết nối, không cần polling node cấu hình.
      */
-    luckyWheelGoldenRealtimeFallbackTimer =
-        setInterval(
-            () => {
-                refreshLuckyWheelGoldenHourFromServer({
-                    notify:
-                        false
-                });
-            },
-            15000
-        );
+    connectionRef.on(
+        'value',
+        luckyWheelGoldenRealtimeConnectionHandler
+    );
 
     if (
         !window
@@ -12245,12 +12802,18 @@ function startLuckyWheelGoldenHourRealtimeSync() {
             .__luckyWheelGoldenVisibilityRefreshBound =
             true;
 
+        /*
+         * Chỉ refresh khi đang ở chế độ fallback.
+         * Bình thường realtime khỏe thì visible/online không tạo read mới.
+         */
         document.addEventListener(
             'visibilitychange',
             () => {
                 if (
                     document.visibilityState ===
-                    'visible'
+                        'visible' &&
+                    luckyWheelGoldenRealtimeFallbackTimer &&
+                    navigator.onLine !== false
                 ) {
                     refreshLuckyWheelGoldenHourFromServer({
                         notify:
@@ -12263,10 +12826,14 @@ function startLuckyWheelGoldenHourRealtimeSync() {
         window.addEventListener(
             'online',
             () => {
-                refreshLuckyWheelGoldenHourFromServer({
-                    notify:
-                        false
-                });
+                if (
+                    luckyWheelGoldenRealtimeFallbackTimer
+                ) {
+                    refreshLuckyWheelGoldenHourFromServer({
+                        notify:
+                            false
+                    });
+                }
             }
         );
     }
@@ -14248,6 +14815,18 @@ window.filterStore = function (type) {
     const container = document.getElementById('storeItemsContainer');
     if (!container) return;
 
+    /*
+     * Firebase có thể gọi filterStore từ ví/Xu trước khi StoreManager
+     * được lazy-load. Khi đó chỉ đánh dấu dữ liệu bẩn và chờ
+     * syncStudentLazyStoreRuntime() render lại sau.
+     */
+    if (!isStudentStoreRuntimeReady()) {
+        window.__studentLazyStoreItemsDirty = true;
+        return;
+    }
+
+    installStudentStoreManagerOverrides();
+
     // Đổi màu nút tab hiện tại
     const buttons = document.querySelectorAll('#tab-store .btn-approve');
     buttons.forEach(btn => {
@@ -14334,6 +14913,13 @@ window.filterStore = function (type) {
 
 // 2. Render Cửa hàng & Kiểm tra thời hạn dùng thử 
 window.loadStoreItems = async function () {
+    if (!isStudentStoreRuntimeReady()) {
+        window.__studentLazyStoreItemsDirty = true;
+        return false;
+    }
+
+    installStudentStoreManagerOverrides();
+
     studentOwnedItems = ['theme_default'];
     studentEquippedItems = {
         theme: 'default',
@@ -14967,207 +15553,226 @@ window.processPayment = async function (itemId, basePrice, currentCoins) {
     }
 };
 
-// 5. Kết nối logic SỬ DỤNG vật phẩm
-StoreManager.applyItem = async function (itemId) {
-    const item = StoreManager.getItemById(itemId);
-    if (!item) return;
+// 5. Kết nối logic SỬ DỤNG / THÁO vật phẩm
+// StoreManager là module lazy-load nên tuyệt đối không chạm vào nó ở top-level.
+function installStudentStoreManagerOverrides() {
+    if (!isStudentStoreRuntimeReady()) {
+        return false;
+    }
 
-    // Lưu trạng thái lên Firebase (Hàm on('value') sẽ tự động gọi applyEquippedItems bên dưới để tạo hiệu ứng)
-    const invSnap = await db.ref(`student_inventory/${currentUser.username}`).once('value');
-    const inventory = invSnap.val();
-    if (inventory) {
-        let updates = {};
-        for (let key in inventory) {
-            let invItem = inventory[key];
-            const checkTypeItem = StoreConfig.items.find(i => i.id === invItem.id);
-            if (checkTypeItem && checkTypeItem.type === item.type) {
-                updates[`${key}/isEquipped`] = (invItem.id === itemId);
+    if (
+        StoreManager.__studentPageInventoryBridge ===
+        '20260908.runtime-race-fix-v1'
+    ) {
+        return true;
+    }
+
+    StoreManager.applyItem = async function (itemId) {
+        const item = StoreManager.getItemById(itemId);
+        if (!item) return;
+
+        // Lưu trạng thái lên Firebase (Hàm on('value') sẽ tự động gọi applyEquippedItems bên dưới để tạo hiệu ứng)
+        const invSnap = await db.ref(`student_inventory/${currentUser.username}`).once('value');
+        const inventory = invSnap.val();
+        if (inventory) {
+            let updates = {};
+            for (let key in inventory) {
+                let invItem = inventory[key];
+                const checkTypeItem = StoreConfig.items.find(i => i.id === invItem.id);
+                if (checkTypeItem && checkTypeItem.type === item.type) {
+                    updates[`${key}/isEquipped`] = (invItem.id === itemId);
+                }
             }
+            await db.ref(`student_inventory/${currentUser.username}`).update(updates);
         }
-        await db.ref(`student_inventory/${currentUser.username}`).update(updates);
-    }
-};
+    };
 
-// 5.5 Kết nối logic THÁO vật phẩm (Gỡ trang bị)
-StoreManager.unapplyItem = async function (itemId) {
-    const item = StoreManager.getItemById(itemId);
-    if (!item) return;
+    // 5.5 Kết nối logic THÁO vật phẩm (Gỡ trang bị)
+    StoreManager.unapplyItem = async function (itemId) {
+        const item = StoreManager.getItemById(itemId);
+        if (!item) return;
 
-    // 1. Tắt giao diện lập tức (Trả về mặc định)
-    if (item.type === 'theme') {
-        // FIX KẸT GIAO DIỆN: Ép xóa đích danh class CSS của theme đang tháo
-        if (item.value) document.body.classList.remove(item.value);
-        ThemeManager.applyTheme('default');
-    }
-    if (item.type === 'effect') {
-        EffectManager.clearEffects(true);
-    }
-    if (item.type === 'pet') {
-        const petContainer =
-            document.getElementById('virtual-pet-container');
-
-        /*
-         * Dọn hiệu ứng Sinh Nhật 2026.
-         * Có tác dụng cả với hiệu ứng còn sót từ phiên bản cũ.
-         */
-        if (
-            typeof PetManager !== 'undefined' &&
-            typeof PetManager.clearBirthday2026Realm === 'function'
-        ) {
-            PetManager.clearBirthday2026Realm();
+        // 1. Tắt giao diện lập tức (Trả về mặc định)
+        if (item.type === 'theme') {
+            // FIX KẸT GIAO DIỆN: Ép xóa đích danh class CSS của theme đang tháo
+            if (item.value) document.body.classList.remove(item.value);
+            ThemeManager.applyTheme('default');
         }
-
-
-        /*
-         * Dọn lớp giao diện + ambient + click ultimate của
-         * Nữ Thần Mùa Xuân Premium trước khi xóa pet khỏi DOM.
-         */
-        if (
-            typeof PetManager !== 'undefined' &&
-            typeof PetManager.clearPremiumSpringRealm === 'function'
-        ) {
-            PetManager.clearPremiumSpringRealm();
+        if (item.type === 'effect') {
+            EffectManager.clearEffects(true);
         }
+        if (item.type === 'pet') {
+            const petContainer =
+                document.getElementById('virtual-pet-container');
 
-        /*
-         * Dọn dự phòng trong trường hợp PetManager
-         * chưa được tải hoặc hiệu ứng cũ bị tách khỏi manager.
-         */
-        const birthdayRealm =
-            document.getElementById('birthday-2026-realm');
-
-        if (birthdayRealm) {
-            birthdayRealm.remove();
-        }
-
-        document.documentElement.classList.remove(
-            'birthday-2026-equipped'
-        );
-
-        /*
-         * Hủy listener kéo, chạm và tương tác của thú cưng.
-         */
-        if (
-            typeof PetManager !== 'undefined' &&
-            PetManager.interactionAbortController
-        ) {
-            PetManager.interactionAbortController.abort();
-            PetManager.interactionAbortController = null;
-        }
-
-        if (
-            typeof PetInteractionManager !== 'undefined' &&
-            typeof PetInteractionManager.detachEvents === 'function'
-        ) {
-            PetInteractionManager.detachEvents({
-                keepLoop: false,
-                removeHungerBar: true
-            });
-        } else if (
-            typeof PetInteractionManager !== 'undefined' &&
-            PetInteractionManager.loopInterval
-        ) {
-            clearInterval(
-                PetInteractionManager.loopInterval
-            );
-
-            PetInteractionManager.loopInterval = null;
-
+            /*
+             * Dọn hiệu ứng Sinh Nhật 2026.
+             * Có tác dụng cả với hiệu ứng còn sót từ phiên bản cũ.
+             */
             if (
-                typeof PetInteractionManager.setSleepState ===
-                'function'
+                typeof PetManager !== 'undefined' &&
+                typeof PetManager.clearBirthday2026Realm === 'function'
             ) {
-                PetInteractionManager.setSleepState(false);
+                PetManager.clearBirthday2026Realm();
             }
-        }
 
-        /*
- * Dọn ambient / ultimate Quốc khánh.
- * Giữ riêng để không sót lớp toàn màn hình khi tháo pet.
- */
-        if (
-            typeof PetManager !== 'undefined' &&
-            typeof PetManager.clearNationalDayRealm === 'function'
-        ) {
-            PetManager.clearNationalDayRealm();
-        }
 
-        /*
-         * Xóa hoàn toàn thú cưng khỏi giao diện,
-         * không chỉ ẩn ảnh.
-         */
-        if (petContainer) {
-            petContainer.style.display = 'none';
-            petContainer.innerHTML = '';
+            /*
+             * Dọn lớp giao diện + ambient + click ultimate của
+             * Nữ Thần Mùa Xuân Premium trước khi xóa pet khỏi DOM.
+             */
+            if (
+                typeof PetManager !== 'undefined' &&
+                typeof PetManager.clearPremiumSpringRealm === 'function'
+            ) {
+                PetManager.clearPremiumSpringRealm();
+            }
 
-            petContainer.classList.remove(
-                'pet-birthday-serpent-2026-stage',
-                'pet-spring-vintage-stage',
-                'spring-vintage-awakening',
-                'spring-vintage-casting',
-                'pet-idle',
-                'pet-dragging',
-                'pet-national-day-stage',
-                'national-day-awakening',
-                'national-day-casting',
-                'pet-nyx-mythic-stage',
-                'nyx-mythic-awakening',
-                'nyx-mythic-casting',
-            );
+            /*
+             * Dọn dự phòng trong trường hợp PetManager
+             * chưa được tải hoặc hiệu ứng cũ bị tách khỏi manager.
+             */
+            const birthdayRealm =
+                document.getElementById('birthday-2026-realm');
 
-            document
-                .querySelectorAll('.nyx-mythic-ultimate')
-                .forEach(node => node.remove());
+            if (birthdayRealm) {
+                birthdayRealm.remove();
+            }
 
             document.documentElement.classList.remove(
-                'nyx-mythic-pet-equipped'
+                'birthday-2026-equipped'
             );
 
-            petContainer.onmouseenter = null;
-            petContainer.onmouseleave = null;
-        }
-
-        /*
-         * Xóa thú cưng đang hoạt động khỏi bộ nhớ trình duyệt.
-         * Ngăn hệ thống tương tác hiểu rằng pet vẫn còn.
-         */
-        localStorage.removeItem('active_pet');
-    }
-
-    if (
-        item.type === 'music' &&
-        typeof MusicManager !== 'undefined'
-    ) {
-        MusicManager.stopMusic();
-    }
-
-    if (
-        item.type === 'frame' &&
-        window.AvatarFrameManager
-    ) {
-        window.AvatarFrameManager.clearFrame();
-    }
-
-    if (
-        item.type === 'background' &&
-        window.WebBackgroundManager
-    ) {
-        window.WebBackgroundManager.clearBackground();
-    }
-
-    // 2. Lưu trạng thái "Đã tháo" lên Firebase
-    const invSnap = await db.ref(`student_inventory/${currentUser.username}`).once('value');
-    const inventory = invSnap.val();
-    if (inventory) {
-        let updates = {};
-        for (let key in inventory) {
-            if (inventory[key].id === itemId) {
-                updates[`${key}/isEquipped`] = false;
+            /*
+             * Hủy listener kéo, chạm và tương tác của thú cưng.
+             */
+            if (
+                typeof PetManager !== 'undefined' &&
+                PetManager.interactionAbortController
+            ) {
+                PetManager.interactionAbortController.abort();
+                PetManager.interactionAbortController = null;
             }
+
+            if (
+                typeof PetInteractionManager !== 'undefined' &&
+                typeof PetInteractionManager.detachEvents === 'function'
+            ) {
+                PetInteractionManager.detachEvents({
+                    keepLoop: false,
+                    removeHungerBar: true
+                });
+            } else if (
+                typeof PetInteractionManager !== 'undefined' &&
+                PetInteractionManager.loopInterval
+            ) {
+                clearInterval(
+                    PetInteractionManager.loopInterval
+                );
+
+                PetInteractionManager.loopInterval = null;
+
+                if (
+                    typeof PetInteractionManager.setSleepState ===
+                    'function'
+                ) {
+                    PetInteractionManager.setSleepState(false);
+                }
+            }
+
+            /*
+     * Dọn ambient / ultimate Quốc khánh.
+     * Giữ riêng để không sót lớp toàn màn hình khi tháo pet.
+     */
+            if (
+                typeof PetManager !== 'undefined' &&
+                typeof PetManager.clearNationalDayRealm === 'function'
+            ) {
+                PetManager.clearNationalDayRealm();
+            }
+
+            /*
+             * Xóa hoàn toàn thú cưng khỏi giao diện,
+             * không chỉ ẩn ảnh.
+             */
+            if (petContainer) {
+                petContainer.style.display = 'none';
+                petContainer.innerHTML = '';
+
+                petContainer.classList.remove(
+                    'pet-birthday-serpent-2026-stage',
+                    'pet-spring-vintage-stage',
+                    'spring-vintage-awakening',
+                    'spring-vintage-casting',
+                    'pet-idle',
+                    'pet-dragging',
+                    'pet-national-day-stage',
+                    'national-day-awakening',
+                    'national-day-casting',
+                    'pet-nyx-mythic-stage',
+                    'nyx-mythic-awakening',
+                    'nyx-mythic-casting',
+                );
+
+                document
+                    .querySelectorAll('.nyx-mythic-ultimate')
+                    .forEach(node => node.remove());
+
+                document.documentElement.classList.remove(
+                    'nyx-mythic-pet-equipped'
+                );
+
+                petContainer.onmouseenter = null;
+                petContainer.onmouseleave = null;
+            }
+
+            /*
+             * Xóa thú cưng đang hoạt động khỏi bộ nhớ trình duyệt.
+             * Ngăn hệ thống tương tác hiểu rằng pet vẫn còn.
+             */
+            localStorage.removeItem('active_pet');
         }
-        await db.ref(`student_inventory/${currentUser.username}`).update(updates);
-    }
-};
+
+        if (
+            item.type === 'music' &&
+            typeof MusicManager !== 'undefined'
+        ) {
+            MusicManager.stopMusic();
+        }
+
+        if (
+            item.type === 'frame' &&
+            window.AvatarFrameManager
+        ) {
+            window.AvatarFrameManager.clearFrame();
+        }
+
+        if (
+            item.type === 'background' &&
+            window.WebBackgroundManager
+        ) {
+            window.WebBackgroundManager.clearBackground();
+        }
+
+        // 2. Lưu trạng thái "Đã tháo" lên Firebase
+        const invSnap = await db.ref(`student_inventory/${currentUser.username}`).once('value');
+        const inventory = invSnap.val();
+        if (inventory) {
+            let updates = {};
+            for (let key in inventory) {
+                if (inventory[key].id === itemId) {
+                    updates[`${key}/isEquipped`] = false;
+                }
+            }
+            await db.ref(`student_inventory/${currentUser.username}`).update(updates);
+        }
+    };
+
+    StoreManager.__studentPageInventoryBridge =
+        '20260908.runtime-race-fix-v1';
+
+    return true;
+}
 
 // 6. Cập nhật giao diện UI & Hiệu ứng
 // Khi đang thi nghiêm ngặt: chỉ tạm tắt PET và EFFECT.
@@ -15256,6 +15861,12 @@ window.restoreExamVisualItems = function () {
 
 // Áp dụng các vật phẩm đang trang bị
 window.applyEquippedItems = function () {
+    if (!isStudentStoreRuntimeReady()) {
+        return false;
+    }
+
+    installStudentStoreManagerOverrides();
+
     const effectContainer =
         document.getElementById('global-effect-container');
 
@@ -17104,7 +17715,7 @@ window.renderStudentInbox = function () {
 
                 if (!targetArr.includes('all')) {
                     const itemNames = targetArr.map(id => {
-                        const def = StoreConfig.items.find(i => i.id === id);
+                        const def = isStudentStoreRuntimeReady() ? StoreConfig.items.find(i => i.id === id) : null;
                         return def ? def.name : null;
                     }).filter(n => n);
 
@@ -17135,7 +17746,7 @@ window.renderStudentInbox = function () {
                 }
             }
             else if (msg.giftType === 'item') {
-                const itemDef = StoreConfig.items.find(i => i.id === msg.giftValue);
+                const itemDef = isStudentStoreRuntimeReady() ? StoreConfig.items.find(i => i.id === msg.giftValue) : null;
                 giftDisplay = itemDef ? `📦 ${itemDef.name} (${itemDef.type})` : '📦 Vật phẩm bí ẩn';
             }
 
@@ -17604,11 +18215,13 @@ window.claimGift = async function (msgKey, clientGiftType, clientGiftValue) {
                 giftItemPath;
 
             const claimedStoreItem =
-                StoreConfig.items.find(
-                    item =>
-                        String(item.id) ===
-                        String(giftValue)
-                );
+                isStudentStoreRuntimeReady()
+                    ? StoreConfig.items.find(
+                        item =>
+                            String(item.id) ===
+                            String(giftValue)
+                    )
+                    : null;
 
             claimedExtra = {
                 itemId:
@@ -17791,13 +18404,15 @@ window.claimGift = async function (msgKey, clientGiftType, clientGiftValue) {
                 giftType === 'item'
             ) {
                 const item =
-                    StoreConfig.items.find(
-                        storeItem =>
-                            String(
-                                storeItem.id
-                            ) ===
-                            String(giftValue)
-                    );
+                    isStudentStoreRuntimeReady()
+                        ? StoreConfig.items.find(
+                            storeItem =>
+                                String(
+                                    storeItem.id
+                                ) ===
+                                String(giftValue)
+                        )
+                        : null;
 
                 giftDescription =
                     `vật phẩm ${item?.name ||
@@ -20967,6 +21582,32 @@ window
                 ).val() ||
                 {};
 
+            /*
+             * Giữ đúng cơ chế lazy-load: chỉ cần StoreManager khi thật sự
+             * có giao dịch đã đổi vật phẩm cần phục hồi.
+             */
+            const hasRedeemedItem =
+                Object.values(grantData).some(grant =>
+                    Object.keys(
+                        grant?.redemptions || {}
+                    ).length > 0
+                );
+
+            if (!hasRedeemedItem) {
+                return;
+            }
+
+            if (!isStudentStoreRuntimeReady()) {
+                await window.StudentFeatureLoader
+                    ?.ensure?.('visual-runtime');
+            }
+
+            if (!isStudentStoreRuntimeReady()) {
+                return;
+            }
+
+            installStudentStoreManagerOverrides();
+
             for (
                 const [grantId, grant]
                 of Object.entries(grantData)
@@ -21536,6 +22177,33 @@ window.recoverBirthdayRedeemedItems =
                 ).val() ||
                 {};
 
+            /*
+             * Giữ đúng cơ chế lazy-load: chỉ nạp runtime cửa hàng khi có
+             * một ví sinh nhật đã đổi vật phẩm cần phục hồi.
+             */
+            const hasRedeemedItem =
+                Object.values(walletData).some(wallet =>
+                    wallet &&
+                    typeof wallet === 'object' &&
+                    wallet.status === 'redeemed' &&
+                    wallet.itemId
+                );
+
+            if (!hasRedeemedItem) {
+                return;
+            }
+
+            if (!isStudentStoreRuntimeReady()) {
+                await window.StudentFeatureLoader
+                    ?.ensure?.('visual-runtime');
+            }
+
+            if (!isStudentStoreRuntimeReady()) {
+                return;
+            }
+
+            installStudentStoreManagerOverrides();
+
             for (
                 const [year, wallet]
                 of Object.entries(
@@ -21946,11 +22614,32 @@ window.redeemBirthdayItem =
 let bagHoldTimeout = null;
 let isBagPopupOpen = false;
 
-window.openStudentBag = function () {
+window.openStudentBag = async function () {
     if (window.currentActiveExamId) {
         window.showExamLockWarning("⚠️ Túi đồ tạm khóa khi đang thi!");
         return;
     }
+
+    try {
+        await window.StudentFeatureLoader
+            ?.ensureForBag?.();
+
+        await window
+            .syncStudentLazyStoreRuntime?.();
+    } catch (error) {
+        console.error(
+            '[StudentFeatureLoader] Không tải được Túi đồ:',
+            error
+        );
+
+        window.showToast?.(
+            'Không tải được dữ liệu vật phẩm. Vui lòng thử lại.',
+            'error'
+        );
+
+        return;
+    }
+
     renderStudentBag();
     document.getElementById('studentBagModal').classList.add('active');
 };
@@ -22757,19 +23446,14 @@ async function renderCashRequestHistory() {
 
     try {
         const allRequests = await getDB('cash_requests');
-        const now = Date.now();
-        const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000;
 
         const myRequests = (allRequests || [])
             .filter(isCashRequestOwnedByCurrentStudent)
-            .filter(req => {
-                if (req.status !== 'completed' && req.status !== 'rejected') {
-                    return true;
-                }
-
-                const checkTime = Number(req.resolvedAt || req.timestamp || 0);
-                return !checkTime || now - checkTime <= TWO_DAYS_MS;
-            });
+            .filter(req => !(
+                window.HistoryRetention &&
+                typeof window.HistoryRetention.isExpired === 'function' &&
+                window.HistoryRetention.isExpired('cash_requests', req)
+            ));
 
         if (myRequests.length === 0) {
             container.innerHTML = '<p style="color: #94a3b8; font-size: 0.9em; margin: 0; text-align: center; padding: 10px;">Chưa có yêu cầu lấy tiền mặt nào.</p>';

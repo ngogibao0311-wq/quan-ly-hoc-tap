@@ -256,58 +256,112 @@
                 return this.youtubeApiPromise;
             }
 
+            /*
+             * Không chiếm dụng window.onYouTubeIframeAPIReady vì trang còn có
+             * player YouTube riêng cho video bài tập. Chỉ quan sát API chung.
+             * Cách này tránh việc nhạc nền vô tình ghi đè callback của video.
+             */
             this.youtubeApiPromise = new Promise(
                 (resolve, reject) => {
-                    const oldCallback =
-                        window.onYouTubeIframeAPIReady;
+                    let settled = false;
+                    let pollTimer = null;
+                    let timeoutTimer = null;
 
-                    const timeout = setTimeout(() => {
-                        reject(
-                            new Error('YOUTUBE_API_TIMEOUT')
-                        );
-                    }, 15000);
-
-                    window.onYouTubeIframeAPIReady =
-                        function () {
-                            try {
-                                if (
-                                    typeof oldCallback ===
-                                    'function'
-                                ) {
-                                    oldCallback();
-                                }
-                            } finally {
-                                clearTimeout(timeout);
-                                resolve(window.YT);
-                            }
-                        };
-
-                    const exists =
-                        document.querySelector(
-                            'script[src*="youtube.com/iframe_api"]'
+                    const isReady = () =>
+                        Boolean(
+                            window.YT &&
+                            typeof window.YT.Player === 'function'
                         );
 
-                    if (!exists) {
-                        const script =
-                            document.createElement('script');
+                    let script = document.querySelector(
+                        'script[src*="youtube.com/iframe_api"]'
+                    );
 
+                    const cleanup = () => {
+                        if (pollTimer) {
+                            clearInterval(pollTimer);
+                            pollTimer = null;
+                        }
+
+                        if (timeoutTimer) {
+                            clearTimeout(timeoutTimer);
+                            timeoutTimer = null;
+                        }
+
+                        if (script) {
+                            script.removeEventListener(
+                                'error',
+                                handleScriptError
+                            );
+                        }
+                    };
+
+                    const finish = (error = null) => {
+                        if (settled) return;
+                        settled = true;
+                        cleanup();
+
+                        if (error) {
+                            reject(error);
+                        } else {
+                            resolve(window.YT);
+                        }
+                    };
+
+                    const checkReady = () => {
+                        if (isReady()) {
+                            finish();
+                        }
+                    };
+
+                    const handleScriptError = () => {
+                        finish(
+                            new Error('YOUTUBE_API_LOAD_FAILED')
+                        );
+                    };
+
+                    const shouldAppendScript = !script;
+
+                    if (shouldAppendScript) {
+                        script = document.createElement('script');
                         script.src =
                             'https://www.youtube.com/iframe_api';
-
                         script.async = true;
+                        script.dataset.musicManagerInjected = '1';
+                    }
 
-                        script.onerror = () => {
-                            reject(
-                                new Error(
-                                    'YOUTUBE_API_LOAD_FAILED'
-                                )
-                            );
-                        };
+                    script.addEventListener(
+                        'error',
+                        handleScriptError,
+                        { once: true }
+                    );
 
+                    if (shouldAppendScript) {
                         document.head.appendChild(script);
                     }
+
+                    pollTimer = setInterval(
+                        checkReady,
+                        80
+                    );
+
+                    timeoutTimer = setTimeout(() => {
+                        finish(
+                            new Error('YOUTUBE_API_TIMEOUT')
+                        );
+                    }, 12000);
+
+                    checkReady();
                 }
-            );
+            ).catch(error => {
+                /*
+                 * Cho phép thử lại sau lỗi mạng tạm thời. Trước đây Promise bị
+                 * reject rồi giữ mãi, khiến mọi lần bật lại nhạc đều thất bại
+                 * cho đến khi tải lại toàn trang.
+                 */
+                this.youtubeApiPromise = null;
+                throw error;
+            });
 
             return this.youtubeApiPromise;
         }
@@ -329,6 +383,8 @@
             if (generation !== this.generation) {
                 return;
             }
+
+            this.youtubeReady = false;
 
             const host = document.createElement('div');
 
@@ -366,18 +422,24 @@
 
                 events: {
                     onReady: event => {
+                        if (generation !== this.generation) {
+                            return;
+                        }
+
+                        this.youtubeReady = true;
+
                         event.target.setVolume(
                             Math.round(
                                 this.volume * 100
                             )
                         );
 
-                        if (
-                            this.shouldPlay &&
-                            this.videoTokens.size === 0
-                        ) {
-                            event.target.playVideo();
-                        }
+                        /*
+                         * Đi qua playCurrent() để mọi trình duyệt đều dùng chung
+                         * kiểm tra tương tác người dùng. Không tự autoplay riêng
+                         * trong callback YouTube.
+                         */
+                        this.playCurrent();
                     },
 
                     onError: event => {
@@ -537,6 +599,7 @@
 
             const userActivated =
                 this.userInteracted === true ||
+                window.__studentMusicUserActivated === true ||
                 (
                     navigator.userActivation &&
                     navigator.userActivation.hasBeenActive === true
@@ -553,6 +616,7 @@
                     await this.audioElement.play();
                 } else if (
                     this.youtubePlayer &&
+                    this.youtubeReady === true &&
                     typeof this.youtubePlayer.playVideo === 'function'
                 ) {
                     this.youtubePlayer.playVideo();
@@ -629,6 +693,7 @@
 
                 this.retryInstalled = false;
                 this.userInteracted = true;
+                window.__studentMusicUserActivated = true;
 
                 if (
                     this.shouldPlay &&
@@ -692,6 +757,7 @@
             }
 
             this.youtubePlayer = null;
+            this.youtubeReady = false;
             this.spotifyController = null;
 
             if (this.playerHost) {
@@ -830,6 +896,7 @@
 
     MusicManager.audioElement = null;
     MusicManager.youtubePlayer = null;
+    MusicManager.youtubeReady = false;
     MusicManager.spotifyController = null;
     MusicManager.playerHost = null;
 
@@ -838,7 +905,8 @@
     MusicManager.spotifyApi = null;
 
     MusicManager.retryInstalled = false;
-    MusicManager.userInteracted = false;
+    MusicManager.userInteracted =
+        window.__studentMusicUserActivated === true;
     MusicManager.videoEventsInstalled = false;
     MusicManager.videoSequence = 0;
 

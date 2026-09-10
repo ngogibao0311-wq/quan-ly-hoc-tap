@@ -1,5 +1,39 @@
 const currentUser = JSON.parse(localStorage.getItem('currentUser')) || {};
 
+// ======================================================
+// SECURITY GUARD · TRẠNG THÁI XÁC THỰC GIÁO VIÊN
+// ======================================================
+// security.js được nạp trước teacher.js. Trạng thái này giúp security.js phân biệt
+// "đang chờ Firebase" với "đã bị từ chối quyền", tránh đá nhầm Giáo viên lúc startup.
+window.__teacherSecurityVerificationState =
+    window.__teacherSecurityVerificationState || 'pending';
+
+window.setTeacherSecurityVerificationState =
+    window.setTeacherSecurityVerificationState ||
+    function (state, detail = '') {
+        const normalized = String(state || 'pending').trim().toLowerCase();
+        window.__teacherSecurityVerificationState = normalized;
+
+        try {
+            document.documentElement.dataset.teacherSecurityState = normalized;
+        } catch (_) {}
+
+        try {
+            window.dispatchEvent(
+                new CustomEvent('teacher-security-state-change', {
+                    detail: {
+                        state: normalized,
+                        message: String(detail || '')
+                    }
+                })
+            );
+        } catch (_) {}
+
+        return normalized;
+    };
+
+window.setTeacherSecurityVerificationState('pending');
+
 
 // ======================================================
 // STORE LOCK HOTFIX v4.0.1
@@ -3309,6 +3343,10 @@ window.onload = async function () {
     if (startupLoader && authUser) startupLoader.markReady('teacher-auth');
 
     if (!authUser) {
+        window.setTeacherSecurityVerificationState(
+            'denied',
+            'Không tìm thấy phiên Firebase Auth hợp lệ.'
+        );
         if (startupLoader) startupLoader.fail('Không tìm thấy phiên đăng nhập hợp lệ.', 'Hãy đăng nhập lại để tiếp tục.', 'auth');
         alert("⛔ Lỗi: Không tìm thấy phiên đăng nhập hợp lệ!");
         localStorage.removeItem('currentUser');
@@ -3316,12 +3354,46 @@ window.onload = async function () {
         return;
     }
 
-    let realUsers = await getDB('users');
-    if (startupLoader) startupLoader.markReady('teacher-users');
+    let realUsers;
+
+    try {
+        // Dữ liệu users là dữ liệu bắt buộc cho bước xác thực quyền.
+        // Không dùng getDB() ở đây vì getDB() cố ý trả [] khi Firebase đọc lỗi,
+        // dễ khiến lỗi mạng/quyền tạm thời bị hiểu nhầm thành giả mạo tài khoản.
+        realUsers = await getDBStrict('users');
+        if (startupLoader) startupLoader.markReady('teacher-users');
+    } catch (error) {
+        window.setTeacherSecurityVerificationState(
+            'network-error',
+            error?.message || 'Firebase chưa trả dữ liệu users.'
+        );
+        console.error('Không thể đọc dữ liệu users để xác minh giáo viên:', error);
+
+        if (startupLoader) {
+            startupLoader.fail(
+                'Chưa thể xác minh quyền giáo viên vì Firebase chưa trả dữ liệu người dùng.',
+                'Kiểm tra Internet/Firebase rồi tải lại trang. Hệ thống chưa kết luận đây là can thiệp phân quyền.',
+                'network'
+            );
+        }
+
+        alert(
+            '⚠️ Chưa thể xác minh quyền giáo viên do lỗi kết nối hoặc Firebase.\n' +
+            'Vui lòng kiểm tra mạng rồi tải lại trang. Tài khoản không bị đăng xuất vì lỗi này.'
+        );
+
+        return;
+    }
+
     let realUser = realUsers.find(u => u.username === currentUser.username);
 
-    // Xác thực nghiêm ngặt: UID Firebase Auth phải khớp với khóa (_fbKey)
+    // Chỉ kết luận sai quyền sau khi node users đã đọc THÀNH CÔNG.
+    // Xác thực nghiêm ngặt: UID Firebase Auth phải khớp với khóa (_fbKey).
     if (!realUser || realUser.role !== 'teacher' || realUser._fbKey !== authUser.uid) {
+        window.setTeacherSecurityVerificationState(
+            'denied',
+            'UID/role không khớp dữ liệu Giáo viên trên Firebase.'
+        );
         alert("⛔ Phát hiện can thiệp dữ liệu phân quyền! Buộc đăng xuất.");
         firebase.auth().signOut();
         localStorage.removeItem('currentUser');
@@ -3330,6 +3402,20 @@ window.onload = async function () {
     }
     // BẬT CỜ XÁC THỰC AN TOÀN SAU KHI FIREBASE ĐÃ KIỂM TRA THÀNH CÔNG
     window.isVerifiedTeacher = true;
+    window.setTeacherSecurityVerificationState(
+        'verified',
+        'Firebase Auth + UID + role Giáo viên đã xác minh thành công.'
+    );
+
+    // Chạy dọn lịch sử ở nền sau khi quyền Giáo viên đã được Firebase xác minh.
+    // Không await để không làm chậm màn hình khởi động.
+    if (
+        window.HistoryRetention &&
+        typeof window.HistoryRetention.scheduleTeacherCleanup === 'function'
+    ) {
+        window.HistoryRetention.scheduleTeacherCleanup();
+    }
+
     await issueTodayBirthdayRewardsByTeacher();
     if (startupLoader) startupLoader.markReady('teacher-birthday-rewards');
     if (document.getElementById('settingName')) document.getElementById('settingName').value = currentUser.name;
@@ -8288,10 +8374,10 @@ async function handleRequest(reqKey, isApprove, username, newName, newPass) {
             if (newPass) updateData.password = newPass;
             await updateDB('users', userRecord._fbKey, updateData);
         }
-        await updateDB('profile_requests', reqKey, { status: 'approved' });
+        await updateDB('profile_requests', reqKey, { status: 'approved', resolvedAt: Date.now() });
         alert("✅ Đã phê duyệt yêu cầu và đổi mật khẩu thành công!");
     } else {
-        await updateDB('profile_requests', reqKey, { status: 'rejected' });
+        await updateDB('profile_requests', reqKey, { status: 'rejected', resolvedAt: Date.now() });
         alert("❌ Đã từ chối yêu cầu!");
     }
 
@@ -11359,7 +11445,13 @@ window.saveLuckyWheelGoldenHourSettings = async function () {
 };
 
 window.loadSpinHistory = async function () {
-    const history = await getDB('spin_history');
+    let history = await getDB('spin_history');
+    if (
+        window.HistoryRetention &&
+        typeof window.HistoryRetention.filterRecent === 'function'
+    ) {
+        history = window.HistoryRetention.filterRecent(history, 'spin_history');
+    }
     const tbody = document.getElementById('spinHistoryBody');
     if (!tbody) return;
     tbody.innerHTML = '';
@@ -12142,8 +12234,18 @@ window.openNotificationHistory = async function () {
     listContainer.textContent =
         'Đang tải dữ liệu...';
 
-    const notifications =
+    let notifications =
         await getDB('global_notifications');
+
+    if (
+        window.HistoryRetention &&
+        typeof window.HistoryRetention.filterRecent === 'function'
+    ) {
+        notifications = window.HistoryRetention.filterRecent(
+            notifications,
+            'global_notifications'
+        );
+    }
 
     const users =
         await getDB('users');
@@ -12537,7 +12639,17 @@ window.openSurveyHistory = async function () {
     const container = document.getElementById('surveyHistoryList');
     container.innerHTML = '<p style="text-align: center;">Đang tải...</p>';
 
-    const surveys = await getDB('global_surveys');
+    let surveys = await getDB('global_surveys');
+    if (
+        window.HistoryRetention &&
+        typeof window.HistoryRetention.filterRecent === 'function'
+    ) {
+        surveys = window.HistoryRetention.filterRecent(
+            surveys,
+            'global_surveys'
+        );
+    }
+
     if (surveys.length === 0) {
         container.innerHTML = '<p style="text-align: center; color: #666;">Chưa có khảo sát nào.</p>';
         return;
@@ -14340,22 +14452,18 @@ window.loadTeacherCashRequests = async function () {
 
     try {
         let requests = await getDB('cash_requests');
-        const now = Date.now();
-        const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000;
-        const validRequests = [];
 
-        for (const req of (requests || [])) {
-            if (req.status === 'completed' || req.status === 'rejected') {
-                const checkTime = Number(req.resolvedAt || req.timestamp || 0);
-                if (checkTime && now - checkTime > TWO_DAYS_MS) {
-                    await removeDB('cash_requests', req._fbKey);
-                    continue;
-                }
-            }
-            validRequests.push(req);
+        // Chỉ ẩn/xóa bản ghi đã hoàn tất hoặc từ chối sau 2 tháng.
+        // Pending/processing/transferring không bao giờ bị retention xóa.
+        if (
+            window.HistoryRetention &&
+            typeof window.HistoryRetention.filterRecent === 'function'
+        ) {
+            requests = window.HistoryRetention.filterRecent(
+                requests || [],
+                'cash_requests'
+            );
         }
-
-        requests = validRequests;
 
         if (!requests.length) {
             container.innerHTML = '<p style="color: #64748b; font-size: 0.95em; text-align: center; padding: 20px; margin: 0;">Hiện tại chưa có yêu cầu nhận tiền mặt nào.</p>';
