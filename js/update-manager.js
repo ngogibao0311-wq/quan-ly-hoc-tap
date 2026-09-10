@@ -193,6 +193,26 @@
             .filter(Boolean);
     }
 
+    // Release notes mở rộng v4.0.2: vẫn tương thích changes/releaseNotes cũ.
+    function getReleaseList(info, key) {
+        if (!info || !Array.isArray(info[key])) return [];
+
+        return info[key]
+            .map(item => String(item || '').trim())
+            .filter(Boolean);
+    }
+
+    function renderReleaseSection(title, items) {
+        if (!items.length) return '';
+
+        return `
+            <div class="system-update-modal-section">
+                <h4>${escapeHTML(title)}</h4>
+                <ul>${items.map(item => `<li>${escapeHTML(item)}</li>`).join('')}</ul>
+            </div>
+        `;
+    }
+
     function isMandatory(info) {
         if (!info) return false;
 
@@ -489,6 +509,9 @@
         const body = modal.querySelector('#systemUpdateModalBody');
         const info = state.latest;
         const changes = getChanges(info);
+        const resolvedIssues = getReleaseList(info, 'resolvedIssues');
+        const knownIssues = getReleaseList(info, 'knownIssues');
+        const plannedImprovements = getReleaseList(info, 'plannedImprovements');
         const mandatory = isMandatory(info);
         const updating = Boolean(options?.updating || state.updating);
 
@@ -532,6 +555,10 @@
                         : '<p>Phiên bản này chưa cung cấp ghi chú thay đổi chi tiết.</p>'
                 }
             </div>
+
+            ${renderReleaseSection('✅ Đã xử lý từ đợt kiểm toán', resolvedIssues)}
+            ${renderReleaseSection('⚠️ Đang theo dõi / chưa đưa vào bản sửa', knownIssues)}
+            ${renderReleaseSection('🧭 Hướng nâng cấp tiếp theo', plannedImprovements)}
 
             ${updating ? `
                 <div class="system-update-modal-section">
