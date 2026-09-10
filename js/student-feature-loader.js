@@ -83,7 +83,7 @@
         effectItems: 'js/effect-items.js?v=4.2',
         petItems: 'js/pet-items.js?v=4.2',
         petInteractions: 'js/pet-interactions.js?v=3.8',
-        musicManager: 'js/music-manager.js?v=20260910.music-reliability-v1',
+        musicManager: 'js/music-manager.js?v=20260910.music-reliability-v2',
         storeManager: 'js/store-manager.js?v=20260910.music-reliability-v1',
 
         luxuryStore: 'js/luxury-store.js?v=4.2.4-lockfix-ui-isolation-r2',
@@ -340,6 +340,17 @@
     }
 
     const groupLoaders = {
+        async 'music-runtime'() {
+            /*
+             * Nhạc nền không cần Theme/Effect/Pet. Tải MusicManager + StoreConfig
+             * trước để máy yếu không phải chờ toàn bộ visual runtime mới có nhạc.
+             */
+            await loadScriptsSequentially([
+                SCRIPT.musicManager,
+                SCRIPT.storeManager
+            ]);
+        },
+
         async 'visual-runtime'() {
             await Promise.all([
                 loadCss(CSS.storeBase),
@@ -486,6 +497,15 @@
 
         if (!equipped.length) {
             return false;
+        }
+
+        const hasOnlyMusic = equipped.every(item =>
+            /^music(?:_|-)/i.test(String(item?.id || ''))
+        );
+
+        if (hasOnlyMusic) {
+            await ensure('music-runtime');
+            return true;
         }
 
         /*
