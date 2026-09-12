@@ -416,6 +416,225 @@ window.normalizeStoreItemLockState =
 
 
 // ======================================================
+// CỬA HÀNG · CÔNG TẮC TỔNG QUYỀN TRUY CẬP HỌC SINH
+// store_settings/isOpen giờ là công tắc của TOÀN BỘ khu vực Cửa hàng:
+// - Cửa hàng thường
+// - Cửa hàng Sang trọng
+// - Sưu tầm
+// - Các module/khu vực cửa hàng mở rộng được chèn động sau này
+// ======================================================
+window.__studentStoreSystemOpen =
+    window.__studentStoreSystemOpen !== false;
+
+window.normalizeStudentStoreSystemOpen =
+    window.normalizeStudentStoreSystemOpen ||
+    function (value) {
+        if (
+            value === false ||
+            value === 0
+        ) {
+            return false;
+        }
+
+        if (
+            value === true ||
+            value === 1 ||
+            value === null ||
+            value === undefined ||
+            value === ''
+        ) {
+            return true;
+        }
+
+        const normalized =
+            String(value)
+                .trim()
+                .toLowerCase();
+
+        return !(
+            normalized === 'false' ||
+            normalized === '0' ||
+            normalized === 'off' ||
+            normalized === 'closed' ||
+            normalized === 'locked'
+        );
+    };
+
+window.isStudentStoreSystemOpen =
+    function () {
+        return window.__studentStoreSystemOpen !== false;
+    };
+
+window.showStudentStoreSystemLocked =
+    function () {
+        // Khóa im lặng: vẫn chặn truy cập nhưng không hiện toast/alert.
+        return false;
+    };
+
+function ensureStudentStoreSystemAccessStyles() {
+    if (
+        document.getElementById(
+            'studentStoreSystemAccessStyles'
+        )
+    ) {
+        return;
+    }
+
+    const style = document.createElement('style');
+    style.id = 'studentStoreSystemAccessStyles';
+    style.textContent = `
+        /*
+         * Khi công tắc tổng bị khóa, mọi khu vực/module được chèn trực tiếp
+         * vào #tab-store đều tự ẩn. Chỉ giữ tiêu đề + bảng thông báo khóa.
+         */
+        #tab-store.store-system-locked > :not(h2):not(#storeLockedView) {
+            display: none !important;
+        }
+
+        #tab-store.store-system-locked #storeLockedView {
+            display: block !important;
+        }
+
+        #tab-store.store-system-locked #storeLockedView * {
+            pointer-events: auto;
+        }
+    `;
+
+    (document.head || document.documentElement)
+        .appendChild(style);
+}
+
+window.guardStudentStoreModuleMethods =
+    function () {
+        const guardOpenMethod =
+            (api, methodName) => {
+                if (
+                    !api ||
+                    typeof api[methodName] !== 'function' ||
+                    api[methodName].__studentGlobalStoreGuard === true
+                ) {
+                    return;
+                }
+
+                const original = api[methodName];
+
+                const guarded = function (...args) {
+                    if (
+                        !window.isStudentStoreSystemOpen()
+                    ) {
+                        return window
+                            .showStudentStoreSystemLocked();
+                    }
+
+                    return original.apply(this, args);
+                };
+
+                guarded.__studentGlobalStoreGuard = true;
+                guarded.__studentGlobalStoreOriginal = original;
+                api[methodName] = guarded;
+            };
+
+        // Module Sang trọng.
+        guardOpenMethod(
+            window.LuxuryStore,
+            'open'
+        );
+
+        // Module Sưu tầm (nếu module có hàm open/show).
+        guardOpenMethod(
+            window.StoreCollectionPage,
+            'open'
+        );
+
+        guardOpenMethod(
+            window.StoreCollectionPage,
+            'show'
+        );
+    };
+
+window.applyStudentStoreSystemAccessState =
+    function (rawIsOpen) {
+        ensureStudentStoreSystemAccessStyles();
+
+        const isOpen =
+            window.normalizeStudentStoreSystemOpen(
+                rawIsOpen
+            );
+
+        window.__studentStoreSystemOpen = isOpen;
+
+        const tabStore =
+            document.getElementById('tab-store');
+
+        const activeView =
+            document.getElementById(
+                'storeActiveView'
+            );
+
+        const lockedView =
+            document.getElementById(
+                'storeLockedView'
+            );
+
+        if (tabStore) {
+            tabStore.classList.toggle(
+                'store-system-locked',
+                !isOpen
+            );
+
+            tabStore.dataset.storeSystemOpen =
+                isOpen ? 'true' : 'false';
+        }
+
+        if (activeView) {
+            activeView.style.display =
+                isOpen ? 'block' : 'none';
+        }
+
+        if (lockedView) {
+            lockedView.style.display =
+                isOpen ? 'none' : 'block';
+        }
+
+        window.guardStudentStoreModuleMethods();
+
+        if (!isOpen) {
+            // Nếu GV khóa trong lúc HS đang mở module phụ thì đóng ngay.
+            try {
+                window.LuxuryStore?.close?.();
+            } catch (error) {
+                console.warn(
+                    '[Store Access] Không đóng được LuxuryStore:',
+                    error
+                );
+            }
+
+            try {
+                window.StoreCollectionPage?.close?.();
+            } catch (error) {
+                console.warn(
+                    '[Store Access] Không đóng được StoreCollectionPage:',
+                    error
+                );
+            }
+        }
+
+        return isOpen;
+    };
+
+// Module Cửa hàng được lazy-load, vì vậy gắn lại guard ngay sau khi module xuất hiện.
+window.addEventListener(
+    'student-feature-loaded',
+    () => {
+        requestAnimationFrame(() => {
+            window.applyStudentStoreSystemAccessState(
+                window.__studentStoreSystemOpen
+            );
+        });
+    }
+);
+
+// ======================================================
 // TRUNG THU · LỊCH ÂM VIỆT NAM (UTC+7)
 // Tính ngày 15/8 âm lịch mà không cần Cloud Function/Scheduler.
 // ======================================================
@@ -1493,6 +1712,11 @@ window.MidAutumnCoinManager = (() => {
     }
 
     async function redeem(itemId) {
+        if (!window.isStudentStoreSystemOpen()) {
+            window.showStudentStoreSystemLocked();
+            return true;
+        }
+
         const config =
             getRedeemConfig(itemId);
 
@@ -2727,6 +2951,34 @@ function mergeStudentRedoViolationHistory(submission) {
             history.cheat ||
             !!submission?.isCheatFail
     };
+}
+
+function hasStudentHistoricalViolation(submission) {
+    const history = getStudentRedoViolationHistory(submission);
+
+    return !!(
+        history.essayMissing ||
+        history.late ||
+        history.autoSubmitted ||
+        history.cheat
+    );
+}
+
+function hasStudentCurrentViolation(submission) {
+    return !!(
+        submission &&
+        (
+            submission.isEssayMissing ||
+            submission.isLateFail ||
+            submission.isAutoSubmitted ||
+            submission.isCheatFail
+        )
+    );
+}
+
+function hasStudentAnyViolation(submission) {
+    return hasStudentCurrentViolation(submission) ||
+        hasStudentHistoricalViolation(submission);
 }
 
 
@@ -4305,38 +4557,12 @@ window.onload = async function () {
             window.__studentLazyStoreSettings =
                 settings;
 
-            const activeView =
-                document.getElementById(
-                    'storeActiveView'
-                );
-
-            const lockedView =
-                document.getElementById(
-                    'storeLockedView'
-                );
-
+            // isOpen không còn chỉ điều khiển Cửa hàng thường.
+            // Đây là công tắc tổng cho toàn bộ tab Cửa hàng và các module phụ.
             const isOpen =
-                (
-                    settings !== null &&
-                    settings.isOpen !==
-                        undefined
-                )
-                    ? settings.isOpen
-                    : true;
-
-            if (activeView) {
-                activeView.style.display =
-                    isOpen
-                        ? 'block'
-                        : 'none';
-            }
-
-            if (lockedView) {
-                lockedView.style.display =
-                    isOpen
-                        ? 'none'
-                        : 'block';
-            }
+                window.applyStudentStoreSystemAccessState(
+                    settings?.isOpen
+                );
 
             /*
              * Khi visual/store runtime chưa nạp:
@@ -7796,7 +8022,7 @@ async function loadAssignments() {
             : {};
 
         let subState = mySub
-            ? `${mySub.submitTime}_${mySub.grade}_${mySub.isRedoing}_${mySub.isAutoSubmitted}_${mySub.isLateFail}_${mySub.isLateComplete}_${mySub.isEssayMissing}_${mySub.redoScope || ''}_${redoHistoryForHash.essayMissing ? 'histEssay' : ''}_${redoHistoryForHash.late ? 'histLate' : ''}_${redoHistoryForHash.cheat ? 'histCheat' : ''}`
+            ? `${mySub.submitTime}_${mySub.grade}_${mySub.isRedoing}_${mySub.isAutoSubmitted}_${mySub.isLateFail}_${mySub.isLateComplete}_${mySub.isEssayMissing}_${mySub.isCheatFail}_${mySub.redoScope || ''}_${redoHistoryForHash.essayMissing ? 'histEssay' : ''}_${redoHistoryForHash.late ? 'histLate' : ''}_${redoHistoryForHash.autoSubmitted ? 'histAuto' : ''}_${redoHistoryForHash.cheat ? 'histCheat' : ''}`
             : 'none';
         let cardHash =
             `${assign.id}_` +
@@ -7872,7 +8098,19 @@ async function loadAssignments() {
             if (mySub.isEssayMissing) {
                 violationHTML += `<div style="background: rgba(245, 158, 11, 0.1); border-left: 4px solid #f59e0b; padding: 15px; margin-top: 15px; border-radius: 8px;"><h4 style="color: #d97706; margin: 0 0 5px 0;">⚠️ THIẾU PHẦN TỰ LUẬN</h4><p style="margin: 0; color: #b45309;">Hệ thống ghi nhận bạn chưa nộp bài tự luận hợp lệ (chưa đủ 25 từ hoặc thiếu file đính kèm). Phần tự luận của bạn được tính 0 điểm.</p></div>`;
             } else if (redoViolationHistory.essayMissing) {
-                violationHTML += `<div style="background: rgba(59, 130, 246, 0.08); border-left: 4px solid #3b82f6; padding: 15px; margin-top: 15px; border-radius: 8px;"><h4 style="color: #1d4ed8; margin: 0 0 5px 0;">⚠️ TỪNG THIẾU PHẦN TỰ LUẬN</h4><p style="margin: 0; color: #1e40af;">Bạn đã nộp lại phần tự luận, nhưng lỗi ở lần nộp trước vẫn được ghi nhận trong Bảng Xếp Hạng Thi Đua. Lỗi chỉ được xóa khi giáo viên chủ động bấm <strong>Tha lỗi</strong>.</p></div>`;
+                violationHTML += `<div style="background: rgba(59, 130, 246, 0.08); border-left: 4px solid #3b82f6; padding: 15px; margin-top: 15px; border-radius: 8px;"><h4 style="color: #1d4ed8; margin: 0 0 5px 0;">⚠️ ĐÃ TỪNG THIẾU PHẦN TỰ LUẬN</h4><p style="margin: 0; color: #1e40af;">Bạn đã nộp lại phần tự luận, nhưng lỗi ở lần nộp trước vẫn được ghi nhận. Lỗi chỉ được xóa khi giáo viên chủ động bấm <strong>Tha lỗi</strong>.</p></div>`;
+            }
+
+            if (!mySub.isCheatFail && redoViolationHistory.cheat) {
+                violationHTML += `<div style="background: rgba(59, 130, 246, 0.08); border-left: 4px solid #3b82f6; padding: 15px; margin-top: 15px; border-radius: 8px;"><h4 style="color: #1d4ed8; margin: 0 0 5px 0;">🚨 ĐÃ TỪNG VI PHẠM QUY CHẾ THI</h4><p style="margin: 0; color: #1e40af;">Lần làm trước của bài này từng bị đánh dấu vi phạm quy chế. Việc được làm lại không tự xóa lịch sử lỗi; chỉ thao tác <strong>Tha lỗi</strong> của giáo viên mới xóa vi phạm.</p></div>`;
+            }
+
+            if (!mySub.isLateFail && redoViolationHistory.late) {
+                violationHTML += `<div style="background: rgba(59, 130, 246, 0.08); border-left: 4px solid #3b82f6; padding: 15px; margin-top: 15px; border-radius: 8px;"><h4 style="color: #1d4ed8; margin: 0 0 5px 0;">⏰ ĐÃ TỪNG NỘP TRỄ / KHÔNG NỘP KỊP</h4><p style="margin: 0; color: #1e40af;">Bài này đã từng bị ghi nhận quá hạn. Nộp lại sau khi được cho làm lại không làm mất lỗi cũ.</p></div>`;
+            }
+
+            if (!mySub.isAutoSubmitted && redoViolationHistory.autoSubmitted) {
+                violationHTML += `<div style="background: rgba(59, 130, 246, 0.08); border-left: 4px solid #3b82f6; padding: 15px; margin-top: 15px; border-radius: 8px;"><h4 style="color: #1d4ed8; margin: 0 0 5px 0;">⌛ ĐÃ TỪNG BỊ HỆ THỐNG TỰ THU</h4><p style="margin: 0; color: #1e40af;">Lần trước bài đã bị hệ thống tự thu do hết hạn/thời gian. Lịch sử này vẫn được giữ sau khi làm lại cho đến khi giáo viên tha lỗi.</p></div>`;
             }
 
             let lateSubmissionBadgeHTML = '';
@@ -7884,6 +8122,22 @@ async function loadAssignments() {
                 )
             ) {
                 lateSubmissionBadgeHTML = `<span style="background: rgba(244, 63, 94, 0.10); color: #e11d48; border: 1px solid rgba(244, 63, 94, 0.55); padding: 3px 7px; border-radius: 6px; font-size: 0.86em; margin-left: 8px; font-weight: 800; white-space: nowrap;">⏰ Nộp trễ</span>`;
+            } else if (mySub.isLateFail) {
+                lateSubmissionBadgeHTML += `<span style="background: rgba(244, 63, 94, 0.10); color: #e11d48; border: 1px solid rgba(244, 63, 94, 0.55); padding: 3px 7px; border-radius: 6px; font-size: 0.86em; margin-left: 8px; font-weight: 800; white-space: nowrap;">⏰ Quá hạn</span>`;
+            } else if (redoViolationHistory.late) {
+                lateSubmissionBadgeHTML += `<span style="background: rgba(59, 130, 246, 0.10); color: #1d4ed8; border: 1px solid rgba(59, 130, 246, 0.55); padding: 3px 7px; border-radius: 6px; font-size: 0.86em; margin-left: 8px; font-weight: 800; white-space: nowrap;">⏰ Đã từng quá hạn</span>`;
+            }
+
+            if (mySub.isAutoSubmitted && !mySub.isCheatFail) {
+                lateSubmissionBadgeHTML += `<span style="background: rgba(244, 63, 94, 0.10); color: #be123c; border: 1px solid rgba(244, 63, 94, 0.55); padding: 3px 7px; border-radius: 6px; font-size: 0.86em; margin-left: 8px; font-weight: 800; white-space: nowrap;">⌛ Bị tự thu</span>`;
+            } else if (redoViolationHistory.autoSubmitted) {
+                lateSubmissionBadgeHTML += `<span style="background: rgba(59, 130, 246, 0.10); color: #1d4ed8; border: 1px solid rgba(59, 130, 246, 0.55); padding: 3px 7px; border-radius: 6px; font-size: 0.86em; margin-left: 8px; font-weight: 800; white-space: nowrap;">⌛ Đã từng bị tự thu</span>`;
+            }
+
+            if (mySub.isCheatFail) {
+                lateSubmissionBadgeHTML += `<span style="background: rgba(225, 29, 72, 0.10); color: #be123c; border: 1px solid rgba(225, 29, 72, 0.55); padding: 3px 7px; border-radius: 6px; font-size: 0.86em; margin-left: 8px; font-weight: 800; white-space: nowrap;">🚨 Vi phạm quy chế</span>`;
+            } else if (redoViolationHistory.cheat) {
+                lateSubmissionBadgeHTML += `<span style="background: rgba(59, 130, 246, 0.10); color: #1d4ed8; border: 1px solid rgba(59, 130, 246, 0.55); padding: 3px 7px; border-radius: 6px; font-size: 0.86em; margin-left: 8px; font-weight: 800; white-space: nowrap;">🚨 Đã từng vi phạm quy chế</span>`;
             }
 
             let missingEssayBadgeHTML = '';
@@ -11530,8 +11784,15 @@ window.switchTab = async function (tabId, btnElement) {
     }
     // ---------------------------------------------
 
+    const isLockedStoreTab =
+        tabId === 'tab-store' &&
+        !window.isStudentStoreSystemOpen();
+
     try {
+        // Khi GV khóa Cửa hàng, không cần lazy-load Luxury/Sưu tầm/Store UI.
+        // Học sinh vẫn được vào tab để nhìn thấy thông báo "đã khóa".
         if (
+            !isLockedStoreTab &&
             window.StudentFeatureLoader &&
             typeof window.StudentFeatureLoader
                 .ensureForTab === 'function'
@@ -11572,6 +11833,11 @@ window.switchTab = async function (tabId, btnElement) {
     const contentArea = document.querySelector('.content');
     if (contentArea) {
         contentArea.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    if (isLockedStoreTab) {
+        window.applyStudentStoreSystemAccessState(false);
+        window.showStudentStoreSystemLocked();
     }
 };
 
@@ -14854,6 +15120,10 @@ function formatStoreCountdown(ms) {
 
 // 1. Hàm lọc và hiển thị vật phẩm ra màn hình (Có kiểm tra Ngày Mở Bán)
 window.filterStore = function (type) {
+    if (!window.isStudentStoreSystemOpen()) {
+        return window.showStudentStoreSystemLocked();
+    }
+
     window.currentStoreFilterType = type;
     const container = document.getElementById('storeItemsContainer');
     if (!container) return;
@@ -15045,6 +15315,10 @@ window.loadStoreItems = async function () {
 
 // 3. Logic kích hoạt dùng thử 1 Ngày (Nửa giá)
 window.trialItem = async function (itemId) {
+    if (!window.isStudentStoreSystemOpen()) {
+        return window.showStudentStoreSystemLocked();
+    }
+
     const item = StoreManager.getItemById(itemId);
     if (!item) return;
     if (item.isLocked) return alert("🔒 Vật phẩm này hiện đang bị Giáo viên khóa, không thể dùng thử!");
@@ -15091,6 +15365,10 @@ window.trialItem = async function (itemId) {
 
 // 4. Logic Mua đứt và Bảng Thanh Toán (Có áp dụng Mã giảm giá)
 window.buyItem = async function (itemId, isUpgradingFromTrial = false) {
+    if (!window.isStudentStoreSystemOpen()) {
+        return window.showStudentStoreSystemLocked();
+    }
+
     const item = StoreManager.getItemById(itemId);
     if (!item) return;
     if (item.isLocked) return alert("🔒 Vật phẩm này hiện đang bị Giáo viên khóa!");
@@ -16230,14 +16508,19 @@ function isSameRoadmapValue(value1, value2) {
 }
 
 function isRoadmapSubmissionFailed(sub) {
+    if (!sub) return false;
+
+    const history = getStudentRedoViolationHistory(sub);
+
     return !!(
-        sub &&
-        !sub.forcePass &&
-        (
-            sub.isAutoSubmitted ||
-            sub.isLateFail ||
-            sub.isCheatFail
-        )
+        sub.isAutoSubmitted ||
+        sub.isLateFail ||
+        sub.isCheatFail ||
+        sub.isEssayMissing ||
+        history.autoSubmitted ||
+        history.late ||
+        history.cheat ||
+        history.essayMissing
     );
 }
 
@@ -16255,10 +16538,11 @@ function getRoadmapSubmission(assign, submissions, username) {
     }
 
     function getSubmissionPriority(sub) {
-        if (sub.forcePass) return 50;
-
         const grade = parseRoadmapNumber(sub.grade, NaN);
         const failed = isRoadmapSubmissionFailed(sub);
+
+        if (failed) return 10;
+        if (sub.forcePass) return 50;
 
         if (
             !failed &&
@@ -16278,7 +16562,6 @@ function getRoadmapSubmission(assign, submissions, username) {
         }
 
         if (sub.isRegrading) return 20;
-        if (failed) return 10;
 
         return 0;
     }
@@ -16308,7 +16591,6 @@ function getRoadmapSubmission(assign, submissions, username) {
 
 function isRoadmapSubmissionPassed(assign, sub) {
     if (!sub) return false;
-    if (sub.forcePass) return true;
 
     if (
         sub.isRegrading ||
@@ -16316,6 +16598,8 @@ function isRoadmapSubmissionPassed(assign, sub) {
     ) {
         return false;
     }
+
+    if (sub.forcePass) return true;
 
     const grade = parseRoadmapNumber(sub.grade, NaN);
 
@@ -16500,29 +16784,32 @@ async function renderStudentRoadmapCore() {
             : '-';
 
         if (sub) {
-            // KIỂM TRA XEM CÓ ĐƯỢC GIÁO VIÊN THA ĐIỂM THẤP/NỘP TRỄ KHÔNG
-            if (sub.forcePass) {
+            // Lỗi hiện tại HOẶC lỗi đã từng vi phạm đều khóa tiền lộ trình.
+            // Chỉ nút "Tha lỗi" mới xóa lịch sử; "Cho làm lại"/"Tha điểm" không được cộng tiền trở lại.
+            if (isRoadmapSubmissionFailed(sub)) {
+                const hasOnlyHistoricalViolation =
+                    hasStudentHistoricalViolation(sub) &&
+                    !hasStudentCurrentViolation(sub);
+
+                statusText = hasOnlyHistoricalViolation
+                    ? 'Loại (Đã từng vi phạm)'
+                    : (sub.isCheatFail ? 'Loại (Vi phạm)' : 'Loại');
+                statusClass = 'status-pending';
+                cellBgStyle = 'background: rgba(225, 29, 72, 0.2) !important; color: #b91c1c; font-weight: bold; border-radius: 8px;';
+                studentScore = (sub.grade !== null && sub.grade !== undefined && sub.grade !== '')
+                    ? parseRoadmapNumber(sub.grade, 0)
+                    : '0';
+                moneyVal = '0 đ';
+            }
+            // Tha điểm chỉ có hiệu lực khi bài không còn bất kỳ lỗi vi phạm nào.
+            else if (sub.forcePass) {
                 statusText = 'Đạt';
                 statusClass = 'status-done';
                 cellBgStyle = 'background: rgba(16, 185, 129, 0.25) !important; color: #047857; font-weight: bold; border-radius: 8px;';
                 studentScore = (sub.grade !== null && sub.grade !== undefined && sub.grade !== '')
                     ? parseRoadmapNumber(sub.grade, 0)
                     : '0';
-                totalMoney += currentItemMoney; // Được tha điểm thấp -> Cộng tiền tích lũy
-            }
-            // ƯU TIÊN KIỂM TRA NỘP TRỄ TRƯỚC
-            else if (
-                sub.isAutoSubmitted ||
-                sub.isLateFail ||
-                sub.isCheatFail
-            ) {
-                statusText = 'Loại';
-                statusClass = 'status-pending';
-                cellBgStyle = 'background: rgba(225, 29, 72, 0.2) !important; color: #b91c1c; font-weight: bold; border-radius: 8px;';
-                studentScore = (sub.grade !== null && sub.grade !== undefined && sub.grade !== '')
-                    ? parseRoadmapNumber(sub.grade, 0)
-                    : '0';
-                moneyVal = '0 đ'; // Ép tiền thưởng về 0 đ
+                totalMoney += currentItemMoney;
             }
             else if (sub.isRegrading) {
                 statusText = 'Chấm lại';
@@ -20596,9 +20883,19 @@ window.saveDraft = function (assignId, type, qIndex, value) {
 // Bắt sự kiện chuyển tab hoặc thu nhỏ trình duyệt
 document.addEventListener(
     'visibilitychange',
-    () => {
+    async () => {
+        /*
+         * EffectManager thuộc visual-runtime và được lazy-load.
+         * visibilitychange có thể chạy trước khi runtime này tồn tại,
+         * vì vậy tuyệt đối không gọi EffectManager trực tiếp khi chưa nạp.
+         */
         if (document.hidden) {
-            EffectManager.stopIntervals();
+            if (
+                typeof EffectManager !== 'undefined' &&
+                typeof EffectManager.stopIntervals === 'function'
+            ) {
+                EffectManager.stopIntervals();
+            }
             return;
         }
 
@@ -20606,14 +20903,48 @@ document.addEventListener(
             localStorage.getItem('active_effect');
 
         if (!activeEffect) {
-            EffectManager.clearEffects();
+            if (
+                typeof EffectManager !== 'undefined' &&
+                typeof EffectManager.clearEffects === 'function'
+            ) {
+                EffectManager.clearEffects();
+            }
+            return;
+        }
+
+        /*
+         * Chỉ khi thực sự có effect đang active mới nạp visual-runtime.
+         * Giữ đúng kiến trúc lazy-load và tránh tải nặng vô ích.
+         */
+        if (
+            typeof EffectManager === 'undefined' ||
+            typeof StoreManager === 'undefined'
+        ) {
+            try {
+                if (
+                    window.StudentFeatureLoader &&
+                    typeof window.StudentFeatureLoader.ensure === 'function'
+                ) {
+                    await window.StudentFeatureLoader.ensure('visual-runtime');
+                }
+            } catch (error) {
+                console.warn(
+                    '[Effect Visibility] Không nạp được visual-runtime:',
+                    error
+                );
+                return;
+            }
+        }
+
+        if (
+            typeof EffectManager === 'undefined' ||
+            typeof StoreManager === 'undefined'
+        ) {
             return;
         }
 
         const effectDefinition =
-            typeof StoreManager !== 'undefined'
-                ? StoreManager.getItemById(activeEffect)
-                : null;
+            StoreManager.getItemById(activeEffect);
 
         /*
          * Kiểm tra hiệu ứng có thực sự đang
@@ -20633,11 +20964,15 @@ document.addEventListener(
             );
 
         if (!isActuallyEquipped) {
-            EffectManager.clearEffects(true);
+            if (typeof EffectManager.clearEffects === 'function') {
+                EffectManager.clearEffects(true);
+            }
             return;
         }
 
-        EffectManager.applyEffect(activeEffect);
+        if (typeof EffectManager.applyEffect === 'function') {
+            EffectManager.applyEffect(activeEffect);
+        }
     }
 );
 
@@ -21523,6 +21858,10 @@ window
 
 window.openSpecialBirthdayStoreFromBag =
     function () {
+        if (!window.isStudentStoreSystemOpen()) {
+            return window.showStudentStoreSystemLocked();
+        }
+
         window.closeStudentBag();
 
         const storeButton =
@@ -22896,6 +23235,10 @@ window.showBagItemPopup = function (item) {
 
 // Mở Cửa hàng Sang trọng trực tiếp từ ô Xu Trung Thu trong Túi đồ.
 window.openMidAutumnStoreFromBag = function () {
+    if (!window.isStudentStoreSystemOpen()) {
+        return window.showStudentStoreSystemLocked();
+    }
+
     try {
         window.closeBagItemPopup?.();
         window.closeStudentBag?.();
@@ -27538,7 +27881,7 @@ window.downloadStudentRoadmapPDF = async function () {
 
     sortedAssignments.forEach(assign => {
         // Chính helper này cũng được dùng khi tính tiền lộ trình:
-        // forcePass -> bài đạt -> bài có điểm -> chấm lại -> bài lỗi.
+        // lỗi hiện tại/lịch sử -> forcePass sạch -> bài đạt -> bài có điểm -> chấm lại.
         const bestSub = getRoadmapSubmission(
             assign,
             submissions,
@@ -27554,18 +27897,22 @@ window.downloadStudentRoadmapPDF = async function () {
                 NaN
             );
 
-            if (bestSub.forcePass) {
+            if (isRoadmapSubmissionFailed(bestSub)) {
+                studentScore = Number.isFinite(parsedGrade)
+                    ? parsedGrade
+                    : '0';
+                statusText =
+                    hasStudentHistoricalViolation(bestSub) &&
+                    !hasStudentCurrentViolation(bestSub)
+                        ? 'Loại (Đã từng vi phạm)'
+                        : (bestSub.isCheatFail
+                            ? 'Loại (Vi phạm)'
+                            : 'Loại');
+            } else if (bestSub.forcePass) {
                 studentScore = Number.isFinite(parsedGrade)
                     ? parsedGrade
                     : '0';
                 statusText = 'Đạt (Được tha)';
-            } else if (isRoadmapSubmissionFailed(bestSub)) {
-                studentScore = Number.isFinite(parsedGrade)
-                    ? parsedGrade
-                    : '0';
-                statusText = bestSub.isCheatFail
-                    ? 'Loại (Vi phạm)'
-                    : 'Loại';
             } else if (bestSub.isRegrading) {
                 studentScore = '🔄';
                 statusText = 'Đang chấm lại';

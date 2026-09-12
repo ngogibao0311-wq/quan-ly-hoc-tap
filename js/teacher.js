@@ -5957,6 +5957,29 @@ function mergeTeacherRedoViolationHistory(submission) {
     };
 }
 
+function hasTeacherHistoricalViolation(submission) {
+    const history = getTeacherRedoViolationHistory(submission);
+
+    return !!(
+        history.essayMissing ||
+        history.late ||
+        history.autoSubmitted ||
+        history.cheat
+    );
+}
+
+function hasTeacherCurrentViolation(submission) {
+    return !!(
+        submission &&
+        (
+            submission.isEssayMissing ||
+            submission.isLateFail ||
+            submission.isAutoSubmitted ||
+            submission.isCheatFail
+        )
+    );
+}
+
 
 // ======================================================
 // HUY HIỆU "NỘP TRỄ" CHO BÀI TỰ THU ĐÃ LÀM ĐỦ
@@ -6960,6 +6983,16 @@ async function loadSubmissions(isLoadMore = false) {
         const redoViolationHistory =
             getTeacherRedoViolationHistory(sub);
 
+        if (!sub.isCheatFail && redoViolationHistory.cheat) {
+            violationHTML += `<div style="background: rgba(59, 130, 246, 0.08); border-left: 4px solid #3b82f6; padding: 10px; margin-top: 10px; margin-bottom: 10px; border-radius: 8px;"><strong style="color:#1d4ed8;">🚨 ĐÃ TỪNG VI PHẠM QUY CHẾ THI:</strong><br><span style="color:#1e40af; font-size:0.9em;">Học sinh đã làm lại, nhưng lỗi ở lần trước vẫn được lưu cho đến khi giáo viên bấm Tha lỗi.</span></div>`;
+        }
+        if (!sub.isLateFail && redoViolationHistory.late) {
+            violationHTML += `<div style="background: rgba(59, 130, 246, 0.08); border-left: 4px solid #3b82f6; padding: 10px; margin-top: 10px; margin-bottom: 10px; border-radius: 8px;"><strong style="color:#1d4ed8;">⏰ ĐÃ TỪNG NỘP TRỄ / KHÔNG NỘP KỊP:</strong><br><span style="color:#1e40af; font-size:0.9em;">Lịch sử quá hạn của bài này vẫn còn hiệu lực sau khi làm lại.</span></div>`;
+        }
+        if (!sub.isAutoSubmitted && redoViolationHistory.autoSubmitted) {
+            violationHTML += `<div style="background: rgba(59, 130, 246, 0.08); border-left: 4px solid #3b82f6; padding: 10px; margin-top: 10px; margin-bottom: 10px; border-radius: 8px;"><strong style="color:#1d4ed8;">⌛ ĐÃ TỪNG BỊ HỆ THỐNG TỰ THU:</strong><br><span style="color:#1e40af; font-size:0.9em;">Lỗi tự thu/không nộp kịp của lần trước không bị xóa bởi thao tác Cho làm lại.</span></div>`;
+        }
+
         let lateSubmissionBadge = '';
 
         if (
@@ -6969,6 +7002,22 @@ async function loadSubmissions(isLoadMore = false) {
             )
         ) {
             lateSubmissionBadge = '<span style="background: rgba(244, 63, 94, 0.10); color: #e11d48; border: 1px solid rgba(244, 63, 94, 0.55); padding: 2px 7px; border-radius: 5px; font-size: 0.8em; margin-left: 8px; font-weight: 800; vertical-align: middle; white-space: nowrap;">⏰ Nộp trễ</span>';
+        } else if (sub.isLateFail) {
+            lateSubmissionBadge += '<span style="background: rgba(244, 63, 94, 0.10); color: #e11d48; border: 1px solid rgba(244, 63, 94, 0.55); padding: 2px 7px; border-radius: 5px; font-size: 0.8em; margin-left: 8px; font-weight: 800; vertical-align: middle; white-space: nowrap;">⏰ Quá hạn</span>';
+        } else if (redoViolationHistory.late) {
+            lateSubmissionBadge += '<span style="background: rgba(59, 130, 246, 0.10); color: #1d4ed8; border: 1px solid rgba(59, 130, 246, 0.55); padding: 2px 7px; border-radius: 5px; font-size: 0.8em; margin-left: 8px; font-weight: 800; vertical-align: middle; white-space: nowrap;">⏰ Đã từng quá hạn</span>';
+        }
+
+        if (sub.isAutoSubmitted && !sub.isCheatFail) {
+            lateSubmissionBadge += '<span style="background: rgba(244, 63, 94, 0.10); color: #be123c; border: 1px solid rgba(244, 63, 94, 0.55); padding: 2px 7px; border-radius: 5px; font-size: 0.8em; margin-left: 8px; font-weight: 800; vertical-align: middle; white-space: nowrap;">⌛ Bị tự thu</span>';
+        } else if (redoViolationHistory.autoSubmitted) {
+            lateSubmissionBadge += '<span style="background: rgba(59, 130, 246, 0.10); color: #1d4ed8; border: 1px solid rgba(59, 130, 246, 0.55); padding: 2px 7px; border-radius: 5px; font-size: 0.8em; margin-left: 8px; font-weight: 800; vertical-align: middle; white-space: nowrap;">⌛ Đã từng bị tự thu</span>';
+        }
+
+        if (sub.isCheatFail) {
+            lateSubmissionBadge += '<span style="background: rgba(225, 29, 72, 0.10); color: #be123c; border: 1px solid rgba(225, 29, 72, 0.55); padding: 2px 7px; border-radius: 5px; font-size: 0.8em; margin-left: 8px; font-weight: 800; vertical-align: middle; white-space: nowrap;">🚨 Vi phạm quy chế</span>';
+        } else if (redoViolationHistory.cheat) {
+            lateSubmissionBadge += '<span style="background: rgba(59, 130, 246, 0.10); color: #1d4ed8; border: 1px solid rgba(59, 130, 246, 0.55); padding: 2px 7px; border-radius: 5px; font-size: 0.8em; margin-left: 8px; font-weight: 800; vertical-align: middle; white-space: nowrap;">🚨 Đã từng vi phạm quy chế</span>';
         }
 
         let missingEssayBadge = '';
@@ -6976,7 +7025,7 @@ async function loadSubmissions(isLoadMore = false) {
         if (sub.isEssayMissing) {
             missingEssayBadge = '<span style="background: rgba(245, 158, 11, 0.15); color: #d97706; border: 1px solid #f59e0b; padding: 2px 6px; border-radius: 4px; font-size: 0.8em; margin-left: 8px; font-weight: bold; vertical-align: middle;">⚠️ Thiếu tự luận</span>';
         } else if (redoViolationHistory.essayMissing) {
-            missingEssayBadge = '<span style="background: rgba(59, 130, 246, 0.12); color: #1d4ed8; border: 1px solid rgba(59, 130, 246, 0.55); padding: 2px 6px; border-radius: 4px; font-size: 0.8em; margin-left: 8px; font-weight: bold; vertical-align: middle;">⚠️ Từng thiếu tự luận</span>';
+            missingEssayBadge = '<span style="background: rgba(59, 130, 246, 0.12); color: #1d4ed8; border: 1px solid rgba(59, 130, 246, 0.55); padding: 2px 6px; border-radius: 4px; font-size: 0.8em; margin-left: 8px; font-weight: bold; vertical-align: middle;">⚠️ Đã từng thiếu tự luận</span>';
         }
 
         const uniqueId = `teacher-sub-${sub.id}`;
@@ -9644,22 +9693,29 @@ async function renderTeacherRoadmap() {
                 selectedStudent
             );
             if (sub) {
-                // TRƯỜNG HỢP 1: GIÁO VIÊN ĐÃ ẤN NÚT THA ĐIỂM THẤP (FORCE PASS)
-                if (sub.forcePass) {
-                    statusText = 'Đạt (Được tha)';
-                    statusClass = 'status-done';
-                    cellBgStyle = 'background: rgba(16, 185, 129, 0.25) !important; color: #047857; font-weight: bold; border-radius: 8px;';
-                    studentScore = (sub.grade !== null && sub.grade !== undefined && sub.grade !== '') ? parseFloat(sub.grade) : '0';
-                    pardonBtnHTML = `<br><button onclick="pardonRoadmap('${sub._fbKey}', 'unpardon')" style="margin-top:6px; padding:3px 8px; font-size:0.8em; background:#6b7280; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; width:100%;">Hủy Tha</button>`;
-                }
-                // TRƯỜNG HỢP 2: BỊ HỆ THỐNG TỰ THU, NỘP TRỄ HOẶC VI PHẠM
-                else if (sub.isAutoSubmitted || sub.isLateFail || sub.isCheatFail) {
-                    statusText = sub.isCheatFail ? 'Loại (Vi phạm)' : 'Loại';
+                // Lỗi hiện tại hoặc lỗi lịch sử đều giữ trạng thái Loại và 0đ.
+                // Cho làm lại/Tha điểm không tự xóa lịch sử; chỉ nút Tha lỗi mới khôi phục quyền cộng tiền.
+                if (isTeacherCashSubmissionFailed(sub)) {
+                    const hasOnlyHistoricalViolation =
+                        hasTeacherHistoricalViolation(sub) &&
+                        !hasTeacherCurrentViolation(sub);
+
+                    statusText = hasOnlyHistoricalViolation
+                        ? 'Loại (Đã từng vi phạm)'
+                        : (sub.isCheatFail ? 'Loại (Vi phạm)' : 'Loại');
                     statusClass = 'status-pending';
                     cellBgStyle = 'background: rgba(225, 29, 72, 0.2) !important; color: #b91c1c; font-weight: bold; border-radius: 8px;';
                     studentScore = (sub.grade !== null && sub.grade !== undefined && sub.grade !== '') ? parseFloat(sub.grade) : '0';
                     moneyInputHTML = `<strong style="color: #e11d48; font-size: 1.1em;">0 đ</strong> <span style="font-size:0.75em; color:#666; display:block;">(Bị loại)</span>`;
                     pardonBtnHTML = `<br><button onclick="pardonRoadmap('${sub._fbKey}', 'late')" style="margin-top:6px; padding:3px 8px; font-size:0.8em; background:#10b981; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; width:100%;">✨ Tha lỗi</button>`;
+                }
+                // Tha điểm chỉ có hiệu lực nếu bài không còn lỗi vi phạm.
+                else if (sub.forcePass) {
+                    statusText = 'Đạt (Được tha)';
+                    statusClass = 'status-done';
+                    cellBgStyle = 'background: rgba(16, 185, 129, 0.25) !important; color: #047857; font-weight: bold; border-radius: 8px;';
+                    studentScore = (sub.grade !== null && sub.grade !== undefined && sub.grade !== '') ? parseFloat(sub.grade) : '0';
+                    pardonBtnHTML = `<br><button onclick="pardonRoadmap('${sub._fbKey}', 'unpardon')" style="margin-top:6px; padding:3px 8px; font-size:0.8em; background:#6b7280; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; width:100%;">Hủy Tha</button>`;
                 }
                 else if (sub.isRegrading) {
                     statusText = 'Chấm lại';
@@ -9775,7 +9831,7 @@ window.updateAssignmentRoadmap = async function (fbKey, field, value) {
 // ================= HÀM THA LỖI TRÊN GIAO DIỆN LỘ TRÌNH =================
 window.pardonRoadmap = async function (subKey, mode) {
     if (mode === 'late') {
-        if (confirm("Xác nhận tha lỗi nộp trễ / vi phạm cho học sinh?\n\nHệ thống sẽ gỡ bỏ án phạt, bài làm sẽ quay về tính trạng thái theo điểm số thực tế.")) {
+        if (confirm("Xác nhận tha lỗi nộp trễ / vi phạm cho học sinh?\n\nHệ thống sẽ gỡ bỏ án phạt và lịch sử vi phạm; từ thời điểm này bài mới được xét lại tiền lộ trình theo điểm số thực tế.")) {
             await updateDB('submissions', subKey, {
                 isLateFail: false,
                 isAutoSubmitted: false,
@@ -10652,6 +10708,9 @@ window.openAssignmentStatusModal = async function (assignId) {
 
         if (sub) {
             // === KIỂM TRA CÁC ĐIỀU KIỆN LOGIC CỦA BÀI NỘP ===
+            const violationHistory =
+                getTeacherRedoViolationHistory(sub);
+
             if (sub.isCheatFail) {
                 statusText = '🚨 Vi phạm quy chế thi';
                 statusBg = '#fef2f2';
@@ -10677,6 +10736,26 @@ window.openAssignmentStatusModal = async function (assignId) {
                 statusText = '⚠️ Nộp trễ quá hạn';
                 statusBg = '#fff1f2';
                 statusColor = '#f43f5e';
+            } else if (sub.isEssayMissing) {
+                statusText = '⚠️ Thiếu tự luận';
+                statusBg = '#fffbeb';
+                statusColor = '#d97706';
+            } else if (violationHistory.cheat) {
+                statusText = '🚨 Đã từng vi phạm quy chế';
+                statusBg = '#eff6ff';
+                statusColor = '#1d4ed8';
+            } else if (violationHistory.late) {
+                statusText = '⏰ Đã từng quá hạn / không nộp kịp';
+                statusBg = '#eff6ff';
+                statusColor = '#1d4ed8';
+            } else if (violationHistory.autoSubmitted) {
+                statusText = '⌛ Đã từng bị hệ thống tự thu';
+                statusBg = '#eff6ff';
+                statusColor = '#1d4ed8';
+            } else if (violationHistory.essayMissing) {
+                statusText = '⚠️ Đã từng thiếu tự luận';
+                statusBg = '#eff6ff';
+                statusColor = '#1d4ed8';
             } else if (sub.grade !== null && sub.grade !== undefined && sub.grade !== '') {
                 // Phân định trạng thái chấm điểm và chấm lại
                 if (sub.isRegrading) {
@@ -14302,10 +14381,19 @@ function getTeacherCashRoadmapMoney(assign) {
 }
 
 function isTeacherCashSubmissionFailed(sub) {
+    if (!sub) return false;
+
+    const history = getTeacherRedoViolationHistory(sub);
+
     return !!(
-        sub &&
-        !sub.forcePass &&
-        (sub.isAutoSubmitted || sub.isLateFail || sub.isCheatFail)
+        sub.isAutoSubmitted ||
+        sub.isLateFail ||
+        sub.isCheatFail ||
+        sub.isEssayMissing ||
+        history.autoSubmitted ||
+        history.late ||
+        history.cheat ||
+        history.essayMissing
     );
 }
 
@@ -14345,17 +14433,17 @@ function getTeacherCashBestSubmission(assign, submissions, username) {
     if (!matched.length) return null;
 
     function priority(sub) {
-        if (sub.forcePass) return 50;
-
         const grade = teacherCashNumber(sub.grade, NaN);
         const failed = isTeacherCashSubmissionFailed(sub);
 
-        if (!failed && !sub.isRegrading && Number.isFinite(grade) && grade >= passingGrade) {
+        if (failed) return 10;
+        if (sub.forcePass) return 50;
+
+        if (!sub.isRegrading && Number.isFinite(grade) && grade >= passingGrade) {
             return 40;
         }
-        if (!failed && !sub.isRegrading && Number.isFinite(grade)) return 30;
+        if (!sub.isRegrading && Number.isFinite(grade)) return 30;
         if (sub.isRegrading) return 20;
-        if (failed) return 10;
         return 0;
     }
 
@@ -14384,8 +14472,8 @@ function calculateTeacherCashBaseMoney(assignments, submissions, username) {
 
         const sub = getTeacherCashBestSubmission(assign, submissions, username);
         if (!sub) return total;
-        if (sub.forcePass) return total + getTeacherCashRoadmapMoney(assign);
         if (sub.isRegrading || isTeacherCashSubmissionFailed(sub)) return total;
+        if (sub.forcePass) return total + getTeacherCashRoadmapMoney(assign);
 
         const grade = teacherCashNumber(sub.grade, NaN);
         if (Number.isFinite(grade) && grade >= getTeacherCashPassingGrade(assign)) {
