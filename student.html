@@ -11,13 +11,14 @@
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link rel="icon" type="image/png" href="assets/icon.png">
-    <link rel="stylesheet" href="css/common.css?v=3.8">
-    <link rel="stylesheet" href="css/student.css?v=20260905.redo-scope-v1">
-    <link rel="stylesheet" href="css/mobile.css?v=3.8">
+    <link rel="stylesheet" href="css/common.css?v=4.0.3-layout">
+    <link rel="stylesheet" href="css/student.css?v=4.0.3-layout">
+    <link rel="stylesheet" href="css/mobile.css?v=4.0.3-layout">
     <link rel="stylesheet" href="css/web-animations.css?v=1.0">
     <link rel="stylesheet" href="css/update-manager.css?v=1.0.0">
+    <link id="linkclick-cheng-premium-style" rel="stylesheet" href="css/link-click-cheng-xiaoshi.css?v=20260911.2-fullweb">
     <!-- Core-first loader: CSS/module đặc biệt chỉ tải khi cần -->
-    <script src="js/student-feature-loader.js?v=2.0.3-leaderboard-trigger"></script>
+    <script src="js/student-feature-loader.js?v=2.0.11-bellum-path-effect-hotfix"></script>
     <script>
         MathJax = {
             tex: {
@@ -221,6 +222,16 @@
                 height: 50px;
                 flex-basis: 50px;
             }
+        }
+    </style>
+
+    <style id="studentStoreSystemAccessStyles">
+        #tab-store.store-system-locked > :not(h2):not(#storeLockedView) {
+            display: none !important;
+        }
+
+        #tab-store.store-system-locked #storeLockedView {
+            display: block !important;
         }
     </style>
 </head>
@@ -844,6 +855,19 @@
                             style="background: linear-gradient(135deg, #ff0844 0%, #ffb199 100%); color: white; padding: 12px 25px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(255, 8, 68, 0.4);">Tham
                             gia ngay ➡️</button>
                     </div>
+
+                    <!-- SỰ KIỆN MỚI · THẤT ĐẠI TỘI: TU VIỆN BELLUM -->
+                    <div id="bellumEventCard" class="card bellum-event-card ui-theme-immune">
+                        <div class="bellum-card-copy">
+                            <div class="bellum-card-eyebrow">⛪ SỰ KIỆN · TIỂU THUYẾT TRỰC QUAN</div>
+                            <h3>THẤT ĐẠI TỘI: TU VIỆN BELLUM</h3>
+                            <p>Khám phá bí ẩn ẩn sâu trong Tu viện Bellum và đối mặt với Thất Đại Tội.</p>
+                        </div>
+                        <div class="bellum-card-actions">
+                            <button class="bellum-card-button bellum-card-button-info" type="button" onclick="BellumEvent.showIntroduction()">📖 Giới thiệu cốt truyện &amp; nhân vật</button>
+                            <button class="bellum-card-button" type="button" onclick="BellumEvent.open()">Bước vào Bellum ➡️</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -948,9 +972,8 @@
                 <div id="storeLockedView" style="display: none;">
                     <div class="glass-alert danger"
                         style="padding: 25px; text-align: center; border-left: 6px solid #e11d48; background: rgba(225, 29, 72, 0.08); border-radius: 16px;">
-                        <h3 style="color: #e11d48; margin-bottom: 12px;">🔒 Cửa hàng đã bị đóng</h3>
-                        <p style="font-size: 1.1em; font-weight: bold; color: #b91c1c;">Giáo viên đang tạm khóa cửa
-                            hàng, vui lòng quay lại sau!</p>
+                        <h3 style="color: #e11d48; margin-bottom: 12px;">🔒 Toàn bộ Cửa hàng đang tạm đóng</h3>
+                        <p style="font-size: 1.1em; font-weight: bold; color: #b91c1c;">Giáo viên đang tạm khóa toàn bộ khu vực Cửa hàng.</p>
                     </div>
                 </div>
 
@@ -1500,7 +1523,7 @@
             localStorage.setItem('appVersion', window.APP_VERSION);
         } catch (_) { }
     </script>
-    <script src="js/security.js?v=4.2.0-devtools-guard"></script>
+    
     <script src="js/common.js?v=4.0.1-health-center-v2.0"></script>
     <script src="js/history-retention.js?v=1.0.0-2month-safe"></script>
     <script src="js/update-manager.js?v=1.0.3-release-sections"></script>
@@ -1517,7 +1540,7 @@
     <script src="https://www.youtube.com/iframe_api"></script>
 
     <!-- 5. Logic chính của trang học sinh luôn đặt cuối -->
-    <script src="js/student.js?v=20260910.avatar-profile-fast-v1"></script>
+    <script src="js/student.js?v=20260912.redo-violation-history-roadmap-v2"></script>
 
 </body>
 
