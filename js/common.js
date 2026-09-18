@@ -1559,8 +1559,20 @@ let lockoutInterval = null;
         'system_settings/loginPageLayout';
 
     function normalizeLayout(value) {
-        return String(value || '').trim() === 'centered'
-            ? 'centered'
+        const normalized =
+            String(value || '')
+                .trim()
+                .toLowerCase();
+
+        const allowedLayouts = new Set([
+            'split',
+            'centered',
+            'reversed',
+            'cinematic'
+        ]);
+
+        return allowedLayouts.has(normalized)
+            ? normalized
             : 'split';
     }
 
@@ -1569,13 +1581,13 @@ let lockoutInterval = null;
 
         document.body.classList.remove(
             'login-layout-split',
-            'login-layout-centered'
+            'login-layout-centered',
+            'login-layout-reversed',
+            'login-layout-cinematic'
         );
 
         document.body.classList.add(
-            layout === 'centered'
-                ? 'login-layout-centered'
-                : 'login-layout-split'
+            'login-layout-' + layout
         );
 
         document.body.dataset.loginLayout =
@@ -1856,7 +1868,7 @@ if (loginForm) {
             await clearAllLockouts();
 
             user._fbKey = uid;
-            localStorage.setItem('currentUser', JSON.stringify(user));
+            localStorage.setItem('currentUser', JSON.stringify(Object.fromEntries(Object.entries(user).filter(([key]) => !['password', 'newPass', 'oldPass'].includes(key)))));
 
             if (user.role === 'teacher') {
                 window.location.href = 'teacher.html';
@@ -5214,3 +5226,10 @@ window.clearAutoSave = function (storageKey) {
         }
     );
 })();
+// Security hotfix: distinct encoders for text and inline JavaScript arguments.
+window.securityHotfix = Object.freeze({
+  inline(value) { return window.escapeHTML(JSON.stringify(String(value ?? ''))); },
+  remoteURL(value) {
+    try { const url = new URL(String(value)); return ['https:', 'http:'].includes(url.protocol) && !url.username && !url.password ? url.href : ''; } catch { return ''; }
+  }
+});

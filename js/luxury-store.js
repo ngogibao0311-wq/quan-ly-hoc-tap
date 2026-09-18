@@ -10,6 +10,8 @@
 (() => {
     'use strict';
 
+    window.__LUXURY_STORE_GUARD_BUILD = '20260917.v1-D1-D8';
+
 
     // EFFECT QUALITY MANAGER v1.2.0
     // Dùng chung cho toàn bộ runtime Luxury/Premium, kể cả vật phẩm thêm sau này.
@@ -34,10 +36,14 @@
         'pet_luxury_mua_ha',
         'pet_quoc_khanh_1',
         'pet_mythic_nyx_1',
+        'pet_mythic_aether_1',
+        'pet_lotm_klein_event_1',
         'pet_cam_co_cam_mong_1',
         'pet_tamon_b_side_1',
         'pet_tamon_b_side_2',
-        'pet_trung_thu_nguyet_cung_tien_tu'
+        'pet_trung_thu_nguyet_cung_tien_tu',
+        'pet_trung_thu_chu_cuoi_2',
+        'pet_linkclick_cheng_xiaoshi_1'
     ];
 
     // ========================================================
@@ -2612,6 +2618,106 @@
 
 
     // ========================================================
+    // AETHER · THIÊN QUANG NGUYÊN SƠ — THẦN THOẠI
+    // - Bán 15.000 Coin
+    // - Card riêng nhưng giữ nguyên bố cục Luxury chuẩn
+    // - Tag ảnh: assets/Premium/Thần thoại/aether-tag2.png
+    // - Full suite độc lập, không ghi đè active_theme / active_effect
+    // - MỘT CSS: css/aether-than-thoai.css
+    // ========================================================
+    const MYTHIC_AETHER_PET = {
+        id: 'pet_mythic_aether_1',
+        name: 'AETHER · Thiên Quang Nguyên Sơ',
+        type: 'pet',
+        price: 15000,
+        isNonCoin: false,
+        luxuryOnly: true,
+        eventOnly: false,
+
+        tag: 'Thần thoại',
+        tags: [
+            'Thần thoại',
+            'Aether',
+            'Thiên quang',
+            'Premium'
+        ],
+
+        image: 'assets/Premium/Thần thoại/aether-nhan-vat2.png',
+        asset: 'assets/Premium/Thần thoại/aether-nhan-vat2.png',
+        value: 'assets/Premium/Thần thoại/aether-nhan-vat2.png',
+        luxuryTagImage:
+            'assets/Premium/Thần thoại/aether-tag2.png',
+        isIcon: false,
+
+        // Chỉ dùng class riêng của Aether; PetManager generic sẽ gắn class này.
+        petEffect: 'mythic-aether-luminous-magic',
+        premiumSuite: 'aether-luminous-heaven-v1',
+        premiumLayers: [
+            'world-effect',
+            'interface',
+            'pet-realm',
+            'global-click',
+            'ultimate'
+        ],
+
+        // Click được LuxuryAetherRuntime quản lý hoàn toàn.
+        disableClickEffect: true
+    };
+
+
+
+
+    // ========================================================
+    // LORD OF THE MYSTERIES · KLEIN MORETTI — EVENT PREMIUM PET
+    // - KHÔNG bán bằng Coin.
+    // - Chỉ nhận từ sự kiện Lord of the Mysteries.
+    // - Tag: assets/Premium/quỷ bí/tag1.png
+    // - Nhân vật: assets/Premium/quỷ bí/klain_nha-vat.png
+    // - Card riêng nhưng GIỮ NGUYÊN bố cục Luxury Store.
+    // - Full suite độc lập; không ghi đè active_theme / active_effect.
+    // - MỘT CSS: css/lord-of-mysteries-klein.css
+    // ========================================================
+    const LOTM_KLEIN_EVENT_PET = {
+        id: 'pet_lotm_klein_event_1',
+        name: 'Klein Moretti · Quỷ Bí Chi Chủ',
+        type: 'pet',
+        price: 0,
+        isNonCoin: true,
+        luxuryOnly: true,
+        eventOnly: true,
+
+        eventId: 'lord_of_the_mysteries_event',
+        eventRewardTier: 'premium',
+
+        tag: 'Lord of the Mysteries',
+        tags: [
+            'Lord of the Mysteries',
+            'Quỷ Bí Chi Chủ',
+            'Klein Moretti',
+            'Premium',
+            'Sự kiện'
+        ],
+
+        image: 'assets/Premium/quỷ bí/klain_nha-vat.png',
+        asset: 'assets/Premium/quỷ bí/klain_nha-vat.png',
+        value: 'assets/Premium/quỷ bí/klain_nha-vat.png',
+        luxuryTagImage: 'assets/Premium/quỷ bí/tag1.png',
+        isIcon: false,
+
+        petEffect: 'lotm-klein-mystery-magic',
+        premiumSuite: 'lotm-klein-sefirah-castle-v1',
+        premiumLayers: [
+            'world-effect',
+            'interface',
+            'pet-realm',
+            'global-click',
+            'ultimate'
+        ],
+        disableClickEffect: true
+    };
+
+
+    // ========================================================
     // CẦM CƠ · CẦM MỘNG — TU TIÊN PREMIUM
     // - Bán 12.000 Coin
     // - Tag ảnh: assets/Premium/Tu tiên/cam_co_tag1.png
@@ -2802,6 +2908,107 @@
 
 
     // ========================================================
+    // TRUNG THU · CHÚ CUỘI — PREMIUM PET #2
+    // - Đổi bằng 2 Xu Trung Thu đúng ngày Trung Thu.
+    // - Nhân vật: assets/Premium/Trung thu/cuoi_nhan_vat2.png
+    // - Dùng CHUNG ảnh tag Trung Thu với Nguyệt Cung Tiên Tử.
+    // - Card riêng nhưng giữ nguyên bố cục Luxury Store.
+    // - Full suite dùng runtime Trung Thu độc lập, có biến thể Cuội;
+    //   KHÔNG chiếm active_theme / active_effect.
+    // ========================================================
+    const MID_AUTUMN_CUOI_PET = {
+        id: 'pet_trung_thu_chu_cuoi_2',
+        name: 'Chú Cuội · Nguyệt Quế Tiên Đồng',
+        type: 'pet',
+        price: 0,
+        isNonCoin: true,
+        midAutumnCoinPrice: 2,
+        currency: 'mid_autumn_coin',
+        luxuryOnly: true,
+        eventOnly: true,
+
+        tag: 'Trung thu',
+        tags: [
+            'Trung thu',
+            'Chú Cuội',
+            'Nguyệt quế',
+            'Premium'
+        ],
+
+        image: 'assets/Premium/Trung thu/cuoi_nhan_vat2.png',
+        asset: 'assets/Premium/Trung thu/cuoi_nhan_vat2.png',
+        value: 'assets/Premium/Trung thu/cuoi_nhan_vat2.png',
+
+        // CÙNG TAG với Nguyệt Cung Tiên Tử.
+        luxuryTagImage: 'assets/Premium/Trung thu/tag1.png',
+        isIcon: false,
+
+        petEffect: 'midautumn-cuoi-moonwood-magic',
+        premiumSuite: 'midautumn-cuoi-moonwood-fairytale-v1',
+        premiumLayers: [
+            'world-effect',
+            'interface',
+            'pet-realm',
+            'global-click',
+            'pet-skill',
+            'ultimate'
+        ],
+
+        disableClickEffect: true
+    };
+
+
+
+    // ========================================================
+    // LINK CLICK · CHENG XIAOSHI — PREMIUM PET
+    // - Bán 12.000 Coin.
+    // - Tag ảnh: assets/Premium/Lock/tag1.png
+    // - Nhân vật: assets/Premium/Lock/Cheng Xiaoshi-nhan-vat1.png
+    // - Card riêng nhưng giữ nguyên cấu trúc/bố cục Luxury Store.
+    // - Full suite độc lập; KHÔNG ghi đè active_theme / active_effect.
+    // ========================================================
+    const LINKCLICK_CHENG_XIAOSHI_PET = {
+        id: 'pet_linkclick_cheng_xiaoshi_1',
+        name: 'Cheng Xiaoshi · Thời Quang Ảnh Giới',
+        type: 'pet',
+        price: 12000,
+        isNonCoin: false,
+        luxuryOnly: true,
+        eventOnly: false,
+
+        tag: 'Link Click',
+        tags: [
+            'Link Click',
+            'Cheng Xiaoshi',
+            'Thời Quang',
+            'Premium'
+        ],
+
+        image: 'assets/Premium/Lock/Cheng Xiaoshi-nhan-vat1.png',
+        asset: 'assets/Premium/Lock/Cheng Xiaoshi-nhan-vat1.png',
+        value: 'assets/Premium/Lock/Cheng Xiaoshi-nhan-vat1.png',
+        luxuryTagImage: 'assets/Premium/Lock/tag1.png',
+        isIcon: false,
+
+        petEffect: 'linkclick-cheng-timeframe-magic',
+        premiumSuite: 'linkclick-cheng-timeframe-v2-cinematic',
+        premiumLayers: [
+            'world-effect',
+            'interface',
+            'cinematic-hud',
+            'time-memory-world',
+            'pet-realm',
+            'global-click',
+            'pet-skill',
+            'ultimate'
+        ],
+
+        // Click pet do LuxuryLinkClickChengRuntime quản lý.
+        disableClickEffect: true
+    };
+
+
+    // ========================================================
     // TRUNG THU · NGUYỆT CUNG — CSS LOADER
     // CHỈ MỘT file CSS đảm nhiệm toàn bộ:
     // card + pet realm + full-web skin + popup/input/slider/scrollbar
@@ -2869,6 +3076,74 @@
         observer: null,
         skillLocked: false,
         timers: new Set(),
+        variant: 'moon',
+
+        detectVariant() {
+            const activePetId =
+                String(localStorage.getItem('active_pet') || '');
+
+            const pet =
+                document.querySelector(
+                    '#virtual-pet-container #virtual-pet-img'
+                );
+
+            const src =
+                String(pet?.getAttribute('src') || '');
+
+            if (
+                activePetId === MID_AUTUMN_CUOI_PET.id ||
+                pet?.classList.contains('midautumn-cuoi-moonwood-magic') ||
+                src.includes('/Trung thu/cuoi_nhan_vat2.png')
+            ) {
+                return 'cuoi';
+            }
+
+            return 'moon';
+        },
+
+        getVariantConfig() {
+            if (this.variant === 'cuoi') {
+                return {
+                    rootClass: 'midautumn-cuoi-equipped',
+                    bodyClass: 'theme-midautumn-cuoi',
+                    stageClass: 'pet-midautumn-cuoi-stage',
+                    petClass: 'midautumn-cuoi-pet',
+                    image: 'assets/Premium/Trung thu/cuoi_nhan_vat2.png',
+                    sealSmall: '中 秋 · 桂 影',
+                    sealTitle: 'NGUYỆT QUẾ',
+                    sealSubtitle: 'TRĂNG RẰM · CÂY QUẾ · CỔ TÍCH',
+                    bottomTitle: 'CHÚ CUỘI · NGUYỆT QUẾ TIÊN ĐỒNG',
+                    clickSeal: '桂',
+                    glyphs: ['桂', '月', '童'],
+                    ultimateSmall: '桂 影 入 梦 · 月 满 人 间',
+                    ultimateTitle: 'NGUYỆT QUẾ TIÊN CẢNH',
+                    ultimateSubtitle: 'CUỘI KHAI QUẾ ẢNH · VẠN ĐĂNG ĐỒNG MINH',
+                    dialogueSmall: 'TRUNG THU · NGUYỆT QUẾ KHAI CẢNH',
+                    dialogueTitle: 'CHÚ CUỘI · NGUYỆT QUẾ TIÊN ĐỒNG',
+                    dialogueSubtitle: 'QUẾ ẢNH PHÙ QUANG · TRĂNG RẰM ĐOÀN VIÊN'
+                };
+            }
+
+            return {
+                rootClass: '',
+                bodyClass: '',
+                stageClass: 'pet-midautumn-moon-palace-stage',
+                petClass: 'midautumn-moon-palace-pet',
+                image: 'assets/Premium/Trung thu/hang_nhan_vat1.png',
+                sealSmall: '中 秋 · 月 宫',
+                sealTitle: 'NGUYỆT CUNG',
+                sealSubtitle: 'TRĂNG RẰM · CỔ TÍCH · ĐOÀN VIÊN',
+                bottomTitle: 'NGUYỆT CUNG TIÊN TỬ',
+                clickSeal: '月',
+                glyphs: ['桂', '宫', '兔'],
+                ultimateSmall: '桂 香 入 梦 · 月 满 人 间',
+                ultimateTitle: 'NGUYỆT CUNG TIÊN CẢNH',
+                ultimateSubtitle: 'TRĂNG RẰM KHAI CẢNH · VẠN ĐĂNG ĐỒNG MINH',
+                dialogueSmall: 'TRUNG THU · NGUYỆT CUNG KHAI CẢNH',
+                dialogueTitle: 'NGUYỆT CUNG TIÊN TỬ',
+                dialogueSubtitle: 'QUẾ HƯƠNG NHẬP MỘNG · VẠN ĐĂNG ĐOÀN VIÊN'
+            };
+        },
 
         setTimer(callback, delay) {
             const timer = window.setTimeout(() => {
@@ -2886,7 +3161,8 @@
 
         getPet() {
             return document.querySelector(
-                '#virtual-pet-container #virtual-pet-img.midautumn-moon-palace-pet'
+                '#virtual-pet-container #virtual-pet-img.midautumn-moon-palace-pet,' +
+                '#virtual-pet-container #virtual-pet-img.midautumn-cuoi-pet'
             );
         },
 
@@ -2919,10 +3195,12 @@
 
             document.documentElement.classList.remove(
                 'midautumn-moon-palace-equipped',
-                'midautumn-moon-palace-skill-active'
+                'midautumn-moon-palace-skill-active',
+                'midautumn-cuoi-equipped'
             );
             document.body?.classList.remove(
-                'theme-midautumn-moon-palace'
+                'theme-midautumn-moon-palace',
+                'theme-midautumn-cuoi'
             );
 
             document
@@ -2940,6 +3218,7 @@
 
             container?.classList.remove(
                 'pet-midautumn-moon-palace-stage',
+                'pet-midautumn-cuoi-stage',
                 'midautumn-pet-casting'
             );
 
@@ -2949,7 +3228,10 @@
 
             container
                 ?.querySelector('#virtual-pet-img')
-                ?.classList.remove('midautumn-moon-palace-pet');
+                ?.classList.remove(
+                    'midautumn-moon-palace-pet',
+                    'midautumn-cuoi-pet'
+                );
         },
 
         createWorld() {
@@ -3078,6 +3360,8 @@
         },
 
         createInterface() {
+            const variant = this.getVariantConfig();
+
             document
                 .querySelectorAll('.midautumn-ui-frame')
                 .forEach(element => element.remove());
@@ -3092,9 +3376,9 @@
                     <i></i>
                     <span class="ma-ui-cloud left"></span>
                     <div class="ma-ui-seal">
-                        <small>中 秋 · 月 宫</small>
-                        <strong>NGUYỆT CUNG</strong>
-                        <span>TRĂNG RẰM · CỔ TÍCH · ĐOÀN VIÊN</span>
+                        <small>${variant.sealSmall}</small>
+                        <strong>${variant.sealTitle}</strong>
+                        <span>${variant.sealSubtitle}</span>
                     </div>
                     <span class="ma-ui-cloud right"></span>
                     <i></i>
@@ -3112,7 +3396,7 @@
 
                 <div class="ma-ui-bottom">
                     <span>❀</span><i></i>
-                    <strong>NGUYỆT CUNG TIÊN TỬ</strong>
+                    <strong>${variant.bottomTitle}</strong>
                     <i></i><span>☾</span>
                 </div>
             `;
@@ -3122,6 +3406,8 @@
         },
 
         createPetRealm() {
+            const variant = this.getVariantConfig();
+
             const container =
                 document.getElementById('virtual-pet-container');
             const pet =
@@ -3129,8 +3415,8 @@
 
             if (!container || !pet) return;
 
-            container.classList.add('pet-midautumn-moon-palace-stage');
-            pet.classList.add('midautumn-moon-palace-pet');
+            container.classList.add(variant.stageClass);
+            pet.classList.add(variant.petClass);
             pet.setAttribute('draggable', 'false');
 
             container
@@ -3288,6 +3574,7 @@
         },
 
         createPageClick(x, y, strong = false) {
+            const variant = this.getVariantConfig();
             const burst = document.createElement('div');
             burst.className = 'midautumn-page-click' + (strong ? ' is-strong' : '');
             burst.style.setProperty('--ma-click-x', `${x}px`);
@@ -3300,7 +3587,7 @@
                 <i class="ring ring-b"></i>
                 <i class="ring ring-c"></i>
                 <i class="ring ring-d"></i>
-                <span class="click-seal"><i>月</i></span>
+                <span class="click-seal"><i>${variant.clickSeal}</i></span>
                 <span class="moon">☾</span>
                 <span class="flower flower-a">❀</span>
                 <span class="flower flower-b">✦</span>
@@ -3310,9 +3597,9 @@
                 <span class="cloud cloud-a"></span>
                 <span class="cloud cloud-b"></span>
                 <span class="click-lantern"><i></i></span>
-                <span class="click-glyph glyph-a">桂</span>
-                <span class="click-glyph glyph-b">宫</span>
-                <span class="click-glyph glyph-c">兔</span>
+                <span class="click-glyph glyph-a">${variant.glyphs[0]}</span>
+                <span class="click-glyph glyph-b">${variant.glyphs[1]}</span>
+                <span class="click-glyph glyph-c">${variant.glyphs[2]}</span>
                 <b class="ray ray-a"></b>
                 <b class="ray ray-b"></b>
                 <b class="ray ray-c"></b>
@@ -3327,6 +3614,8 @@
         },
 
         createUltimate(x, y) {
+            const variant = this.getVariantConfig();
+
             document
                 .querySelectorAll('.midautumn-ultimate, .midautumn-dialogue')
                 .forEach(element => element.remove());
@@ -3346,7 +3635,7 @@
                 <div class="ma-ult-moon-gate"><i></i><b></b><em></em></div>
                 <div class="ma-ult-moon"><i></i><b></b><em>月</em></div>
                 <div class="ma-ult-rabbit"></div>
-                <img class="ma-ult-character" src="assets/Premium/Trung thu/hang_nhan_vat1.png" alt="" draggable="false">
+                <img class="ma-ult-character" src="${variant.image}" alt="" draggable="false">
 
                 <div class="ma-ult-palace">
                     <i class="roof"></i>
@@ -3371,9 +3660,9 @@
                 <div class="ma-ult-curtain curtain-right"></div>
 
                 <div class="ma-ult-title">
-                    <small>桂 香 入 梦 · 月 满 人 间</small>
-                    <strong>NGUYỆT CUNG TIÊN CẢNH</strong>
-                    <span>TRĂNG RẰM KHAI CẢNH · VẠN ĐĂNG ĐỒNG MINH</span>
+                    <small>${variant.ultimateSmall}</small>
+                    <strong>${variant.ultimateTitle}</strong>
+                    <span>${variant.ultimateSubtitle}</span>
                 </div>
             `;
 
@@ -3433,9 +3722,9 @@
             dialogue.className = 'midautumn-dialogue';
             dialogue.innerHTML = `
                 <i>❀</i>
-                <small>TRUNG THU · NGUYỆT CUNG KHAI CẢNH</small>
-                <strong>NGUYỆT CUNG TIÊN TỬ</strong>
-                <span>QUẾ HƯƠNG NHẬP MỘNG · VẠN ĐĂNG ĐOÀN VIÊN</span>
+                <small>${variant.dialogueSmall}</small>
+                <strong>${variant.dialogueTitle}</strong>
+                <span>${variant.dialogueSubtitle}</span>
                 <i>☾</i>
             `;
 
@@ -3490,15 +3779,34 @@
         },
 
         mount() {
+            const nextVariant = this.detectVariant();
+
             this.clear();
+            this.variant = nextVariant;
             ensureMidAutumnStylesheet();
+
+            const variant =
+                this.getVariantConfig();
 
             document.documentElement.classList.add(
                 'midautumn-moon-palace-equipped'
             );
+
+            if (variant.rootClass) {
+                document.documentElement.classList.add(
+                    variant.rootClass
+                );
+            }
+
             document.body?.classList.add(
                 'theme-midautumn-moon-palace'
             );
+
+            if (variant.bodyClass) {
+                document.body?.classList.add(
+                    variant.bodyClass
+                );
+            }
 
             this.createWorld();
             this.createInterface();
@@ -3540,8 +3848,11 @@
 
             const looksActive =
                 activePetId === MID_AUTUMN_MOON_PET.id ||
+                activePetId === MID_AUTUMN_CUOI_PET.id ||
                 pet?.classList.contains('midautumn-moon-palace-pet-magic') ||
-                String(pet?.getAttribute('src') || '').includes('/Trung thu/hang_nhan_vat1.png');
+                pet?.classList.contains('midautumn-cuoi-moonwood-magic') ||
+                String(pet?.getAttribute('src') || '').includes('/Trung thu/hang_nhan_vat1.png') ||
+                String(pet?.getAttribute('src') || '').includes('/Trung thu/cuoi_nhan_vat2.png');
 
             if (!looksActive) {
                 return false;
@@ -3559,6 +3870,1916 @@
             return false;
         }
     };
+
+
+
+    // ========================================================
+    // LINK CLICK · CHENG XIAOSHI — CSS LOADER
+    // MỘT file CSS đảm nhiệm: card + full-web skin + popup/form/
+    // slider/scrollbar + pet realm + click + ultimate.
+    // ========================================================
+    function ensureLinkClickChengStylesheet() {
+        const existing = Array.from(
+            document.querySelectorAll('link[rel="stylesheet"]')
+        ).find(link =>
+            /(?:^|\/)link-click-cheng-xiaoshi(?:\(\d+\))?\.css(?:[?#].*)?$/i
+                .test(link.href || '')
+        );
+
+        if (existing) {
+            existing.id = existing.id || 'linkclick-cheng-premium-style';
+            return;
+        }
+
+        if (document.getElementById('linkclick-cheng-premium-style')) {
+            return;
+        }
+
+        let href = '';
+
+        if (window.LINKCLICK_CHENG_CSS_PATH) {
+            href = String(window.LINKCLICK_CHENG_CSS_PATH).trim();
+        }
+
+        if (!href) {
+            const scripts = Array.from(document.scripts || []);
+            const ownScript = scripts
+                .slice()
+                .reverse()
+                .find(script => /(?:^|\/)luxury-store(?:[^\/]*)?\.js(?:[?#].*)?$/i.test(script.src || ''));
+
+            if (ownScript?.src) {
+                try {
+                    href = new URL(
+                        '../css/link-click-cheng-xiaoshi.css?v=20260911.3-cinematic',
+                        ownScript.src
+                    ).href;
+                } catch (_) {
+                    href = '';
+                }
+            }
+        }
+
+        if (!href) {
+            href = new URL(
+                'css/link-click-cheng-xiaoshi.css?v=20260911.3-cinematic',
+                document.baseURI
+            ).href;
+        }
+
+        const link = document.createElement('link');
+        link.id = 'linkclick-cheng-premium-style';
+        link.rel = 'stylesheet';
+        link.href = href;
+        link.dataset.linkClickCheng = 'true';
+
+        link.addEventListener('error', () => {
+            console.error(
+                '[Link Click] Không tải được CSS:',
+                link.href,
+                'Hãy đặt file tại css/link-click-cheng-xiaoshi.css hoặc gán window.LINKCLICK_CHENG_CSS_PATH trước khi nạp luxury-store.js.'
+            );
+        }, { once: true });
+
+        document.head.appendChild(link);
+    }
+
+
+    // ========================================================
+    // LINK CLICK · CHENG XIAOSHI — FULL PREMIUM RUNTIME V2 · CINEMATIC
+    // Namespace độc lập: lcx-* / linkclick-cheng-*
+    // KHÔNG gọi ThemeManager / EffectManager.
+    // ========================================================
+    const LuxuryLinkClickChengRuntime = {
+        activePetElement: null,
+        petClickHandler: null,
+        documentClickHandler: null,
+        pointerMoveHandler: null,
+        observer: null,
+        skillLocked: false,
+        timers: new Set(),
+
+        setTimer(callback, delay) {
+            const timer = window.setTimeout(() => {
+                this.timers.delete(timer);
+                callback();
+            }, delay);
+            this.timers.add(timer);
+            return timer;
+        },
+
+        clearTimers() {
+            this.timers.forEach(timer => window.clearTimeout(timer));
+            this.timers.clear();
+        },
+
+        getPet() {
+            return document.querySelector(
+                '#virtual-pet-container #virtual-pet-img.lcx-cheng-pet'
+            );
+        },
+
+        clear() {
+            if (this.activePetElement && this.petClickHandler) {
+                this.activePetElement.removeEventListener(
+                    'click',
+                    this.petClickHandler
+                );
+            }
+
+            if (this.documentClickHandler) {
+                document.removeEventListener(
+                    'pointerdown',
+                    this.documentClickHandler,
+                    true
+                );
+            }
+
+            if (this.pointerMoveHandler) {
+                document.removeEventListener(
+                    'pointermove',
+                    this.pointerMoveHandler,
+                    true
+                );
+            }
+
+            if (this.observer) {
+                this.observer.disconnect();
+                this.observer = null;
+            }
+
+            this.clearTimers();
+            this.activePetElement = null;
+            this.petClickHandler = null;
+            this.documentClickHandler = null;
+            this.pointerMoveHandler = null;
+            this.skillLocked = false;
+
+            document.documentElement.classList.remove(
+                'linkclick-cheng-equipped',
+                'linkclick-cheng-skill-active'
+            );
+
+            document.body?.classList.remove(
+                'theme-linkclick-cheng'
+            );
+
+            document
+                .querySelectorAll(
+                    '.lcx-world,' +
+                    '.lcx-ui-frame,' +
+                    '.lcx-page-click,' +
+                    '.lcx-ultimate,' +
+                    '.lcx-dialogue'
+                )
+                .forEach(element => element.remove());
+
+            const container =
+                document.getElementById('virtual-pet-container');
+
+            container?.classList.remove(
+                'pet-linkclick-cheng-stage',
+                'linkclick-cheng-casting'
+            );
+
+            container
+                ?.querySelectorAll('.lcx-pet-realm')
+                .forEach(element => element.remove());
+
+            container
+                ?.querySelector('#virtual-pet-img')
+                ?.classList.remove('lcx-cheng-pet');
+        },
+
+        createWorld() {
+            document
+                .querySelectorAll('.lcx-world')
+                .forEach(element => element.remove());
+
+            const world = document.createElement('div');
+            world.className = 'lcx-world';
+            world.setAttribute('aria-hidden', 'true');
+            world.innerHTML = `
+                <div class="lcx-world__wash"></div>
+                <div class="lcx-world__vignette"></div>
+                <div class="lcx-world__grain"></div>
+                <div class="lcx-world__grid"></div>
+                <div class="lcx-world__light-beam beam-a"></div>
+                <div class="lcx-world__light-beam beam-b"></div>
+
+                <div class="lcx-world__clock">
+                    <span class="ring ring-a"></span>
+                    <span class="ring ring-b"></span>
+                    <span class="ring ring-c"></span>
+                    <i class="hand hand-hour"></i>
+                    <i class="hand hand-minute"></i>
+                    <b class="clock-core"></b>
+                </div>
+
+                <div class="lcx-world__memory memory-a">
+                    <i></i><span>05:12</span>
+                </div>
+                <div class="lcx-world__memory memory-b">
+                    <i></i><span>PHOTO</span>
+                </div>
+                <div class="lcx-world__memory memory-c">
+                    <i></i><span>TIME</span>
+                </div>
+
+                <div class="lcx-world__film-rail rail-left">
+                    ${'<i></i>'.repeat(9)}
+                </div>
+                <div class="lcx-world__film-rail rail-right">
+                    ${'<i></i>'.repeat(9)}
+                </div>
+
+                <div class="lcx-world__timeline">
+                    <span>00</span><i></i><i></i><i></i>
+                    <strong>05:12</strong>
+                    <i></i><i></i><i></i><span>24</span>
+                </div>
+
+                <div class="lcx-world__timecode">
+                    <small>FRAME</small>
+                    <strong>00:05:12:00</strong>
+                </div>
+
+                <div class="lcx-world__film film-a"></div>
+                <div class="lcx-world__film film-b"></div>
+                <div class="lcx-world__focus focus-a"></div>
+                <div class="lcx-world__focus focus-b"></div>
+                <div class="lcx-world__particles"></div>
+            `;
+
+            const particleField =
+                world.querySelector('.lcx-world__particles');
+
+            const reduced = window.matchMedia?.(
+                '(max-width: 768px), (pointer: coarse), (prefers-reduced-motion: reduce)'
+            ).matches;
+
+            const count = getLuxuryQualityCount(reduced ? 16 : 42);
+
+            for (let index = 0; index < count; index++) {
+                const particle = document.createElement('i');
+                particle.className =
+                    index % 7 === 0
+                        ? 'lcx-particle lcx-particle--frame'
+                        : index % 5 === 0
+                            ? 'lcx-particle lcx-particle--red'
+                            : 'lcx-particle';
+
+                particle.style.setProperty(
+                    '--lcx-x',
+                    `${(index * 37 + 9) % 98}%`
+                );
+                particle.style.setProperty(
+                    '--lcx-y',
+                    `${(index * 61 + 7) % 92}%`
+                );
+                particle.style.setProperty(
+                    '--lcx-delay',
+                    `${-(index % 15) * .39}s`
+                );
+                particle.style.setProperty(
+                    '--lcx-size',
+                    `${2 + (index % 5) * 1.05}px`
+                );
+                particleField?.appendChild(particle);
+            }
+
+            document.body.appendChild(world);
+            requestAnimationFrame(() => world.classList.add('is-mounted'));
+        },
+
+        createInterface() {
+            document
+                .querySelectorAll('.lcx-ui-frame')
+                .forEach(element => element.remove());
+
+            const frame = document.createElement('div');
+            frame.className = 'lcx-ui-frame';
+            frame.setAttribute('aria-hidden', 'true');
+            frame.innerHTML = `
+                <span class="lcx-corner corner-tl"></span>
+                <span class="lcx-corner corner-tr"></span>
+                <span class="lcx-corner corner-bl"></span>
+                <span class="lcx-corner corner-br"></span>
+
+                <div class="lcx-ui-topbar">
+                    <span class="lcx-ui-rec"><i></i> REC</span>
+                    <span class="lcx-ui-mode">TIME PHOTO · 24 FPS</span>
+                    <span class="lcx-ui-counter">05:12 / 24</span>
+                </div>
+
+                <div class="lcx-ui-left-rail">
+                    <span>ISO 400</span>
+                    <i></i><i></i><i></i><i></i><i></i>
+                    <span>F 2.8</span>
+                </div>
+
+                <div class="lcx-ui-right-rail">
+                    <span>MEM</span>
+                    <i></i><i></i><i></i><i></i><i></i>
+                    <span>∞</span>
+                </div>
+
+                <span class="lcx-ui-date">TIME PHOTO STUDIO · LINK CLICK</span>
+                <span class="lcx-ui-focus"></span>
+                <span class="lcx-ui-crosshair"></span>
+                <span class="lcx-cursor-reticle"><i></i><b></b></span>
+
+                <div class="lcx-ui-bottom-film">
+                    ${'<i></i>'.repeat(18)}
+                </div>
+            `;
+            document.body.appendChild(frame);
+        },
+
+        createPetRealm() {
+            const container =
+                document.getElementById('virtual-pet-container');
+            const pet =
+                container?.querySelector('#virtual-pet-img');
+
+            if (!container || !pet) return false;
+
+            container
+                .querySelectorAll('.lcx-pet-realm')
+                .forEach(element => element.remove());
+
+            pet.classList.add('lcx-cheng-pet');
+            pet.setAttribute('draggable', 'false');
+            container.classList.add('pet-linkclick-cheng-stage');
+
+            const realm = document.createElement('div');
+            realm.className = 'lcx-pet-realm';
+            realm.setAttribute('aria-hidden', 'true');
+            realm.innerHTML = `
+                <span class="lcx-pet-aura"></span>
+                <span class="lcx-pet-clock clock-a"></span>
+                <span class="lcx-pet-clock clock-b"></span>
+                <span class="lcx-pet-focus"></span>
+                <span class="lcx-pet-polaroid polaroid-a"></span>
+                <span class="lcx-pet-polaroid polaroid-b"></span>
+                <span class="lcx-pet-shadow"></span>
+                <div class="lcx-pet-sparks"></div>
+            `;
+
+            const sparks = realm.querySelector('.lcx-pet-sparks');
+            const count = getLuxuryQualityCount(16);
+            for (let index = 0; index < count; index++) {
+                const spark = document.createElement('i');
+                spark.style.setProperty(
+                    '--lcx-pa',
+                    `${index * (360 / count)}deg`
+                );
+                spark.style.setProperty(
+                    '--lcx-pr',
+                    `${62 + (index % 5) * 11}px`
+                );
+                spark.style.setProperty(
+                    '--lcx-pd',
+                    `${-(index % 8) * .21}s`
+                );
+                sparks?.appendChild(spark);
+            }
+
+            container.appendChild(realm);
+
+            if (this.activePetElement && this.petClickHandler) {
+                this.activePetElement.removeEventListener(
+                    'click',
+                    this.petClickHandler
+                );
+            }
+
+            this.activePetElement = pet;
+            this.petClickHandler = event => {
+                event.stopPropagation();
+                if (this.skillLocked) return;
+
+                this.skillLocked = true;
+                container.classList.add('linkclick-cheng-casting');
+                document.documentElement.classList.add(
+                    'linkclick-cheng-skill-active'
+                );
+
+                const rect = pet.getBoundingClientRect();
+                this.createUltimate(
+                    rect.left + rect.width / 2,
+                    rect.top + rect.height / 2
+                );
+
+                this.setTimer(() => {
+                    container.classList.remove('linkclick-cheng-casting');
+                    document.documentElement.classList.remove(
+                        'linkclick-cheng-skill-active'
+                    );
+                    this.skillLocked = false;
+                }, 4300);
+            };
+
+            pet.addEventListener('click', this.petClickHandler);
+            return true;
+        },
+
+        installGlobalClick() {
+            if (this.documentClickHandler) {
+                document.removeEventListener(
+                    'pointerdown',
+                    this.documentClickHandler,
+                    true
+                );
+            }
+
+            if (this.pointerMoveHandler) {
+                document.removeEventListener(
+                    'pointermove',
+                    this.pointerMoveHandler,
+                    true
+                );
+            }
+
+            this.documentClickHandler = event => {
+                if (
+                    !document.documentElement.classList.contains(
+                        'linkclick-cheng-equipped'
+                    )
+                ) return;
+
+                if (event.target?.closest?.('#virtual-pet-container')) {
+                    return;
+                }
+
+                const burst = document.createElement('span');
+                burst.className = 'lcx-page-click';
+                burst.style.setProperty('--lcx-click-x', `${event.clientX}px`);
+                burst.style.setProperty('--lcx-click-y', `${event.clientY}px`);
+                burst.innerHTML = `
+                    <i></i><b></b><em></em>
+                    <span class="lcx-click-ring ring-a"></span>
+                    <span class="lcx-click-ring ring-b"></span>
+                    <span class="lcx-click-label">FOCUS</span>
+                `;
+                document.body.appendChild(burst);
+                this.setTimer(() => burst.remove(), 1050);
+            };
+
+            let pointerFrame = 0;
+            let pointerIdleTimer = 0;
+
+            this.pointerMoveHandler = event => {
+                if (
+                    !document.documentElement.classList.contains(
+                        'linkclick-cheng-equipped'
+                    ) ||
+                    window.matchMedia?.('(pointer: coarse)').matches
+                ) return;
+
+                if (pointerFrame) return;
+
+                pointerFrame = requestAnimationFrame(() => {
+                    pointerFrame = 0;
+
+                    const reticle = document.querySelector(
+                        '.lcx-ui-frame .lcx-cursor-reticle'
+                    );
+                    if (!reticle) return;
+
+                    reticle.style.setProperty(
+                        '--lcx-pointer-x',
+                        `${event.clientX}px`
+                    );
+                    reticle.style.setProperty(
+                        '--lcx-pointer-y',
+                        `${event.clientY}px`
+                    );
+                    reticle.classList.add('is-moving');
+
+                    window.clearTimeout(pointerIdleTimer);
+                    pointerIdleTimer = window.setTimeout(() => {
+                        reticle.classList.remove('is-moving');
+                    }, 150);
+                });
+            };
+
+            document.addEventListener(
+                'pointerdown',
+                this.documentClickHandler,
+                true
+            );
+
+            document.addEventListener(
+                'pointermove',
+                this.pointerMoveHandler,
+                {
+                    capture: true,
+                    passive: true
+                }
+            );
+        },
+
+        createUltimate(x, y) {
+            document
+                .querySelectorAll('.lcx-ultimate, .lcx-dialogue')
+                .forEach(element => element.remove());
+
+            const ultimate = document.createElement('div');
+            ultimate.className = 'lcx-ultimate';
+            ultimate.style.setProperty('--lcx-origin-x', `${x}px`);
+            ultimate.style.setProperty('--lcx-origin-y', `${y}px`);
+            ultimate.innerHTML = `
+                <div class="lcx-ultimate__flash"></div>
+                <div class="lcx-ultimate__shutter">
+                    ${'<i></i>'.repeat(8)}
+                </div>
+                <div class="lcx-ultimate__clock">
+                    <b></b><i></i><span>12</span><em>06</em>
+                </div>
+                <div class="lcx-ultimate__photos">
+                    <i class="photo-a"></i>
+                    <i class="photo-b"></i>
+                    <i class="photo-c"></i>
+                    <i class="photo-d"></i>
+                </div>
+                <div class="lcx-ultimate__lines"></div>
+            `;
+
+            const dialogue = document.createElement('div');
+            dialogue.className = 'lcx-dialogue';
+            dialogue.innerHTML = `
+                <small>LINK CLICK · TIME PHOTO STUDIO</small>
+                <strong>CHENG XIAOSHI</strong>
+                <span>Khoảnh khắc đã chụp · thời gian bắt đầu chuyển động</span>
+            `;
+
+            document.body.append(ultimate, dialogue);
+
+            requestAnimationFrame(() => {
+                ultimate.classList.add('is-active');
+                dialogue.classList.add('is-active');
+            });
+
+            this.setTimer(() => ultimate.classList.add('is-climax'), 700);
+            this.setTimer(() => dialogue.classList.add('is-visible'), 820);
+            this.setTimer(() => {
+                ultimate.classList.add('is-ending');
+                dialogue.classList.add('is-ending');
+            }, 3100);
+            this.setTimer(() => {
+                ultimate.remove();
+                dialogue.remove();
+            }, 4050);
+        },
+
+        installObserver() {
+            if (this.observer) {
+                this.observer.disconnect();
+            }
+
+            const container =
+                document.getElementById('virtual-pet-container');
+            if (!container) return;
+
+            this.observer = new MutationObserver(() => {
+                if (
+                    !document.documentElement.classList.contains(
+                        'linkclick-cheng-equipped'
+                    )
+                ) return;
+
+                const pet = this.getPet();
+                const style = window.getComputedStyle(container);
+                const visible =
+                    style.display !== 'none' &&
+                    style.visibility !== 'hidden';
+
+                if (!pet || !visible) {
+                    this.clear();
+                }
+            });
+
+            this.observer.observe(container, {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                attributeFilter: ['class', 'style']
+            });
+        },
+
+        mount() {
+            this.clear();
+            ensureLinkClickChengStylesheet();
+
+            document.documentElement.classList.add(
+                'linkclick-cheng-equipped'
+            );
+            document.body?.classList.add(
+                'theme-linkclick-cheng'
+            );
+
+            this.createWorld();
+            this.createInterface();
+            this.createPetRealm();
+            this.installGlobalClick();
+            this.installObserver();
+
+            const repairMount = () => {
+                if (
+                    !document.documentElement.classList.contains(
+                        'linkclick-cheng-equipped'
+                    )
+                ) return;
+
+                if (!document.querySelector('.lcx-world')) {
+                    this.createWorld();
+                }
+                if (!document.querySelector('.lcx-ui-frame')) {
+                    this.createInterface();
+                }
+                if (
+                    document.querySelector('#virtual-pet-container #virtual-pet-img') &&
+                    !document.querySelector('#virtual-pet-container .lcx-pet-realm')
+                ) {
+                    this.createPetRealm();
+                }
+            };
+
+            this.setTimer(repairMount, 120);
+            this.setTimer(repairMount, 520);
+            this.setTimer(repairMount, 1200);
+        },
+
+        restore(attempt = 0) {
+            ensureLinkClickChengStylesheet();
+
+            const activePetId =
+                String(localStorage.getItem('active_pet') || '');
+            const pet =
+                document.querySelector('#virtual-pet-container #virtual-pet-img');
+
+            const looksActive =
+                activePetId === LINKCLICK_CHENG_XIAOSHI_PET.id ||
+                pet?.classList.contains('linkclick-cheng-timeframe-magic') ||
+                String(pet?.getAttribute('src') || '').includes(
+                    '/Premium/Lock/Cheng Xiaoshi-nhan-vat1.png'
+                );
+
+            if (!looksActive) {
+                return false;
+            }
+
+            if (pet) {
+                this.mount();
+                return true;
+            }
+
+            if (attempt < 8) {
+                this.setTimer(
+                    () => this.restore(attempt + 1),
+                    180 + attempt * 70
+                );
+            }
+
+            return false;
+        }
+    };
+
+
+    // ========================================================
+    // LINK CLICK · CHENG XIAOSHI — AUTO MOUNT / SELF-HEAL V1.1
+    // Bắt cả trường hợp pet được spawn trước khi luxury-store.js cài hook,
+    // hoặc reload trang mà active_pet chưa kịp đồng bộ vào localStorage.
+    // ========================================================
+    let linkClickChengAutoObserver = null;
+    let linkClickChengAutoRetryTimer = null;
+
+    function isLinkClickChengPetElement(pet) {
+        if (!pet) return false;
+
+        if (
+            pet.classList?.contains('linkclick-cheng-timeframe-magic') ||
+            pet.classList?.contains('lcx-cheng-pet')
+        ) {
+            return true;
+        }
+
+        let source = String(
+            pet.getAttribute?.('src') ||
+            pet.src ||
+            ''
+        );
+
+        try {
+            source = decodeURIComponent(source);
+        } catch (_) {}
+
+        source = source
+            .replace(/\\/g, '/')
+            .toLowerCase();
+
+        return (
+            source.includes(
+                '/premium/lock/cheng xiaoshi-nhan-vat1.png'
+            ) ||
+            source.endsWith(
+                'assets/premium/lock/cheng xiaoshi-nhan-vat1.png'
+            )
+        );
+    }
+
+    function syncLinkClickChengRuntimeFromDom() {
+        const container =
+            document.getElementById('virtual-pet-container');
+
+        const pet =
+            container?.querySelector('#virtual-pet-img');
+
+        const shouldBeActive =
+            isLinkClickChengPetElement(pet);
+
+        const htmlRoot =
+            document.documentElement;
+
+        if (shouldBeActive) {
+            const healthy =
+                htmlRoot.classList.contains(
+                    'linkclick-cheng-equipped'
+                ) &&
+                Boolean(
+                    document.querySelector('.lcx-world')
+                ) &&
+                Boolean(
+                    document.querySelector('.lcx-ui-frame')
+                ) &&
+                Boolean(
+                    container?.querySelector('.lcx-pet-realm')
+                );
+
+            if (!healthy) {
+                try {
+                    LuxuryLinkClickChengRuntime.mount();
+                } catch (error) {
+                    console.error(
+                        '[Link Click] Auto-mount Cheng Xiaoshi thất bại:',
+                        error
+                    );
+                }
+            }
+
+            return true;
+        }
+
+        if (
+            htmlRoot.classList.contains(
+                'linkclick-cheng-equipped'
+            )
+        ) {
+            LuxuryLinkClickChengRuntime.clear();
+        }
+
+        return false;
+    }
+
+    function installLinkClickChengAutoMountObserver(
+        attempt = 0
+    ) {
+        const container =
+            document.getElementById('virtual-pet-container');
+
+        if (!container) {
+            if (attempt < 80) {
+                window.clearTimeout(
+                    linkClickChengAutoRetryTimer
+                );
+
+                linkClickChengAutoRetryTimer =
+                    window.setTimeout(
+                        () =>
+                            installLinkClickChengAutoMountObserver(
+                                attempt + 1
+                            ),
+                        100
+                    );
+            }
+            return;
+        }
+
+        if (linkClickChengAutoObserver) {
+            linkClickChengAutoObserver.disconnect();
+        }
+
+        let syncQueued = false;
+
+        const queueSync = () => {
+            if (syncQueued) return;
+            syncQueued = true;
+
+            queueMicrotask(() => {
+                syncQueued = false;
+                syncLinkClickChengRuntimeFromDom();
+            });
+        };
+
+        linkClickChengAutoObserver =
+            new MutationObserver(queueSync);
+
+        linkClickChengAutoObserver.observe(
+            container,
+            {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                attributeFilter: [
+                    'src',
+                    'class',
+                    'style'
+                ]
+            }
+        );
+
+        syncLinkClickChengRuntimeFromDom();
+
+        window.setTimeout(
+            syncLinkClickChengRuntimeFromDom,
+            180
+        );
+
+        window.setTimeout(
+            syncLinkClickChengRuntimeFromDom,
+            650
+        );
+
+        window.setTimeout(
+            syncLinkClickChengRuntimeFromDom,
+            1600
+        );
+    }
+
+
+
+    // ========================================================
+    // LORD OF THE MYSTERIES · KLEIN · CSS LOADER
+    // MỘT file CSS duy nhất đảm nhiệm:
+    // card + pet realm + full-web skin + popup/form/slider/scrollbar
+    // + click toàn trang + ultimate khi nhấn nhân vật.
+    // ========================================================
+    function ensureLotmKleinStylesheet() {
+        if (document.getElementById('lotm-klein-premium-style')) {
+            return;
+        }
+
+        let href = '';
+
+        if (window.LOTM_KLEIN_CSS_PATH) {
+            href = String(window.LOTM_KLEIN_CSS_PATH).trim();
+        }
+
+        if (!href) {
+            const scripts = Array.from(document.scripts || []);
+            const ownScript = scripts
+                .slice()
+                .reverse()
+                .find(script => /(?:^|\/)luxury-store(?:[^\/]*)?\.js(?:[?#].*)?$/i.test(script.src || ''));
+
+            if (ownScript?.src) {
+                try {
+                    href = new URL('../css/lord-of-mysteries-klein.css', ownScript.src).href;
+                } catch (error) {
+                    href = '';
+                }
+            }
+        }
+
+        if (!href) {
+            href = new URL('css/lord-of-mysteries-klein.css', document.baseURI).href;
+        }
+
+        // Ép trình duyệt lấy bản CSS Klein mới thay vì cache bản cũ.
+        // Nếu dự án gán LOTM_KLEIN_CSS_PATH thì vẫn giữ nguyên đường dẫn đó,
+        // chỉ thêm version query an toàn.
+        try {
+            const cssUrl = new URL(href, document.baseURI);
+            cssUrl.searchParams.set('lotmk', '20260914-v2');
+            href = cssUrl.href;
+        } catch (_) {}
+
+        const link = document.createElement('link');
+        link.id = 'lotm-klein-premium-style';
+        link.rel = 'stylesheet';
+        link.href = href;
+        link.dataset.lotmKlein = 'true';
+
+        link.addEventListener('error', () => {
+            console.error(
+                '[LOTM Klein] Không tải được CSS:',
+                link.href,
+                'Hãy đặt file tại css/lord-of-mysteries-klein.css hoặc gán window.LOTM_KLEIN_CSS_PATH trước khi nạp luxury-store.js.'
+            );
+        }, { once: true });
+
+        document.head.appendChild(link);
+    }
+
+
+    // ========================================================
+    // LORD OF THE MYSTERIES · KLEIN · FULL PREMIUM RUNTIME V1
+    // Namespace: lotm-klein-* / lotmk-*
+    // Không gọi ThemeManager / EffectManager và không thay active_theme.
+    // ========================================================
+    const LuxuryLotmKleinRuntime = {
+        activePetElement: null,
+        petClickHandler: null,
+        documentClickHandler: null,
+        observer: null,
+        repairQueued: false,
+        skillLocked: false,
+        timers: new Set(),
+
+        setTimer(callback, delay) {
+            const timer = window.setTimeout(() => {
+                this.timers.delete(timer);
+                callback();
+            }, delay);
+
+            this.timers.add(timer);
+            return timer;
+        },
+
+        clearTimers() {
+            this.timers.forEach(timer => window.clearTimeout(timer));
+            this.timers.clear();
+        },
+
+        getPet() {
+            return document.querySelector(
+                '#virtual-pet-container #virtual-pet-img.lotm-klein-mystery-magic, ' +
+                '#virtual-pet-container #virtual-pet-img.lotm-klein-pet'
+            );
+        },
+
+        ensurePetInteractivity(pet = this.getPet()) {
+            const container =
+                document.getElementById('virtual-pet-container');
+
+            if (!container || !pet) {
+                return false;
+            }
+
+            if (container.style.pointerEvents !== 'auto') {
+                container.style.pointerEvents = 'auto';
+            }
+
+            if (container.style.visibility !== 'visible') {
+                container.style.visibility = 'visible';
+            }
+
+            if (container.style.opacity !== '1') {
+                container.style.opacity = '1';
+            }
+
+            if (pet.style.pointerEvents !== 'auto') {
+                pet.style.pointerEvents = 'auto';
+            }
+
+            if (pet.style.cursor !== 'pointer') {
+                pet.style.cursor = 'pointer';
+            }
+
+            pet.setAttribute('draggable', 'false');
+            pet.dataset.lotmKleinPremiumInteractive = 'true';
+
+            return true;
+        },
+
+        clear() {
+            if (this.activePetElement && this.petClickHandler) {
+                this.activePetElement.removeEventListener(
+                    'click',
+                    this.petClickHandler,
+                    true
+                );
+            }
+
+            if (this.documentClickHandler) {
+                document.removeEventListener(
+                    'click',
+                    this.documentClickHandler,
+                    true
+                );
+            }
+
+            if (this.observer) {
+                this.observer.disconnect();
+                this.observer = null;
+            }
+
+            this.repairQueued = false;
+            this.clearTimers();
+
+            this.activePetElement = null;
+            this.petClickHandler = null;
+            this.documentClickHandler = null;
+            this.skillLocked = false;
+
+            document.documentElement.classList.remove(
+                'lotm-klein-equipped',
+                'lotm-klein-skill-active'
+            );
+
+            document.body?.classList.remove(
+                'theme-lotm-klein-premium'
+            );
+
+            document
+                .querySelectorAll(
+                    '.lotm-klein-world,' +
+                    '.lotm-klein-ui-frame,' +
+                    '.lotm-klein-page-click,' +
+                    '.lotm-klein-ultimate'
+                )
+                .forEach(element => element.remove());
+
+            const container =
+                document.getElementById('virtual-pet-container');
+
+            if (
+                container &&
+                container.__lotmKleinPremiumClickFallback
+            ) {
+                container.removeEventListener(
+                    'click',
+                    container.__lotmKleinPremiumClickFallback,
+                    true
+                );
+
+                delete container.__lotmKleinPremiumClickFallback;
+            }
+
+            container?.classList.remove(
+                'pet-lotm-klein-stage',
+                'lotm-klein-casting'
+            );
+
+            container
+                ?.querySelectorAll('.lotm-klein-pet-realm')
+                .forEach(element => element.remove());
+
+            const activePet =
+                container?.querySelector('#virtual-pet-img');
+
+            activePet?.classList.remove('lotm-klein-pet');
+
+            if (activePet?.dataset) {
+                delete activePet.dataset.lotmKleinPremiumInteractive;
+            }
+        },
+
+        createWorld() {
+            document
+                .querySelectorAll('.lotm-klein-world')
+                .forEach(element => element.remove());
+
+            const world = document.createElement('div');
+            world.className = 'lotm-klein-world lotm-klein-world-v2';
+            world.setAttribute('aria-hidden', 'true');
+            world.setAttribute('data-effect-quality-root', '1');
+
+            world.innerHTML = `
+                <div class="lotm-klein-world-veil"></div>
+                <div class="lotm-klein-world-vignette"></div>
+                <div class="lotm-klein-world-aurora aurora-a"></div>
+                <div class="lotm-klein-world-aurora aurora-b"></div>
+                <div class="lotm-klein-world-fog fog-a"></div>
+                <div class="lotm-klein-world-fog fog-b"></div>
+
+                <div class="lotm-klein-world-sigil sigil-main"></div>
+                <div class="lotm-klein-world-sigil sigil-left"></div>
+                <div class="lotm-klein-world-sigil sigil-right"></div>
+
+                <div class="lotm-klein-world-eye">
+                    <i></i><b></b><em></em>
+                </div>
+
+                <div class="lotm-klein-world-clock"></div>
+                <div class="lotm-klein-world-cathedral"></div>
+                <div class="lotm-klein-world-rays"></div>
+                <div class="lotm-klein-world-cards"></div>
+                <div class="lotm-klein-world-runes"></div>
+                <div class="lotm-klein-world-motes"></div>
+            `;
+
+            const mobile =
+                window.matchMedia?.(
+                    '(max-width: 768px), (pointer: coarse), (prefers-reduced-motion: reduce)'
+                ).matches;
+
+            const cardField =
+                world.querySelector('.lotm-klein-world-cards');
+
+            const cardCount =
+                getLuxuryQualityCount(mobile ? 7 : 18);
+
+            for (let index = 0; index < cardCount; index++) {
+                const card = document.createElement('span');
+                card.className = 'lotm-klein-world-card';
+
+                card.style.left =
+                    `${3 + ((index * 31 + 7) % 92)}%`;
+
+                card.style.top =
+                    `${6 + ((index * 47 + 13) % 84)}%`;
+
+                card.style.setProperty(
+                    '--lotmk-duration',
+                    `${9 + (index % 7) * 1.35}s`
+                );
+
+                card.style.setProperty(
+                    '--lotmk-delay',
+                    `${-(index % 9) * .73}s`
+                );
+
+                card.style.setProperty(
+                    '--lotmk-rot',
+                    `${-24 + (index % 11) * 5}deg`
+                );
+
+                card.style.setProperty(
+                    '--lotmk-dx',
+                    `${-20 + (index % 8) * 6}px`
+                );
+
+                cardField?.appendChild(card);
+            }
+
+            const runeField =
+                world.querySelector('.lotm-klein-world-runes');
+
+            const runeGlyphs = [
+                '✦', '✧', '◇', '◈', '☽', 'Ⅰ', 'Ⅱ', 'Ⅲ',
+                'Ⅳ', 'Ⅴ', 'Ⅵ', 'Ⅶ', 'Ⅷ', 'Ⅸ', 'Ⅹ', '✶'
+            ];
+
+            const runeCount =
+                getLuxuryQualityCount(mobile ? 8 : 24);
+
+            for (let index = 0; index < runeCount; index++) {
+                const rune = document.createElement('span');
+                rune.className = 'lotm-klein-world-rune';
+                rune.textContent = runeGlyphs[index % runeGlyphs.length];
+                rune.style.setProperty(
+                    '--lotmk-rx',
+                    `${4 + ((index * 37 + 11) % 92)}%`
+                );
+                rune.style.setProperty(
+                    '--lotmk-ry',
+                    `${7 + ((index * 59 + 17) % 82)}%`
+                );
+                rune.style.setProperty(
+                    '--lotmk-rd',
+                    `${-(index % 10) * .53}s`
+                );
+                rune.style.setProperty(
+                    '--lotmk-rs',
+                    `${.72 + (index % 5) * .14}`
+                );
+                runeField?.appendChild(rune);
+            }
+
+            const moteField =
+                world.querySelector('.lotm-klein-world-motes');
+
+            const moteCount =
+                getLuxuryQualityCount(mobile ? 18 : 52);
+
+            for (let index = 0; index < moteCount; index++) {
+                const mote = document.createElement('span');
+                mote.className = 'lotm-klein-world-mote';
+
+                mote.style.setProperty(
+                    '--lotmk-x',
+                    `${(index * 43 + 9) % 100}%`
+                );
+
+                mote.style.setProperty(
+                    '--lotmk-y',
+                    `${(index * 67 + 11) % 100}%`
+                );
+
+                mote.style.setProperty(
+                    '--lotmk-size',
+                    `${1 + (index % 4)}px`
+                );
+
+                mote.style.setProperty(
+                    '--lotmk-duration',
+                    `${4.5 + (index % 8) * .72}s`
+                );
+
+                mote.style.setProperty(
+                    '--lotmk-delay',
+                    `${-(index % 11) * .39}s`
+                );
+
+                moteField?.appendChild(mote);
+            }
+
+            document.body.appendChild(world);
+
+            requestAnimationFrame(() => {
+                world.classList.add('is-active');
+            });
+        },
+
+        createInterface() {
+            document
+                .querySelectorAll('.lotm-klein-ui-frame')
+                .forEach(element => element.remove());
+
+            const frame = document.createElement('div');
+            frame.className = 'lotm-klein-ui-frame lotm-klein-ui-frame-v2';
+            frame.setAttribute('aria-hidden', 'true');
+            frame.dataset.themeImmune = 'true';
+
+            frame.innerHTML = `
+                <span class="lotm-klein-ui-corner tl"></span>
+                <span class="lotm-klein-ui-corner tr"></span>
+                <span class="lotm-klein-ui-corner bl"></span>
+                <span class="lotm-klein-ui-corner br"></span>
+
+                <span class="lotm-klein-ui-rail rail-left">
+                    <i></i><b>✦</b><i></i>
+                </span>
+                <span class="lotm-klein-ui-rail rail-right">
+                    <i></i><b>✦</b><i></i>
+                </span>
+
+                <div class="lotm-klein-ui-crest">
+                    LORD OF THE MYSTERIES · SEFIRAH CASTLE
+                </div>
+                <div class="lotm-klein-ui-bottom-seal">
+                    <i></i><span>THE FOOL · MYSTERY · DESTINY</span><i></i>
+                </div>
+            `;
+
+            document.body.appendChild(frame);
+
+            requestAnimationFrame(() => {
+                frame.classList.add('is-active');
+            });
+        },
+
+        createPetRealm() {
+            const container =
+                document.getElementById('virtual-pet-container');
+
+            const pet =
+                container?.querySelector('#virtual-pet-img');
+
+            if (!container || !pet) {
+                return false;
+            }
+
+            container
+                .querySelectorAll('.lotm-klein-pet-realm')
+                .forEach(element => element.remove());
+
+            container.classList.add(
+                'pet-lotm-klein-stage'
+            );
+
+            pet.classList.add(
+                'lotm-klein-pet'
+            );
+
+            pet.setAttribute('draggable', 'false');
+            this.ensurePetInteractivity(pet);
+
+            const realm = document.createElement('div');
+            realm.className = 'lotm-klein-pet-realm lotm-klein-pet-realm-v2';
+            realm.setAttribute('aria-hidden', 'true');
+
+            realm.innerHTML = `
+                <span class="lotm-klein-pet-aura aura-outer"></span>
+                <span class="lotm-klein-pet-aura aura-inner"></span>
+                <span class="lotm-klein-pet-halo"></span>
+                <span class="lotm-klein-pet-ring ring-a"></span>
+                <span class="lotm-klein-pet-ring ring-b"></span>
+                <span class="lotm-klein-pet-ring ring-c"></span>
+                <span class="lotm-klein-pet-ring ring-d"></span>
+                <span class="lotm-klein-pet-arcana-wheel"></span>
+                <span class="lotm-klein-pet-crown"></span>
+                <span class="lotm-klein-pet-eye"></span>
+                <span class="lotm-klein-pet-throne"></span>
+                <span class="lotm-klein-pet-floor"></span>
+                <span class="lotm-klein-pet-fog fog-a"></span>
+                <span class="lotm-klein-pet-fog fog-b"></span>
+                <span class="lotm-klein-pet-card-field"></span>
+                <span class="lotm-klein-pet-spark-field"></span>
+            `;
+
+            const localCards =
+                realm.querySelector('.lotm-klein-pet-card-field');
+
+            for (let index = 0; index < 10; index++) {
+                const card = document.createElement('i');
+                card.className = 'lotm-klein-pet-card';
+                card.style.setProperty('--lotmk-pca', `${index * 36}deg`);
+                card.style.setProperty('--lotmk-pcd', `${-index * .31}s`);
+                card.style.setProperty('--lotmk-pcr', `${-(98 + (index % 3) * 18)}px`);
+                localCards?.appendChild(card);
+            }
+
+            const sparkField =
+                realm.querySelector('.lotm-klein-pet-spark-field');
+
+            const localSparkCount =
+                getLuxuryQualityCount(28, 10);
+
+            for (let index = 0; index < localSparkCount; index++) {
+                const spark = document.createElement('i');
+                spark.className = 'lotm-klein-pet-spark';
+                spark.style.setProperty(
+                    '--lotmk-psx',
+                    `${8 + ((index * 37) % 84)}%`
+                );
+                spark.style.setProperty(
+                    '--lotmk-psy',
+                    `${10 + ((index * 53) % 78)}%`
+                );
+                spark.style.setProperty(
+                    '--lotmk-psd',
+                    `${-(index % 9) * .34}s`
+                );
+                spark.style.setProperty(
+                    '--lotmk-pss',
+                    `${2 + (index % 4)}px`
+                );
+                sparkField?.appendChild(spark);
+            }
+
+            container.insertBefore(
+                realm,
+                pet
+            );
+
+            this.activePetElement = pet;
+            return true;
+        },
+
+        createPageClick(x, y) {
+            const click = document.createElement('span');
+            click.className = 'lotm-klein-page-click';
+            click.style.setProperty('--lotmk-click-x', `${x}px`);
+            click.style.setProperty('--lotmk-click-y', `${y}px`);
+
+            for (let index = 0; index < 12; index++) {
+                const shard = document.createElement('i');
+                shard.className = 'lotm-klein-click-shard';
+                shard.style.setProperty(
+                    '--lotmk-angle',
+                    `${index * 30}deg`
+                );
+                click.appendChild(shard);
+            }
+
+            document.body.appendChild(click);
+
+            this.setTimer(
+                () => click.remove(),
+                900
+            );
+        },
+
+        installGlobalClick() {
+            if (this.documentClickHandler) {
+                document.removeEventListener(
+                    'click',
+                    this.documentClickHandler,
+                    true
+                );
+            }
+
+            this.documentClickHandler = event => {
+                if (
+                    !document.documentElement.classList.contains(
+                        'lotm-klein-equipped'
+                    )
+                ) {
+                    return;
+                }
+
+                const target = event.target;
+
+                if (
+                    target instanceof Element &&
+                    target.closest(
+                        '.ui-theme-immune, [data-theme-immune="true"], ' +
+                        '.lotm-klein-ultimate, .lotm-klein-ui-frame'
+                    )
+                ) {
+                    return;
+                }
+
+                this.createPageClick(
+                    event.clientX,
+                    event.clientY
+                );
+            };
+
+            document.addEventListener(
+                'click',
+                this.documentClickHandler,
+                true
+            );
+        },
+
+        createUltimate(x, y) {
+            if (this.skillLocked) {
+                return false;
+            }
+
+            this.skillLocked = true;
+
+            document
+                .querySelectorAll('.lotm-klein-ultimate')
+                .forEach(element => element.remove());
+
+            const ultimate = document.createElement('div');
+            ultimate.className = 'lotm-klein-ultimate lotm-klein-ultimate-v2';
+            ultimate.setAttribute('aria-hidden', 'true');
+
+            const ux =
+                `${Math.max(8, Math.min(92, x / Math.max(1, window.innerWidth) * 100))}%`;
+
+            const uy =
+                `${Math.max(10, Math.min(88, y / Math.max(1, window.innerHeight) * 100))}%`;
+
+            ultimate.style.setProperty('--lotmk-ux', ux);
+            ultimate.style.setProperty('--lotmk-uy', uy);
+
+            ultimate.innerHTML = `
+                <div class="lotm-klein-ultimate-blackout"></div>
+                <div class="lotm-klein-ultimate-flash"></div>
+                <div class="lotm-klein-ultimate-fog fog-a"></div>
+                <div class="lotm-klein-ultimate-fog fog-b"></div>
+                <div class="lotm-klein-ultimate-rays"></div>
+
+                <div class="lotm-klein-ultimate-castle">
+                    <span class="tower tower-a"></span>
+                    <span class="tower tower-b"></span>
+                    <span class="tower tower-c"></span>
+                </div>
+
+                <div class="lotm-klein-ultimate-sigil sigil-a"></div>
+                <div class="lotm-klein-ultimate-sigil sigil-b"></div>
+                <div class="lotm-klein-ultimate-sigil sigil-c"></div>
+                <div class="lotm-klein-ultimate-eye"></div>
+                <div class="lotm-klein-ultimate-cardstorm"></div>
+                <div class="lotm-klein-ultimate-glyphs"></div>
+
+                <div class="lotm-klein-ultimate-title">
+                    <small>SEFIRAH CASTLE · MYSTERY DESCENDS</small>
+                    <strong>LORD OF THE MYSTERIES</strong>
+                    <em>THE FOOL ABOVE THE GRAY FOG</em>
+                </div>
+            `;
+
+            const cardStorm =
+                ultimate.querySelector('.lotm-klein-ultimate-cardstorm');
+
+            const ultimateCards =
+                getLuxuryQualityCount(28, 10);
+
+            for (let index = 0; index < ultimateCards; index++) {
+                const card = document.createElement('i');
+                card.className = 'lotm-klein-ultimate-card';
+                card.style.setProperty(
+                    '--lotmk-ucx',
+                    `${2 + ((index * 37 + 9) % 96)}%`
+                );
+                card.style.setProperty(
+                    '--lotmk-ucy',
+                    `${-18 - (index % 6) * 8}%`
+                );
+                card.style.setProperty(
+                    '--lotmk-ucd',
+                    `${index * .045}s`
+                );
+                card.style.setProperty(
+                    '--lotmk-ucr',
+                    `${-34 + (index % 13) * 6}deg`
+                );
+                cardStorm?.appendChild(card);
+            }
+
+            const glyphField =
+                ultimate.querySelector('.lotm-klein-ultimate-glyphs');
+
+            ['Ⅰ','Ⅱ','Ⅲ','Ⅳ','Ⅴ','Ⅵ','Ⅶ','Ⅷ','Ⅸ','Ⅹ','☽','✦'].forEach(
+                (glyph, index) => {
+                    const mark = document.createElement('b');
+                    mark.textContent = glyph;
+                    mark.style.setProperty('--lotmk-uga', `${index * 30}deg`);
+                    mark.style.setProperty('--lotmk-ugd', `${index * .035}s`);
+                    glyphField?.appendChild(mark);
+                }
+            );
+
+            document.body.appendChild(ultimate);
+
+            document.documentElement.classList.add(
+                'lotm-klein-skill-active'
+            );
+
+            document
+                .getElementById('virtual-pet-container')
+                ?.classList.add('lotm-klein-casting');
+
+            this.setTimer(() => {
+                ultimate.remove();
+
+                document.documentElement.classList.remove(
+                    'lotm-klein-skill-active'
+                );
+
+                document
+                    .getElementById('virtual-pet-container')
+                    ?.classList.remove('lotm-klein-casting');
+
+                this.skillLocked = false;
+            }, 3250);
+
+            return true;
+        },
+
+        installPetSkill() {
+            const pet =
+                this.getPet() ||
+                document.querySelector(
+                    '#virtual-pet-container #virtual-pet-img'
+                );
+
+            if (!pet) {
+                return false;
+            }
+
+            this.ensurePetInteractivity(pet);
+
+            if (this.activePetElement && this.petClickHandler) {
+                this.activePetElement.removeEventListener(
+                    'click',
+                    this.petClickHandler,
+                    true
+                );
+            }
+
+            this.activePetElement = pet;
+
+            this.petClickHandler = event => {
+                if (
+                    !document.documentElement.classList.contains(
+                        'lotm-klein-equipped'
+                    )
+                ) {
+                    return;
+                }
+
+                if (
+                    typeof PetInteractionManager !== 'undefined' &&
+                    PetInteractionManager.isPetDragging
+                ) {
+                    return;
+                }
+
+                event.preventDefault();
+                event.stopPropagation();
+                event.__lotmKleinPremiumHandled = true;
+
+                const rect =
+                    pet.getBoundingClientRect();
+
+                this.createUltimate(
+                    rect.left + rect.width / 2,
+                    rect.top + rect.height / 2
+                );
+            };
+
+            // Capture phase để kỹ năng Klein không bị listener kéo/thả hoặc
+            // listener pet mặc định chặn trước khi tới handler Premium.
+            pet.addEventListener(
+                'click',
+                this.petClickHandler,
+                true
+            );
+
+            /*
+             * Fallback ở container:
+             * nếu một lớp CSS/runtime khác khiến target click không đi đúng
+             * listener ảnh nhưng click vẫn nằm trong vùng Klein, ultimate vẫn chạy.
+             */
+            const container =
+                document.getElementById('virtual-pet-container');
+
+            if (container && !container.__lotmKleinPremiumClickFallback) {
+                container.__lotmKleinPremiumClickFallback = event => {
+                    if (
+                        event.__lotmKleinPremiumHandled ||
+                        !document.documentElement.classList.contains(
+                            'lotm-klein-equipped'
+                        )
+                    ) {
+                        return;
+                    }
+
+                    const currentPet = this.getPet();
+
+                    if (!currentPet) {
+                        return;
+                    }
+
+                    const target = event.target;
+
+                    if (
+                        target !== currentPet &&
+                        !(target instanceof Element &&
+                          target.closest('#virtual-pet-img') === currentPet)
+                    ) {
+                        return;
+                    }
+
+                    if (
+                        typeof PetInteractionManager !== 'undefined' &&
+                        PetInteractionManager.isPetDragging
+                    ) {
+                        return;
+                    }
+
+                    event.preventDefault();
+                    event.stopPropagation();
+                    event.__lotmKleinPremiumHandled = true;
+
+                    const rect =
+                        currentPet.getBoundingClientRect();
+
+                    this.createUltimate(
+                        rect.left + rect.width / 2,
+                        rect.top + rect.height / 2
+                    );
+                };
+
+                container.addEventListener(
+                    'click',
+                    container.__lotmKleinPremiumClickFallback,
+                    true
+                );
+            }
+
+            return true;
+        },
+
+        repair() {
+            if (
+                !document.documentElement.classList.contains(
+                    'lotm-klein-equipped'
+                )
+            ) {
+                return false;
+            }
+
+            ensureLotmKleinStylesheet();
+
+            document.body?.classList.add(
+                'theme-lotm-klein-premium'
+            );
+
+            if (!document.querySelector('.lotm-klein-world')) {
+                this.createWorld();
+            }
+
+            if (!document.querySelector('.lotm-klein-ui-frame')) {
+                this.createInterface();
+            }
+
+            const container =
+                document.getElementById('virtual-pet-container');
+
+            const pet =
+                container?.querySelector('#virtual-pet-img');
+
+            if (container && pet) {
+                if (
+                    !pet.classList.contains('lotm-klein-pet') ||
+                    !container.querySelector('.lotm-klein-pet-realm')
+                ) {
+                    this.createPetRealm();
+                }
+
+                this.ensurePetInteractivity(pet);
+
+                /*
+                 * Rebind mỗi lần repair:
+                 * removeEventListener + addEventListener trong installPetSkill()
+                 * là idempotent và giúp khôi phục click nếu DOM/runtime khác
+                 * đã làm mất listener mà reference cũ vẫn còn.
+                 */
+                this.installPetSkill();
+            }
+
+            if (!this.documentClickHandler) {
+                this.installGlobalClick();
+            }
+
+            return true;
+        },
+
+        installObserver() {
+            const container =
+                document.getElementById('virtual-pet-container');
+
+            if (!container) {
+                return false;
+            }
+
+            if (this.observer) {
+                this.observer.disconnect();
+            }
+
+            this.observer = new MutationObserver(() => {
+                if (
+                    !document.documentElement.classList.contains(
+                        'lotm-klein-equipped'
+                    ) ||
+                    this.repairQueued
+                ) {
+                    return;
+                }
+
+                this.repairQueued = true;
+
+                queueMicrotask(() => {
+                    this.repairQueued = false;
+                    this.repair();
+                });
+            });
+
+            this.observer.observe(
+                container,
+                {
+                    childList: true,
+                    subtree: true,
+                    attributes: true,
+                    attributeFilter: [
+                        'src',
+                        'class',
+                        'style'
+                    ]
+                }
+            );
+
+            return true;
+        },
+
+        mount() {
+            ensureLotmKleinStylesheet();
+            this.clear();
+
+            document.documentElement.classList.add(
+                'lotm-klein-equipped'
+            );
+
+            document.body?.classList.add(
+                'theme-lotm-klein-premium'
+            );
+
+            this.createWorld();
+            this.createInterface();
+            this.createPetRealm();
+            this.installGlobalClick();
+            this.installPetSkill();
+            this.installObserver();
+
+            [100, 320, 720, 1400, 2600].forEach(delay => {
+                this.setTimer(() => {
+                    this.repair();
+                }, delay);
+            });
+
+            return true;
+        },
+
+        restore(attempt = 0) {
+            ensureLotmKleinStylesheet();
+
+            const pet = this.getPet();
+            const activePetId = localStorage.getItem('active_pet');
+
+            if (
+                activePetId !== 'pet_lotm_klein_event_1' &&
+                !pet
+            ) {
+                return false;
+            }
+
+            if (pet) {
+                this.mount();
+                return true;
+            }
+
+            if (attempt < 28) {
+                this.setTimer(
+                    () => this.restore(attempt + 1),
+                    140 + attempt * 30
+                );
+            }
+
+            return false;
+        }
+    };
+
+
+    // ========================================================
+    // LORD OF THE MYSTERIES · KLEIN · AUTO-MOUNT BRIDGE
+    // Nếu PetManager render trước/sau LuxuryStore hoặc DOM pet bị dựng lại,
+    // runtime vẫn tự phục hồi world + UI + realm + kỹ năng nhấn.
+    // ========================================================
+    let lotmKleinAutoObserver = null;
+    let lotmKleinAutoRetryTimer = null;
+    let lotmKleinAutoSyncQueued = false;
+
+    function syncLotmKleinRuntimeFromDom() {
+        const pet = document.querySelector(
+            '#virtual-pet-container #virtual-pet-img.lotm-klein-mystery-magic, ' +
+            '#virtual-pet-container #virtual-pet-img.lotm-klein-pet'
+        );
+
+        if (!pet) {
+            return;
+        }
+
+        const needsMount =
+            !document.documentElement.classList.contains('lotm-klein-equipped') ||
+            !document.querySelector('.lotm-klein-world') ||
+            !document.querySelector('.lotm-klein-ui-frame') ||
+            !document.querySelector('#virtual-pet-container .lotm-klein-pet-realm');
+
+        if (needsMount) {
+            LuxuryLotmKleinRuntime.mount();
+        } else {
+            LuxuryLotmKleinRuntime.repair();
+        }
+    }
+
+    function installLotmKleinAutoMountObserver(attempt = 0) {
+        const container =
+            document.getElementById('virtual-pet-container');
+
+        if (!container) {
+            if (attempt < 80) {
+                window.clearTimeout(lotmKleinAutoRetryTimer);
+                lotmKleinAutoRetryTimer = window.setTimeout(
+                    () => installLotmKleinAutoMountObserver(attempt + 1),
+                    100
+                );
+            }
+            return;
+        }
+
+        lotmKleinAutoObserver?.disconnect();
+
+        const queueSync = () => {
+            if (lotmKleinAutoSyncQueued) return;
+            lotmKleinAutoSyncQueued = true;
+
+            queueMicrotask(() => {
+                lotmKleinAutoSyncQueued = false;
+                syncLotmKleinRuntimeFromDom();
+            });
+        };
+
+        lotmKleinAutoObserver =
+            new MutationObserver(queueSync);
+
+        lotmKleinAutoObserver.observe(
+            container,
+            {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                attributeFilter: ['src', 'class', 'style']
+            }
+        );
+
+        syncLotmKleinRuntimeFromDom();
+
+        [180, 650, 1600].forEach(delay => {
+            window.setTimeout(syncLotmKleinRuntimeFromDom, delay);
+        });
+    }
+
+    installLotmKleinAutoMountObserver();
 
 
     // ========================================================
@@ -5646,6 +7867,826 @@
     };
 
 
+
+    // ========================================================
+    // AETHER · CSS LAZY GUARD
+    // Một CSS duy nhất cho card + pet + full-web suite.
+    // ========================================================
+    function ensureAetherStylesheet() {
+        const existing = Array.from(
+            document.querySelectorAll('link[rel="stylesheet"]')
+        ).find(link =>
+            /(?:^|\/)aether-than-thoai(?:\(\d+\))?\.css(?:[?#].*)?$/i
+                .test(link.href || '')
+        );
+
+        if (existing) {
+            existing.id = existing.id || 'aether-mythic-premium-style';
+            return existing;
+        }
+
+        const byId = document.getElementById(
+            'aether-mythic-premium-style'
+        );
+        if (byId) return byId;
+
+        let href = '';
+
+        if (window.AETHER_MYTHIC_CSS_PATH) {
+            href = String(window.AETHER_MYTHIC_CSS_PATH).trim();
+        }
+
+        if (!href) {
+            const scripts = Array.from(document.scripts || []);
+            const ownScript = scripts
+                .slice()
+                .reverse()
+                .find(script =>
+                    /(?:^|\/)luxury-store(?:[^\/]*)?\.js(?:[?#].*)?$/i
+                        .test(script.src || '')
+                );
+
+            if (ownScript?.src) {
+                try {
+                    href = new URL(
+                        '../css/aether-than-thoai.css?v=20260917.aether-v1',
+                        ownScript.src
+                    ).href;
+                } catch (_) {
+                    href = '';
+                }
+            }
+        }
+
+        if (!href) {
+            href = new URL(
+                'css/aether-than-thoai.css?v=20260917.aether-v1',
+                document.baseURI
+            ).href;
+        }
+
+        const link = document.createElement('link');
+        link.id = 'aether-mythic-premium-style';
+        link.rel = 'stylesheet';
+        link.href = href;
+        link.dataset.aetherMythic = 'true';
+
+        link.addEventListener('error', () => {
+            console.error(
+                '[AETHER] Không tải được CSS:',
+                link.href,
+                'Hãy đặt file tại css/aether-than-thoai.css hoặc gán window.AETHER_MYTHIC_CSS_PATH trước khi nạp luxury-store.js.'
+            );
+        }, { once: true });
+
+        document.head.appendChild(link);
+        return link;
+    }
+
+    // ========================================================
+    // AETHER · THIÊN QUANG NGUYÊN SƠ — FULL PREMIUM SUITE V1
+    // JS chỉ dựng DOM/lifecycle. Toàn bộ giao diện nằm trong 1 CSS.
+    // Namespace độc lập: aether-mythic-* / aetherLuminous*
+    // ========================================================
+    const LuxuryAetherRuntime = {
+        activePetElement: null,
+        petClickHandler: null,
+        petPointerDownHandler: null,
+        petPointerUpHandler: null,
+        petKeyHandler: null,
+        petPointerState: null,
+        documentPointerHandler: null,
+        timers: new Set(),
+        skillLocked: false,
+
+        setTimer(callback, delay) {
+            const timer = window.setTimeout(() => {
+                this.timers.delete(timer);
+                callback();
+            }, delay);
+            this.timers.add(timer);
+            return timer;
+        },
+
+        clearTimers() {
+            this.timers.forEach(timer => window.clearTimeout(timer));
+            this.timers.clear();
+        },
+
+        getPet() {
+            return document.querySelector(
+                '#virtual-pet-container #virtual-pet-img.mythic-aether-luminous-magic, ' +
+                '#virtual-pet-container #virtual-pet-img.aether-mythic-avatar'
+            );
+        },
+
+        clear() {
+            const oldPet = this.activePetElement;
+            if (oldPet) {
+                if (this.petClickHandler) {
+                    oldPet.removeEventListener('click', this.petClickHandler);
+                }
+                if (this.petPointerDownHandler) {
+                    oldPet.removeEventListener('pointerdown', this.petPointerDownHandler);
+                }
+                if (this.petPointerUpHandler) {
+                    oldPet.removeEventListener('pointerup', this.petPointerUpHandler);
+                }
+                if (this.petKeyHandler) {
+                    oldPet.removeEventListener('keydown', this.petKeyHandler);
+                }
+            }
+
+            if (this.documentPointerHandler) {
+                document.removeEventListener(
+                    'pointerdown',
+                    this.documentPointerHandler,
+                    true
+                );
+            }
+
+            this.clearTimers();
+            this.activePetElement = null;
+            this.petClickHandler = null;
+            this.petPointerDownHandler = null;
+            this.petPointerUpHandler = null;
+            this.petKeyHandler = null;
+            this.petPointerState = null;
+            this.documentPointerHandler = null;
+            this.skillLocked = false;
+
+            document.documentElement.classList.remove(
+                'aether-luminous-equipped',
+                'aether-luminous-skill-active'
+            );
+            document.body?.classList.remove(
+                'theme-aether-luminous-stage'
+            );
+
+            document
+                .querySelectorAll(
+                    '.aether-mythic-world,' +
+                    '.aether-mythic-ui-frame,' +
+                    '.aether-mythic-page-click,' +
+                    '.aether-mythic-screen-burst,' +
+                    '.aether-mythic-screen-dialogue'
+                )
+                .forEach(node => node.remove());
+
+            const container = document.getElementById(
+                'virtual-pet-container'
+            );
+
+            container?.classList.remove(
+                'pet-aether-mythic-stage',
+                'aether-mythic-awakening',
+                'aether-mythic-casting',
+                'aether-mythic-pressed'
+            );
+
+            container
+                ?.querySelectorAll('.aether-mythic-pet-realm')
+                .forEach(node => node.remove());
+
+            container
+                ?.querySelector('#virtual-pet-img')
+                ?.classList.remove('aether-mythic-avatar');
+        },
+
+        createWorld() {
+            document
+                .querySelectorAll('.aether-mythic-world')
+                .forEach(node => node.remove());
+
+            const world = document.createElement('div');
+            world.className = 'aether-mythic-world';
+            world.setAttribute('aria-hidden', 'true');
+            world.innerHTML = `
+                <div class="aether-world-wash"></div>
+                <div class="aether-world-nebula nebula-a"></div>
+                <div class="aether-world-nebula nebula-b"></div>
+                <div class="aether-world-sun">
+                    <span class="aether-world-sun-core"></span>
+                    <span class="aether-world-sun-ring ring-a"></span>
+                    <span class="aether-world-sun-ring ring-b"></span>
+                    <span class="aether-world-sun-ring ring-c"></span>
+                    <span class="aether-world-sun-ring ring-d"></span>
+                </div>
+                <div class="aether-world-aurora aurora-a"></div>
+                <div class="aether-world-aurora aurora-b"></div>
+                <div class="aether-world-rays"></div>
+                <div class="aether-world-constellation"></div>
+                <div class="aether-world-meteors"></div>
+                <div class="aether-world-particles"></div>
+                <div class="aether-world-horizon"></div>
+            `;
+
+            const reduced = window.matchMedia?.(
+                '(max-width: 768px), (pointer: coarse), (prefers-reduced-motion: reduce)'
+            ).matches;
+
+            const particleField = world.querySelector('.aether-world-particles');
+            const particleCount = getLuxuryQualityCount(reduced ? 18 : 52);
+            for (let index = 0; index < particleCount; index++) {
+                const particle = document.createElement('i');
+                particle.className =
+                    index % 6 === 0
+                        ? 'aether-world-particle is-star'
+                        : 'aether-world-particle';
+                particle.textContent = index % 6 === 0 ? '✦' : '';
+                particle.style.setProperty('--aether-x', `${(index * 37 + 11) % 100}%`);
+                particle.style.setProperty('--aether-y', `${(index * 61 + 7) % 100}%`);
+                particle.style.setProperty('--aether-size', `${2 + (index % 5)}px`);
+                particle.style.setProperty('--aether-delay', `${-(index % 17) * .37}s`);
+                particleField?.appendChild(particle);
+            }
+
+            const constellation = world.querySelector('.aether-world-constellation');
+            const constellationCount = getLuxuryQualityCount(reduced ? 9 : 20);
+            for (let index = 0; index < constellationCount; index++) {
+                const node = document.createElement('i');
+                node.style.setProperty('--aether-cx', `${7 + ((index * 29) % 86)}%`);
+                node.style.setProperty('--aether-cy', `${8 + ((index * 47) % 74)}%`);
+                node.style.setProperty('--aether-cdelay', `${-index * .31}s`);
+                constellation?.appendChild(node);
+            }
+
+            const meteors = world.querySelector('.aether-world-meteors');
+            const meteorCount = getLuxuryQualityCount(reduced ? 3 : 7);
+            for (let index = 0; index < meteorCount; index++) {
+                const meteor = document.createElement('i');
+                meteor.style.setProperty('--aether-mx', `${10 + ((index * 17) % 78)}%`);
+                meteor.style.setProperty('--aether-my', `${4 + ((index * 23) % 48)}%`);
+                meteor.style.setProperty('--aether-mdelay', `${-index * 1.7}s`);
+                meteors?.appendChild(meteor);
+            }
+
+            document.body.appendChild(world);
+        },
+
+        createInterface() {
+            document
+                .querySelectorAll('.aether-mythic-ui-frame')
+                .forEach(node => node.remove());
+
+            const frame = document.createElement('div');
+            frame.className = 'aether-mythic-ui-frame';
+            frame.setAttribute('aria-hidden', 'true');
+            frame.innerHTML = `
+                <span class="aether-ui-corner corner-tl"></span>
+                <span class="aether-ui-corner corner-tr"></span>
+                <span class="aether-ui-corner corner-bl"></span>
+                <span class="aether-ui-corner corner-br"></span>
+                <div class="aether-ui-top-sigil"><i></i><b>ΑΙΘΗΡ</b><i></i></div>
+                <div class="aether-ui-bottom-line"></div>
+            `;
+            document.body.appendChild(frame);
+            requestAnimationFrame(() => frame.classList.add('is-mounted'));
+        },
+
+        createPetRealm() {
+            const container = document.getElementById(
+                'virtual-pet-container'
+            );
+            const pet = this.getPet() || container?.querySelector(
+                '#virtual-pet-img'
+            );
+
+            if (!container || !pet) return false;
+
+            container
+                .querySelectorAll('.aether-mythic-pet-realm')
+                .forEach(node => node.remove());
+
+            pet.classList.add('aether-mythic-avatar');
+            pet.setAttribute('draggable', 'false');
+            pet.setAttribute('tabindex', '0');
+            pet.setAttribute('role', 'button');
+            pet.setAttribute('aria-label', 'Kích hoạt Thiên Quang Nguyên Sơ');
+            container.classList.add(
+                'pet-aether-mythic-stage',
+                'aether-mythic-awakening'
+            );
+
+            const realm = document.createElement('div');
+            realm.className = 'aether-mythic-pet-realm';
+            realm.setAttribute('aria-hidden', 'true');
+            realm.innerHTML = `
+                <span class="aether-local-sanctum"></span>
+                <span class="aether-local-aura aura-back"></span>
+                <span class="aether-local-aura aura-front"></span>
+                <span class="aether-local-halo"></span>
+                <span class="aether-local-crown">✦</span>
+                <span class="aether-local-ring ring-a"></span>
+                <span class="aether-local-ring ring-b"></span>
+                <span class="aether-local-ring ring-c"></span>
+                <span class="aether-local-ring ring-d"></span>
+                <span class="aether-local-sigil sigil-a"></span>
+                <span class="aether-local-sigil sigil-b"></span>
+                <span class="aether-local-wing wing-left"></span>
+                <span class="aether-local-wing wing-right"></span>
+                <span class="aether-local-ribbon ribbon-a"></span>
+                <span class="aether-local-ribbon ribbon-b"></span>
+                <div class="aether-local-runes"></div>
+                <div class="aether-local-feathers"></div>
+                <div class="aether-local-stars"></div>
+                <span class="aether-local-ground"></span>
+                <span class="aether-local-ground-ring ground-a"></span>
+                <span class="aether-local-ground-ring ground-b"></span>
+            `;
+
+            const stars = realm.querySelector('.aether-local-stars');
+            const starCount = getLuxuryQualityCount(24);
+            for (let index = 0; index < starCount; index++) {
+                const star = document.createElement('i');
+                star.textContent = index % 4 === 0 ? '✦' : '·';
+                star.style.setProperty('--aether-local-angle', `${index * (360 / starCount)}deg`);
+                star.style.setProperty('--aether-local-delay', `${-index * .13}s`);
+                star.style.setProperty('--aether-local-radius', `${92 + (index % 4) * 14}px`);
+                stars?.appendChild(star);
+            }
+
+            const runes = realm.querySelector('.aether-local-runes');
+            const runeChars = ['✦', '✧', '◇', '⋆', '✶', '✷', '✹', '✺', '✦', '◇'];
+            runeChars.forEach((char, index) => {
+                const rune = document.createElement('i');
+                rune.textContent = char;
+                rune.style.setProperty('--aether-rune-angle', `${index * 36}deg`);
+                rune.style.setProperty('--aether-rune-delay', `${-index * .21}s`);
+                runes?.appendChild(rune);
+            });
+
+            const feathers = realm.querySelector('.aether-local-feathers');
+            const featherCount = getLuxuryQualityCount(12);
+            for (let index = 0; index < featherCount; index++) {
+                const feather = document.createElement('i');
+                feather.style.setProperty('--aether-local-feather-angle', `${index * (360 / featherCount)}deg`);
+                feather.style.setProperty('--aether-local-feather-delay', `${-index * .17}s`);
+                feathers?.appendChild(feather);
+            }
+
+            container.insertBefore(realm, pet);
+            return true;
+        },
+
+        createPageClick(x, y, strong = false) {
+            if (!document.documentElement.classList.contains(
+                'aether-luminous-equipped'
+            )) return;
+
+            const click = document.createElement('div');
+            click.className =
+                'aether-mythic-page-click' +
+                (strong ? ' is-strong' : '');
+            click.style.setProperty('--aether-click-x', `${x}px`);
+            click.style.setProperty('--aether-click-y', `${y}px`);
+            click.setAttribute('aria-hidden', 'true');
+            click.innerHTML = `
+                <span class="aether-click-flash"></span>
+                <span class="aether-click-core"></span>
+                <span class="aether-click-ring ring-a"></span>
+                <span class="aether-click-ring ring-b"></span>
+                <span class="aether-click-ring ring-c"></span>
+                <span class="aether-click-ring ring-d"></span>
+                <span class="aether-click-cross cross-a"></span>
+                <span class="aether-click-cross cross-b"></span>
+                <span class="aether-click-glyph">✦</span>
+                <span class="aether-click-starburst"></span>
+                <div class="aether-click-orbit-nodes"></div>
+                <div class="aether-click-sparks"></div>
+            `;
+
+            const sparks = click.querySelector('.aether-click-sparks');
+            const sparkCount = getLuxuryQualityCount(strong ? 24 : 16);
+            for (let index = 0; index < sparkCount; index++) {
+                const spark = document.createElement('i');
+                spark.style.setProperty('--aether-click-angle', `${index * (360 / sparkCount)}deg`);
+                spark.style.setProperty('--aether-click-distance', `${strong ? 70 + (index % 5) * 10 : 46 + (index % 4) * 8}px`);
+                spark.style.setProperty('--aether-click-delay', `${(index % 5) * .018}s`);
+                sparks?.appendChild(spark);
+            }
+
+            const nodes = click.querySelector('.aether-click-orbit-nodes');
+            for (let index = 0; index < 8; index++) {
+                const node = document.createElement('i');
+                node.style.setProperty('--aether-node-angle', `${index * 45}deg`);
+                nodes?.appendChild(node);
+            }
+
+            document.body.appendChild(click);
+            requestAnimationFrame(() => click.classList.add('is-active'));
+            this.setTimer(() => click.remove(), strong ? 1500 : 1050);
+        },
+
+        installGlobalClick() {
+            this.documentPointerHandler = event => {
+                if (
+                    event.button !== undefined &&
+                    event.button !== 0
+                ) return;
+
+                if (!document.documentElement.classList.contains(
+                    'aether-luminous-equipped'
+                )) return;
+
+                const target = event.target;
+                if (
+                    target?.closest?.(
+                        '.aether-mythic-screen-burst,' +
+                        '.aether-mythic-screen-dialogue,' +
+                        '.aether-mythic-page-click,' +
+                        '#virtual-pet-container'
+                    )
+                ) return;
+
+                this.createPageClick(
+                    Number(event.clientX) || window.innerWidth / 2,
+                    Number(event.clientY) || window.innerHeight / 2,
+                    false
+                );
+            };
+
+            document.addEventListener(
+                'pointerdown',
+                this.documentPointerHandler,
+                true
+            );
+        },
+
+        triggerUltimate(x, y) {
+            if (this.skillLocked) return false;
+            this.skillLocked = true;
+
+            document.documentElement.classList.add(
+                'aether-luminous-skill-active'
+            );
+
+            document
+                .querySelectorAll(
+                    '.aether-mythic-screen-burst,' +
+                    '.aether-mythic-screen-dialogue'
+                )
+                .forEach(node => node.remove());
+
+            const burst = document.createElement('div');
+            burst.className = 'aether-mythic-screen-burst';
+            burst.style.setProperty('--aether-skill-x', `${x}px`);
+            burst.style.setProperty('--aether-skill-y', `${y}px`);
+            burst.setAttribute('aria-hidden', 'true');
+            burst.innerHTML = `
+                <div class="aether-skill-veil"></div>
+                <div class="aether-skill-whiteout"></div>
+                <div class="aether-skill-rays"></div>
+                <div class="aether-skill-mandala">
+                    <span class="mandala-ring ring-a"></span>
+                    <span class="mandala-ring ring-b"></span>
+                    <span class="mandala-ring ring-c"></span>
+                    <span class="mandala-star">✦</span>
+                </div>
+                <div class="aether-skill-heaven-core">
+                    <span class="aether-skill-sun"></span>
+                    <span class="aether-skill-ring ring-a"></span>
+                    <span class="aether-skill-ring ring-b"></span>
+                    <span class="aether-skill-ring ring-c"></span>
+                    <span class="aether-skill-ring ring-d"></span>
+                </div>
+                <div class="aether-skill-wings wing-left"></div>
+                <div class="aether-skill-wings wing-right"></div>
+                <div class="aether-skill-orbit"></div>
+                <div class="aether-skill-feathers"></div>
+                <div class="aether-skill-comets"></div>
+                <div class="aether-skill-shards"></div>
+                <div class="aether-skill-stars"></div>
+                <div class="aether-skill-horizon"></div>
+                <div class="aether-skill-crown">✦ AETHER ✦</div>
+            `;
+
+            const feathers = burst.querySelector('.aether-skill-feathers');
+            const featherCount = getLuxuryQualityCount(34);
+            for (let index = 0; index < featherCount; index++) {
+                const feather = document.createElement('i');
+                feather.style.setProperty('--aether-feather-angle', `${index * (360 / featherCount)}deg`);
+                feather.style.setProperty('--aether-feather-distance', `${150 + (index % 7) * 48}px`);
+                feather.style.setProperty('--aether-feather-delay', `${index * .016}s`);
+                feathers?.appendChild(feather);
+            }
+
+            const stars = burst.querySelector('.aether-skill-stars');
+            const starCount = getLuxuryQualityCount(52);
+            for (let index = 0; index < starCount; index++) {
+                const star = document.createElement('i');
+                star.textContent = index % 5 === 0 ? '✦' : '·';
+                star.style.setProperty('--aether-star-x', `${(index * 43 + 7) % 100}%`);
+                star.style.setProperty('--aether-star-y', `${(index * 71 + 13) % 100}%`);
+                star.style.setProperty('--aether-star-delay', `${index * .012}s`);
+                stars?.appendChild(star);
+            }
+
+            const comets = burst.querySelector('.aether-skill-comets');
+            const cometCount = getLuxuryQualityCount(10);
+            for (let index = 0; index < cometCount; index++) {
+                const comet = document.createElement('i');
+                comet.style.setProperty('--aether-comet-x', `${8 + ((index * 17) % 86)}%`);
+                comet.style.setProperty('--aether-comet-y', `${5 + ((index * 31) % 55)}%`);
+                comet.style.setProperty('--aether-comet-delay', `${index * .12}s`);
+                comets?.appendChild(comet);
+            }
+
+            const shards = burst.querySelector('.aether-skill-shards');
+            const shardCount = getLuxuryQualityCount(28);
+            for (let index = 0; index < shardCount; index++) {
+                const shard = document.createElement('i');
+                shard.style.setProperty('--aether-shard-angle', `${index * (360 / shardCount)}deg`);
+                shard.style.setProperty('--aether-shard-distance', `${90 + (index % 6) * 44}px`);
+                shard.style.setProperty('--aether-shard-delay', `${index * .018}s`);
+                shards?.appendChild(shard);
+            }
+
+            const orbit = burst.querySelector('.aether-skill-orbit');
+            for (let index = 0; index < 12; index++) {
+                const node = document.createElement('i');
+                node.textContent = index % 3 === 0 ? '✦' : '◇';
+                node.style.setProperty('--aether-skill-node-angle', `${index * 30}deg`);
+                orbit?.appendChild(node);
+            }
+
+            const dialogue = document.createElement('div');
+            dialogue.className = 'aether-mythic-screen-dialogue';
+            dialogue.innerHTML = `
+                <span>✦</span>
+                <div>
+                    <small>AETHER · THẦN THOẠI</small>
+                    <strong>THIÊN QUANG NGUYÊN SƠ</strong>
+                    <em>Thiên quang giáng thế · tinh giới khai môn.</em>
+                </div>
+                <span>✧</span>
+            `;
+
+            document.body.append(burst, dialogue);
+            requestAnimationFrame(() => {
+                burst.classList.add('is-active');
+                dialogue.classList.add('is-active');
+            });
+
+            this.setTimer(() => burst.classList.add('is-climax'), 520);
+            this.setTimer(() => burst.classList.add('is-apex'), 1180);
+            this.setTimer(() => {
+                burst.classList.add('is-ending');
+                dialogue.classList.add('is-ending');
+            }, 3900);
+            this.setTimer(() => {
+                burst.remove();
+                dialogue.remove();
+                document.documentElement.classList.remove(
+                    'aether-luminous-skill-active'
+                );
+                this.skillLocked = false;
+            }, 5000);
+
+            return true;
+        },
+
+        installPetSkill() {
+            const pet = this.getPet();
+            const container = document.getElementById(
+                'virtual-pet-container'
+            );
+            if (!pet || !container) return false;
+
+            if (this.activePetElement && this.activePetElement !== pet) {
+                const oldPet = this.activePetElement;
+                if (this.petClickHandler) oldPet.removeEventListener('click', this.petClickHandler);
+                if (this.petPointerDownHandler) oldPet.removeEventListener('pointerdown', this.petPointerDownHandler);
+                if (this.petPointerUpHandler) oldPet.removeEventListener('pointerup', this.petPointerUpHandler);
+                if (this.petKeyHandler) oldPet.removeEventListener('keydown', this.petKeyHandler);
+            }
+
+            this.activePetElement = pet;
+            let lastPointerUltimateAt = 0;
+
+            const activateAt = (x, y) => {
+                if (this.skillLocked) return false;
+                container.classList.remove('aether-mythic-casting');
+                void container.offsetWidth;
+                container.classList.add('aether-mythic-casting');
+                this.createPageClick(x, y, true);
+                const started = this.triggerUltimate(x, y);
+                if (started) {
+                    this.setTimer(() => {
+                        container.classList.remove('aether-mythic-casting');
+                    }, 2300);
+                }
+                return started;
+            };
+
+            this.petPointerDownHandler = event => {
+                if (event.button !== undefined && event.button !== 0) return;
+                const rect = pet.getBoundingClientRect();
+                const x = Number.isFinite(event.clientX) ? event.clientX : rect.left + rect.width / 2;
+                const y = Number.isFinite(event.clientY) ? event.clientY : rect.top + rect.height / 2;
+                this.petPointerState = {
+                    id: event.pointerId,
+                    x,
+                    y,
+                    time: performance.now()
+                };
+                container.classList.add('aether-mythic-pressed');
+                this.createPageClick(x, y, true);
+            };
+
+            this.petPointerUpHandler = event => {
+                container.classList.remove('aether-mythic-pressed');
+                const state = this.petPointerState;
+                this.petPointerState = null;
+                if (!state) return;
+                if (state.id !== undefined && event.pointerId !== undefined && state.id !== event.pointerId) return;
+
+                if (
+                    typeof PetInteractionManager !== 'undefined' &&
+                    PetInteractionManager.isPetDragging
+                ) return;
+
+                const x = Number.isFinite(event.clientX) ? event.clientX : state.x;
+                const y = Number.isFinite(event.clientY) ? event.clientY : state.y;
+                const distance = Math.hypot(x - state.x, y - state.y);
+                const duration = performance.now() - state.time;
+                if (distance > 18 || duration > 900) return;
+
+                event.preventDefault();
+                event.stopPropagation();
+                lastPointerUltimateAt = performance.now();
+                activateAt(x, y);
+            };
+
+            this.petClickHandler = event => {
+                if (performance.now() - lastPointerUltimateAt < 500) return;
+                if (
+                    typeof PetInteractionManager !== 'undefined' &&
+                    PetInteractionManager.isPetDragging
+                ) return;
+
+                event.preventDefault();
+                event.stopPropagation();
+                const rect = pet.getBoundingClientRect();
+                const x = Number.isFinite(event.clientX) && event.clientX > 0
+                    ? event.clientX
+                    : rect.left + rect.width / 2;
+                const y = Number.isFinite(event.clientY) && event.clientY > 0
+                    ? event.clientY
+                    : rect.top + rect.height / 2;
+                activateAt(x, y);
+            };
+
+            this.petKeyHandler = event => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                event.preventDefault();
+                const rect = pet.getBoundingClientRect();
+                activateAt(rect.left + rect.width / 2, rect.top + rect.height / 2);
+            };
+
+            pet.addEventListener('pointerdown', this.petPointerDownHandler);
+            pet.addEventListener('pointerup', this.petPointerUpHandler);
+            pet.addEventListener('click', this.petClickHandler);
+            pet.addEventListener('keydown', this.petKeyHandler);
+            return true;
+        },
+
+        repair() {
+            if (!document.documentElement.classList.contains(
+                'aether-luminous-equipped'
+            )) return;
+
+            if (!document.querySelector('.aether-mythic-world')) {
+                this.createWorld();
+            }
+            if (!document.querySelector('.aether-mythic-ui-frame')) {
+                this.createInterface();
+            }
+            if (
+                !document.querySelector(
+                    '#virtual-pet-container .aether-mythic-pet-realm'
+                )
+            ) {
+                this.createPetRealm();
+            }
+            if (!this.activePetElement || !this.activePetElement.isConnected) {
+                if (this.activePetElement && this.petClickHandler) {
+                    this.activePetElement.removeEventListener('click', this.petClickHandler);
+                    if (this.petPointerDownHandler) this.activePetElement.removeEventListener('pointerdown', this.petPointerDownHandler);
+                    if (this.petPointerUpHandler) this.activePetElement.removeEventListener('pointerup', this.petPointerUpHandler);
+                    if (this.petKeyHandler) this.activePetElement.removeEventListener('keydown', this.petKeyHandler);
+                }
+                this.activePetElement = null;
+                this.petClickHandler = null;
+                this.petPointerDownHandler = null;
+                this.petPointerUpHandler = null;
+                this.petKeyHandler = null;
+                this.installPetSkill();
+            }
+        },
+
+        mount() {
+            this.clear();
+            ensureAetherStylesheet();
+
+            document.documentElement.classList.add(
+                'aether-luminous-equipped'
+            );
+            document.body?.classList.add(
+                'theme-aether-luminous-stage'
+            );
+
+            this.createWorld();
+            this.createInterface();
+            this.createPetRealm();
+            this.installGlobalClick();
+            this.installPetSkill();
+
+            [120, 420, 900, 1600].forEach(delay => {
+                this.setTimer(() => this.repair(), delay);
+            });
+
+            return true;
+        }
+    };
+
+    // ========================================================
+    // NYX · CSS LAZY GUARD
+    // - Không tải ở startup nếu NYX không cần.
+    // - Chỉ tải khi card NYX cần hiển thị hoặc NYX được mount.
+    // - Tránh card rơi về nền trắng khi selective loader đã bỏ
+    //   ALL_SPECIAL_STORE_CSS khỏi store-ui.
+    // ========================================================
+    function ensureNyxStylesheet() {
+        const existing = Array.from(
+            document.querySelectorAll('link[rel="stylesheet"]')
+        ).find(link =>
+            /(?:^|\/)nyx-than-thoai(?:\(\d+\))?\.css(?:[?#].*)?$/i
+                .test(link.href || '')
+        );
+
+        if (existing) {
+            existing.id = existing.id || 'nyx-mythic-premium-style';
+            return existing;
+        }
+
+        if (document.getElementById('nyx-mythic-premium-style')) {
+            return document.getElementById('nyx-mythic-premium-style');
+        }
+
+        let href = '';
+
+        if (window.NYX_MYTHIC_CSS_PATH) {
+            href = String(window.NYX_MYTHIC_CSS_PATH).trim();
+        }
+
+        if (!href) {
+            const scripts = Array.from(document.scripts || []);
+            const ownScript = scripts
+                .slice()
+                .reverse()
+                .find(script =>
+                    /(?:^|\/)luxury-store(?:[^\/]*)?\.js(?:[?#].*)?$/i
+                        .test(script.src || '')
+                );
+
+            if (ownScript?.src) {
+                try {
+                    href = new URL(
+                        '../css/nyx-than-thoai.css?v=20260915.nyx-card-guard-v1',
+                        ownScript.src
+                    ).href;
+                } catch (_) {
+                    href = '';
+                }
+            }
+        }
+
+        if (!href) {
+            href = new URL(
+                'css/nyx-than-thoai.css?v=20260915.nyx-card-guard-v1',
+                document.baseURI
+            ).href;
+        }
+
+        const link = document.createElement('link');
+        link.id = 'nyx-mythic-premium-style';
+        link.rel = 'stylesheet';
+        link.href = href;
+        link.dataset.nyxMythic = 'true';
+
+        link.addEventListener('error', () => {
+            console.error(
+                '[NYX] Không tải được CSS:',
+                link.href,
+                'Hãy đặt file tại css/nyx-than-thoai.css hoặc gán window.NYX_MYTHIC_CSS_PATH trước khi nạp luxury-store.js.'
+            );
+        }, { once: true });
+
+        document.head.appendChild(link);
+        return link;
+    }
+
     // ========================================================
     // NYX · HẮC DẠ NGUYÊN SƠ — FULL PREMIUM SUITE V2
     // WORLD + INTERFACE + GLOBAL CLICK + SCREEN SKILL
@@ -6107,6 +9148,7 @@
 
         mount() {
             this.clear();
+            ensureNyxStylesheet();
 
             document.documentElement.classList.add(
                 'nyx-first-night-equipped'
@@ -7924,6 +10966,25 @@
                     );
                 }
 
+
+                try {
+                    LuxuryAetherRuntime.clear();
+                } catch (error) {
+                    console.warn(
+                        '[LuxuryStore] Không thể dọn runtime Aether:',
+                        error
+                    );
+                }
+
+                try {
+                    LuxuryLotmKleinRuntime.clear();
+                } catch (error) {
+                    console.warn(
+                        '[LuxuryStore] Không thể dọn runtime LOTM Klein:',
+                        error
+                    );
+                }
+
                 try {
                     LuxuryCamCoCamMongRuntime.clear();
                 } catch (error) {
@@ -7960,6 +11021,15 @@
                     );
                 }
 
+                try {
+                    LuxuryLinkClickChengRuntime.clear();
+                } catch (error) {
+                    console.warn(
+                        '[LuxuryStore] Không thể dọn runtime Link Click:',
+                        error
+                    );
+                }
+
 // Render pet gốc trước.
                 originalSpawnPet(
                     petData
@@ -7990,6 +11060,19 @@
                     petData?.petEffect ===
                     'mythic-nyx-night-magic';
 
+
+                const isMythicAether =
+                    petData?.id ===
+                    'pet_mythic_aether_1' ||
+                    petData?.petEffect ===
+                    'mythic-aether-luminous-magic';
+
+                const isLotmKlein =
+                    petData?.id ===
+                    'pet_lotm_klein_event_1' ||
+                    petData?.petEffect ===
+                    'lotm-klein-mystery-magic';
+
                 const isCamCoCamMong =
                     petData?.id ===
                     'pet_cam_co_cam_mong_1' ||
@@ -8011,8 +11094,18 @@
                 const isMidAutumnMoonPalace =
                     petData?.id ===
                     'pet_trung_thu_nguyet_cung_tien_tu' ||
+                    petData?.id ===
+                    'pet_trung_thu_chu_cuoi_2' ||
                     petData?.petEffect ===
-                    'midautumn-moon-palace-pet-magic';
+                    'midautumn-moon-palace-pet-magic' ||
+                    petData?.petEffect ===
+                    'midautumn-cuoi-moonwood-magic';
+
+                const isLinkClickCheng =
+                    petData?.id ===
+                    'pet_linkclick_cheng_xiaoshi_1' ||
+                    petData?.petEffect ===
+                    'linkclick-cheng-timeframe-magic';
 /*
                  * XUÂN THẦN:
                  * phải mount lại đủ Pet Realm + World + Interface.
@@ -8050,6 +11143,29 @@
                             } catch (error) {
                                 console.error(
                                     '[LuxuryStore] Lỗi mount Hạ Thần:',
+                                    error
+                                );
+                            }
+                        }
+                    );
+
+                    return;
+                }
+
+
+                /*
+                 * LORD OF THE MYSTERIES · KLEIN:
+                 * Full suite riêng: world + interface + pet realm
+                 * + global click + ultimate. Không chiếm active_theme/effect.
+                 */
+                if (isLotmKlein) {
+                    requestAnimationFrame(
+                        () => {
+                            try {
+                                LuxuryLotmKleinRuntime.mount();
+                            } catch (error) {
+                                console.error(
+                                    '[LuxuryStore] Lỗi mount LOTM Klein:',
                                     error
                                 );
                             }
@@ -8141,6 +11257,51 @@
                             } catch (error) {
                                 console.error(
                                     '[LuxuryStore] Lỗi mount Nguyệt Cung Tiên Tử:',
+                                    error
+                                );
+                            }
+                        }
+                    );
+
+                    return;
+                }
+
+                /*
+                 * LINK CLICK · CHENG XIAOSHI:
+                 * Full suite riêng: world + interface + pet realm
+                 * + click toàn web + ultimate khi nhấn nhân vật.
+                 */
+                if (isLinkClickCheng) {
+                    requestAnimationFrame(
+                        () => {
+                            try {
+                                LuxuryLinkClickChengRuntime.mount();
+                            } catch (error) {
+                                console.error(
+                                    '[LuxuryStore] Lỗi mount Cheng Xiaoshi:',
+                                    error
+                                );
+                            }
+                        }
+                    );
+
+                    return;
+                }
+
+
+                /*
+                 * AETHER THẦN THOẠI:
+                 * Runtime riêng dựng world + interface + pet realm
+                 * + click toàn web + ultimate khi nhấn nhân vật.
+                 */
+                if (isMythicAether) {
+                    requestAnimationFrame(
+                        () => {
+                            try {
+                                LuxuryAetherRuntime.mount();
+                            } catch (error) {
+                                console.error(
+                                    '[LuxuryStore] Lỗi mount Aether:',
                                     error
                                 );
                             }
@@ -8260,6 +11421,15 @@
                     String(itemId) ===
                     'pet_mythic_nyx_1';
 
+
+                const isMythicAether =
+                    String(itemId) ===
+                    'pet_mythic_aether_1';
+
+                const isLotmKlein =
+                    String(itemId) ===
+                    'pet_lotm_klein_event_1';
+
                 const isCamCoCamMong =
                     String(itemId) ===
                     'pet_cam_co_cam_mong_1';
@@ -8274,7 +11444,13 @@
 
                 const isMidAutumnMoonPalace =
                     String(itemId) ===
-                    'pet_trung_thu_nguyet_cung_tien_tu';
+                    'pet_trung_thu_nguyet_cung_tien_tu' ||
+                    String(itemId) ===
+                    'pet_trung_thu_chu_cuoi_2';
+
+                const isLinkClickCheng =
+                    String(itemId) ===
+                    'pet_linkclick_cheng_xiaoshi_1';
 /*
                  * DỌN NGAY trước khi Firebase cập nhật.
                  */
@@ -8288,6 +11464,15 @@
 
                 if (isMythicNyx) {
                     LuxuryNyxRuntime.clear();
+                }
+
+
+                if (isMythicAether) {
+                    LuxuryAetherRuntime.clear();
+                }
+
+                if (isLotmKlein) {
+                    LuxuryLotmKleinRuntime.clear();
                 }
 
                 if (isCamCoCamMong) {
@@ -8304,6 +11489,10 @@
 
                 if (isMidAutumnMoonPalace) {
                     LuxuryMidAutumnRuntime.clear();
+                }
+
+                if (isLinkClickCheng) {
+                    LuxuryLinkClickChengRuntime.clear();
                 }
 
 if (isNationalDay) {
@@ -8450,6 +11639,65 @@ if (isNationalDay) {
                             .forEach(element => element.remove());
                     }
 
+                    if (isMythicAether) {
+                        LuxuryAetherRuntime.clear();
+
+                        const container =
+                            document.getElementById(
+                                'virtual-pet-container'
+                            );
+
+                        container?.classList.remove(
+                            'pet-aether-mythic-stage',
+                            'aether-mythic-awakening',
+                            'aether-mythic-casting'
+                        );
+
+                        container
+                            ?.querySelectorAll(
+                                '.aether-mythic-pet-realm'
+                            )
+                            .forEach(element => element.remove());
+
+                        document.documentElement.classList.remove(
+                            'aether-luminous-equipped',
+                            'aether-luminous-skill-active'
+                        );
+
+                        document.body?.classList.remove(
+                            'theme-aether-luminous-stage'
+                        );
+                    }
+
+                    if (isLotmKlein) {
+                        LuxuryLotmKleinRuntime.clear();
+
+                        const container =
+                            document.getElementById('virtual-pet-container');
+
+                        container?.classList.remove(
+                            'pet-lotm-klein-stage',
+                            'lotm-klein-casting'
+                        );
+
+                        container
+                            ?.querySelectorAll('.lotm-klein-pet-realm')
+                            .forEach(element => element.remove());
+
+                        container
+                            ?.querySelector('#virtual-pet-img')
+                            ?.classList.remove('lotm-klein-pet');
+
+                        document.documentElement.classList.remove(
+                            'lotm-klein-equipped',
+                            'lotm-klein-skill-active'
+                        );
+
+                        document.body?.classList.remove(
+                            'theme-lotm-klein-premium'
+                        );
+                    }
+
                     if (isCamCoCamMong) {
                         LuxuryCamCoCamMongRuntime.clear();
 
@@ -8554,6 +11802,7 @@ if (isNationalDay) {
 
                         container?.classList.remove(
                             'pet-midautumn-moon-palace-stage',
+                            'pet-midautumn-cuoi-stage',
                             'midautumn-pet-casting'
                         );
 
@@ -8564,17 +11813,24 @@ if (isNationalDay) {
                         container
                             ?.querySelector('#virtual-pet-img')
                             ?.classList.remove(
-                                'midautumn-moon-palace-pet'
+                                'midautumn-moon-palace-pet',
+                                'midautumn-cuoi-pet'
                             );
 
                         document.documentElement.classList.remove(
                             'midautumn-moon-palace-equipped',
-                            'midautumn-moon-palace-skill-active'
+                            'midautumn-moon-palace-skill-active',
+                            'midautumn-cuoi-equipped'
                         );
 
                         document.body?.classList.remove(
-                            'theme-midautumn-moon-palace'
+                            'theme-midautumn-moon-palace',
+                            'theme-midautumn-cuoi'
                         );
+                    }
+
+                    if (isLinkClickCheng) {
+                        LuxuryLinkClickChengRuntime.clear();
                     }
 
                     if (isNationalDay) {
@@ -8717,6 +11973,7 @@ if (isNationalDay) {
             LuxurySummerRuntime,
             LuxuryNationalDayRuntime,
             LuxuryNyxRuntime,
+            LuxuryAetherRuntime,
             LuxuryTamonBSideRuntime,
             LuxuryTamonPinkStaticRuntime
         ].forEach(runtime => {
@@ -9268,10 +12525,14 @@ if (isNationalDay) {
             SUMMER_PREMIUM_PET,
             NATIONAL_DAY_PREMIUM_PET,
             MYTHIC_NYX_PET,
+            MYTHIC_AETHER_PET,
+            LOTM_KLEIN_EVENT_PET,
             CAM_CO_CAM_MONG_PET,
             TAMON_BSIDE_PET,
             TAMON_PINKSTATIC_PET,
-            MID_AUTUMN_MOON_PET
+            MID_AUTUMN_MOON_PET,
+            MID_AUTUMN_CUOI_PET,
+            LINKCLICK_CHENG_XIAOSHI_PET
         ].forEach(itemDefinition => {
             const existing = StoreConfig.items.find(
                 item =>
@@ -9294,13 +12555,19 @@ if (isNationalDay) {
                 itemDefinition.id ===
                 NATIONAL_DAY_PREMIUM_PET.id ||
                 itemDefinition.id ===
+                LOTM_KLEIN_EVENT_PET.id ||
+                itemDefinition.id ===
                 CAM_CO_CAM_MONG_PET.id ||
                 itemDefinition.id ===
                 TAMON_BSIDE_PET.id ||
                 itemDefinition.id ===
                 TAMON_PINKSTATIC_PET.id ||
                 itemDefinition.id ===
-                MID_AUTUMN_MOON_PET.id
+                MID_AUTUMN_MOON_PET.id ||
+                itemDefinition.id ===
+                MID_AUTUMN_CUOI_PET.id ||
+                itemDefinition.id ===
+                LINKCLICK_CHENG_XIAOSHI_PET.id
             ) {
                 Object.assign(
                     existing,
@@ -9351,15 +12618,157 @@ if (isNationalDay) {
     let luxuryInventoryState = {};
 
 
+    function findInventoryItemById(
+        inventory,
+        itemId
+    ) {
+        const wantedId = String(itemId ?? '');
+
+        if (!wantedId) {
+            return null;
+        }
+
+        if (Array.isArray(inventory)) {
+            return inventory.find(
+                inv =>
+                    String(inv?.id ?? '') ===
+                    wantedId
+            ) || null;
+        }
+
+        if (
+            inventory &&
+            typeof inventory === 'object'
+        ) {
+            return Object
+                .values(inventory)
+                .find(
+                    inv =>
+                        String(inv?.id ?? '') ===
+                        wantedId
+                ) || null;
+        }
+
+        return null;
+    }
+
+
     function getLuxuryInventoryItem(itemId) {
 
-        return Object
-            .values(luxuryInventoryState || {})
-            .find(
-                inv =>
-                    String(inv?.id) ===
-                    String(itemId)
-            ) || null;
+        /*
+         * Nguồn chính của trang học sinh là window.myInventory.
+         * Luxury Store vẫn giữ listener riêng để render tức thời,
+         * nhưng không được coi biến local là nguồn duy nhất.
+         *
+         * Điều này tránh trường hợp module Luxury được lazy-load/reload
+         * sau khi inventory chính đã về: card không được phép hiện
+         * "Mua" cho món thực tế vẫn còn trong Firebase.
+         */
+        const mainInventoryItem =
+            findInventoryItemById(
+                window.myInventory,
+                itemId
+            );
+
+        if (mainInventoryItem) {
+            return mainInventoryItem;
+        }
+
+        const bridgeInventoryItem =
+            findInventoryItemById(
+                window.__luxuryInventoryBridgeState
+                    ?.inventory,
+                itemId
+            );
+
+        if (bridgeInventoryItem) {
+            return bridgeInventoryItem;
+        }
+
+        return findInventoryItemById(
+            luxuryInventoryState,
+            itemId
+        );
+    }
+
+
+    async function buyLuxuryItemSafely(itemId) {
+        const user = JSON.parse(
+            localStorage.getItem('currentUser') || 'null'
+        );
+
+        /*
+         * Chốt chống mua lại:
+         * trước khi gọi luồng thanh toán chung, kiểm tra trực tiếp Firebase.
+         * Nếu item đã tồn tại thì chỉ đồng bộ UI, tuyệt đối không trừ Coin lần nữa.
+         */
+        if (
+            typeof db !== 'undefined' &&
+            user?.username
+        ) {
+            try {
+                const itemRef =
+                    db.ref(
+                        `student_inventory/${user.username}/${itemId}`
+                    );
+
+                const snapshot =
+                    await itemRef.once('value');
+
+                const existingItem =
+                    snapshot.val();
+
+                if (
+                    existingItem &&
+                    String(existingItem.id ?? '') ===
+                        String(itemId)
+                ) {
+                    luxuryInventoryState = {
+                        ...(luxuryInventoryState || {}),
+                        [String(itemId)]: existingItem
+                    };
+
+                    window.__luxuryInventoryBridgeState = {
+                        username:
+                            String(user.username),
+                        inventory: {
+                            ...(
+                                window.__luxuryInventoryBridgeState
+                                    ?.inventory || {}
+                            ),
+                            [String(itemId)]:
+                                existingItem
+                        }
+                    };
+
+                    renderLuxuryStore();
+
+                    alert(
+                        '✅ Vật phẩm này vẫn đang có trong kho của bạn. ' +
+                        'Hệ thống đã đồng bộ lại trạng thái sở hữu.'
+                    );
+
+                    return false;
+                }
+            } catch (error) {
+                console.warn(
+                    '[LuxuryStore] Không thể kiểm tra quyền sở hữu trước khi mua:',
+                    error
+                );
+            }
+        }
+
+        if (
+            typeof window.buyItem === 'function'
+        ) {
+            return window.buyItem(itemId);
+        }
+
+        console.error(
+            '[LuxuryStore] Không tìm thấy hàm buyItem().'
+        );
+
+        return false;
     }
 
 
@@ -9386,21 +12795,51 @@ if (isNationalDay) {
         }
 
 
-        if (window.__luxuryInventoryListening) {
+        const username =
+            String(user.username);
+
+        const bridgeState =
+            window.__luxuryInventoryBridgeState;
+
+        /*
+         * Bản cũ chỉ dùng một boolean global. Nếu luxury-store.js bị nạp lại,
+         * module mới có luxuryInventoryState = {} nhưng lại không được gắn
+         * listener mới => toàn bộ card bị hiểu nhầm là chưa mua.
+         *
+         * Bản mới chỉ tái sử dụng listener khi đã có bridge state đúng user.
+         * Nếu gặp cờ boolean cũ mà không có bridge dữ liệu, cho phép gắn lại.
+         */
+        if (
+            window.__luxuryInventoryListeningUser ===
+                username &&
+            bridgeState?.username === username
+        ) {
+            luxuryInventoryState =
+                bridgeState.inventory || {};
+
             return;
         }
 
-        window.__luxuryInventoryListening = true;
+        window.__luxuryInventoryListeningUser =
+            username;
 
+        const inventoryRef =
+            db.ref(
+                `student_inventory/${username}`
+            );
 
-        db.ref(
-            `student_inventory/${user.username}`
-        ).on(
+        inventoryRef.on(
             'value',
             snapshot => {
 
                 luxuryInventoryState =
                     snapshot.val() || {};
+
+                window.__luxuryInventoryBridgeState = {
+                    username,
+                    inventory:
+                        luxuryInventoryState
+                };
 
                 // ====================================================
                 // Nếu Xuân Thần đã được gỡ trên Firebase
@@ -9462,6 +12901,37 @@ if (isNationalDay) {
                     LuxuryNyxRuntime.clear();
                 }
 
+
+                const equippedMythicAether =
+                    Object
+                        .values(
+                            luxuryInventoryState || {}
+                        )
+                        .find(
+                            item =>
+                                String(item?.id) ===
+                                'pet_mythic_aether_1' &&
+                                item?.isEquipped === true
+                        );
+
+                if (!equippedMythicAether) {
+                    LuxuryAetherRuntime.clear();
+                }
+
+                const equippedLotmKlein =
+                    Object
+                        .values(luxuryInventoryState || {})
+                        .find(
+                            item =>
+                                String(item?.id) ===
+                                'pet_lotm_klein_event_1' &&
+                                item?.isEquipped === true
+                        );
+
+                if (!equippedLotmKlein) {
+                    LuxuryLotmKleinRuntime.clear();
+                }
+
                 const equippedCamCoCamMong =
                     Object
                         .values(luxuryInventoryState || {})
@@ -9481,13 +12951,31 @@ if (isNationalDay) {
                         .values(luxuryInventoryState || {})
                         .find(
                             item =>
-                                String(item?.id) ===
-                                'pet_trung_thu_nguyet_cung_tien_tu' &&
+                                (
+                                    String(item?.id) ===
+                                        'pet_trung_thu_nguyet_cung_tien_tu' ||
+                                    String(item?.id) ===
+                                        'pet_trung_thu_chu_cuoi_2'
+                                ) &&
                                 item?.isEquipped === true
                         );
 
                 if (!equippedMidAutumnMoonPalace) {
                     LuxuryMidAutumnRuntime.clear();
+                }
+
+                const equippedLinkClickCheng =
+                    Object
+                        .values(luxuryInventoryState || {})
+                        .find(
+                            item =>
+                                String(item?.id) ===
+                                'pet_linkclick_cheng_xiaoshi_1' &&
+                                item?.isEquipped === true
+                        );
+
+                if (!equippedLinkClickCheng) {
+                    LuxuryLinkClickChengRuntime.clear();
                 }
 /*
                  * Khi Firebase thay đổi:
@@ -9504,6 +12992,25 @@ if (isNationalDay) {
                 ) {
                     renderLuxuryStore();
                 }
+            },
+            error => {
+                console.error(
+                    '[LuxuryStore] Lỗi listener kho Luxury:',
+                    error
+                );
+
+                if (
+                    window.__luxuryInventoryListeningUser ===
+                    username
+                ) {
+                    delete window
+                        .__luxuryInventoryListeningUser;
+                }
+
+                window.setTimeout(
+                    installLuxuryInventoryListener,
+                    700
+                );
             }
         );
     }
@@ -9764,6 +13271,108 @@ if (isNationalDay) {
         }
 
 
+
+        // ====================================================
+        // CARD LORD OF THE MYSTERIES · KLEIN
+        // Giữ nguyên bố cục chuẩn Luxury:
+        // visual -> info -> label -> title -> price/source -> action.
+        // Chỉ skin riêng bằng CSS, không đổi flow/kích thước của grid.
+        // ====================================================
+        if (item.id === 'pet_lotm_klein_event_1') {
+            const tagImage = escapeHTML(
+                item.luxuryTagImage ||
+                'assets/Premium/quỷ bí/tag1.png'
+            );
+
+            let actionHTML = '';
+
+            if (!isOwned) {
+                actionHTML = `
+                    <button
+                        type="button"
+                        class="lotm-klein-card-action"
+                        disabled
+                        aria-disabled="true"
+                        title="Vật phẩm này chỉ nhận từ sự kiện Lord of the Mysteries"
+                    >
+                        🎁 Nhận từ sự kiện
+                    </button>
+                `;
+            } else if (isEquipped) {
+                actionHTML = `
+                    <button
+                        type="button"
+                        class="lotm-klein-card-action is-equipped"
+                        onclick="StoreManager.unapplyItem('${id}')"
+                    >
+                        ✕ Gỡ
+                    </button>
+                `;
+            } else {
+                actionHTML = `
+                    <button
+                        type="button"
+                        class="lotm-klein-card-action"
+                        onclick="StoreManager.applyItem('${id}')"
+                    >
+                        ◈ Sử dụng
+                    </button>
+                `;
+            }
+
+            return `
+                <article
+                    class="luxury-product-card lotm-klein-card store-theme-locked ui-theme-immune"
+                    data-item-id="${id}"
+                    data-special-card="lotm-klein-event-premium"
+                    data-theme-immune="true"
+                    data-luxury-style="lotm-klein-event"
+                    tabindex="0"
+                >
+                    <div class="luxury-product-visual lotm-klein-card-visual">
+                        <div class="luxury-product-shape lotm-klein-card-shape"></div>
+                        <div class="lotm-klein-card-fog" aria-hidden="true"></div>
+                        <div class="lotm-klein-card-clock" aria-hidden="true"></div>
+                        <div class="lotm-klein-card-eye" aria-hidden="true"></div>
+
+                        <div
+                            class="lotm-klein-card-tag"
+                            aria-label="Lord of the Mysteries"
+                        >
+                            <img
+                                src="${tagImage}"
+                                alt="Lord of the Mysteries"
+                                class="lotm-klein-card-tag-art"
+                                draggable="false"
+                            >
+                        </div>
+
+                        <img
+                            src="${image}"
+                            alt="${name}"
+                            class="luxury-product-image lotm-klein-card-character"
+                            draggable="false"
+                        >
+                    </div>
+
+                    <div class="luxury-product-info lotm-klein-card-info">
+                        <span class="luxury-product-label lotm-klein-card-label">
+                            LORD OF THE MYSTERIES
+                        </span>
+
+                        <h3>${name}</h3>
+
+                        <div class="luxury-product-price lotm-klein-card-price">
+                            🎁 Phần thưởng sự kiện
+                        </div>
+
+                        ${actionHTML}
+                    </div>
+                </article>
+            `;
+        }
+
+
         // ====================================================
         // CARD CẦM CƠ · CẦM MỘNG
         // Đồng bộ cấu trúc Premium đang dùng trong cùng grid:
@@ -9787,7 +13396,7 @@ if (isNationalDay) {
                     <button
                         type="button"
                         class="cam-co-cam-mong-action cam-co-cam-mong-buy"
-                        onclick="window.buyItem('${id}')"
+                        onclick="window.LuxuryStore.buyItemSafely('${id}')"
                     >
                         🪙 Mua ${formattedPrice} Coin
                     </button>
@@ -9893,7 +13502,7 @@ if (isNationalDay) {
                     <button
                         type="button"
                         class="tamon-bside-card-action tamon-bside-buy"
-                        onclick="window.buyItem('${id}')"
+                        onclick="window.LuxuryStore.buyItemSafely('${id}')"
                     >
                         🪙 Mua ${formattedPrice} Coin
                     </button>
@@ -10066,11 +13675,119 @@ if (isNationalDay) {
 
 
         // ====================================================
+        // CARD RIÊNG AETHER · THẦN THOẠI
+        // Đồng bộ bố cục Premium full-art đang đứng cạnh Aether:
+        // article -> visual toàn thẻ -> tag/nhân vật -> details overlay.
+        // Details trượt lên khi hover/focus; outer card không cao hơn các thẻ khác.
+        // ====================================================
+        if (item.id === 'pet_mythic_aether_1') {
+            ensureAetherStylesheet();
+
+            const tagImage = escapeHTML(
+                item.luxuryTagImage ||
+                'assets/Premium/Thần thoại/aether-tag2.png'
+            );
+            const formattedPrice =
+                Number(item.price || 15000)
+                    .toLocaleString('vi-VN');
+
+            let actionHTML = '';
+
+            if (!isOwned) {
+                actionHTML = `
+                    <button
+                        type="button"
+                        class="aether-mythic-action aether-mythic-buy"
+                        onclick="window.LuxuryStore.buyItemSafely('${id}')"
+                    >
+                        🪙 Mua ${formattedPrice} Coin
+                    </button>
+                `;
+            } else if (isEquipped) {
+                actionHTML = `
+                    <button
+                        type="button"
+                        class="aether-mythic-action is-equipped"
+                        onclick="StoreManager.unapplyItem('${id}')"
+                    >
+                        ✕ Gỡ
+                    </button>
+                `;
+            } else {
+                actionHTML = `
+                    <button
+                        type="button"
+                        class="aether-mythic-action"
+                        onclick="StoreManager.applyItem('${id}')"
+                    >
+                        ✦ Sử dụng
+                    </button>
+                `;
+            }
+
+            return `
+                <article
+                    class="luxury-product-card aether-mythic-card store-theme-locked ui-theme-immune"
+                    data-item-id="${id}"
+                    data-special-card="mythic-aether"
+                    data-theme-immune="true"
+                    data-luxury-style="mythic-aether"
+                    tabindex="0"
+                >
+                    <div class="aether-mythic-visual">
+                        <div class="aether-card-shape"></div>
+                        <div class="aether-card-sun" aria-hidden="true">
+                            <i class="ring ring-a"></i>
+                            <i class="ring ring-b"></i>
+                            <i class="ring ring-c"></i>
+                        </div>
+                        <div class="aether-card-stars" aria-hidden="true">
+                            <i></i><i></i><i></i><i></i><i></i><i></i>
+                            <i></i><i></i><i></i><i></i><i></i><i></i>
+                        </div>
+                        <div class="aether-card-veil" aria-hidden="true"></div>
+
+                        <img
+                            src="${tagImage}"
+                            alt="Thần thoại"
+                            class="aether-mythic-tag-art"
+                            draggable="false"
+                        >
+
+                        <img
+                            src="${image}"
+                            alt="${name}"
+                            class="aether-mythic-character"
+                            draggable="false"
+                        >
+
+                        <div class="aether-mythic-info">
+                            <span class="aether-mythic-label">
+                                ✦ THÚ CƯNG PREMIUM · THẦN THOẠI
+                            </span>
+                            <h3>${name}</h3>
+                            <p class="aether-mythic-description">
+                                Thần bầu trời sáng, kết tinh của thiên quang nguyên sơ; khi đồng hành sẽ mở ra Thánh Vực Thiên Quang rực rỡ trên toàn website.
+                            </p>
+                            <div class="aether-mythic-price">
+                                🪙 Giá bán: ${formattedPrice} Coin
+                            </div>
+                            ${actionHTML}
+                        </div>
+                    </div>
+                </article>
+            `;
+        }
+
+
+        // ====================================================
         // CARD RIÊNG NYX · THẦN THOẠI
         // Namespace riêng: nyx-mythic-*
         // Không dùng class card của Mùa Xuân / Quốc khánh.
         // ====================================================
         if (item.id === 'pet_mythic_nyx_1') {
+
+            ensureNyxStylesheet();
 
             const tagImage = escapeHTML(
                 item.luxuryTagImage ||
@@ -10084,7 +13801,7 @@ if (isNationalDay) {
                     <button
                         type="button"
                         class="nyx-mythic-action nyx-mythic-buy"
-                        onclick="window.buyItem('${id}')"
+                        onclick="window.LuxuryStore.buyItemSafely('${id}')"
                     >
                         🪙 Mua 12.000 Coin
                     </button>
@@ -10172,17 +13889,153 @@ if (isNationalDay) {
         }
 
 
+
+        // ====================================================
+        // CARD RIÊNG LINK CLICK · CHENG XIAOSHI
+        // Giữ nguyên bố cục card chuẩn: visual -> info -> action.
+        // Chỉ đổi skin/thành phần trang trí bên trong card này.
+        // ====================================================
+        if (item.id === 'pet_linkclick_cheng_xiaoshi_1') {
+            const tagImage = escapeHTML(
+                item.luxuryTagImage ||
+                'assets/Premium/Lock/tag1.png'
+            );
+
+            const formattedPrice =
+                Number(item.price || 12000)
+                    .toLocaleString('vi-VN');
+
+            let actionHTML = '';
+
+            if (!isOwned) {
+                actionHTML = `
+                    <button
+                        type="button"
+                        class="linkclick-card-action linkclick-card-buy"
+                        onclick="window.LuxuryStore.buyItemSafely('${id}')"
+                    >
+                        🪙 Mua ${formattedPrice} Coin
+                    </button>
+                `;
+            } else if (isEquipped) {
+                actionHTML = `
+                    <button
+                        type="button"
+                        class="linkclick-card-action is-equipped"
+                        onclick="StoreManager.unapplyItem('${id}')"
+                    >
+                        ✕ Gỡ
+                    </button>
+                `;
+            } else {
+                actionHTML = `
+                    <button
+                        type="button"
+                        class="linkclick-card-action"
+                        onclick="StoreManager.applyItem('${id}')"
+                    >
+                        ▶ Sử dụng
+                    </button>
+                `;
+            }
+
+            return `
+                <article
+                    class="luxury-product-card linkclick-premium-card store-theme-locked ui-theme-immune"
+                    data-item-id="${id}"
+                    data-special-card="linkclick-cheng-xiaoshi"
+                    data-theme-immune="true"
+                    data-luxury-style="linkclick"
+                    tabindex="0"
+                >
+                    <div class="luxury-product-visual linkclick-card-visual">
+                        <div class="luxury-product-shape linkclick-card-shape"></div>
+                        <div class="linkclick-card-grid" aria-hidden="true"></div>
+                        <div class="linkclick-card-focus" aria-hidden="true"></div>
+                        <div class="linkclick-card-film film-a" aria-hidden="true"></div>
+                        <div class="linkclick-card-film film-b" aria-hidden="true"></div>
+
+                        <div class="linkclick-card-tag" aria-label="Link Click">
+                            <img
+                                src="${tagImage}"
+                                alt="Link Click"
+                                class="linkclick-card-tag-art"
+                                draggable="false"
+                            >
+                        </div>
+
+                        <img
+                            src="${image}"
+                            alt="${name}"
+                            class="luxury-product-image linkclick-card-character"
+                            draggable="false"
+                        >
+                    </div>
+
+                    <div class="luxury-product-info linkclick-card-info">
+                        <span class="luxury-product-label linkclick-card-label">
+                            LINK CLICK · PREMIUM PET
+                        </span>
+
+                        <h3>${name}</h3>
+
+                        <p class="linkclick-card-description">
+                            Hiệu ứng Thời Quang Ảnh Quán: khung ảnh, màn trập,
+                            timecode và chuyển động thời gian phủ toàn website.
+                        </p>
+
+                        <div class="luxury-product-price linkclick-card-price">
+                            🪙 ${formattedPrice} Coin
+                        </div>
+
+                        ${actionHTML}
+                    </div>
+                </article>
+            `;
+        }
+
+
         // ====================================================
         // CARD RIÊNG TRUNG THU · NGUYỆT CUNG TIÊN TỬ — V3
         // Đồng bộ flow với card TAMON'S B-SIDE:
         // visual -> info panel -> label -> title -> price -> action.
         // Không dùng details gradient phủ toàn chiều ngang nhân vật nữa.
         // ====================================================
-        if (item.id === 'pet_trung_thu_nguyet_cung_tien_tu') {
+        if (
+            item.id === 'pet_trung_thu_nguyet_cung_tien_tu' ||
+            item.id === 'pet_trung_thu_chu_cuoi_2'
+        ) {
+            const isCuoi =
+                item.id === 'pet_trung_thu_chu_cuoi_2';
             const tagImage = escapeHTML(
                 item.luxuryTagImage ||
                 'assets/Premium/Trung thu/tag1.png'
             );
+
+            const specialCardKey =
+                isCuoi
+                    ? 'midautumn-cuoi-premium'
+                    : 'midautumn-moon-palace-premium';
+
+            const cardVariantClass =
+                isCuoi
+                    ? 'midautumn-cuoi-premium-card'
+                    : '';
+
+            const cardStyleKey =
+                isCuoi
+                    ? 'midautumn-cuoi'
+                    : 'midautumn-moon-palace';
+
+            const cardLabel =
+                isCuoi
+                    ? 'TRUNG THU · NGUYỆT QUẾ'
+                    : 'TRUNG THU · NGUYỆT CUNG';
+
+            const cardIntro =
+                isCuoi
+                    ? 'Chú Cuội dưới bóng nguyệt quế, gọi trăng rằm và hoa đăng về khắp nhân gian.'
+                    : 'Tiên tử Nguyệt Cung, mang ánh trăng đoàn viên xuống nhân gian.';
 
             const midAutumnCoinPrice =
                 Number(item.midAutumnCoinPrice || 2);
@@ -10199,7 +14052,7 @@ if (isNationalDay) {
                     <button
                         type="button"
                         class="midautumn-card-action midautumn-card-buy"
-                        onclick="window.buyItem('${id}')"
+                        onclick="window.LuxuryStore.buyItemSafely('${id}')"
                     >
                         🌕 Đổi ${midAutumnCoinPrice} Xu Trung Thu
                     </button>
@@ -10228,11 +14081,11 @@ if (isNationalDay) {
 
             return `
                 <article
-                    class="luxury-product-card midautumn-premium-card store-theme-locked ui-theme-immune"
+                    class="luxury-product-card midautumn-premium-card ${cardVariantClass} store-theme-locked ui-theme-immune"
                     data-item-id="${id}"
-                    data-special-card="midautumn-moon-palace-premium"
+                    data-special-card="${specialCardKey}"
                     data-theme-immune="true"
-                    data-luxury-style="midautumn-moon-palace"
+                    data-luxury-style="${cardStyleKey}"
                     tabindex="0"
                 >
                     <div class="luxury-product-visual midautumn-card-visual">
@@ -10274,13 +14127,13 @@ if (isNationalDay) {
 
                     <div class="luxury-product-info midautumn-card-info">
                         <span class="luxury-product-label midautumn-card-label">
-                            TRUNG THU · NGUYỆT CUNG
+                            ${cardLabel}
                         </span>
 
                         <h3>${name}</h3>
 
                         <p class="midautumn-card-intro">
-                            Tiên tử Nguyệt Cung, mang ánh trăng đoàn viên xuống nhân gian.
+                            ${cardIntro}
                         </p>
 
                         <div class="luxury-product-price midautumn-card-price">
@@ -10322,7 +14175,7 @@ if (isNationalDay) {
                     <button
                         type="button"
                         class="summer-premium-card-action"
-                        onclick="window.buyItem('${id}')"
+                        onclick="window.LuxuryStore.buyItemSafely('${id}')"
                     >
                         🪙 Mua ${formattedPrice} Coin
                     </button>
@@ -10454,7 +14307,7 @@ if (isNationalDay) {
             type="button"
             class="spring-premium-use-button spring-premium-buy-button"
             onclick="
-    window.buyItem(
+    window.LuxuryStore.buyItemSafely(
         '${id}'
     )
 "
@@ -10740,21 +14593,273 @@ if (isNationalDay) {
     // ========================================================
     function closeCollectionPage() {
 
+        const storeTab =
+            document.getElementById(
+                'tab-store'
+            );
+
+        const collectionPage =
+            document.getElementById(
+                'storeCollectionPage'
+            );
+
+        /*
+         * Đóng popup "cách nhận" của Sưu tầm trước.
+         * Nếu API chưa tồn tại thì vẫn có DOM fallback bên dưới.
+         */
+        try {
+            if (
+                window.StoreCollectionPage &&
+                typeof window
+                    .StoreCollectionPage
+                    .closeAcquisitionWays ===
+                    'function'
+            ) {
+                window
+                    .StoreCollectionPage
+                    .closeAcquisitionWays();
+            }
+        } catch (_) {}
+
+        /*
+         * Gọi API chuẩn nếu có.
+         */
+        try {
+            if (
+                window.StoreCollectionPage &&
+                typeof window
+                    .StoreCollectionPage
+                    .close === 'function'
+            ) {
+                window
+                    .StoreCollectionPage
+                    .close();
+            }
+        } catch (_) {}
+
+        /*
+         * DOM fallback bắt buộc:
+         * không phụ thuộc animation/timer của store-collections.js.
+         * Mở Luxury là Sưu tầm phải biến mất ngay trong cùng frame.
+         */
+        storeTab?.classList.remove(
+            'store-collection-view-active'
+        );
+
         if (
-            window.StoreCollectionPage &&
-            typeof window
-                .StoreCollectionPage
-                .close === 'function'
+            storeTab?.dataset.storeView ===
+            'collection'
         ) {
-            window
-                .StoreCollectionPage
-                .close();
+            storeTab.dataset.storeView =
+                'normal';
         }
+
+        if (collectionPage) {
+            collectionPage.classList.remove(
+                'is-visible'
+            );
+
+            collectionPage.hidden = true;
+            collectionPage.inert = true;
+
+            collectionPage.setAttribute(
+                'inert',
+                ''
+            );
+
+            collectionPage.setAttribute(
+                'aria-hidden',
+                'true'
+            );
+        }
+
+        const acquisitionModal =
+            document.getElementById(
+                'storeCollectionAcquisitionModal'
+            );
+
+        if (acquisitionModal) {
+            acquisitionModal.classList.remove(
+                'is-open'
+            );
+
+            acquisitionModal.hidden = true;
+            acquisitionModal.inert = true;
+
+            acquisitionModal.setAttribute(
+                'inert',
+                ''
+            );
+
+            acquisitionModal.setAttribute(
+                'aria-hidden',
+                'true'
+            );
+        }
+
+        document.body?.classList.remove(
+            'store-collection-acquisition-open'
+        );
+
+        /*
+         * Vì click Luxury sẽ stopPropagation(), handler dropdown của
+         * Sưu tầm không còn cơ hội tự đóng menu. Ta đóng nó tại đây.
+         */
+        const collectionArrow =
+            document.getElementById(
+                'storeCollectionArrow'
+            );
+
+        const collectionDropdown =
+            document.getElementById(
+                'storeCollectionDropdown'
+            );
+
+        collectionArrow?.classList.remove(
+            'is-open'
+        );
+
+        collectionArrow?.setAttribute(
+            'aria-expanded',
+            'false'
+        );
+
+        collectionDropdown?.classList.remove(
+            'is-open'
+        );
+
+        collectionDropdown?.setAttribute(
+            'aria-hidden',
+            'true'
+        );
     }
 
 
     // ========================================================
-    // 7. ẨN CỬA HÀNG THƯỜNG
+    // 7. CÔ LẬP VIEW CỬA HÀNG SANG TRỌNG
+    // ========================================================
+    // Không chỉ dựa vào inline style. student.js/Firebase/lazy-loader có thể
+    // đồng bộ quyền truy cập sau đó và ghi lại display:block cho storeActiveView.
+    // Class này là "nguồn sự thật" cho view đang mở và CSS !important đảm bảo
+    // Cửa hàng thường không thể ló ra phía trên Cửa hàng Sang trọng.
+    let luxuryStoreCloseTimer = null;
+
+    function ensureLuxuryStoreViewIsolationStyles() {
+
+        if (
+            document.getElementById(
+                'luxuryStoreViewIsolationStyles'
+            )
+        ) {
+            return;
+        }
+
+        const style =
+            document.createElement('style');
+
+        style.id =
+            'luxuryStoreViewIsolationStyles';
+
+        style.textContent = `
+            /*
+             * STRICT STORE VIEW ISOLATION v2
+             * Normal / Sưu tầm / Luxury là 3 view loại trừ nhau.
+             */
+
+            #tab-store.luxury-store-view-active > #storeActiveView,
+            #tab-store.luxury-store-view-active > #storeLockedView,
+            #tab-store.luxury-store-view-active > #storeCollectionPage {
+                display: none !important;
+            }
+
+            #tab-store.luxury-store-view-active > #luxuryStorePage[hidden] {
+                display: none !important;
+            }
+
+            #tab-store.luxury-store-view-active > #luxuryStorePage:not([hidden]) {
+                display: block !important;
+            }
+
+            /*
+             * Chiều ngược lại: khi Sưu tầm đang mở, Luxury tuyệt đối không
+             * được xuất hiện dù timer/fade cũ hoặc module lazy-load vừa chạy.
+             */
+            #tab-store.store-collection-view-active > #luxuryStorePage {
+                display: none !important;
+            }
+        `;
+
+        (document.head || document.documentElement)
+            .appendChild(style);
+    }
+
+
+    function setLuxuryStoreViewActive(active) {
+
+        const storeTab =
+            document.getElementById(
+                'tab-store'
+            );
+
+        if (!storeTab) return;
+
+        const isActive =
+            Boolean(active);
+
+        storeTab.classList.toggle(
+            'luxury-store-view-active',
+            isActive
+        );
+
+        if (isActive) {
+            /*
+             * Một tab chỉ được có đúng một view đặc biệt.
+             */
+            storeTab.classList.remove(
+                'store-collection-view-active'
+            );
+
+            storeTab.dataset.storeView =
+                'luxury';
+        } else if (
+            storeTab.dataset.storeView ===
+            'luxury'
+        ) {
+            storeTab.dataset.storeView =
+                'normal';
+        }
+    }
+
+
+    function isLuxuryStoreOpen() {
+
+        const page =
+            document.getElementById(
+                IDS.page
+            );
+
+        const storeTab =
+            document.getElementById(
+                'tab-store'
+            );
+
+        return Boolean(
+            page &&
+            page.hidden === false &&
+            (
+                storeTab?.classList.contains(
+                    'luxury-store-view-active'
+                ) ||
+                page.classList.contains(
+                    'is-visible'
+                )
+            )
+        );
+    }
+
+
+    // ========================================================
+    // 8. ẨN CỬA HÀNG THƯỜNG
     // ========================================================
     function hideNormalStore() {
 
@@ -10781,7 +14886,7 @@ if (isNationalDay) {
 
 
     // ========================================================
-    // 8. KHÔI PHỤC CỬA HÀNG THƯỜNG
+    // 9. KHÔI PHỤC CỬA HÀNG THƯỜNG
     // ========================================================
     function restoreNormalStore() {
 
@@ -10795,34 +14900,77 @@ if (isNationalDay) {
                 'storeLockedView'
             );
 
-        const storeLocked =
-            window.storeLocked === true ||
-            window.isStoreLocked === true;
+        const storeTab =
+            document.getElementById(
+                'tab-store'
+            );
+
+        const collectionOpen =
+            Boolean(
+                storeTab?.classList.contains(
+                    'store-collection-view-active'
+                )
+            );
+
+        let storeOpen = true;
+
+        try {
+            if (
+                typeof window
+                    .isStudentStoreSystemOpen ===
+                'function'
+            ) {
+                storeOpen =
+                    window
+                        .isStudentStoreSystemOpen();
+            } else {
+                storeOpen = !(
+                    window.storeLocked === true ||
+                    window.isStoreLocked === true
+                );
+            }
+        } catch (_) {
+            storeOpen = !(
+                window.storeLocked === true ||
+                window.isStoreLocked === true
+            );
+        }
 
         if (lockedView) {
             lockedView.style.display =
-                storeLocked
-                    ? 'block'
-                    : 'none';
+                storeOpen
+                    ? 'none'
+                    : 'block';
         }
 
         if (activeView) {
             activeView.style.display =
-                storeLocked
-                    ? 'none'
-                    : 'block';
+                (
+                    storeOpen &&
+                    !collectionOpen
+                )
+                    ? 'block'
+                    : 'none';
         }
     }
 
 
     // ========================================================
-    // 9. MỞ CỬA HÀNG SANG TRỌNG
+    // 10. MỞ CỬA HÀNG SANG TRỌNG
     // ========================================================
     function openLuxuryStore() {
 
-        closeCollectionPage();
+        ensureLuxuryStoreViewIsolationStyles();
 
-        hideNormalStore();
+        if (luxuryStoreCloseTimer) {
+            window.clearTimeout(
+                luxuryStoreCloseTimer
+            );
+
+            luxuryStoreCloseTimer = null;
+        }
+
+        closeCollectionPage();
 
         const page =
             document.getElementById(
@@ -10831,12 +14979,37 @@ if (isNationalDay) {
 
         if (!page) return;
 
+        /*
+         * Đánh dấu view trước khi hiện page để không có một frame nào
+         * Cửa hàng thường và Cửa hàng Sang trọng cùng xuất hiện.
+         */
+        setLuxuryStoreViewActive(true);
+        hideNormalStore();
+
         page.hidden = false;
+        page.inert = false;
+        page.removeAttribute('inert');
+        page.setAttribute(
+            'aria-hidden',
+            'false'
+        );
 
         requestAnimationFrame(() => {
-            page.classList.add(
-                'is-visible'
-            );
+            /*
+             * Nếu close() được gọi ngay trước frame này thì không bật lại.
+             */
+            if (
+                page.hidden === false &&
+                document
+                    .getElementById('tab-store')
+                    ?.classList.contains(
+                        'luxury-store-view-active'
+                    )
+            ) {
+                page.classList.add(
+                    'is-visible'
+                );
+            }
         });
 
         const heading =
@@ -10857,48 +15030,334 @@ if (isNationalDay) {
 
 
     // ========================================================
-    // 10. ĐÓNG CỬA HÀNG SANG TRỌNG
+    // 11. ĐÓNG CỬA HÀNG SANG TRỌNG
     // ========================================================
-    function closeLuxuryStore() {
+    function closeLuxuryStore(options = {}) {
+
+        const immediate =
+            options === true ||
+            options?.immediate === true;
+
+        const restoreNormal =
+            options === true ||
+            options?.restoreNormal !== false;
+
+        const resetHeading =
+            options === true ||
+            options?.resetHeading !== false;
 
         const page =
             document.getElementById(
                 IDS.page
             );
 
-        if (page) {
-            page.classList.remove(
-                'is-visible'
-            );
+        const finishClose = () => {
 
-            window.setTimeout(() => {
+            if (
+                page &&
+                page.classList.contains(
+                    'is-visible'
+                )
+            ) {
+                /*
+                 * Trang đã được mở lại trong lúc timer close cũ đang chờ.
+                 * Không được ẩn page mới.
+                 */
+                return;
+            }
+
+            if (page) {
                 page.hidden = true;
-            }, 200);
-        }
+                page.inert = true;
+                page.setAttribute(
+                    'inert',
+                    ''
+                );
+                page.setAttribute(
+                    'aria-hidden',
+                    'true'
+                );
+            }
 
-        const heading =
-            document.querySelector(
-                '#tab-store .store-collection-title-row h2'
-            ) ||
-            document.querySelector(
-                '#tab-store > h2'
+            setLuxuryStoreViewActive(false);
+
+            const heading =
+                document.querySelector(
+                    '#tab-store .store-collection-title-row h2'
+                ) ||
+                document.querySelector(
+                    '#tab-store > h2'
+                );
+
+            if (
+                resetHeading &&
+                heading
+            ) {
+                heading.textContent =
+                    'Cửa hàng Vật phẩm';
+            }
+
+            if (restoreNormal) {
+                restoreNormalStore();
+            }
+        };
+
+        if (luxuryStoreCloseTimer) {
+            window.clearTimeout(
+                luxuryStoreCloseTimer
             );
 
-        if (heading) {
-            heading.textContent =
-                'Cửa hàng Vật phẩm';
+            luxuryStoreCloseTimer = null;
         }
 
-        restoreNormalStore();
+        if (!page) {
+            finishClose();
+            return;
+        }
+
+        page.classList.remove(
+            'is-visible'
+        );
+
+        page.setAttribute(
+            'aria-hidden',
+            'true'
+        );
+
+        /*
+         * Trong 200 ms fade-out, class luxury-store-view-active vẫn được giữ.
+         * Vì vậy storeActiveView KHÔNG được hiện sớm và không còn cảnh 2 cửa hàng
+         * chồng/lẫn vào nhau.
+         */
+        if (immediate) {
+            finishClose();
+            return;
+        }
+
+        luxuryStoreCloseTimer =
+            window.setTimeout(
+                () => {
+                    luxuryStoreCloseTimer =
+                        null;
+
+                    finishClose();
+                },
+                200
+            );
     }
 
 
     // ========================================================
-    // 11. TẠO GIAO DIỆN
+    // 11B. MUTUAL EXCLUSION · SƯU TẦM ↔ LUXURY
+    // ========================================================
+    let collectionLuxuryBridgeTimer = null;
+    let collectionLuxuryViewObserver = null;
+    let collectionLuxuryBridgeInstalled = false;
+    let collectionLuxuryClickBridgeTarget = null;
+    let collectionLuxuryClickBridgeHandler = null;
+
+    function closeLuxuryForCollection() {
+        const storeTab =
+            document.getElementById(
+                'tab-store'
+            );
+
+        const page =
+            document.getElementById(
+                IDS.page
+            );
+
+        const luxuryLooksActive =
+            Boolean(
+                storeTab?.classList.contains(
+                    'luxury-store-view-active'
+                ) ||
+                (
+                    page &&
+                    (
+                        page.hidden === false ||
+                        page.classList.contains(
+                            'is-visible'
+                        )
+                    )
+                )
+            );
+
+        if (!luxuryLooksActive) {
+            return;
+        }
+
+        /*
+         * Chuyển thẳng sang Sưu tầm:
+         * - đóng Luxury ngay;
+         * - không bật store normal ở giữa;
+         * - không reset heading vì Collection sẽ tự đặt tiêu đề của nó.
+         */
+        closeLuxuryStore({
+            immediate: true,
+            restoreNormal: false,
+            resetHeading: false
+        });
+    }
+
+    function installCollectionLuxuryMutualExclusionBridge(
+        attempt = 0
+    ) {
+        const api =
+            window.StoreCollectionPage;
+
+        if (
+            !api ||
+            typeof api.open !==
+                'function'
+        ) {
+            if (attempt < 120) {
+                window.setTimeout(
+                    () =>
+                        installCollectionLuxuryMutualExclusionBridge(
+                            attempt + 1
+                        ),
+                    100
+                );
+            }
+
+            return false;
+        }
+
+        if (collectionLuxuryBridgeInstalled) {
+            return true;
+        }
+
+        /*
+         * StoreCollectionPage được store-collections.js export bằng
+         * Object.freeze(...), vì vậy KHÔNG được gán lại api.open hoặc
+         * thêm cờ trực tiếp lên object API. Việc ghi đè sẽ ném:
+         * "Cannot assign to read only property 'open'" trong strict mode.
+         *
+         * Thay vào đó:
+         * 1) bắt click mở Sưu tầm ở capture phase để đóng Luxury trước;
+         * 2) MutationObserver bên dưới vẫn xử lý mọi lần open() bằng code.
+         */
+        const storeTab =
+            document.getElementById(
+                'tab-store'
+            );
+
+        if (storeTab) {
+            collectionLuxuryClickBridgeTarget =
+                storeTab;
+
+            collectionLuxuryClickBridgeHandler =
+                event => {
+                    const target =
+                        event.target instanceof Element
+                            ? event.target.closest(
+                                '#storeCollectionOpenButton'
+                            )
+                            : null;
+
+                    if (!target) {
+                        return;
+                    }
+
+                    closeLuxuryForCollection();
+                };
+
+            storeTab.addEventListener(
+                'click',
+                collectionLuxuryClickBridgeHandler,
+                true
+            );
+        }
+
+        collectionLuxuryBridgeInstalled = true;
+
+        return true;
+    }
+
+    function installCollectionLuxuryViewObserver() {
+        const storeTab =
+            document.getElementById(
+                'tab-store'
+            );
+
+        if (
+            !storeTab ||
+            collectionLuxuryViewObserver
+        ) {
+            return;
+        }
+
+        collectionLuxuryViewObserver =
+            new MutationObserver(() => {
+                if (
+                    storeTab.classList.contains(
+                        'store-collection-view-active'
+                    )
+                ) {
+                    closeLuxuryForCollection();
+                }
+
+                /*
+                 * Nếu Luxury đang active thì Collection page không được
+                 * tự bật lại bởi timer cũ.
+                 */
+                if (
+                    storeTab.classList.contains(
+                        'luxury-store-view-active'
+                    )
+                ) {
+                    const collectionPage =
+                        document.getElementById(
+                            'storeCollectionPage'
+                        );
+
+                    if (
+                        collectionPage &&
+                        (
+                            collectionPage.hidden === false ||
+                            collectionPage.classList.contains(
+                                'is-visible'
+                            )
+                        )
+                    ) {
+                        closeCollectionPage();
+                    }
+                }
+            });
+
+        collectionLuxuryViewObserver.observe(
+            storeTab,
+            {
+                attributes: true,
+                attributeFilter: [
+                    'class',
+                    'data-store-view'
+                ],
+                childList: true,
+                subtree: true
+            }
+        );
+    }
+
+
+    // ========================================================
+    // 12. TẠO GIAO DIỆN
     // ========================================================
     function buildLuxuryStoreUI(
         attempt = 0
     ) {
+
+        /*
+         * Trang giáo viên vẫn nạp module này để dùng dữ liệu/quản lý Luxury,
+         * nhưng không có #tab-store. Không chạy vòng retry dựng UI học sinh.
+         */
+        if (
+            document.documentElement?.dataset?.appRole ===
+            'teacher'
+        ) {
+            return;
+        }
 
         const storeTab =
             document.getElementById(
@@ -11069,7 +15528,16 @@ if (isNationalDay) {
         // CLICK MỞ
         button.addEventListener(
             'click',
-            () => {
+            event => {
+                /*
+                 * QUAN TRỌNG:
+                 * button dùng cùng class visual với item Sưu tầm.
+                 * Chặn bubbling để click này không lọt vào event delegation
+                 * của #storeCollectionDropdown và mở Sưu tầm cùng lúc.
+                 */
+                event.preventDefault();
+                event.stopPropagation();
+
                 openLuxuryStore();
             }
         );
@@ -11086,6 +15554,111 @@ if (isNationalDay) {
                     closeLuxuryStore();
                 }
             );
+
+        /*
+         * store-collections.js đã tạo dropdown/page trước khi buildLuxuryStoreUI
+         * thành công, nên đây là thời điểm tốt nhất để khóa 2 view với nhau.
+         */
+        installCollectionLuxuryMutualExclusionBridge();
+        installCollectionLuxuryViewObserver();
+    }
+
+
+    // ========================================================
+    // EQUIPPED LUXURY REHYDRATE BRIDGE
+    // ========================================================
+    // luxury-store.js có thể được lazy-load SAU khi Firebase inventory đã về.
+    // Khi đó applyEquippedItems() trước đó không biết các item Luxury vì chúng
+    // chưa được đăng ký vào StoreConfig. Bridge này cho phép tự áp lại ngay sau
+    // khi module Luxury vừa boot, không cần người dùng bấm tab Cửa hàng.
+    let luxuryRehydrateTimer = null;
+    let luxuryRehydratePromise = null;
+
+    function getEquippedLuxuryInventoryItem() {
+        const inventory =
+            Array.isArray(window.myInventory)
+                ? window.myInventory
+                : [];
+
+        return inventory.find(invItem =>
+            invItem &&
+            invItem.isEquipped === true &&
+            LUXURY_ITEM_IDS.includes(
+                String(invItem.id || '')
+            )
+        ) || null;
+    }
+
+    async function rehydrateEquippedLuxuryRuntime(
+        reason = 'manual'
+    ) {
+        const equipped =
+            getEquippedLuxuryInventoryItem();
+
+        if (!equipped) {
+            return false;
+        }
+
+        if (
+            typeof window.applyEquippedItems !==
+            'function'
+        ) {
+            return false;
+        }
+
+        if (luxuryRehydratePromise) {
+            return luxuryRehydratePromise;
+        }
+
+        luxuryRehydratePromise =
+            (async () => {
+                await Promise.resolve(
+                    window.applyEquippedItems()
+                );
+
+                console.debug(
+                    '[LuxuryStore] Rehydrated equipped item:',
+                    equipped.id,
+                    reason
+                );
+
+                return true;
+            })();
+
+        try {
+            return await luxuryRehydratePromise;
+        } finally {
+            luxuryRehydratePromise = null;
+        }
+    }
+
+    function scheduleEquippedLuxuryRehydrate(
+        reason = 'boot',
+        delay = 80
+    ) {
+        if (luxuryRehydrateTimer) {
+            clearTimeout(luxuryRehydrateTimer);
+        }
+
+        luxuryRehydrateTimer =
+            window.setTimeout(
+                () => {
+                    luxuryRehydrateTimer = null;
+
+                    rehydrateEquippedLuxuryRuntime(
+                        reason
+                    ).catch(error => {
+                        console.warn(
+                            '[LuxuryStore] Không thể tự khôi phục Luxury runtime:',
+                            error
+                        );
+                    });
+                },
+                Math.max(
+                    0,
+                    Number(delay) || 0
+                )
+            );
     }
 
 
@@ -11095,7 +15668,16 @@ if (isNationalDay) {
     window.LuxuryStore = {
         open: openLuxuryStore,
         close: closeLuxuryStore,
+        isOpen: isLuxuryStoreOpen,
         refresh: renderLuxuryStore,
+        buyItemSafely:
+            itemId =>
+                buyLuxuryItemSafely(itemId),
+        rehydrateEquipped:
+            reason =>
+                rehydrateEquippedLuxuryRuntime(
+                    reason || 'api'
+                ),
 
         getItems:
             () => getLuxuryItems(),
@@ -11156,6 +15738,42 @@ if (isNationalDay) {
             return true;
         },
 
+        // Test nhanh Lord of the Mysteries · Klein — không cấp quyền sở hữu.
+        previewLotmKlein: () => {
+            if (
+                typeof PetManager !== 'undefined' &&
+                typeof PetManager.spawnPet === 'function'
+            ) {
+                PetManager.spawnPet(
+                    LOTM_KLEIN_EVENT_PET
+                );
+            }
+        },
+
+        clearLotmKlein: () => {
+            LuxuryLotmKleinRuntime.clear();
+        },
+
+        // Khôi phục toàn bộ full-web suite Klein sau reload/lazy-load.
+        restoreLotmKlein: () => {
+            return LuxuryLotmKleinRuntime.restore();
+        },
+
+        // Test riêng ultimate toàn màn hình.
+        lotmKleinUltimateTest: () => {
+            const pet =
+                LuxuryLotmKleinRuntime.getPet() ||
+                document.querySelector('#virtual-pet-container #virtual-pet-img');
+
+            if (!pet) return false;
+
+            const rect = pet.getBoundingClientRect();
+            return LuxuryLotmKleinRuntime.createUltimate(
+                rect.left + rect.width / 2,
+                rect.top + rect.height / 2
+            );
+        },
+
         // Test nhanh Cầm Cơ · Cầm Mộng — FULL SUITE V1.
         previewCamCoCamMong: () => {
             if (
@@ -11204,6 +15822,19 @@ if (isNationalDay) {
             }
         },
 
+
+        // Test nhanh Aether Thần thoại — FULL SUITE V1.
+        previewAether: () => {
+            if (
+                typeof PetManager !== 'undefined' &&
+                typeof PetManager.spawnPet === 'function'
+            ) {
+                PetManager.spawnPet(
+                    MYTHIC_AETHER_PET
+                );
+            }
+        },
+
         // Test nhanh thú cưng Quốc khánh (không cấp quyền sở hữu).
         previewNationalDay: () => {
             if (
@@ -11224,6 +15855,11 @@ if (isNationalDay) {
             LuxuryNyxRuntime.clear();
         },
 
+
+        clearAether: () => {
+            LuxuryAetherRuntime.clear();
+        },
+
         clearCamCoCamMong: () => {
             LuxuryCamCoCamMongRuntime.clear();
         },
@@ -11236,6 +15872,27 @@ if (isNationalDay) {
             LuxuryTamonPinkStaticRuntime.clear();
         },
 
+        previewLinkClickCheng: () => {
+            if (
+                typeof PetManager !== 'undefined' &&
+                typeof PetManager.spawnPet === 'function'
+            ) {
+                PetManager.spawnPet(
+                    LINKCLICK_CHENG_XIAOSHI_PET
+                );
+            }
+        },
+
+        clearLinkClickCheng: () => {
+            LuxuryLinkClickChengRuntime.clear();
+        },
+
+        // Chẩn đoán/sửa nhanh full-web Link Click theo pet đang hiển thị.
+        repairLinkClickCheng: () => {
+            ensureLinkClickChengStylesheet();
+            return syncLinkClickChengRuntimeFromDom();
+        },
+
         previewMidAutumn: () => {
             if (
                 typeof PetManager !== 'undefined' &&
@@ -11243,6 +15900,17 @@ if (isNationalDay) {
             ) {
                 PetManager.spawnPet(
                     MID_AUTUMN_MOON_PET
+                );
+            }
+        },
+
+        previewMidAutumnCuoi: () => {
+            if (
+                typeof PetManager !== 'undefined' &&
+                typeof PetManager.spawnPet === 'function'
+            ) {
+                PetManager.spawnPet(
+                    MID_AUTUMN_CUOI_PET
                 );
             }
         },
@@ -11272,16 +15940,27 @@ if (isNationalDay) {
     // ========================================================
     function bootLuxuryStore() {
 
+        ensureLuxuryStoreViewIsolationStyles();
+        ensureLotmKleinStylesheet();
         ensureCamCoCamMongStylesheet();
         ensureTamonBSideStylesheet();
         ensureMidAutumnStylesheet();
+        ensureLinkClickChengStylesheet();
 
         installLuxurySpringPetHook();
+        installLinkClickChengAutoMountObserver();
 
         // Rehydrate Summer V2 even when active_pet was restored before
         // luxury-store.js finished installing its spawn hook.
         LuxurySummerRuntime.restore();
         LuxuryMidAutumnRuntime.restore();
+        LuxuryLinkClickChengRuntime.restore();
+
+        // Tự sửa thêm một nhịp sau khi DOM/pet đã ổn định.
+        window.setTimeout(
+            syncLinkClickChengRuntimeFromDom,
+            320
+        );
 
         installLuxurySpringUnapplyHook();
 
@@ -11290,7 +15969,20 @@ if (isNationalDay) {
 
         buildLuxuryStoreUI();
 
+        installCollectionLuxuryMutualExclusionBridge();
+        installCollectionLuxuryViewObserver();
+
         installLuxuryInventoryListener();
+
+        /*
+         * Quan trọng cho lazy-load:
+         * inventory có thể đã được đọc trước khi luxury-store.js tồn tại.
+         * Sau khi đăng ký item + hook xong, tự áp lại pet Luxury đang mặc.
+         */
+        scheduleEquippedLuxuryRehydrate(
+            'luxury-module-boot',
+            90
+        );
     }
 
     if (
