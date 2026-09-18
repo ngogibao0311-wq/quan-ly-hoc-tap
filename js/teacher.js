@@ -16,6 +16,18 @@ function parseVietnamScheduleDate(value, fallback = null) {
     return Number.isFinite(parsed.getTime()) ? parsed : fallback;
 }
 
+// Dùng cho các inline handler được dựng bằng innerHTML.
+// JSON.stringify tạo JS string literal; HTML-escape ngăn dữ liệu thoát khỏi attribute.
+// Khai báo ở scope dùng chung vì cả danh sách bài được giao và danh sách bài nộp đều cần.
+function submissionInlineArg(value) {
+    return JSON.stringify(String(value ?? ''))
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 // ======================================================
 // SECURITY GUARD K · DANGEROUS ACTION REAUTH + PASSWORD POLICY
 // ======================================================
