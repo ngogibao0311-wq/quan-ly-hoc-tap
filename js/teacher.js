@@ -7498,7 +7498,7 @@ function escapeHTMLForMath(value) {
 //   student_coins có thể âm để bảo toàn sổ cái và chặn việc lợi dụng chấm lại.
 // ==============================================================
 const GRADE_REWARD_V2_VERSION = 4;
-window.__GRADE_REWARD_GUARD_BUILD = '20260918.v4.5-regrade-lock-recovery';
+window.__GRADE_REWARD_GUARD_BUILD = '20260918.v4.6-idempotent-hold-finalize';
 console.info('[Grade Reward Guard]', window.__GRADE_REWARD_GUARD_BUILD);
 const GRADE_REWARD_MUTATION_LOCK_MS = 10 * 60 * 1000;
 const GRADE_REWARD_REGRADE_IN_FLIGHT = new Set();
@@ -9046,9 +9046,12 @@ async function holdTeacherGradeRewardForRegradeV4(
     // Đồng thời ghi lại side-effect đã xảy ra để retry không hoàn/thu hồi lần hai.
     let recoveryPreviousStatus = '';
     let recoverySnapshot = null;
-    reversedTickets = 0;
-    reversedCoins = 0;
-    heldMessageId = null;
+    // V4.6: các biến side-effect PHẢI cùng scope với catch recovery.
+    // V4.5 từng khai báo lại bằng `let` trong try nên catch chỉ thấy giá trị 0/null,
+    // có thể làm mất dấu đã thu hồi nếu finalize gặp conflict.
+    let reversedTickets = 0;
+    let reversedCoins = 0;
+    let heldMessageId = null;
 
     try {
 
@@ -9131,9 +9134,18 @@ async function holdTeacherGradeRewardForRegradeV4(
         )
     );
 
+    // V4.6: revision_state là dấu idempotency bền vững nếu side-effect đã xảy ra
+    // nhưng event finalize bị conflict. Retry phải đọc dấu này để không thu hồi lần hai.
+    const currentRevisionState =
+        (await db
+            .ref(`grade_reward_revision_state/${username}/${submissionKey}/${snapshot.revision}`)
+            .once('value'))
+            .val() || {};
+
     // Không dựa riêng vào status "regrading" hay "rolledBackAt":
     // các bản V3 cũ có thể đã ghi status nhưng chưa thực sự trừ tài sản.
     const claimedAlreadyReversed = Boolean(
+        currentRevisionState.reversed === true ||
         claim?.status === 'reversed' ||
         (
             source.holdClaimedRewardReversed === true &&
@@ -9153,6 +9165,7 @@ async function holdTeacherGradeRewardForRegradeV4(
     );
 
     const penaltyAlreadyReversed = Boolean(
+        currentRevisionState.reversed === true ||
         source.holdPenaltyReversed === true ||
         (
             wasPenaltyApplied &&
@@ -9161,9 +9174,6 @@ async function holdTeacherGradeRewardForRegradeV4(
             Number(source.rolledBackAt || 0) > 0
         )
     );
-
-    let reversedTickets = 0;
-    let reversedCoins = 0;
 
     // A. Quà đã nhận -> thu hồi trực tiếp.
     if (
@@ -9287,8 +9297,6 @@ async function holdTeacherGradeRewardForRegradeV4(
 
     // Chỉ giữ lại thư thưởng DƯƠNG chưa nhận.
     // Thư phạt chỉ là thông báo nên xóa luôn khi án phạt được hoàn.
-    let heldMessageId = null;
-
     if (
         snapshot.ticketDelta > 0 &&
         messageId &&
@@ -9323,16 +9331,11 @@ async function holdTeacherGradeRewardForRegradeV4(
         claim?.status === 'reversed'
     );
 
-    const holdFinalizeTx = await eventRef.transaction(current => {
-        if (
-            !current ||
-            current.mutationId !== holdMutationId
-        ) {
-            return;
-        }
-
-        return {
-        ...source,
+    // V4.6 · IDEMPOTENT HOLD FINALIZE
+    // Dựng kết quả từ CURRENT thay vì source snapshot cũ để không làm mất metadata
+    // được ghi hợp lệ trong lúc đối soát.
+    const buildHoldFinalEvent = current => ({
+        ...(current || source),
         history: historyReconcile.history,
         version: GRADE_REWARD_V2_VERSION,
         status: 'regrade_hold',
@@ -9369,9 +9372,6 @@ async function holdTeacherGradeRewardForRegradeV4(
                 )
                 : false,
 
-        // V4.1: phân biệt khoản bị thu hồi NGAY TRONG lần HOLD hiện tại
-        // với cờ lịch sử từ các lần đối soát cũ. Cờ này dùng để khôi phục
-        // chính xác trường hợp: đã nhận quà -> chấm lại -> điểm giữ nguyên.
         holdClaimedRewardReversedThisHold:
             snapshot.ticketDelta > 0 &&
             wasClaimed &&
@@ -9388,27 +9388,152 @@ async function holdTeacherGradeRewardForRegradeV4(
         holdReversedTickets:
             reversedTickets !== 0
                 ? reversedTickets
-                : Number(source.holdReversedTickets || 0),
+                : Number(
+                    (current || source).holdReversedTickets || 0
+                ),
 
         holdReversedCoins:
             reversedCoins !== 0
                 ? reversedCoins
-                : Number(source.holdReversedCoins || 0),
+                : Number(
+                    (current || source).holdReversedCoins || 0
+                ),
 
-        // Giữ messageId hiện hành để student claim guard biết đúng thư nào
-        // đang bị khóa. Nếu thư cũ không còn thì vẫn giữ lịch sử ở holdMessageId.
         messageId: heldMessageId || messageId || null,
 
         mutationId: null,
         mutationStartedAt: null,
         mutationPreviousStatus: null
-        };
+    });
+
+    let holdFinalizeTx = await eventRef.transaction(current => {
+        if (!current) return;
+
+        // Đường bình thường: chính request này vẫn sở hữu lease.
+        if (current.mutationId === holdMutationId) {
+            return buildHoldFinalEvent(current);
+        }
+
+        // Nếu một callback/retry trước đã finalize cùng revision thì coi là idempotent success.
+        if (
+            String(current.status || '') === 'regrade_hold' &&
+            Number(current.holdRevision || current.revision || 0) ===
+                Number(snapshot.revision || 0) &&
+            String(current.holdReasonCode || '') ===
+                String(reasonCode || 'request_regrade')
+        ) {
+            return current;
+        }
+
+        return;
     });
 
     if (!holdFinalizeTx.committed) {
-        throw new Error(
-            'GRADE_REWARD_HOLD_FINALIZE_CONFLICT'
+        const latestSnap = await eventRef.once('value');
+        const latest = latestSnap.val() || null;
+        const latestNow = Date.now();
+
+        const alreadyFinalized = Boolean(
+            latest &&
+            String(latest.status || '') === 'regrade_hold' &&
+            Number(latest.holdRevision || latest.revision || 0) ===
+                Number(snapshot.revision || 0) &&
+            String(latest.holdReasonCode || '') ===
+                String(reasonCode || 'request_regrade')
         );
+
+        if (!alreadyFinalized) {
+            // Chỉ từ chối khi có MỘT lease khác còn sống thật sự.
+            const foreignActiveMutation = Boolean(
+                latest &&
+                String(latest.status || '') === 'mutating' &&
+                String(latest.mutationId || '') &&
+                String(latest.mutationId || '') !== holdMutationId &&
+                latestNow - Number(latest.mutationStartedAt || 0) <
+                    GRADE_REWARD_MUTATION_LOCK_MS
+            );
+
+            const latestRevision = Number(
+                latest?.holdRevision || latest?.revision || snapshot.revision || 0
+            );
+            const sameRevision =
+                latestRevision === Number(snapshot.revision || 0);
+
+            const latestMessageId = String(
+                latest?.holdMessageId || latest?.messageId || ''
+            ).trim();
+            const sameMessage =
+                !latestMessageId ||
+                !messageId ||
+                latestMessageId === messageId;
+
+            if (
+                foreignActiveMutation ||
+                !sameRevision ||
+                !sameMessage
+            ) {
+                throw new Error(
+                    'GRADE_REWARD_HOLD_FINALIZE_CONFLICT'
+                );
+            }
+
+            // Lease metadata có thể đã bị legacy recovery/xóa ngoài ý muốn,
+            // nhưng economic revision vẫn đúng. Finalize lại theo current state.
+            holdFinalizeTx = await eventRef.transaction(current => {
+                if (!current) return;
+
+                const now2 = Date.now();
+                const currentMutationId = String(
+                    current.mutationId || ''
+                );
+                const currentHasForeignActiveMutation = Boolean(
+                    String(current.status || '') === 'mutating' &&
+                    currentMutationId &&
+                    currentMutationId !== holdMutationId &&
+                    now2 - Number(current.mutationStartedAt || 0) <
+                        GRADE_REWARD_MUTATION_LOCK_MS
+                );
+
+                if (currentHasForeignActiveMutation) {
+                    return;
+                }
+
+                const currentRevision = Number(
+                    current.holdRevision ||
+                    current.revision ||
+                    snapshot.revision ||
+                    0
+                );
+
+                if (
+                    currentRevision !== Number(snapshot.revision || 0)
+                ) {
+                    return;
+                }
+
+                const currentMessageId = String(
+                    current.holdMessageId ||
+                    current.messageId ||
+                    ''
+                ).trim();
+
+                if (
+                    currentMessageId &&
+                    messageId &&
+                    currentMessageId !== messageId
+                ) {
+                    return;
+                }
+
+                return buildHoldFinalEvent(current);
+            });
+
+            if (!holdFinalizeTx.committed) {
+                throw new Error(
+                    'GRADE_REWARD_HOLD_FINALIZE_CONFLICT'
+                );
+            }
+        }
     }
 
     const currentReclaimedRewardTickets =
