@@ -54,14 +54,6 @@ class PetInteractionManager {
             price: 450,
             usesHunger: true,
             interactionType: 'stellar'
-        },
-        {
-            id: 'pet_premium_mua_xuan',
-            name: '🌸 Tiểu Hoa Mộng',
-            desc: 'Dùng Mộng Ấn cạnh thanh Mộng lực để chọn 1 trong 3 kỹ năng: Hoa Tức Lưu Ly (-5), Tửu Quang Hồi Vũ (-10), Lưu Ly Hoa Viên (-15). Nhấn trực tiếp Tiểu Hoa Mộng vẫn giữ hiệu ứng Thần Yến riêng.',
-            price: 500,
-            usesHunger: true,
-            interactionType: 'spring-dream'
         }
     ];
 
@@ -84,88 +76,11 @@ class PetInteractionManager {
         return this.unlockedInteractions.includes(petId);
     }
 
-    static getPerPetInteractionStorageKey() {
-        const user = this.getCurrentUser();
-        const ownerKey = user?.username
-            ? String(user.username)
-            : 'guest';
-
-        return `petInteractionEnabledByPet:${ownerKey}`;
-    }
-
-    static getPerPetInteractionPreferences() {
-        try {
-            const raw = localStorage.getItem(
-                this.getPerPetInteractionStorageKey()
-            );
-
-            if (!raw) return {};
-
-            const parsed = JSON.parse(raw);
-
-            return parsed && typeof parsed === 'object'
-                ? parsed
-                : {};
-        } catch (error) {
-            console.warn(
-                '[PetInteraction] Không đọc được trạng thái bật/tắt từng pet:',
-                error
-            );
-            return {};
-        }
-    }
-
-    static isPetInteractionEnabled(petId) {
-        const preferences =
-            this.getPerPetInteractionPreferences();
-
-        /*
-         * Mặc định BẬT để giữ nguyên hành vi của những tài khoản
-         * đã mua tương tác trước khi có công tắc riêng.
-         */
-        return preferences[petId] !== false;
-    }
-
-    static savePetInteractionPreference(
-        petId,
-        enabled
-    ) {
-        const preferences =
-            this.getPerPetInteractionPreferences();
-
-        preferences[petId] = Boolean(enabled);
-
-        try {
-            localStorage.setItem(
-                this.getPerPetInteractionStorageKey(),
-                JSON.stringify(preferences)
-            );
-        } catch (error) {
-            console.warn(
-                '[PetInteraction] Không lưu được trạng thái bật/tắt từng pet:',
-                error
-            );
-        }
-    }
-
     static canInteract(petId) {
         return (
             this.isEnabled &&
             this.isSupported(petId) &&
-            this.isUnlocked(petId) &&
-            this.isPetInteractionEnabled(petId)
-        );
-    }
-
-    /*
-     * Một số Premium có click riêng trên nhân vật.
-     * Những pet này vẫn dùng hệ Tương tác thú cưng nhưng
-     * kích hoạt bằng UI độc lập, tuyệt đối không chiếm click của pet.
-     */
-    static usesExternalActivation(petId) {
-        return (
-            petId ===
-            'pet_premium_mua_xuan'
+            this.isUnlocked(petId)
         );
     }
 
@@ -260,22 +175,6 @@ class PetInteractionManager {
                     this.initHungerSystem(
                         user.username
                     );
-
-                    if (
-                        activePetId ===
-                        'pet_premium_mua_xuan'
-                    ) {
-                        const petElement =
-                            document.getElementById(
-                                'virtual-pet-img'
-                            );
-
-                        this.mountSpringDreamSkillDock(
-                            petElement,
-                            this.interactionAbortController
-                                ?.signal
-                        );
-                    }
                 } else {
                     if (this.loopInterval) {
                         clearInterval(
@@ -318,10 +217,6 @@ class PetInteractionManager {
             activePetId ===
             'pet_truyenthuyet_1';
 
-        const isSpringDream =
-            activePetId ===
-            'pet_premium_mua_xuan';
-
         let barContainer =
             document.getElementById(
                 'pet-hunger-bar'
@@ -337,7 +232,7 @@ class PetInteractionManager {
             barContainer.innerHTML = `
             <span id="pet-hunger-icon"
                   class="pet-hunger-icon">
-                ${isSpringDream ? '❖' : (isStellar ? '✦' : '🍖')}
+                ${isStellar ? '✦' : '🍖'}
             </span>
 
             <div class="pet-hunger-track">
@@ -363,13 +258,9 @@ class PetInteractionManager {
         }
 
         barContainer.className =
-            isSpringDream
-                ? 'pet-hunger-bar spring-dream-hunger-bar'
-                : (
-                    isStellar
-                        ? 'pet-hunger-bar stellar-hunger-bar'
-                        : 'pet-hunger-bar'
-                );
+            isStellar
+                ? 'pet-hunger-bar stellar-hunger-bar'
+                : 'pet-hunger-bar';
 
         const icon =
             document.getElementById(
@@ -378,27 +269,19 @@ class PetInteractionManager {
 
         if (icon) {
             icon.textContent =
-                isSpringDream
-                    ? '❖'
-                    : (isStellar ? '✦' : '🍖');
+                isStellar ? '✦' : '🍖';
         }
 
         barContainer.title =
-            isSpringDream
-                ? 'Mộng lực của Tiểu Hoa Mộng — nhấn để mở Vườn Dưỡng Mộng'
-                : (
-                    isStellar
-                        ? 'Tinh lực của Kỳ Lân — nhấn để mở Đài Tiếp Năng'
-                        : 'Độ đói của thú cưng — nhấn để mua đồ ăn'
-                );
+            isStellar
+                ? 'Tinh lực của Kỳ Lân — nhấn để mở Đài Tiếp Năng'
+                : 'Độ đói của thú cưng — nhấn để mua đồ ăn';
 
         barContainer.onclick = event => {
             event.preventDefault();
             event.stopPropagation();
 
-            if (isSpringDream) {
-                this.openSpringDreamFoodShop();
-            } else if (isStellar) {
+            if (isStellar) {
                 this.openStellarFoodShop();
             } else {
                 this.openFoodShop();
@@ -422,23 +305,13 @@ class PetInteractionManager {
                     this.getNow();
 
                 if (data) {
-                    const energyKey =
-                        isSpringDream
-                            ? 'springDreamEnergy'
-                            : 'hunger';
-
-                    const updateKey =
-                        isSpringDream
-                            ? 'springDreamLastUpdate'
-                            : 'lastUpdate';
-
                     this.hunger =
-                        data[energyKey] !== undefined
-                            ? Number(data[energyKey])
+                        data.hunger !== undefined
+                            ? Number(data.hunger)
                             : 100;
 
                     this.lastHungerUpdate =
-                        Number(data[updateKey]) ||
+                        Number(data.lastUpdate) ||
                         now;
 
                     const hoursPassed =
@@ -451,14 +324,11 @@ class PetInteractionManager {
 
                     if (hoursPassed > 0) {
                         /*
-                         * Tiểu Hoa Mộng có Mộng lực riêng, giảm 6/giờ.
                          * Kỳ Lân mất 8 Tinh lực/giờ.
                          * Pet thường mất 10/giờ.
                          */
                         const decay =
-                            isSpringDream
-                                ? 6
-                                : (isStellar ? 8 : 10);
+                            isStellar ? 8 : 10;
 
                         this.hunger =
                             Math.max(
@@ -509,47 +379,18 @@ class PetInteractionManager {
         }
 
         try {
-            const activePetId =
-                localStorage.getItem(
-                    'active_pet'
-                );
-
-            const safeEnergy =
-                Math.max(
-                    0,
-                    Math.min(
-                        100,
-                        Number(this.hunger) || 0
-                    )
-                );
-
-            const safeUpdatedAt =
-                Number(this.lastHungerUpdate) ||
-                this.getNow();
-
-            /*
-             * Tiểu Hoa Mộng dùng hai field riêng trên cùng nhánh
-             * student_pet_status để không ghi đè Độ no/Tinh lực
-             * của các pet cũ và không cần mở thêm Firebase path.
-             */
-            const payload =
-                activePetId ===
-                'pet_premium_mua_xuan'
-                    ? {
-                        springDreamEnergy:
-                            safeEnergy,
-                        springDreamLastUpdate:
-                            safeUpdatedAt
-                    }
-                    : {
-                        hunger: safeEnergy,
-                        lastUpdate:
-                            safeUpdatedAt
-                    };
-
             await db.ref(
                 `student_pet_status/${user.username}`
-            ).update(payload);
+            ).set({
+                hunger: Math.max(
+                    0,
+                    Math.min(100, Number(this.hunger) || 0)
+                ),
+
+                lastUpdate:
+                    Number(this.lastHungerUpdate) ||
+                    this.getNow()
+            });
         } catch (error) {
             console.error(
                 'Không thể lưu trạng thái thú cưng:',
@@ -576,10 +417,6 @@ class PetInteractionManager {
             activePetId ===
             'pet_truyenthuyet_1';
 
-        const isSpringDream =
-            activePetId ===
-            'pet_premium_mua_xuan';
-
         const fill =
             document.getElementById(
                 'pet-hunger-fill'
@@ -599,20 +436,7 @@ class PetInteractionManager {
             fill.style.width =
                 `${this.hunger}%`;
 
-            if (isSpringDream) {
-                if (this.hunger > 70) {
-                    fill.style.background =
-                        'linear-gradient(90deg, #84a92f, #e2b85c, #b51f55)';
-                } else if (
-                    this.hunger > 30
-                ) {
-                    fill.style.background =
-                        'linear-gradient(90deg, #9f6f2c, #b51f55, #72148f)';
-                } else {
-                    fill.style.background =
-                        'linear-gradient(90deg, #7f1d1d, #c2415d, #ea580c)';
-                }
-            } else if (isStellar) {
+            if (isStellar) {
                 if (this.hunger > 70) {
                     fill.style.background =
                         'linear-gradient(90deg, #38bdf8, #818cf8, #d8b4fe)';
@@ -678,16 +502,6 @@ class PetInteractionManager {
                 Math.round(this.hunger);
         }
 
-        const springDreamShopText =
-            document.getElementById(
-                'springDreamEnergyText'
-            );
-
-        if (springDreamShopText) {
-            springDreamShopText.textContent =
-                Math.round(this.hunger);
-        }
-
         const petImg =
             document.getElementById(
                 'virtual-pet-img'
@@ -711,28 +525,6 @@ class PetInteractionManager {
                 isStellar &&
                 this.hunger <= 10
             );
-
-            petImg.classList.toggle(
-                'spring-dream-energy-full',
-                isSpringDream &&
-                this.hunger > 70
-            );
-
-            petImg.classList.toggle(
-                'spring-dream-energy-low',
-                isSpringDream &&
-                this.hunger <= 30
-            );
-
-            petImg.classList.toggle(
-                'spring-dream-energy-critical',
-                isSpringDream &&
-                this.hunger <= 10
-            );
-        }
-
-        if (isSpringDream) {
-            this.updateSpringDreamSkillDock();
         }
     }
 
@@ -760,12 +552,6 @@ class PetInteractionManager {
                     .getElementById('pet-hunger-bar')
                     ?.remove();
 
-                document
-                    .getElementById(
-                        'spring-dream-skill-dock'
-                    )
-                    ?.remove();
-
                 return;
             }
 
@@ -783,19 +569,7 @@ class PetInteractionManager {
 
             const now = this.getNow();
             if (now - this.lastHungerUpdate >= 3600000) {
-                const hourlyDecay =
-                    activePetId ===
-                    'pet_premium_mua_xuan'
-                        ? 6
-                        : 10;
-
-                this.hunger =
-                    Math.max(
-                        0,
-                        this.hunger -
-                        hourlyDecay
-                    );
-
+                this.hunger = Math.max(0, this.hunger - 10);
                 this.lastHungerUpdate = now;
                 this.saveHungerToDB();
                 this.updateHungerUI();
@@ -1404,12 +1178,6 @@ class PetInteractionManager {
                 hungerBar.style.display = 'none';
             }
 
-            document
-                .getElementById(
-                    'spring-dream-skill-dock'
-                )
-                ?.remove();
-
             const foodItem = document.querySelector('.pet-food-item');
             if (foodItem) foodItem.remove();
 
@@ -1430,230 +1198,8 @@ class PetInteractionManager {
                     const user = JSON.parse(localStorage.getItem('currentUser'));
                     if (user) this.initHungerSystem(user.username);
                 }
-
-                if (
-                    activePetId ===
-                    'pet_premium_mua_xuan'
-                ) {
-                    this.mountSpringDreamSkillDock(
-                        document.getElementById(
-                            'virtual-pet-img'
-                        ),
-                        this.interactionAbortController
-                            ?.signal
-                    );
-                }
             }
         }
-    }
-
-    static ensurePerPetToggleStyles() {
-        if (
-            document.getElementById(
-                'petInteractionPerPetToggleStyles'
-            )
-        ) {
-            return;
-        }
-
-        const style = document.createElement('style');
-        style.id = 'petInteractionPerPetToggleStyles';
-        style.textContent = `
-            .pet-interaction-card.is-interaction-disabled {
-                opacity: .82;
-                filter: saturate(.72);
-            }
-
-            .pet-interaction-owned-controls {
-                display: flex;
-                flex-direction: column;
-                gap: 9px;
-                min-width: 178px;
-            }
-
-            .pet-interaction-toggle-row {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                gap: 10px;
-                padding: 9px 11px;
-                border: 1px solid rgba(148, 163, 184, .24);
-                border-radius: 12px;
-                background: rgba(255, 255, 255, .68);
-                box-shadow: inset 0 1px 0 rgba(255, 255, 255, .7);
-            }
-
-            .pet-interaction-toggle-copy {
-                min-width: 0;
-                display: flex;
-                flex-direction: column;
-                gap: 2px;
-            }
-
-            .pet-interaction-toggle-copy strong {
-                font-size: 12px;
-                line-height: 1.2;
-            }
-
-            .pet-interaction-toggle-copy small {
-                font-size: 10px;
-                opacity: .72;
-            }
-
-            .pet-interaction-switch {
-                position: relative;
-                flex: 0 0 auto;
-                width: 46px;
-                height: 25px;
-                border: 0;
-                border-radius: 999px;
-                padding: 0;
-                cursor: pointer;
-                background: #94a3b8;
-                box-shadow: inset 0 0 0 1px rgba(15, 23, 42, .14);
-                transition: background .18s ease, transform .18s ease;
-            }
-
-            .pet-interaction-switch:hover {
-                transform: translateY(-1px);
-            }
-
-            .pet-interaction-switch::after {
-                content: '';
-                position: absolute;
-                width: 19px;
-                height: 19px;
-                left: 3px;
-                top: 3px;
-                border-radius: 50%;
-                background: #fff;
-                box-shadow: 0 2px 6px rgba(15, 23, 42, .28);
-                transition: transform .18s ease;
-            }
-
-            .pet-interaction-switch.is-on {
-                background: #22c55e;
-            }
-
-            .pet-interaction-switch.is-on::after {
-                transform: translateX(21px);
-            }
-
-            .pet-interaction-switch:focus-visible {
-                outline: 3px solid rgba(59, 130, 246, .3);
-                outline-offset: 2px;
-            }
-
-            .pet-interaction-enabled-badge {
-                display: inline-flex;
-                align-items: center;
-                gap: 5px;
-                margin-top: 5px;
-                font-size: 10px;
-                font-weight: 800;
-            }
-
-            .pet-interaction-enabled-badge.is-on {
-                color: #15803d;
-            }
-
-            .pet-interaction-enabled-badge.is-off {
-                color: #64748b;
-            }
-
-            @media (max-width: 640px) {
-                .pet-interaction-owned-controls {
-                    min-width: 0;
-                    width: 100%;
-                }
-            }
-        `;
-
-        (document.head || document.documentElement)
-            .appendChild(style);
-    }
-
-    static setPetInteractionEnabled(
-        petId,
-        enabled
-    ) {
-        if (
-            !this.isSupported(petId) ||
-            !this.isUnlocked(petId)
-        ) {
-            return;
-        }
-
-        const nextState = Boolean(enabled);
-
-        this.savePetInteractionPreference(
-            petId,
-            nextState
-        );
-
-        const activePetId =
-            localStorage.getItem('active_pet');
-
-        if (activePetId === petId) {
-            const petElement =
-                document.getElementById(
-                    'virtual-pet-img'
-                );
-
-            if (!nextState) {
-                /*
-                 * Dọn riêng runtime tương tác. Listener/hiệu ứng click
-                 * gốc của PetManager không dùng AbortController này,
-                 * nên các kỹ năng riêng như Thần Yến vẫn giữ nguyên.
-                 */
-                this.detachEvents({
-                    keepLoop: false,
-                    removeHungerBar: true
-                });
-
-                document
-                    .getElementById(
-                        'spring-dream-skill-dock'
-                    )
-                    ?.remove();
-            } else if (petElement) {
-                /*
-                 * Chỉ cần id cho PetInteractionManager. Các hiệu ứng pet
-                 * gốc vẫn do PetManager quản lý độc lập.
-                 */
-                this.attachEvents(
-                    petElement,
-                    { id: petId }
-                );
-            }
-        }
-
-        const modal =
-            document.getElementById(
-                'petInteractionInfoModal'
-            );
-
-        if (modal?.classList.contains('active')) {
-            this.showInfo();
-        }
-
-        if (typeof window.showToast === 'function') {
-            window.showToast(
-                nextState
-                    ? 'Đã bật tương tác cho thú cưng này.'
-                    : 'Đã tắt tương tác cho thú cưng này.',
-                'success'
-            );
-        }
-    }
-
-    static togglePetInteractionFromStore(
-        petId
-    ) {
-        this.setPetInteractionEnabled(
-            petId,
-            !this.isPetInteractionEnabled(petId)
-        );
     }
 
     static setInteractionFilter(filter) {
@@ -1684,8 +1230,6 @@ class PetInteractionManager {
             );
 
         if (!modal || !list) return;
-
-        this.ensurePerPetToggleStyles();
 
         const modalContent =
             modal.querySelector(
@@ -1804,18 +1348,6 @@ class PetInteractionManager {
                     'Dệt Chòm Sao',
                     'Bước Nhảy Thiên Hà',
                     'Thánh Địa Tinh Vân'
-                ]
-            },
-
-            pet_premium_mua_xuan: {
-                title: 'Tiểu Hoa Mộng',
-                icon: '🌸',
-                rarity: 'Premium · Mùa xuân',
-                className: 'theme-spring-dream',
-                skills: [
-                    'Hoa Tức Lưu Ly',
-                    'Tửu Quang Hồi Vũ',
-                    'Lưu Ly Hoa Viên'
                 ]
             }
         };
@@ -2042,12 +1574,6 @@ class PetInteractionManager {
                             activePetId ===
                             pet.id;
 
-                        const interactionEnabled =
-                            unlocked &&
-                            this.isPetInteractionEnabled(
-                                pet.id
-                            );
-
                         const skillHTML =
                             visual.skills.map(
                                 skill => `
@@ -2060,38 +1586,12 @@ class PetInteractionManager {
                         const actionHTML =
                             unlocked
                                 ? `
-                                <div class="pet-interaction-owned-controls">
-                                    <button type="button"
-                                            class="pet-interaction-action is-unlocked"
-                                            disabled>
-                                        <span>✓</span>
-                                        Đã mở khóa vĩnh viễn
-                                    </button>
-
-                                    <div class="pet-interaction-toggle-row">
-                                        <div class="pet-interaction-toggle-copy">
-                                            <strong>
-                                                ${interactionEnabled
-                                                    ? 'Tương tác đang bật'
-                                                    : 'Tương tác đã tắt'}
-                                            </strong>
-                                            <small>
-                                                ${interactionEnabled
-                                                    ? 'Pet sẽ tự nhận bộ tương tác khi trang bị'
-                                                    : 'Trang bị pet nhưng không tự kích hoạt tương tác'}
-                                            </small>
-                                        </div>
-
-                                        <button type="button"
-                                                role="switch"
-                                                aria-checked="${interactionEnabled ? 'true' : 'false'}"
-                                                aria-label="${interactionEnabled ? 'Tắt' : 'Bật'} tương tác ${visual.title}"
-                                                title="${interactionEnabled ? 'Tắt' : 'Bật'} tương tác ${visual.title}"
-                                                class="pet-interaction-switch ${interactionEnabled ? 'is-on' : 'is-off'}"
-                                                onclick="PetInteractionManager.togglePetInteractionFromStore('${pet.id}')">
-                                        </button>
-                                    </div>
-                                </div>
+                                <button type="button"
+                                        class="pet-interaction-action is-unlocked"
+                                        disabled>
+                                    <span>✓</span>
+                                    Đã mở khóa vĩnh viễn
+                                </button>
                             `
                                 : `
                                 <button type="button"
@@ -2111,9 +1611,6 @@ class PetInteractionManager {
                                 : 'is-locked'}
                             ${active
                                 ? 'is-active-pet'
-                                : ''}
-                            ${unlocked && !interactionEnabled
-                                ? 'is-interaction-disabled'
                                 : ''}
                         "
                         style="--pet-card-index: ${index};">
@@ -2188,9 +1685,7 @@ class PetInteractionManager {
 
                                         <small>
                                             ${unlocked
-                                ? (interactionEnabled
-                                    ? 'Đang cho phép tự động kích hoạt'
-                                    : 'Đã tắt tự động kích hoạt')
+                                ? 'Có thể sử dụng ngay'
                                 : 'Mua một lần, dùng vĩnh viễn'
                             }
                                         </small>
@@ -2273,11 +1768,6 @@ class PetInteractionManager {
                     ])
                 ];
 
-                this.savePetInteractionPreference(
-                    petId,
-                    true
-                );
-
                 this.showInfo();
                 return;
             }
@@ -2318,11 +1808,6 @@ class PetInteractionManager {
                 ])
             ];
 
-            this.savePetInteractionPreference(
-                petId,
-                true
-            );
-
             this.showInfo();
 
             const activePetId =
@@ -2337,19 +1822,6 @@ class PetInteractionManager {
                 await this.initHungerSystem(
                     user.username
                 );
-
-                if (
-                    petId ===
-                    'pet_premium_mua_xuan'
-                ) {
-                    this.mountSpringDreamSkillDock(
-                        document.getElementById(
-                            'virtual-pet-img'
-                        ),
-                        this.interactionAbortController
-                            ?.signal
-                    );
-                }
             }
 
             alert(
@@ -2425,56 +1897,6 @@ class PetInteractionManager {
             );
 
         if (!container) return;
-
-        /*
-         * TIỂU HOA MỘNG:
-         * Không gắn pointerdown / pointerup / click vào nhân vật.
-         * Click trên nhân vật được dành nguyên vẹn cho
-         * "Thần Yến · Xuân Tửu Khai Hội" của PetManager.
-         *
-         * Ba kỹ năng tương tác được kích hoạt bằng Mộng Ấn riêng.
-         */
-        if (
-            petData.id ===
-            'pet_premium_mua_xuan'
-        ) {
-            const user =
-                this.getCurrentUser();
-
-            if (
-                user?.username &&
-                this.canInteract(
-                    petData.id
-                ) &&
-                this.usesHungerSystem(
-                    petData.id
-                )
-            ) {
-                this.initHungerSystem(
-                    user.username
-                );
-
-                this.mountSpringDreamSkillDock(
-                    petElement,
-                    signal
-                );
-            } else {
-                document
-                    .getElementById(
-                        'pet-hunger-bar'
-                    )
-                    ?.remove();
-
-                document
-                    .getElementById(
-                        'spring-dream-skill-dock'
-                    )
-                    ?.remove();
-            }
-
-            this.stopStellarAmbient();
-            return;
-        }
 
         let startX = 0;
         let startY = 0;
@@ -2575,13 +1997,10 @@ class PetInteractionManager {
                 }
 
                 /*
-                 * Nhấn giữ trên nhân vật chỉ còn dành cho
-                 * Kỳ Lân Tinh Tú. Tiểu Hoa Mộng dùng Mộng Ấn riêng.
+                 * Chỉ Kỳ Lân Tinh Tú có
+                 * tương tác nhấn giữ.
                  */
                 if (
-                    this.canInteract(
-                        petData.id
-                    ) &&
                     petData.id ===
                     'pet_truyenthuyet_1'
                 ) {
@@ -2916,11 +2335,7 @@ class PetInteractionManager {
                     '.stellar-feeding-ritual',
                     '.stellar-status-message',
                     '.stellar-pet-ambient-mote',
-                    '#stellar-slumber-cocoon',
-                    '.spring-dream-interaction-layer',
-                    '.spring-dream-status-message',
-                    '.spring-dream-feeding-ritual',
-                    '#spring-dream-skill-dock'
+                    '#stellar-slumber-cocoon'
                 ].join(',')
             )
             .forEach(element => {
@@ -2934,12 +2349,6 @@ class PetInteractionManager {
         document
             .getElementById(
                 'stellarFoodShopModal'
-            )
-            ?.classList.remove('active');
-
-        document
-            .getElementById(
-                'springDreamFoodShopModal'
             )
             ?.classList.remove('active');
 
@@ -2958,14 +2367,7 @@ class PetInteractionManager {
                 'stellar-sanctuary-caster',
                 'stellar-energy-full',
                 'stellar-energy-low',
-                'stellar-energy-critical',
-                'spring-dream-whisper-caster',
-                'spring-dream-dance-caster',
-                'spring-dream-sanctuary-caster',
-                'spring-dream-feeding-awakened',
-                'spring-dream-energy-full',
-                'spring-dream-energy-low',
-                'spring-dream-energy-critical'
+                'stellar-energy-critical'
             );
 
         /*
@@ -3004,925 +2406,6 @@ class PetInteractionManager {
                 )
                 ?.remove();
         }
-    }
-
-    static mountSpringDreamSkillDock(
-        petElement,
-        signal
-    ) {
-        const container =
-            document.getElementById(
-                'virtual-pet-container'
-            );
-
-        document
-            .getElementById(
-                'spring-dream-skill-dock'
-            )
-            ?.remove();
-
-        if (
-            !container ||
-            !petElement ||
-            localStorage.getItem(
-                'active_pet'
-            ) !==
-            'pet_premium_mua_xuan' ||
-            !this.canInteract(
-                'pet_premium_mua_xuan'
-            )
-        ) {
-            return null;
-        }
-
-        const dock =
-            document.createElement('div');
-
-        dock.id =
-            'spring-dream-skill-dock';
-
-        dock.className =
-            'spring-dream-skill-dock';
-
-        dock.setAttribute(
-            'role',
-            'group'
-        );
-
-        dock.setAttribute(
-            'aria-label',
-            'Mộng Ấn kỹ năng của Tiểu Hoa Mộng'
-        );
-
-        dock.innerHTML = `
-            <div class="spring-dream-skill-dock-head">
-                <span class="spring-dream-skill-seal" aria-hidden="true">❖</span>
-                <div>
-                    <strong>Mộng Ấn</strong>
-                    <small>Chọn kỹ năng · không cần nhấn nhân vật</small>
-                </div>
-            </div>
-
-            <div class="spring-dream-skill-actions">
-                <button
-                    type="button"
-                    class="spring-dream-skill-btn"
-                    data-spring-dream-skill="whisper"
-                    data-energy-cost="5"
-                    aria-label="Hoa Tức Lưu Ly, tốn 5 Mộng lực"
-                >
-                    <span class="spring-dream-skill-icon" aria-hidden="true">✧</span>
-                    <span class="spring-dream-skill-copy">
-                        <b>Hoa Tức</b>
-                        <small>-5 Mộng lực</small>
-                    </span>
-                </button>
-
-                <button
-                    type="button"
-                    class="spring-dream-skill-btn"
-                    data-spring-dream-skill="dance"
-                    data-energy-cost="10"
-                    aria-label="Tửu Quang Hồi Vũ, tốn 10 Mộng lực"
-                >
-                    <span class="spring-dream-skill-icon" aria-hidden="true">◇</span>
-                    <span class="spring-dream-skill-copy">
-                        <b>Hồi Vũ</b>
-                        <small>-10 Mộng lực</small>
-                    </span>
-                </button>
-
-                <button
-                    type="button"
-                    class="spring-dream-skill-btn is-ultimate"
-                    data-spring-dream-skill="sanctuary"
-                    data-energy-cost="15"
-                    aria-label="Lưu Ly Hoa Viên, tốn 15 Mộng lực"
-                >
-                    <span class="spring-dream-skill-icon" aria-hidden="true">❈</span>
-                    <span class="spring-dream-skill-copy">
-                        <b>Hoa Viên</b>
-                        <small>-15 Mộng lực</small>
-                    </span>
-                </button>
-            </div>
-        `;
-
-        /*
-         * Dock nằm trong container pet nhưng mọi thao tác trên dock
-         * phải dừng tại đây để PetManager không hiểu là kéo pet.
-         */
-        dock.addEventListener(
-            'pointerdown',
-            event => {
-                event.stopPropagation();
-            },
-            signal
-                ? { signal }
-                : undefined
-        );
-
-        dock.addEventListener(
-            'click',
-            event => {
-                const button =
-                    event.target.closest(
-                        '[data-spring-dream-skill]'
-                    );
-
-                if (!button) return;
-
-                event.preventDefault();
-                event.stopPropagation();
-
-                if (
-                    button.disabled ||
-                    this.isBusy ||
-                    !this.canInteract(
-                        'pet_premium_mua_xuan'
-                    ) ||
-                    localStorage.getItem(
-                        'active_pet'
-                    ) !==
-                    'pet_premium_mua_xuan'
-                ) {
-                    return;
-                }
-
-                const currentPet =
-                    document.getElementById(
-                        'virtual-pet-img'
-                    );
-
-                if (!currentPet) return;
-
-                this.resetIdle();
-
-                switch (
-                    button.dataset
-                        .springDreamSkill
-                ) {
-                    case 'whisper':
-                        this.performSpringDreamWhisper(
-                            currentPet
-                        );
-                        break;
-
-                    case 'dance':
-                        this.performSpringDreamDance(
-                            currentPet
-                        );
-                        break;
-
-                    case 'sanctuary':
-                        this.castSpringDreamSanctuary(
-                            currentPet
-                        );
-                        break;
-                }
-
-                this.updateSpringDreamSkillDock();
-            },
-            signal
-                ? { signal }
-                : undefined
-        );
-
-        container.appendChild(
-            dock
-        );
-
-        const updateDockPlacement = () => {
-            const rect =
-                container.getBoundingClientRect();
-
-            dock.classList.toggle(
-                'is-below',
-                rect.top < 165
-            );
-        };
-
-        updateDockPlacement();
-
-        window.addEventListener(
-            'resize',
-            updateDockPlacement,
-            signal
-                ? {
-                    signal,
-                    passive: true
-                }
-                : {
-                    passive: true
-                }
-        );
-
-        container.addEventListener(
-            'pointerup',
-            () => {
-                requestAnimationFrame(
-                    updateDockPlacement
-                );
-            },
-            signal
-                ? {
-                    signal,
-                    passive: true
-                }
-                : {
-                    passive: true
-                }
-        );
-
-        this.updateSpringDreamSkillDock();
-
-        return dock;
-    }
-
-    static updateSpringDreamSkillDock() {
-        const dock =
-            document.getElementById(
-                'spring-dream-skill-dock'
-            );
-
-        if (!dock) return;
-
-        if (
-            localStorage.getItem(
-                'active_pet'
-            ) !==
-            'pet_premium_mua_xuan' ||
-            !this.canInteract(
-                'pet_premium_mua_xuan'
-            )
-        ) {
-            dock.remove();
-            return;
-        }
-
-        const energy =
-            Math.max(
-                0,
-                Math.min(
-                    100,
-                    Number(this.hunger) || 0
-                )
-            );
-
-        dock.dataset.energy =
-            String(
-                Math.round(energy)
-            );
-
-        dock.classList.toggle(
-            'is-busy',
-            this.isBusy
-        );
-
-        dock.querySelectorAll(
-            '[data-energy-cost]'
-        ).forEach(button => {
-            const cost =
-                Number(
-                    button.dataset
-                        .energyCost
-                ) || 0;
-
-            const unavailable =
-                this.isBusy ||
-                energy < cost;
-
-            button.disabled =
-                unavailable;
-
-            button.classList.toggle(
-                'is-unavailable',
-                unavailable
-            );
-        });
-    }
-
-    static consumeSpringDreamEnergy(
-        amount,
-        failureMessage
-    ) {
-        const cost =
-            Math.max(
-                0,
-                Number(amount) || 0
-            );
-
-        if (
-            localStorage.getItem(
-                'active_pet'
-            ) !==
-            'pet_premium_mua_xuan' ||
-            !this.canInteract(
-                'pet_premium_mua_xuan'
-            )
-        ) {
-            return false;
-        }
-
-        if (this.hunger < cost) {
-            this.showSpringDreamMessage(
-                failureMessage ||
-                `Cần ít nhất ${cost} Mộng lực.`
-            );
-
-            return false;
-        }
-
-        this.hunger =
-            Math.max(
-                0,
-                this.hunger - cost
-            );
-
-        this.lastHungerUpdate =
-            this.getNow();
-
-        this.saveHungerToDB();
-        this.updateHungerUI();
-
-        return true;
-    }
-
-    static showSpringDreamMessage(text) {
-        const container =
-            document.getElementById(
-                'virtual-pet-container'
-            );
-
-        if (!container) return;
-
-        container
-            .querySelector(
-                '.spring-dream-status-message'
-            )
-            ?.remove();
-
-        const message =
-            document.createElement('div');
-
-        message.className =
-            'spring-dream-status-message';
-
-        message.textContent = text;
-
-        container.appendChild(message);
-
-        setTimeout(
-            () => {
-                message.remove();
-            },
-            1700
-        );
-    }
-
-    static createSpringDreamLayer(
-        className,
-        label
-    ) {
-        const container =
-            document.getElementById(
-                'virtual-pet-container'
-            );
-
-        if (!container) return null;
-
-        container
-            .querySelectorAll(
-                '.spring-dream-interaction-layer'
-            )
-            .forEach(node => node.remove());
-
-        const layer =
-            document.createElement('div');
-
-        layer.className =
-            `spring-dream-interaction-layer ${className}`;
-
-        layer.setAttribute(
-            'aria-hidden',
-            'true'
-        );
-
-        const glassField =
-            document.createElement('div');
-
-        glassField.className =
-            'spring-dream-glass-field';
-
-        for (
-            let index = 0;
-            index < 6;
-            index++
-        ) {
-            const shard =
-                document.createElement('i');
-
-            shard.className =
-                'spring-dream-glass-shard';
-
-            shard.style.setProperty(
-                '--spring-shard-index',
-                index
-            );
-
-            shard.style.setProperty(
-                '--spring-shard-angle',
-                `${index * 60}deg`
-            );
-
-            glassField.appendChild(
-                shard
-            );
-        }
-
-        const vine =
-            document.createElement('div');
-
-        vine.className =
-            'spring-dream-vine-lattice';
-
-        const jewel =
-            document.createElement('div');
-
-        jewel.className =
-            'spring-dream-ruby-jewel';
-
-        const caption =
-            document.createElement('div');
-
-        caption.className =
-            'spring-dream-layer-caption';
-
-        caption.textContent = label;
-
-        layer.append(
-            glassField,
-            vine,
-            jewel,
-            caption
-        );
-
-        container.appendChild(layer);
-
-        return layer;
-    }
-
-    static performSpringDreamWhisper(
-        petElement
-    ) {
-        if (
-            !petElement ||
-            this.isBusy ||
-            this.isPetDragging ||
-            localStorage.getItem(
-                'active_pet'
-            ) !==
-            'pet_premium_mua_xuan'
-        ) {
-            return;
-        }
-
-        if (
-            !this.consumeSpringDreamEnergy(
-                5,
-                '❖ Cần 5 Mộng lực để gọi Hoa Tức Lưu Ly.'
-            )
-        ) {
-            return;
-        }
-
-        this.isBusy = true;
-        this.updateSpringDreamSkillDock();
-
-        const layer =
-            this.createSpringDreamLayer(
-                'is-whisper',
-                'Hoa Tức Lưu Ly'
-            );
-
-        petElement.classList.add(
-            'spring-dream-whisper-caster'
-        );
-
-        setTimeout(
-            () => {
-                layer?.remove();
-
-                petElement.classList.remove(
-                    'spring-dream-whisper-caster'
-                );
-
-                this.isBusy = false;
-                this.updateSpringDreamSkillDock();
-            },
-            1250
-        );
-    }
-
-    static performSpringDreamDance(
-        petElement
-    ) {
-        if (
-            !petElement ||
-            this.isBusy ||
-            this.isPetDragging ||
-            localStorage.getItem(
-                'active_pet'
-            ) !==
-            'pet_premium_mua_xuan'
-        ) {
-            return;
-        }
-
-        if (
-            !this.consumeSpringDreamEnergy(
-                10,
-                '❖ Cần 10 Mộng lực để gọi Tửu Quang Hồi Vũ.'
-            )
-        ) {
-            return;
-        }
-
-        this.isBusy = true;
-        this.updateSpringDreamSkillDock();
-
-        const layer =
-            this.createSpringDreamLayer(
-                'is-dance',
-                'Tửu Quang Hồi Vũ'
-            );
-
-        petElement.classList.add(
-            'spring-dream-dance-caster'
-        );
-
-        setTimeout(
-            () => {
-                layer?.remove();
-
-                petElement.classList.remove(
-                    'spring-dream-dance-caster'
-                );
-
-                this.isBusy = false;
-                this.updateSpringDreamSkillDock();
-            },
-            1750
-        );
-    }
-
-    static castSpringDreamSanctuary(
-        petElement
-    ) {
-        if (
-            !petElement ||
-            this.isBusy ||
-            this.isPetDragging ||
-            localStorage.getItem(
-                'active_pet'
-            ) !==
-            'pet_premium_mua_xuan'
-        ) {
-            return;
-        }
-
-        if (
-            !this.consumeSpringDreamEnergy(
-                15,
-                '❖ Cần 15 Mộng lực để mở Lưu Ly Hoa Viên.'
-            )
-        ) {
-            return;
-        }
-
-        this.isBusy = true;
-        this.updateSpringDreamSkillDock();
-
-        const layer =
-            this.createSpringDreamLayer(
-                'is-sanctuary',
-                'Lưu Ly Hoa Viên'
-            );
-
-        petElement.classList.add(
-            'spring-dream-sanctuary-caster'
-        );
-
-        setTimeout(
-            () => {
-                layer?.remove();
-
-                petElement.classList.remove(
-                    'spring-dream-sanctuary-caster'
-                );
-
-                this.isBusy = false;
-                this.updateSpringDreamSkillDock();
-            },
-            2350
-        );
-    }
-
-    static openSpringDreamFoodShop() {
-        if (
-            localStorage.getItem(
-                'active_pet'
-            ) !==
-            'pet_premium_mua_xuan' ||
-            !this.canInteract(
-                'pet_premium_mua_xuan'
-            )
-        ) {
-            return;
-        }
-
-        let modal =
-            document.getElementById(
-                'springDreamFoodShopModal'
-            );
-
-        if (!modal) {
-            modal =
-                document.createElement('div');
-
-            modal.id =
-                'springDreamFoodShopModal';
-
-            modal.className =
-                'modal-overlay spring-dream-food-modal';
-
-            /*
-             * Dùng tầng modal chuẩn thay vì z-index cực cao
-             * để cảnh báo thi / thông báo giáo viên vẫn ưu tiên.
-             */
-            modal.style.zIndex =
-                'var(--z-modal-normal, 9990)';
-
-            modal.innerHTML = `
-            <div class="modal-content spring-dream-food-content">
-                <button class="close-btn"
-                        onclick="document.getElementById('springDreamFoodShopModal').classList.remove('active')">
-                    ✖
-                </button>
-
-                <div class="spring-dream-food-emblem">
-                    ❖
-                </div>
-
-                <h3>Vườn Dưỡng Mộng</h3>
-
-                <p class="spring-dream-energy-status">
-                    Mộng lực hiện tại:
-                    <strong id="springDreamEnergyText">
-                        0
-                    </strong>
-                    / 100
-                </p>
-
-                <div class="spring-dream-food-list">
-                    <button class="spring-dream-food-btn"
-                            onclick="PetInteractionManager.buySpringDreamFood(15, 12, 'Sương Nho', '◈')">
-                        <span>◈</span>
-                        <strong>Sương Nho</strong>
-                        <small>15 Coin · +12 Mộng lực</small>
-                    </button>
-
-                    <button class="spring-dream-food-btn"
-                            onclick="PetInteractionManager.buySpringDreamFood(30, 28, 'Tinh Lộ Hồng Ngọc', '◆')">
-                        <span>◆</span>
-                        <strong>Tinh Lộ Hồng Ngọc</strong>
-                        <small>30 Coin · +28 Mộng lực</small>
-                    </button>
-
-                    <button class="spring-dream-food-btn premium"
-                            onclick="PetInteractionManager.buySpringDreamFood(60, 65, 'Tửu Quang Kết Tinh', '❖')">
-                        <span>❖</span>
-                        <strong>Tửu Quang Kết Tinh</strong>
-                        <small>60 Coin · +65 Mộng lực</small>
-                    </button>
-
-                    <button class="spring-dream-food-btn legendary"
-                            onclick="PetInteractionManager.buySpringDreamFood(100, 100, 'Lõi Hoa Mộng', '✦')">
-                        <span>✦</span>
-                        <strong>Lõi Hoa Mộng</strong>
-                        <small>100 Coin · hồi đầy Mộng lực</small>
-                    </button>
-                </div>
-            </div>
-        `;
-
-            document.body.appendChild(
-                modal
-            );
-        }
-
-        this.updateHungerUI();
-        modal.classList.add('active');
-    }
-
-    static async buySpringDreamFood(
-        price,
-        energyGain,
-        itemName,
-        symbol
-    ) {
-        const user =
-            this.getCurrentUser();
-
-        if (
-            !user?.username ||
-            typeof db === 'undefined' ||
-            localStorage.getItem(
-                'active_pet'
-            ) !==
-            'pet_premium_mua_xuan'
-        ) {
-            alert(
-                '❌ Tiểu Hoa Mộng hiện không hoạt động.'
-            );
-
-            return;
-        }
-
-        if (this.hunger >= 100) {
-            alert(
-                'Tiểu Hoa Mộng đang tràn đầy Mộng lực.'
-            );
-
-            return;
-        }
-
-        const safePrice =
-            Math.max(
-                0,
-                Math.round(
-                    Number(price) || 0
-                )
-            );
-
-        const accepted =
-            confirm(
-                `Dùng ${safePrice} Coin để mua ${itemName}?`
-            );
-
-        if (!accepted) return;
-
-        const coinRef =
-            db.ref(
-                `student_coins/${user.username}`
-            );
-
-        try {
-            const result =
-                await coinRef.transaction(
-                    currentValue => {
-                        const balance =
-                            Number(
-                                currentValue
-                            ) || 0;
-
-                        if (
-                            balance <
-                            safePrice
-                        ) {
-                            return;
-                        }
-
-                        return (
-                            balance -
-                            safePrice
-                        );
-                    }
-                );
-
-            if (!result.committed) {
-                alert(
-                    '❌ Bạn không đủ Coin.'
-                );
-
-                return;
-            }
-
-            this.hunger =
-                Math.min(
-                    100,
-                    this.hunger +
-                    Number(energyGain)
-                );
-
-            this.lastHungerUpdate =
-                this.getNow();
-
-            await this.saveHungerToDB();
-
-            this.updateHungerUI();
-            this.resetIdle();
-
-            document
-                .getElementById(
-                    'springDreamFoodShopModal'
-                )
-                ?.classList.remove(
-                    'active'
-                );
-
-            this.playSpringDreamFeedingRitual(
-                symbol,
-                itemName
-            );
-        } catch (error) {
-            console.error(
-                'Lỗi dưỡng Mộng lực:',
-                error
-            );
-
-            alert(
-                '❌ Không thể dưỡng Mộng lực.'
-            );
-        }
-    }
-
-    static playSpringDreamFeedingRitual(
-        symbol,
-        itemName
-    ) {
-        const container =
-            document.getElementById(
-                'virtual-pet-container'
-            );
-
-        const petElement =
-            document.getElementById(
-                'virtual-pet-img'
-            );
-
-        if (
-            !container ||
-            !petElement ||
-            localStorage.getItem(
-                'active_pet'
-            ) !==
-            'pet_premium_mua_xuan'
-        ) {
-            return;
-        }
-
-        container
-            .querySelector(
-                '.spring-dream-feeding-ritual'
-            )
-            ?.remove();
-
-        this.isBusy = true;
-
-        const ritual =
-            document.createElement('div');
-
-        ritual.className =
-            'spring-dream-feeding-ritual';
-
-        ritual.innerHTML = `
-        <div class="spring-dream-feeding-glass"></div>
-        <div class="spring-dream-feeding-core">
-            ${symbol}
-        </div>
-        <div class="spring-dream-feeding-vine"></div>
-    `;
-
-        const dialogue =
-            document.createElement('div');
-
-        dialogue.className =
-            'spring-dream-status-message is-feeding';
-
-        dialogue.textContent =
-            `❖ Đã hấp thụ ${itemName} ❖`;
-
-        container.appendChild(ritual);
-        container.appendChild(dialogue);
-
-        petElement.classList.add(
-            'spring-dream-feeding-awakened'
-        );
-
-        setTimeout(
-            () => {
-                ritual.remove();
-                dialogue.remove();
-
-                petElement.classList.remove(
-                    'spring-dream-feeding-awakened'
-                );
-
-                this.isBusy = false;
-            },
-            2100
-        );
     }
 
     static consumeStellarEnergy(

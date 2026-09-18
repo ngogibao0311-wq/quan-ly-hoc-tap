@@ -1559,20 +1559,8 @@ let lockoutInterval = null;
         'system_settings/loginPageLayout';
 
     function normalizeLayout(value) {
-        const normalized =
-            String(value || '')
-                .trim()
-                .toLowerCase();
-
-        const allowedLayouts = new Set([
-            'split',
-            'centered',
-            'reversed',
-            'cinematic'
-        ]);
-
-        return allowedLayouts.has(normalized)
-            ? normalized
+        return String(value || '').trim() === 'centered'
+            ? 'centered'
             : 'split';
     }
 
@@ -1581,13 +1569,13 @@ let lockoutInterval = null;
 
         document.body.classList.remove(
             'login-layout-split',
-            'login-layout-centered',
-            'login-layout-reversed',
-            'login-layout-cinematic'
+            'login-layout-centered'
         );
 
         document.body.classList.add(
-            'login-layout-' + layout
+            layout === 'centered'
+                ? 'login-layout-centered'
+                : 'login-layout-split'
         );
 
         document.body.dataset.loginLayout =

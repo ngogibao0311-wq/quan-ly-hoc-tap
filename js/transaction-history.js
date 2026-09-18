@@ -123,8 +123,6 @@
             );
         }
 
-        const logActor = actor();
-
         await db
             .ref(`${ROOT}/${id}`)
             .set(
@@ -166,10 +164,7 @@
                     details:
                         data.details || {},
 
-                    // Chỉ log do giáo viên tạo mới có thể được hoàn tác.
-                    // Log học sinh vẫn được giữ để audit nhưng không được biến thành lệnh đặc quyền.
                     reversible:
-                        logActor.role === 'teacher' &&
                         data.reversible === true,
 
                     nonReversibleReason:
@@ -180,7 +175,7 @@
                         'active',
 
                     actor:
-                        logActor,
+                        actor(),
 
                     createdAt:
                         firebase.database
@@ -544,28 +539,10 @@
             );
     }
 
-    function safeUsernameSegment(value) {
-        const username = String(value || '').trim();
-        // RTDB key segments cannot contain these characters. Also reject control chars.
-        if (!username || /[.#$\[\]\/]/.test(username) || /[\u0000-\u001F\u007F]/.test(username)) {
-            throw new Error('Username trong nhật ký không hợp lệ.');
-        }
-        return username;
-    }
-
-    function requireExactLogPath(actualPath, expectedPath, label) {
-        if (String(actualPath || '') !== expectedPath) {
-            throw new Error(`${label} trong nhật ký không khớp đối tượng giao dịch.`);
-        }
-        return expectedPath;
-    }
-
     async function undoCoin(log) {
-        const targetUsername = safeUsernameSegment(log.targetUsername);
-        const path = requireExactLogPath(
-            log.details?.coinPath,
-            `student_coins/${targetUsername}`,
-            'Đường dẫn Coin'
+        const path = String(
+            log.details?.coinPath ||
+            ''
         );
 
         const delta = Number(
@@ -1001,18 +978,17 @@
         const d =
             log.details || {};
 
-        const targetUsername = safeUsernameSegment(log.targetUsername);
-        const coinPath = requireExactLogPath(
-            d.coinPath,
-            `student_coins/${targetUsername}`,
-            'Đường dẫn Coin'
-        );
+        const coinPath =
+            String(
+                d.coinPath ||
+                ''
+            );
 
-        const offsetPath = requireExactLogPath(
-            d.offsetPath,
-            `student_money_offset/${targetUsername}`,
-            'Đường dẫn tiền lộ trình'
-        );
+        const offsetPath =
+            String(
+                d.offsetPath ||
+                ''
+            );
 
         const coinDelta =
             Number(
