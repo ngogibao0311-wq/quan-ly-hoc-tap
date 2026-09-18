@@ -98,7 +98,7 @@
         musicManager: 'js/music-manager.js?v=20260910.music-reliability-v3',
         storeManager: 'js/store-manager.js?v=20260917.frame-runtime-barrier-v1',
 
-        luxuryStore: 'js/luxury-store.js?v=4.2.12-store-view-isolation',
+        luxuryStore: 'js/luxury-store.js?v=20260918.menu-mount-fix',
         collections: 'js/store-collections.js?v=20260908.four-seasons-lock-v1',
 
         royalBall: 'js/royal-ball.js?v=20260908.lazy-v1',

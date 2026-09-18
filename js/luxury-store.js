@@ -15666,6 +15666,7 @@ if (isNationalDay) {
     // API
     // ========================================================
     window.LuxuryStore = {
+        ensureUI: buildLuxuryStoreUI,
         open: openLuxuryStore,
         close: closeLuxuryStore,
         isOpen: isLuxuryStoreOpen,
@@ -15939,6 +15940,9 @@ if (isNationalDay) {
     // KHỞI ĐỘNG
     // ========================================================
     function bootLuxuryStore() {
+
+        // Mount navigation before optional pet/effect recovery can fail.
+        buildLuxuryStoreUI();
 
         ensureLuxuryStoreViewIsolationStyles();
         ensureLotmKleinStylesheet();

@@ -13629,6 +13629,11 @@ window.switchTab = async function (tabId, btnElement) {
         ) {
             await window.StudentFeatureLoader
                 .ensureForTab(tabId);
+            // Luxury may have loaded earlier for an equipped pet, before the
+            // collection menu existed. Its earlier UI retry may have expired.
+            if (tabId === 'tab-store') {
+                window.LuxuryStore?.ensureUI?.();
+            }
         }
     } catch (error) {
         console.error(
