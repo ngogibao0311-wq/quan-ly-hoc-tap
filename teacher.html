@@ -4,16 +4,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="application-version" content="4.0.6">
+    <meta name="application-version" content="4.0.2">
     <title>Trang Giáo Viên</title>
     <!-- Kết nối sớm tới CDN lõi; không tải thêm tài nguyên và không đổi chức năng -->
     <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link rel="icon" type="image/png" href="assets/icon.png">
-    <link rel="stylesheet" href="css/common.css?v=4.0.6-login-layout4">
-    <link rel="stylesheet" href="css/teacher.css?v=4.0.10-sidebar-toggle-right">
-    <link rel="stylesheet" href="css/mobile.css?v=4.0.3-layout">
+    <link rel="stylesheet" href="css/common.css?v=4.0.1">
+    <link rel="stylesheet" href="css/teacher.css?v=20260906.golden-layout-v3">
+    <link rel="stylesheet" href="css/mobile.css?v=4.0.0">
     <link rel="stylesheet" href="css/web-animations.css?v=1.0">
     <link rel="stylesheet" href="css/store-items.css?v=4.0.0">
     <link rel="stylesheet" href="css/effects-pets.css?v=4.0.0">
@@ -21,68 +21,6 @@
     <link rel="stylesheet" href="css/painting.css?v=4.0.0">
     <link rel="stylesheet" href="css/luxury-store.css?v=4.2">
     <link rel="stylesheet" href="css/update-manager.css?v=1.0.0">
-    <style id="teacherSidebarToggleFinalGuard">
-        /*
-         * Guard đặt trong teacher.html để thắng các CSS dùng chung/mobile
-         * được tải sau hoặc cache cũ. Logic chính vẫn nằm trong teacher.css.
-         */
-        @media screen and (min-width: 769px) {
-            html[data-app-role="teacher"] body .dashboard > .sidebar > .sidebar-toggle {
-                position: absolute !important;
-                top: 18px !important;
-                right: 16px !important;
-                left: auto !important;
-                bottom: auto !important;
-                float: none !important;
-                margin: 0 !important;
-                width: 38px !important;
-                min-width: 38px !important;
-                max-width: 38px !important;
-                height: 38px !important;
-                min-height: 38px !important;
-                max-height: 38px !important;
-                padding: 0 !important;
-                display: flex !important;
-                align-items: center !important;
-                justify-content: center !important;
-                z-index: 1000 !important;
-                transform: none !important;
-            }
-
-            html[data-app-role="teacher"] body
-            .dashboard:not(.collapsed) > .sidebar > .sidebar-top h3 {
-                max-width: calc(100% - 58px) !important;
-                margin: 0 58px 20px 2px !important;
-                min-height: 38px !important;
-                display: flex !important;
-                align-items: center !important;
-                white-space: nowrap !important;
-            }
-
-            html[data-app-role="teacher"] body
-            .dashboard:not(.collapsed) > .sidebar > .sidebar-top h3 + br {
-                display: none !important;
-            }
-
-            html[data-app-role="teacher"] body
-            .dashboard.collapsed > .sidebar > .sidebar-toggle {
-                left: 50% !important;
-                right: auto !important;
-                transform: translateX(-50%) rotate(180deg) !important;
-            }
-
-            html[data-app-role="teacher"] body
-            .dashboard.collapsed > .sidebar > .sidebar-top h3,
-            html[data-app-role="teacher"] body
-            .dashboard.collapsed > .sidebar > .sidebar-top h3::before,
-            html[data-app-role="teacher"] body
-            .dashboard.collapsed > .sidebar > .sidebar-top h3::after,
-            html[data-app-role="teacher"] body
-            .dashboard.collapsed > .sidebar > .sidebar-top h3 + br {
-                display: none !important;
-            }
-        }
-    </style>
     <script>
         MathJax = {
             tex: {
@@ -443,45 +381,6 @@
             .app-startup-cloud-icon { width: 50px; height: 50px; flex-basis: 50px; }
         }
     </style>
-
-    <style id="teacherSidebarToggleRightGuardV2">
-        /* FINAL: đặt nút thu gọn sang mép PHẢI của sidebar trên desktop. */
-        @media screen and (min-width: 769px) {
-            html[data-app-role="teacher"] body .dashboard:not(.collapsed) > .sidebar > .sidebar-toggle {
-                position: absolute !important;
-                top: 18px !important;
-                right: 14px !important;
-                left: auto !important;
-                bottom: auto !important;
-                margin: 0 !important;
-                float: none !important;
-                transform: none !important;
-                z-index: 2147480 !important;
-            }
-
-            html[data-app-role="teacher"] body .dashboard:not(.collapsed) > .sidebar > .sidebar-top h3 {
-                box-sizing: border-box !important;
-                width: auto !important;
-                max-width: calc(100% - 68px) !important;
-                margin: 0 68px 20px 2px !important;
-                padding-right: 0 !important;
-                white-space: nowrap !important;
-            }
-
-            html[data-app-role="teacher"] body .dashboard:not(.collapsed) > .sidebar > .sidebar-top h3 + br {
-                display: none !important;
-            }
-
-            /* Khi thu gọn vẫn giữ nút ở giữa như cơ chế cũ. */
-            html[data-app-role="teacher"] body .dashboard.collapsed > .sidebar > .sidebar-toggle {
-                top: 18px !important;
-                left: 50% !important;
-                right: auto !important;
-                transform: translateX(-50%) rotate(180deg) !important;
-            }
-        }
-    </style>
-
 </head>
 
 <body>
@@ -2210,238 +2109,108 @@
                     </div>
                 </div>
 
-                <div id="teacherLeaderboardAdminCard" class="card accordion-card teacher-lb-admin-card" style="margin-top: 20px;">
-                    <div class="accordion-header teacher-lb-admin-accordion-head"
-                        onclick="toggleAccordion('leaderboardManageView', this)">
-                        <div class="accordion-title teacher-lb-admin-heading">
-                            <span class="teacher-lb-admin-heading-icon" aria-hidden="true">🏆</span>
-                            <div>
-                                <span class="teacher-lb-admin-kicker">TRUNG TÂM THI ĐUA</span>
-                                <h3>Quản lý Bảng Xếp Hạng Thi Đua</h3>
-                                <p>Đồng bộ cơ chế mùa, điểm và phần thưởng đang hiển thị bên học sinh.</p>
-                            </div>
+                <div class="card accordion-card" style="margin-top: 20px;">
+                    <div class="accordion-header" onclick="toggleAccordion('leaderboardManageView', this)">
+                        <div class="accordion-title">
+                            <h3 style="color: #f39c12; margin: 0; display: flex; align-items: center; gap: 8px;">
+                                🏆
+                                Quản
+                                lý Bảng Xếp Hạng Thi Đua</h3>
                         </div>
-                        <div class="accordion-meta teacher-lb-admin-head-meta">
-                            <span id="lbAdminHeaderStatus" class="teacher-lb-status-pill is-closed">
-                                <span class="teacher-lb-status-dot"></span>
-                                <span>Đang đóng</span>
-                            </span>
-                            <span class="toggle-icon">▼</span>
-                        </div>
+                        <div class="accordion-meta"><span class="toggle-icon">▼</span></div>
                     </div>
 
-                    <div id="leaderboardManageView" class="accordion-content teacher-lb-admin-content">
-                        <section class="teacher-lb-admin-hero" aria-labelledby="teacherLbAdminTitle">
-                            <div class="teacher-lb-admin-hero-copy">
-                                <span class="teacher-lb-admin-eyebrow">MÙA THI ĐUA HIỆN TẠI</span>
-                                <h4 id="teacherLbAdminTitle">Bảng điều khiển mùa giải</h4>
-                                <p id="lbAdminHeroDescription">
-                                    Theo dõi trạng thái và cấu hình mùa thi đua từ một khu vực duy nhất.
-                                </p>
-                                <div class="teacher-lb-admin-hero-chips">
-                                    <span id="lbAdminCurrentSeasonChip" class="teacher-lb-info-chip">📅 Đang tải mùa…</span>
-                                    <span id="lbAdminScheduleChip" class="teacher-lb-info-chip muted">⏱️ Chưa có lịch hẹn</span>
-                                </div>
-                            </div>
+                    <div id="leaderboardManageView" class="accordion-content">
+                        <!-- 1. Tắt/Mở Bảng Xếp Hạng -->
+                        <label
+                            style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 15px; background: rgba(255,255,255,0.4); padding: 12px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.05);">
+                            <input type="checkbox" id="lbToggle" onchange="toggleLeaderboardStatus(this.checked)"
+                                style="width: 22px; height: 22px; margin: 0; cursor: pointer;">
+                            <strong style="color: #2c3e50; font-size: 0.95em;">Mở Bảng Xếp Hạng cho học
+                                sinh</strong>
+                        </label>
 
-                            <div class="teacher-lb-admin-master-switch">
-                                <span class="teacher-lb-admin-switch-label">Hiển thị cho học sinh</span>
-                                <label class="teacher-lb-switch" for="lbToggle">
-                                    <input type="checkbox" id="lbToggle" onchange="toggleLeaderboardStatus(this.checked)">
-                                    <span class="teacher-lb-switch-track"><span class="teacher-lb-switch-thumb"></span></span>
-                                </label>
-                                <strong id="lbAdminToggleText">Đang đóng</strong>
-                                <small id="lbAdminToggleHint">Học sinh chưa thể mở Bảng Xếp Hạng.</small>
-                            </div>
-                        </section>
+                        <!-- 2. Đặt lịch mở mùa giải -->
+                        <div
+                            style="background: rgba(255,255,255,0.5); padding: 15px; border-radius: 12px; border: 1px dashed #3b82f6; margin-bottom: 20px;">
+                            <h4 style="color: #3b82f6; margin-top: 0; margin-bottom: 10px;">📅 Đặt lịch mùa giải
+                            </h4>
+                            <p style="font-size: 0.9em; color: #666; margin-bottom: 10px;">Hệ thống sẽ tự động
+                                cấu
+                                hình
+                                mùa giải cho tháng tiếp theo nếu bạn đang ở giữa tháng hiện tại.</p>
+                            <p>Mùa giải đang xét: <strong id="currentSeasonDisplay" style="color: #e11d48;">Chưa
+                                    cấu
+                                    hình</strong></p>
 
-                        <div class="teacher-lb-admin-stat-grid">
-                            <article class="teacher-lb-stat-card">
-                                <span class="teacher-lb-stat-icon">🗓️</span>
-                                <span class="teacher-lb-stat-label">Mùa đang tính</span>
-                                <strong id="lbAdminCurrentSeasonStat">--</strong>
-                                <small>Tự đổi theo tháng hiện tại.</small>
-                            </article>
-                            <article class="teacher-lb-stat-card">
-                                <span class="teacher-lb-stat-icon">↩️</span>
-                                <span class="teacher-lb-stat-label">Lịch sử học sinh xem</span>
-                                <strong>3 tháng trước</strong>
-                                <small>Giữ đúng cơ chế phía học sinh.</small>
-                            </article>
-                            <article class="teacher-lb-stat-card">
-                                <span class="teacher-lb-stat-icon">🎬</span>
-                                <span class="teacher-lb-stat-label">Thưởng video tối đa</span>
-                                <strong>+5,0 điểm</strong>
-                                <small>Cộng theo tiến độ xem video.</small>
-                            </article>
-                            <article class="teacher-lb-stat-card">
-                                <span class="teacher-lb-stat-icon">✨</span>
-                                <span class="teacher-lb-stat-label">Thưởng sạch cuối mùa</span>
-                                <strong>+1,0 điểm</strong>
-                                <small>Áp dụng trong 5 ngày cuối nếu không vi phạm.</small>
-                            </article>
+                            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                                <button onclick="setNextMonthSeason()"
+                                    style="flex: 2; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer;">📅
+                                    Tự động đặt lịch</button>
+                                <button onclick="deleteCurrentSeason()"
+                                    style="flex: 1; background: linear-gradient(135deg, #e11d48 0%, #ff4d4d 100%); color: white; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer;">🗑️
+                                    Xóa lịch</button>
+                            </div>
                         </div>
 
-                        <div class="teacher-lb-admin-grid">
-                            <section class="teacher-lb-admin-panel teacher-lb-season-panel">
-                                <div class="teacher-lb-panel-head">
-                                    <div>
-                                        <span class="teacher-lb-panel-kicker">01 · MÙA GIẢI</span>
-                                        <h4>Trạng thái & lịch tự mở</h4>
-                                    </div>
-                                    <span class="teacher-lb-panel-icon">📅</span>
-                                </div>
+                        <!-- 3. Điều chỉnh phần thưởng & Rương -->
+                        <div
+                            style="background: rgba(255,255,255,0.5); padding: 15px; border-radius: 12px; border: 1px dashed #f39c12; margin-bottom: 20px;">
+                            <h4 style="color: #f39c12; margin-top: 0; margin-bottom: 10px;">🎁 Điều chỉnh phần
+                                thưởng &
+                                Tỉ lệ Rương</h4>
 
-                                <div class="teacher-lb-season-summary">
-                                    <div>
-                                        <span>Lịch đang lưu</span>
-                                        <strong id="currentSeasonDisplay">Chưa có lịch</strong>
-                                    </div>
-                                    <p id="lbAdminScheduleDescription">
-                                        Bạn có thể hẹn tháng tương lai hoặc mở ngay bằng công tắc phía trên.
-                                    </p>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                                <div>
+                                    <label style="font-size: 0.9em; font-weight: bold;">Thưởng Hạng 3
+                                        (Coin):</label>
+                                    <input type="number" id="lbRewardRank3" min="0"
+                                        style="width: 100%; padding: 8px; margin-top: 5px;">
                                 </div>
+                                <div>
+                                    <label style="font-size: 0.9em; font-weight: bold;">Thưởng Hạng 4+
+                                        (Coin):</label>
+                                    <input type="number" id="lbRewardRank4" min="0"
+                                        style="width: 100%; padding: 8px; margin-top: 5px;">
+                                </div>
+                            </div>
 
-                                <div class="teacher-lb-schedule-fields">
-                                    <label>
-                                        <span>Tháng bắt đầu</span>
-                                        <select id="lbScheduleMonth" aria-label="Tháng bắt đầu mùa thi đua">
-                                            <option value="1">Tháng 1</option><option value="2">Tháng 2</option>
-                                            <option value="3">Tháng 3</option><option value="4">Tháng 4</option>
-                                            <option value="5">Tháng 5</option><option value="6">Tháng 6</option>
-                                            <option value="7">Tháng 7</option><option value="8">Tháng 8</option>
-                                            <option value="9">Tháng 9</option><option value="10">Tháng 10</option>
-                                            <option value="11">Tháng 11</option><option value="12">Tháng 12</option>
-                                        </select>
-                                    </label>
-                                    <label>
-                                        <span>Năm</span>
-                                        <input type="number" id="lbScheduleYear" min="2024" max="2100" step="1">
-                                    </label>
+                            <hr style="border: 0; border-top: 1px dashed #ccc; margin: 15px 0;">
+                            <h5 style="color: #c0392b; margin: 0 0 10px 0;">📦 Tỉ lệ Rương Hạng 1 (Khi chọn mở
+                                Vật
+                                phẩm)
+                            </h5>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+                                <div>
+                                    <label style="font-size: 0.8em; font-weight: bold; color: #888;">Trùng lặp
+                                        (%)</label>
+                                    <input type="number" id="lbChestDup" min="0" max="100"
+                                        style="padding: 8px; width: 100%; text-align: center;">
                                 </div>
+                                <div>
+                                    <label style="font-size: 0.8em; font-weight: bold; color: #2980b9;">VP
+                                        Thường
+                                        (%)</label>
+                                    <input type="number" id="lbChestNorm" min="0" max="100"
+                                        style="padding: 8px; width: 100%; text-align: center;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.8em; font-weight: bold; color: #e11d48;">VP
+                                        Truyền
+                                        Thuyết
+                                        (%)</label>
+                                    <input type="number" id="lbChestLeg" min="0" max="100"
+                                        style="padding: 8px; width: 100%; text-align: center;">
+                                </div>
+                            </div>
+                            <p id="lbErrorMsg"
+                                style="color: #e11d48; font-weight: bold; font-size: 0.85em; display: none; margin-top: 5px;">
+                            </p>
 
-                                <div class="teacher-lb-action-row">
-                                    <button type="button" class="teacher-lb-btn primary" onclick="saveLeaderboardSchedule()">
-                                        <span>💾</span> Lưu lịch đã chọn
-                                    </button>
-                                    <button type="button" class="teacher-lb-btn secondary" onclick="setNextMonthSeason()">
-                                        <span>⏭️</span> Hẹn tháng sau
-                                    </button>
-                                    <button type="button" class="teacher-lb-btn danger" onclick="deleteCurrentSeason()">
-                                        <span>🗑️</span> Xóa lịch
-                                    </button>
-                                </div>
-                            </section>
-
-                            <section class="teacher-lb-admin-panel teacher-lb-rules-panel">
-                                <div class="teacher-lb-panel-head">
-                                    <div>
-                                        <span class="teacher-lb-panel-kicker">02 · CÁCH TÍNH ĐIỂM</span>
-                                        <h4>Quy tắc đang áp dụng bên học sinh</h4>
-                                    </div>
-                                    <span class="teacher-lb-panel-icon">📊</span>
-                                </div>
-
-                                <div class="teacher-lb-formula">
-                                    <strong>Điểm xếp hạng</strong>
-                                    <span>= ĐTB + thưởng video + thưởng sạch − điểm phạt</span>
-                                </div>
-
-                                <div class="teacher-lb-rule-list">
-                                    <div><span class="teacher-lb-rule-badge late">−1,5</span><p><strong>Nộp trễ / tự thu</strong><small>Không tính điểm bài hiện tại nếu chưa được force pass.</small></p></div>
-                                    <div><span class="teacher-lb-rule-badge essay">−1,0</span><p><strong>Thiếu tự luận</strong><small>Ghi nhận một lỗi riêng trong mùa.</small></p></div>
-                                    <div><span class="teacher-lb-rule-badge cheat">−3,0</span><p><strong>Vi phạm thi</strong><small>Mức phạt mạnh nhất, ảnh hưởng trực tiếp thứ hạng.</small></p></div>
-                                </div>
-
-                                <div class="teacher-lb-note">
-                                    <span>ℹ️</span>
-                                    <p>Ưu tiên xếp hạng: <strong>điểm cao hơn → nhiều điểm 10 hơn → ít vi phạm hơn</strong>.</p>
-                                </div>
-                            </section>
+                            <button onclick="saveLeaderboardSettings()"
+                                style="margin-top: 15px; background: linear-gradient(135deg, #f6d365 0%, #fda085 100%); color: white; border: none; font-weight: bold; width: 100%; padding: 10px; border-radius: 8px;">💾
+                                Lưu cấu hình Phần thưởng</button>
                         </div>
-
-                        <section class="teacher-lb-admin-panel teacher-lb-reward-panel">
-                            <div class="teacher-lb-panel-head">
-                                <div>
-                                    <span class="teacher-lb-panel-kicker">03 · PHẦN THƯỞNG CUỐI MÙA</span>
-                                    <h4>Phần thưởng theo thứ hạng</h4>
-                                </div>
-                                <span class="teacher-lb-panel-icon">🎁</span>
-                            </div>
-
-                            <div class="teacher-lb-reward-grid">
-                                <article class="teacher-lb-reward-card rank-1">
-                                    <span class="teacher-lb-rank-medal">🥇</span>
-                                    <div><span>Hạng 1</span><strong>1 Rương Kho Báu</strong><small>Chọn Coin ngẫu nhiên hoặc vật phẩm.</small></div>
-                                </article>
-                                <article class="teacher-lb-reward-card rank-2">
-                                    <span class="teacher-lb-rank-medal">🥈</span>
-                                    <div><span>Hạng 2</span><strong>Thẻ giảm giá ngẫu nhiên</strong><small>10% · 15% · 20% · 25% · 30%</small></div>
-                                </article>
-                                <article class="teacher-lb-reward-card rank-3 editable">
-                                    <span class="teacher-lb-rank-medal">🥉</span>
-                                    <div>
-                                        <span>Hạng 3</span>
-                                        <label><input type="number" id="lbRewardRank3" min="0" step="1"><em>Coin</em></label>
-                                        <small>Có thể điều chỉnh.</small>
-                                    </div>
-                                </article>
-                                <article class="teacher-lb-reward-card rank-4 editable">
-                                    <span class="teacher-lb-rank-medal">🎖️</span>
-                                    <div>
-                                        <span>Hạng 4+</span>
-                                        <label><input type="number" id="lbRewardRank4" min="0" step="1"><em>Coin</em></label>
-                                        <small>Thưởng khích lệ.</small>
-                                    </div>
-                                </article>
-                            </div>
-
-                            <div class="teacher-lb-chest-box">
-                                <div class="teacher-lb-chest-head">
-                                    <div>
-                                        <span class="teacher-lb-panel-kicker">TỈ LỆ RƯƠNG HẠNG 1 · NHÁNH VẬT PHẨM</span>
-                                        <h5>Phân bổ xác suất</h5>
-                                    </div>
-                                    <span id="lbChestRateTotal" class="teacher-lb-rate-total is-valid">100%</span>
-                                </div>
-
-                                <div class="teacher-lb-rate-bar" aria-hidden="true">
-                                    <span id="lbChestRateDupBar" class="dup" style="width:95%"></span>
-                                    <span id="lbChestRateNormBar" class="norm" style="width:4%"></span>
-                                    <span id="lbChestRateLegBar" class="leg" style="width:1%"></span>
-                                </div>
-
-                                <div class="teacher-lb-rate-grid">
-                                    <label class="dup">
-                                        <span><i></i>Trùng vật phẩm</span>
-                                        <div><input type="number" id="lbChestDup" min="0" max="100" step="1" oninput="updateTeacherLeaderboardChestRateUI()"><em>%</em></div>
-                                        <small>Nhận Coin bù theo cơ chế rương.</small>
-                                    </label>
-                                    <label class="norm">
-                                        <span><i></i>Vật phẩm thường</span>
-                                        <div><input type="number" id="lbChestNorm" min="0" max="100" step="1" oninput="updateTeacherLeaderboardChestRateUI()"><em>%</em></div>
-                                        <small>Nhóm vật phẩm hợp lệ thông thường.</small>
-                                    </label>
-                                    <label class="leg">
-                                        <span><i></i>Vật phẩm hiếm</span>
-                                        <div><input type="number" id="lbChestLeg" min="0" max="100" step="1" oninput="updateTeacherLeaderboardChestRateUI()"><em>%</em></div>
-                                        <small>Nhóm hiếm / truyền thuyết hợp lệ.</small>
-                                    </label>
-                                </div>
-
-                                <p id="lbErrorMsg" class="teacher-lb-error" hidden></p>
-                            </div>
-
-                            <div class="teacher-lb-save-row">
-                                <div>
-                                    <strong>Thay đổi chỉ được ghi khi tổng tỉ lệ Rương = 100%.</strong>
-                                    <small>Giữ tương thích với cơ chế nhận thưởng hiện tại của học sinh.</small>
-                                </div>
-                                <button type="button" class="teacher-lb-btn save" onclick="saveLeaderboardSettings()">
-                                    💾 Lưu cấu hình phần thưởng
-                                </button>
-                            </div>
-                        </section>
                     </div>
                 </div>
 
@@ -2763,469 +2532,316 @@
                 </div>
             </div>
 
-            <div class="tab-content" id="tab-settings">
-             <div class="teacher-settings-hero">
-              <div class="teacher-settings-hero-copy">
-               <span class="teacher-settings-kicker">
-                TRUNG TÂM CÀI ĐẶT
-               </span>
-               <h2>
-                Cài đặt tài khoản &amp; Hệ thống
-               </h2>
-               <p>
-                Quản lý tài khoản, giao diện, vận hành hệ thống và các công cụ tương tác với học sinh trong một bố cục gọn hơn.
-               </p>
-              </div>
-              <div aria-hidden="true" class="teacher-settings-hero-badge">
-               ⚙️
-              </div>
-             </div>
-             <div class="update-banner" id="updateBannerArea" style="display: none;">
-              <div>
-               <h4 style="margin: 0; font-size: 1.2em;">
-                🚀 Có phiên bản hệ thống mới!
-               </h4>
-               <p style="margin: 5px 0 0 0; font-size: 0.95em;">
-                Nhấn nút bên cạnh để tải lại toàn bộ
-                                        tài
-                                        nguyên
-                                        web mới nhất.
-               </p>
-              </div>
-              <button class="btn-do-update" onclick="applySystemUpdate()">
-               Cập nhật ngay
-              </button>
-             </div>
-             <section class="teacher-settings-section teacher-settings-section-account">
-              <div class="teacher-settings-section-heading">
-               <div aria-hidden="true" class="teacher-settings-section-icon">
-                👤
-               </div>
-               <div class="teacher-settings-section-copy">
-                <h3>
-                 Tài khoản &amp; giao diện
-                </h3>
-                <p>
-                 Các thiết lập cá nhân và cách hiển thị khu vực đăng nhập.
-                </p>
-               </div>
-              </div>
-              <div class="teacher-settings-grid teacher-settings-grid-account">
-               <div class="card form-container teacher-settings-card teacher-settings-account-card">
-                <div class="teacher-settings-card-heading">
-                 <span aria-hidden="true" class="teacher-settings-card-heading-icon">
-                  🎨
-                 </span>
-                 <div>
-                  <h4>
-                   Hồ sơ &amp; giao diện giáo viên
-                  </h4>
-                  <p>
-                   Đổi giao diện, tên hiển thị hoặc cập nhật mật khẩu tài khoản.
-                  </p>
-                 </div>
+            <div id="tab-settings" class="tab-content">
+                <h2>Cài đặt tài khoản & Hệ thống</h2>
+
+                <div id="updateBannerArea" class="update-banner" style="display: none;">
+                    <div>
+                        <h4 style="margin: 0; font-size: 1.2em;">🚀 Có phiên bản hệ thống mới!</h4>
+                        <p style="margin: 5px 0 0 0; font-size: 0.95em;">Nhấn nút bên cạnh để tải lại toàn bộ
+                            tài
+                            nguyên
+                            web mới nhất.</p>
+                    </div>
+                    <button class="btn-do-update" onclick="applySystemUpdate()">Cập nhật ngay</button>
                 </div>
-                <label>
-                 <strong>
-                  🎨 Giao diện hiển thị:
-                 </strong>
-                </label>
-                <select id="themeSelector" onchange="changeTheme(this.value)" style="margin-bottom: 20px; font-weight: bold; color: #667eea;">
-                 <option value="default">
-                  ✨ Mặc định (Tím mộng mơ)
-                 </option>
-                 <option value="blue">
-                  🌊 Xanh biển (Tươi mát)
-                 </option>
-                 <option value="green">
-                  🌿 Xanh lá (Yên bình)
-                 </option>
-                 <option value="pink">
-                  🌸 Hồng (Ngọt ngào)
-                 </option>
-                </select>
-                <label>
-                 <strong>
-                  Tên hiển thị của bạn:
-                 </strong>
-                </label>
-                <input id="settingName" placeholder="Nhập tên hiển thị mới..." type="text"/>
-                <label>
-                 <strong>
-                  Mật khẩu mới (để trống nếu không muốn đổi):
-                 </strong>
-                </label>
-                <input id="settingPass" placeholder="Nhập mật khẩu mới..." type="password"/>
-                <button onclick="updateProfile()" style="margin-top: 15px; background: linear-gradient(135deg, #f6d365 0%, #fda085 100%); color: #fff;">
-                 💾
-                                    Lưu thay đổi tài khoản
-                </button>
-               </div>
-               <div class="card form-container login-layout-settings-card teacher-settings-card teacher-settings-login-card" id="loginLayoutSettingsCard">
-                <div class="login-layout-settings-heading">
-                 <p class="login-layout-settings-kicker">
-                  GIAO DIỆN TRANG ĐĂNG NHẬP
-                 </p>
-                 <h3>
-                  🖼️ Thay đổi bố cục đăng nhập
-                 </h3>
-                 <p>
-                  Tùy chọn này chỉ thay đổi cách trình bày trang đăng nhập.
-                                        Tài khoản, mật khẩu, Firebase và các chức năng khác
-                                        không bị thay đổi.
-                 </p>
+
+                <div class="card form-container">
+                    <label><strong>🎨 Giao diện hiển thị:</strong></label>
+                    <select id="themeSelector" onchange="changeTheme(this.value)"
+                        style="margin-bottom: 20px; font-weight: bold; color: #667eea;">
+                        <option value="default">✨ Mặc định (Tím mộng mơ)</option>
+                        <option value="blue">🌊 Xanh biển (Tươi mát)</option>
+                        <option value="green">🌿 Xanh lá (Yên bình)</option>
+                        <option value="pink">🌸 Hồng (Ngọt ngào)</option>
+                    </select>
+
+                    <label><strong>Tên hiển thị của bạn:</strong></label>
+                    <input type="text" id="settingName" placeholder="Nhập tên hiển thị mới...">
+
+                    <label><strong>Mật khẩu mới (để trống nếu không muốn đổi):</strong></label>
+                    <input type="password" id="settingPass" placeholder="Nhập mật khẩu mới...">
+
+                    <button onclick="updateProfile()"
+                        style="margin-top: 15px; background: linear-gradient(135deg, #f6d365 0%, #fda085 100%); color: #fff;">💾
+                        Lưu thay đổi tài khoản</button>
                 </div>
-                <div class="login-layout-choice-grid">
-                 <!-- Bố cục 1 -->
-                 <label class="login-layout-choice">
-                  <input name="loginPageLayout" onchange="updateLoginLayoutNotice(this.value)" type="radio" value="split"/>
-                  <span aria-hidden="true" class="login-layout-choice-preview login-layout-preview-split">
-                   <i>
-                   </i>
-                   <b>
-                   </b>
-                  </span>
-                  <span class="login-layout-choice-copy">
-                   <strong>
-                    1. Bố cục hiện tại
-                   </strong>
-                   <small>
-                    Ảnh hoặc video bên trái, khung đăng nhập bên phải.
-                                                Trên điện thoại, phần ảnh được ẩn.
-                   </small>
-                  </span>
-                 </label>
-                 <!-- Bố cục 2 -->
-                 <label class="login-layout-choice">
-                  <input name="loginPageLayout" onchange="updateLoginLayoutNotice(this.value)" type="radio" value="centered"/>
-                  <span aria-hidden="true" class="login-layout-choice-preview login-layout-preview-centered">
-                   <i>
-                   </i>
-                   <b>
-                   </b>
-                  </span>
-                  <span class="login-layout-choice-copy">
-                   <strong>
-                    2. Ảnh phủ toàn bộ khung đăng nhập
-                   </strong>
-                   <small>
-                    Ảnh hoặc video phủ toàn bộ chiếc khung lớn bo góc,
-                                                form đăng nhập nằm chính giữa. Nền bên ngoài vẫn giữ nguyên.
-                   </small>
-                  </span>
-                 </label>
+
+                <!-- =====================================================
+     CÀI ĐẶT BỐ CỤC TRANG ĐĂNG NHẬP
+     Chỉ thêm chức năng mới, không ảnh hưởng mục khác
+     ===================================================== -->
+                <div id="loginLayoutSettingsCard" class="card form-container login-layout-settings-card">
+
+                    <div class="login-layout-settings-heading">
+                        <p class="login-layout-settings-kicker">
+                            GIAO DIỆN TRANG ĐĂNG NHẬP
+                        </p>
+
+                        <h3>🖼️ Thay đổi bố cục đăng nhập</h3>
+
+                        <p>
+                            Tùy chọn này chỉ thay đổi cách trình bày trang đăng nhập.
+                            Tài khoản, mật khẩu, Firebase và các chức năng khác
+                            không bị thay đổi.
+                        </p>
+                    </div>
+
+                    <div class="login-layout-choice-grid">
+
+                        <!-- Bố cục 1 -->
+                        <label class="login-layout-choice">
+                            <input type="radio" name="loginPageLayout" value="split"
+                                onchange="updateLoginLayoutNotice(this.value)">
+
+                            <span class="login-layout-choice-preview login-layout-preview-split" aria-hidden="true">
+                                <i></i>
+                                <b></b>
+                            </span>
+
+                            <span class="login-layout-choice-copy">
+                                <strong>1. Bố cục hiện tại</strong>
+
+                                <small>
+                                    Ảnh hoặc video bên trái, khung đăng nhập bên phải.
+                                    Trên điện thoại, phần ảnh được ẩn.
+                                </small>
+                            </span>
+                        </label>
+
+                        <!-- Bố cục 2 -->
+                        <label class="login-layout-choice">
+                            <input type="radio" name="loginPageLayout" value="centered"
+                                onchange="updateLoginLayoutNotice(this.value)">
+
+                            <span class="login-layout-choice-preview login-layout-preview-centered" aria-hidden="true">
+                                <i></i>
+                                <b></b>
+                            </span>
+
+                            <span class="login-layout-choice-copy">
+                                <strong>2. Ảnh phủ toàn bộ khung đăng nhập</strong>
+
+                                <small>
+                                    Ảnh hoặc video phủ toàn bộ chiếc khung lớn bo góc,
+                                    form đăng nhập nằm chính giữa. Nền bên ngoài vẫn giữ nguyên.
+                                </small>
+                            </span>
+                        </label>
+
+                    </div>
+
+                    <!-- Cảnh báo kích thước ảnh thay đổi theo bố cục -->
+                    <div id="loginLayoutSizeWarning" class="login-layout-size-warning" role="note" aria-live="polite">
+                    </div>
+
+                    <button id="saveLoginLayoutButton" type="button" class="login-layout-save-button"
+                        onclick="saveLoginLayoutSetting()">
+                        💾 Lưu bố cục trang đăng nhập
+                    </button>
                 </div>
-                <!-- Bố cục 3 -->
-                 <label class="login-layout-choice">
-                  <input name="loginPageLayout" onchange="updateLoginLayoutNotice(this.value)" type="radio" value="reversed"/>
-                  <span aria-hidden="true" class="login-layout-choice-preview login-layout-preview-reversed">
-                   <i></i>
-                   <b></b>
-                  </span>
-                  <span class="login-layout-choice-copy">
-                   <strong>
-                    3. Đảo chiều hai cột
-                   </strong>
-                   <small>
-                    Khung đăng nhập bên trái, ảnh hoặc video bên phải.
-                    Trên điện thoại, phần ảnh được ẩn để ưu tiên form.
-                   </small>
-                  </span>
-                 </label>
-                 <!-- Bố cục 4 -->
-                 <label class="login-layout-choice">
-                  <input name="loginPageLayout" onchange="updateLoginLayoutNotice(this.value)" type="radio" value="cinematic"/>
-                  <span aria-hidden="true" class="login-layout-choice-preview login-layout-preview-cinematic">
-                   <i></i>
-                   <b></b>
-                  </span>
-                  <span class="login-layout-choice-copy">
-                   <strong>
-                    4. Ảnh nền toàn màn hình
-                   </strong>
-                   <small>
-                    Ảnh hoặc video phủ toàn màn hình trình duyệt.
-                    Form đăng nhập nổi bên phải trên máy tính và vào giữa trên điện thoại.
-                   </small>
-                  </span>
-                 </label>
-                 <!-- Cảnh báo kích thước ảnh thay đổi theo bố cục -->
-                <div aria-live="polite" class="login-layout-size-warning" id="loginLayoutSizeWarning" role="note">
+
+                <div
+                    style="background: rgba(255,255,255,0.5); padding: 15px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; border: 1px solid rgba(0,0,0,0.05);">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <strong style="color: #2c3e50;">💱 Tắt/Mở Bảng quy đổi</strong>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="toggleConversionTable"
+                            onchange="toggleConversionSettings(this.checked)">
+                        <span class="slider"></span>
+                    </label>
                 </div>
-                <button class="login-layout-save-button" id="saveLoginLayoutButton" onclick="saveLoginLayoutSetting()" type="button">
-                 💾 Lưu bố cục trang đăng nhập
-                </button>
-               </div>
-              </div>
-             </section>
-             <section class="teacher-settings-section teacher-settings-section-system">
-              <div class="teacher-settings-section-heading">
-               <div aria-hidden="true" class="teacher-settings-section-icon">
-                🛠️
-               </div>
-               <div class="teacher-settings-section-copy">
-                <h3>
-                 Hệ thống &amp; vận hành
-                </h3>
-                <p>
-                 Các công cụ quản trị, chẩn đoán và xử lý yêu cầu liên quan đến hệ thống.
-                </p>
-               </div>
-              </div>
-              <div class="teacher-settings-grid teacher-settings-grid-tools">
-               <div class="teacher-settings-card teacher-settings-toggle-card" style="background: rgba(255,255,255,0.5); padding: 15px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; border: 1px solid rgba(0,0,0,0.05);">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                 <strong style="color: #2c3e50;">
-                  💱 Tắt/Mở Bảng quy đổi
-                 </strong>
+
+                <div id="teacherCashRequestsSection"
+                    style="margin: 20px 0; padding: 20px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); font-family: system-ui, -apple-system, sans-serif; text-align: left; display: block; clear: both;">
+                    <h3
+                        style="color: #1e3a8a; font-size: 1.2em; margin-top: 0; margin-bottom: 15px; border-bottom: 2px solid #f1f5f9; padding-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                        📥 Danh sách Yêu cầu lấy Tiền mặt của Học sinh
+                    </h3>
+
+                    <div id="teacherCashRequestsListContainer"
+                        style="display: grid; gap: 12px; max-height: 400px; overflow-y: auto; padding-right: 5px; box-sizing: border-box;">
+                    </div>
                 </div>
-                <label class="switch">
-                 <input id="toggleConversionTable" onchange="toggleConversionSettings(this.checked)" type="checkbox"/>
-                 <span class="slider">
-                 </span>
-                </label>
-               </div>
-               <div class="glass-alert teacher-settings-card teacher-settings-health-card" style="margin-top: 30px; border-left-color: #3b82f6; background: rgba(59, 130, 246, 0.05);">
-                <h3 style="color: #2c3e50; margin-bottom: 10px; border-bottom: 1px dashed rgba(0,0,0,0.1); padding-bottom: 5px;">
-                 🩺 System Health Center 2.0
-                </h3>
-                <p style="font-size: 0.9em; color: #555; margin-bottom: 15px;">
-                 Bảng chẩn đoán chỉ đọc: kiểm tra Firebase Auth/RTDB, Service Worker và cache/build, R2/Cloudinary, module runtime, listener/timer và mật độ hiệu ứng DOM. Không tự sửa dữ liệu.
-                </p>
-                <button onclick="runSystemDiagnostics()" style="width: 100%; padding: 12px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);">
-                 🩺
-                                    Quét sức khỏe hệ thống
-                </button>
-                <div id="diagnosticResults" style="display: none; margin-top: 15px; padding: 15px; background: rgba(255,255,255,0.8); border-radius: 8px; max-height: min(68vh, 760px); overflow-y: auto; border: 1px solid rgba(0,0,0,0.1);">
-                 <p id="diagnosticStatus" style="text-align: center; color: #666;">
-                  Đang chờ quét...
-                 </p>
-                 <ul id="diagnosticList" style="list-style-type: none; padding: 0; margin: 0; font-size: 0.9em; line-height: 1.6;">
-                 </ul>
+
+                <div class="glass-alert"
+                    style="margin-top: 30px; border-left-color: #3b82f6; background: rgba(59, 130, 246, 0.05);">
+                    <h3
+                        style="color: #2c3e50; margin-bottom: 10px; border-bottom: 1px dashed rgba(0,0,0,0.1); padding-bottom: 5px;">
+                        🩺 System Health Center 2.0</h3>
+                    <p style="font-size: 0.9em; color: #555; margin-bottom: 15px;">Bảng chẩn đoán chỉ đọc: kiểm tra Firebase Auth/RTDB, Service Worker và cache/build, R2/Cloudinary, module runtime, listener/timer và mật độ hiệu ứng DOM. Không tự sửa dữ liệu.</p>
+                    <button onclick="runSystemDiagnostics()"
+                        style="width: 100%; padding: 12px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);">🩺
+                        Quét sức khỏe hệ thống</button>
+
+                    <div id="diagnosticResults"
+                        style="display: none; margin-top: 15px; padding: 15px; background: rgba(255,255,255,0.8); border-radius: 8px; max-height: min(68vh, 760px); overflow-y: auto; border: 1px solid rgba(0,0,0,0.1);">
+                        <p style="text-align: center; color: #666;" id="diagnosticStatus">Đang chờ quét...</p>
+                        <ul id="diagnosticList"
+                            style="list-style-type: none; padding: 0; margin: 0; font-size: 0.9em; line-height: 1.6;">
+                        </ul>
+                    </div>
                 </div>
-               </div>
-              </div>
-              <div class="teacher-settings-card teacher-settings-cash-card" id="teacherCashRequestsSection" style="margin: 20px 0; padding: 20px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); font-family: system-ui, -apple-system, sans-serif; text-align: left; display: block; clear: both;">
-               <h3 style="color: #1e3a8a; font-size: 1.2em; margin-top: 0; margin-bottom: 15px; border-bottom: 2px solid #f1f5f9; padding-bottom: 8px; display: flex; align-items: center; gap: 8px;">
-                📥 Danh sách Yêu cầu lấy Tiền mặt của Học sinh
-               </h3>
-               <div id="teacherCashRequestsListContainer" style="display: grid; gap: 12px; max-height: 400px; overflow-y: auto; padding-right: 5px; box-sizing: border-box;">
-               </div>
-              </div>
-             </section>
-             <section class="teacher-settings-section teacher-settings-section-engagement">
-              <div class="teacher-settings-section-heading">
-               <div aria-hidden="true" class="teacher-settings-section-icon">
-                💬
-               </div>
-               <div class="teacher-settings-section-copy">
-                <h3>
-                 Tương tác với học sinh
-                </h3>
-                <p>
-                 Gửi thông báo, khảo sát và quà tặng từ cùng một khu vực quản lý.
-                </p>
-               </div>
-              </div>
-              <div class="teacher-settings-grid teacher-settings-grid-engagement">
-               <div class="card form-container teacher-settings-card teacher-settings-communication-card" style="margin-top: 20px; position: relative;">
-                <div style="position: absolute; top: 15px; right: 15px;">
-                 <button onclick="openNotificationHistory()" onmouseout="this.style.transform='scale(1)'" onmouseover="this.style.transform='scale(1.1)'" style="width: 40px; height: 40px; border-radius: 50%; padding: 0; background: rgba(255,255,255,0.5); color: #667eea; border: 2px solid #667eea; font-weight: bold; font-size: 1.2em; box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: transform 0.2s;" title="Lịch sử thông báo">
-                  ❓
-                 </button>
+
+                <div class="card form-container" style="margin-top: 20px; position: relative;">
+                    <div style="position: absolute; top: 15px; right: 15px;">
+                        <button onclick="openNotificationHistory()"
+                            style="width: 40px; height: 40px; border-radius: 50%; padding: 0; background: rgba(255,255,255,0.5); color: #667eea; border: 2px solid #667eea; font-weight: bold; font-size: 1.2em; box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: transform 0.2s;"
+                            title="Lịch sử thông báo" onmouseover="this.style.transform='scale(1.1)'"
+                            onmouseout="this.style.transform='scale(1)'">❓</button>
+                    </div>
+                    <h3
+                        style="color: #764ba2; margin-bottom: 15px; border-bottom: 2px solid rgba(118, 75, 162, 0.2); padding-bottom: 10px;">
+                        📢 Thông báo & Khảo sát toàn trường</h3>
+
+                    <label
+                        style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 15px; background: rgba(255,255,255,0.4); padding: 12px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.05);">
+                        <input type="checkbox" id="notificationToggle" onchange="toggleNotificationArea(this.checked)"
+                            style="width: 22px; height: 22px; margin: 0; cursor: pointer;">
+                        <strong style="color: #2c3e50; font-size: 0.95em;">Bật tính năng gửi Thông báo
+                            mới</strong>
+                    </label>
+
+                    <div id="notificationInputArea" style="display: none; animation: fadeInUp 0.4s ease;">
+                        <label><strong>Nội dung thông báo:</strong></label>
+                        <textarea id="globalNotificationMessage"
+                            placeholder="Nhập tin nhắn thông báo gửi đến toàn bộ học sinh... (Ví dụ: Nhắc nhở lịch học, thông báo nghỉ lễ)"
+                            rows="3" style="background: rgba(255,255,255,0.7);"></textarea>
+
+                        <button onclick="sendGlobalNotification()"
+                            style="margin-top: 10px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">🚀
+                            Gửi
+                            thông báo ngay</button>
+                    </div>
                 </div>
-                <h3 style="color: #764ba2; margin-bottom: 15px; border-bottom: 2px solid rgba(118, 75, 162, 0.2); padding-bottom: 10px;">
-                 📢 Thông báo &amp; Khảo sát toàn trường
-                </h3>
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 15px; background: rgba(255,255,255,0.4); padding: 12px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.05);">
-                 <input id="notificationToggle" onchange="toggleNotificationArea(this.checked)" style="width: 22px; height: 22px; margin: 0; cursor: pointer;" type="checkbox"/>
-                 <strong style="color: #2c3e50; font-size: 0.95em;">
-                  Bật tính năng gửi Thông báo
-                                        mới
-                 </strong>
-                </label>
-                <div id="notificationInputArea" style="display: none; animation: fadeInUp 0.4s ease;">
-                 <label>
-                  <strong>
-                   Nội dung thông báo:
-                  </strong>
-                 </label>
-                 <textarea id="globalNotificationMessage" placeholder="Nhập tin nhắn thông báo gửi đến toàn bộ học sinh... (Ví dụ: Nhắc nhở lịch học, thông báo nghỉ lễ)" rows="3" style="background: rgba(255,255,255,0.7);"></textarea>
-                 <button onclick="sendGlobalNotification()" style="margin-top: 10px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
-                  🚀
-                                        Gửi
-                                        thông báo ngay
-                 </button>
+
+                <div class="card form-container"
+                    style="margin-top: 20px; position: relative; background: linear-gradient(135deg, rgba(255, 154, 158, 0.2) 0%, rgba(254, 207, 239, 0.2) 100%);">
+                    <div style="position: absolute; top: 15px; right: 15px;">
+                        <button onclick="openSurveyHistory()"
+                            style="width: 40px; height: 40px; border-radius: 50%; padding: 0; background: rgba(255,255,255,0.8); color: #e83e8c; border: 2px solid #e83e8c; font-weight: bold; font-size: 1.2em; box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: transform 0.2s;"
+                            title="Lịch sử Khảo sát" onmouseover="this.style.transform='scale(1.1)'"
+                            onmouseout="this.style.transform='scale(1)'">❓</button>
+                    </div>
+                    <h3
+                        style="color: #e83e8c; margin-bottom: 15px; border-bottom: 2px solid rgba(232, 62, 140, 0.2); padding-bottom: 10px;">
+                        📝 Tạo Khảo sát / Lấy ý kiến</h3>
+
+                    <label
+                        style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 15px; background: rgba(255,255,255,0.6); padding: 12px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.05);">
+                        <input type="checkbox" id="surveyToggle" onchange="toggleSurveyArea(this.checked)"
+                            style="width: 22px; height: 22px; margin: 0; cursor: pointer;">
+                        <strong style="color: #2c3e50; font-size: 0.95em;">Bật tính năng tạo Khảo sát
+                            mới</strong>
+                    </label>
+
+                    <div id="surveyInputArea" style="display: none; animation: fadeInUp 0.4s ease;">
+                        <label><strong>Tiêu đề Khảo sát:</strong></label>
+                        <input type="text" id="surveyTitle" placeholder="Ví dụ: Khảo sát chất lượng buổi học hôm nay..."
+                            style="background: white;">
+
+                        <div id="surveyQuestionsBuilder"
+                            style="background: rgba(255,255,255,0.5); padding: 15px; border-radius: 12px; border: 1px dashed #e83e8c; margin-bottom: 15px;">
+                        </div>
+
+                        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                            <button onclick="addSurveyQuestion('mc')"
+                                style="background: rgba(102, 126, 234, 0.1); color: #667eea; border: 2px dashed #667eea; box-shadow: none;">+
+                                Thêm câu Trắc nghiệm</button>
+                            <button onclick="addSurveyQuestion('text')"
+                                style="background: rgba(56, 239, 125, 0.1); color: #059669; border: 2px dashed #059669; box-shadow: none;">+
+                                Thêm câu Trả lời chữ</button>
+                        </div>
+
+                        <button onclick="sendGlobalSurvey()"
+                            style="background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%); color: #d32f2f;">🚀
+                            Phát
+                            hành Khảo sát</button>
+                    </div>
                 </div>
-               </div>
-               <div class="card form-container teacher-settings-card teacher-settings-communication-card" style="margin-top: 20px; position: relative; background: linear-gradient(135deg, rgba(255, 154, 158, 0.2) 0%, rgba(254, 207, 239, 0.2) 100%);">
-                <div style="position: absolute; top: 15px; right: 15px;">
-                 <button onclick="openSurveyHistory()" onmouseout="this.style.transform='scale(1)'" onmouseover="this.style.transform='scale(1.1)'" style="width: 40px; height: 40px; border-radius: 50%; padding: 0; background: rgba(255,255,255,0.8); color: #e83e8c; border: 2px solid #e83e8c; font-weight: bold; font-size: 1.2em; box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: transform 0.2s;" title="Lịch sử Khảo sát">
-                  ❓
-                 </button>
+
+                <div class="card form-container"
+                    style="margin-top: 20px; position: relative; background: linear-gradient(135deg, rgba(161, 140, 209, 0.15) 0%, rgba(251, 194, 235, 0.15) 100%);">
+                    <h3
+                        style="color: #764ba2; margin-bottom: 15px; border-bottom: 2px solid rgba(118, 75, 162, 0.2); padding-bottom: 10px;">
+                        🎁 Gửi Quà & Lời Nhắn</h3>
+
+                    <label
+                        style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 15px; background: rgba(255,255,255,0.6); padding: 12px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.05);">
+                        <input type="checkbox" id="giftToggle" onchange="toggleGiftArea(this.checked)"
+                            style="width: 22px; height: 22px; margin: 0; cursor: pointer;">
+                        <strong style="color: #2c3e50; font-size: 0.95em;">Bật tính năng gửi Thư & Quà
+                            tặng</strong>
+                    </label>
+
+                    <div id="giftInputArea" style="display: none; animation: fadeInUp 0.4s ease;">
+                        <label><strong>Gửi đến:</strong></label>
+                        <div class="custom-student-select">
+                            <div class="css-select-trigger" onclick="openCustomStudentSelect('giftTargetStudent')">
+                                <span id="giftTargetStudent_displayText">Tất cả học sinh</span>
+                                <span style="color: #9ca3af; font-size: 12px;">▼</span>
+                            </div>
+                            <select id="giftTargetStudent" multiple style="display: none;">
+                                <option value="all" selected>Tất cả học sinh</option>
+                            </select>
+                        </div>
+                        <p style="margin: 0 0 15px 0; font-size: 0.85em; color: #d35400;">💡 Giữ
+                            <strong>Ctrl</strong>
+                            để chọn nhiều.
+                        </p>
+
+                        <label><strong>Lời nhắn (Không bắt buộc nếu có quà):</strong></label>
+                        <textarea id="giftMessage" placeholder="Nhập lời chúc hoặc tin nhắn gửi đến học sinh..."
+                            rows="3" style="background: white; margin-bottom: 15px;"></textarea>
+
+                        <label><strong>Loại quà đính kèm:</strong></label>
+                        <select id="giftType" onchange="toggleGiftInput()"
+                            style="background: white; margin-bottom: 15px; font-weight: bold; color: #d35400;">
+                            <option value="none">Chỉ gửi thư (Không kèm quà)</option>
+                            <option value="coin">🪙 Tặng Coin</option>
+                            <option value="special_birthday_coin">✨ Tặng Xu Đặc Biệt</option>
+                            <option value="mid_autumn_coin">🌕 Tặng Xu Trung Thu</option>
+                            <option value="money">💵 Tặng Tiền Lộ Trình (đ)</option>
+                            <option value="item">📦 Tặng Vật Phẩm Cửa Hàng</option>
+                            <option value="ticket">🎫 Tặng Vé Quay May Mắn</option>
+                            <option value="discount">🏷️ Tặng Thẻ giảm giá (%)</option>
+                        </select>
+
+                        <div id="giftValueInputArea" style="display: none; margin-bottom: 15px;">
+                            <label id="giftValueLabel"><strong>Nhập Số lượng / % Giảm / Chọn Vật
+                                    phẩm:</strong></label>
+                            <input type="number" id="giftValueNumber" placeholder="Nhập số lượng..."
+                                style="background: white; display: none; font-weight: bold;">
+                            <select id="giftValueItem"
+                                style="background: white; display: none; font-weight: bold; width: 100%;"></select>
+                        </div>
+
+                        <div id="giftDiscountTargetArea" style="display: none; margin-bottom: 15px;">
+                            <label><strong>Vật phẩm áp dụng (Chỉ dành cho Thẻ giảm giá):</strong></label>
+                            <select id="giftDiscountTargetItem" multiple
+                                style="width: 100%; height: 160px; padding: 12px; overflow-y: auto; line-height: 1.8; border-radius: 8px; border: 1px solid #ccc; font-family: inherit;">
+                                <!-- Các option sẽ được JS đổ vào đây -->
+                            </select>
+                            <p style="margin: 5px 0 0 0; font-size: 0.85em; color: #d35400;">💡
+                                <strong>Mẹo:</strong>
+                                Giữ phím <strong>Ctrl</strong> (hoặc kéo thả trên điện thoại) để chọn nhiều vật
+                                phẩm
+                                cùng lúc. Các vật phẩm sự kiện đã tự động bị ẩn đi.
+                            </p>
+                        </div>
+
+                        <div id="giftExpiryInputArea" style="display: none; margin-bottom: 15px;">
+                            <label><strong>Hạn sử dụng thẻ (Bỏ trống nếu thẻ vĩnh viễn):</strong></label>
+                            <input type="datetime-local" id="giftExpiryDate"
+                                style="background: white; font-weight: bold;">
+                        </div>
+
+                        <button onclick="sendGiftMessage()"
+                            style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; width: 100%; padding: 12px; font-size: 1.1em;">💌
+                            Gửi Thư & Quà ngay</button>
+                    </div>
                 </div>
-                <h3 style="color: #e83e8c; margin-bottom: 15px; border-bottom: 2px solid rgba(232, 62, 140, 0.2); padding-bottom: 10px;">
-                 📝 Tạo Khảo sát / Lấy ý kiến
-                </h3>
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 15px; background: rgba(255,255,255,0.6); padding: 12px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.05);">
-                 <input id="surveyToggle" onchange="toggleSurveyArea(this.checked)" style="width: 22px; height: 22px; margin: 0; cursor: pointer;" type="checkbox"/>
-                 <strong style="color: #2c3e50; font-size: 0.95em;">
-                  Bật tính năng tạo Khảo sát
-                                        mới
-                 </strong>
-                </label>
-                <div id="surveyInputArea" style="display: none; animation: fadeInUp 0.4s ease;">
-                 <label>
-                  <strong>
-                   Tiêu đề Khảo sát:
-                  </strong>
-                 </label>
-                 <input id="surveyTitle" placeholder="Ví dụ: Khảo sát chất lượng buổi học hôm nay..." style="background: white;" type="text"/>
-                 <div id="surveyQuestionsBuilder" style="background: rgba(255,255,255,0.5); padding: 15px; border-radius: 12px; border: 1px dashed #e83e8c; margin-bottom: 15px;">
-                 </div>
-                 <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                  <button onclick="addSurveyQuestion('mc')" style="background: rgba(102, 126, 234, 0.1); color: #667eea; border: 2px dashed #667eea; box-shadow: none;">
-                   +
-                                            Thêm câu Trắc nghiệm
-                  </button>
-                  <button onclick="addSurveyQuestion('text')" style="background: rgba(56, 239, 125, 0.1); color: #059669; border: 2px dashed #059669; box-shadow: none;">
-                   +
-                                            Thêm câu Trả lời chữ
-                  </button>
-                 </div>
-                 <button onclick="sendGlobalSurvey()" style="background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%); color: #d32f2f;">
-                  🚀
-                                        Phát
-                                        hành Khảo sát
-                 </button>
-                </div>
-               </div>
-               <div class="card form-container teacher-settings-card teacher-settings-gift-card" style="margin-top: 20px; position: relative; background: linear-gradient(135deg, rgba(161, 140, 209, 0.15) 0%, rgba(251, 194, 235, 0.15) 100%);">
-                <h3 style="color: #764ba2; margin-bottom: 15px; border-bottom: 2px solid rgba(118, 75, 162, 0.2); padding-bottom: 10px;">
-                 🎁 Gửi Quà &amp; Lời Nhắn
-                </h3>
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 15px; background: rgba(255,255,255,0.6); padding: 12px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.05);">
-                 <input id="giftToggle" onchange="toggleGiftArea(this.checked)" style="width: 22px; height: 22px; margin: 0; cursor: pointer;" type="checkbox"/>
-                 <strong style="color: #2c3e50; font-size: 0.95em;">
-                  Bật tính năng gửi Thư &amp; Quà
-                                        tặng
-                 </strong>
-                </label>
-                <div id="giftInputArea" style="display: none; animation: fadeInUp 0.4s ease;">
-                 <label>
-                  <strong>
-                   Gửi đến:
-                  </strong>
-                 </label>
-                 <div class="custom-student-select">
-                  <div class="css-select-trigger" onclick="openCustomStudentSelect('giftTargetStudent')">
-                   <span id="giftTargetStudent_displayText">
-                    Tất cả học sinh
-                   </span>
-                   <span style="color: #9ca3af; font-size: 12px;">
-                    ▼
-                   </span>
-                  </div>
-                  <select id="giftTargetStudent" multiple="" style="display: none;">
-                   <option selected="" value="all">
-                    Tất cả học sinh
-                   </option>
-                  </select>
-                 </div>
-                 <p style="margin: 0 0 15px 0; font-size: 0.85em; color: #d35400;">
-                  💡 Giữ
-                  <strong>
-                   Ctrl
-                  </strong>
-                  để chọn nhiều.
-                 </p>
-                 <label>
-                  <strong>
-                   Lời nhắn (Không bắt buộc nếu có quà):
-                  </strong>
-                 </label>
-                 <textarea id="giftMessage" placeholder="Nhập lời chúc hoặc tin nhắn gửi đến học sinh..." rows="3" style="background: white; margin-bottom: 15px;"></textarea>
-                 <label>
-                  <strong>
-                   Loại quà đính kèm:
-                  </strong>
-                 </label>
-                 <select id="giftType" onchange="toggleGiftInput()" style="background: white; margin-bottom: 15px; font-weight: bold; color: #d35400;">
-                  <option value="none">
-                   Chỉ gửi thư (Không kèm quà)
-                  </option>
-                  <option value="coin">
-                   🪙 Tặng Coin
-                  </option>
-                  <option value="special_birthday_coin">
-                   ✨ Tặng Xu Đặc Biệt
-                  </option>
-                  <option value="mid_autumn_coin">
-                   🌕 Tặng Xu Trung Thu
-                  </option>
-                  <option value="money">
-                   💵 Tặng Tiền Lộ Trình (đ)
-                  </option>
-                  <option value="item">
-                   📦 Tặng Vật Phẩm Cửa Hàng
-                  </option>
-                  <option value="ticket">
-                   🎫 Tặng Vé Quay May Mắn
-                  </option>
-                  <option value="discount">
-                   🏷️ Tặng Thẻ giảm giá (%)
-                  </option>
-                 </select>
-                 <div id="giftValueInputArea" style="display: none; margin-bottom: 15px;">
-                  <label id="giftValueLabel">
-                   <strong>
-                    Nhập Số lượng / % Giảm / Chọn Vật
-                                                phẩm:
-                   </strong>
-                  </label>
-                  <input id="giftValueNumber" placeholder="Nhập số lượng..." style="background: white; display: none; font-weight: bold;" type="number"/>
-                  <select id="giftValueItem" style="background: white; display: none; font-weight: bold; width: 100%;">
-                  </select>
-                 </div>
-                 <div id="giftDiscountTargetArea" style="display: none; margin-bottom: 15px;">
-                  <label>
-                   <strong>
-                    Vật phẩm áp dụng (Chỉ dành cho Thẻ giảm giá):
-                   </strong>
-                  </label>
-                  <select id="giftDiscountTargetItem" multiple="" style="width: 100%; height: 160px; padding: 12px; overflow-y: auto; line-height: 1.8; border-radius: 8px; border: 1px solid #ccc; font-family: inherit;">
-                   <!-- Các option sẽ được JS đổ vào đây -->
-                  </select>
-                  <p style="margin: 5px 0 0 0; font-size: 0.85em; color: #d35400;">
-                   💡
-                   <strong>
-                    Mẹo:
-                   </strong>
-                   Giữ phím
-                   <strong>
-                    Ctrl
-                   </strong>
-                   (hoặc kéo thả trên điện thoại) để chọn nhiều vật
-                                            phẩm
-                                            cùng lúc. Các vật phẩm sự kiện đã tự động bị ẩn đi.
-                  </p>
-                 </div>
-                 <div id="giftExpiryInputArea" style="display: none; margin-bottom: 15px;">
-                  <label>
-                   <strong>
-                    Hạn sử dụng thẻ (Bỏ trống nếu thẻ vĩnh viễn):
-                   </strong>
-                  </label>
-                  <input id="giftExpiryDate" style="background: white; font-weight: bold;" type="datetime-local"/>
-                 </div>
-                 <button onclick="sendGiftMessage()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; width: 100%; padding: 12px; font-size: 1.1em;">
-                  💌
-                                        Gửi Thư &amp; Quà ngay
-                 </button>
-                </div>
-               </div>
-              </div>
-             </section>
             </div>
 
             <div id="materialModal" class="modal-overlay">
@@ -3785,7 +3401,7 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
     <!-- 2. Khởi tạo Firebase -->
-    <script src="js/firebase-config.js?v=20260918.production-rulesmerge1"></script>
+    <script src="js/firebase-config.js?v=20260909.singleflight-v1"></script>
     <script src="js/cloudinary-storage.js?v=4.0.0"></script>
 
     <script>
@@ -3804,18 +3420,18 @@
     <script>
         // Phiên bản thực sự của bộ HTML/JS đang chạy.
         // common.js cũ đọc appVersion từ localStorage, nên đồng bộ trước khi nạp common.js.
-        window.APP_VERSION = '4.0.6';
+        window.APP_VERSION = '4.0.2';
         try {
             localStorage.setItem('appVersion', window.APP_VERSION);
         } catch (_) {}
     </script>
-    <script src="js/common.js?v=20260918.production-rulesmerge1"></script>
+    <script src="js/common.js?v=4.0.1-health-center-v2.0"></script>
     <script src="js/history-retention.js?v=1.0.0-2month-safe"></script>
-    <script src="js/update-manager.js?v=1.0.5-release-v4.0.6-security"></script>
+    <script src="js/update-manager.js?v=1.0.3-release-sections"></script>
     <script src="js/web-animations.js?v=1.0"></script>
     <!-- Tối ưu hiệu năng: mặc định tắt; dùng trạng thái đã lưu trong Cài đặt. Phát hiện mobile/thiết bị yếu chỉ áp dụng sau khi tính năng đã được bật. -->
     <script src="js/web-performance-optimizer.js?v=2.0.0"></script>
-    <script src="js/transaction-history.js?v=20260918.production-rulesmerge1"></script>
+    <script src="js/transaction-history.js?v=4.0.1-retention-2months"></script>
     <script>
         // security.js nạp trước teacher.js: đánh dấu rõ đây là trang Giáo viên đang chờ xác thực.
         window.__APP_PAGE_ROLE__ = 'teacher';
@@ -3834,14 +3450,14 @@
     <script src="js/royal-ball.js?v=4.0.0"></script>
     <script src="js/music-manager.js?v=4.0.0"></script>
     <script src="js/store-manager.js?v=4.0.1-lockfix-ui-isolation-r3-height"></script>
-    <script src="js/painting.js?v=20260918.production-rulesmerge1"></script>
-    <script src="js/luxury-store.js?v=4.2.11-nyx-card-guard"></script>
+    <script src="js/painting.js?v=20260908.round-query-v1"></script>
+    <script src="js/luxury-store.js?v=4.2.4-lockfix-ui-isolation-r2"></script>
 
     <!-- 5. Logic chính của trang giáo viên luôn đặt cuối -->
     <!-- Hotfix: xác nhận cài đặt lộ trình trước khi teacher.js chờ loader -->
     <script src="js/roadmap-startup-fix.js?v=1.0"></script>
 
-    <script src="js/teacher.js?v=20260918.grade-reward-v4.6-idempotent-finalize"></script>
+    <script src="js/teacher.js?v=20260908.retention-2months-v1"></script>
     <script src="js/huong-dan-nguoi-moi.js?v=2.14.0"></script>
 </body>
 

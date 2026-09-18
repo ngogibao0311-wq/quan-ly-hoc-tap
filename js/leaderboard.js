@@ -283,18 +283,7 @@ function initLeaderboardSystem() {
 
         lbBtn.addEventListener("click", openLeaderboardModal);
 
-        const actionBar =
-            document.getElementById("studentTopActionsFlow");
-
-        const triggerHost =
-            actionBar || bagBtn.parentNode;
-
-        triggerHost.insertBefore(lbBtn, bagBtn);
-
-        // Đảm bảo nút BXH mới chèn cũng được gom vào floating dock giống nút Hướng dẫn.
-        if (typeof window.refreshStudentTopActionPositions === "function") {
-            window.refreshStudentTopActionPositions();
-        }
+        bagBtn.parentNode.insertBefore(lbBtn, bagBtn);
     }
 
     const modalHTML = `

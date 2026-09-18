@@ -123,14 +123,6 @@
             );
         }
 
-        const logActor = actor();
-        const logType = data.type || 'other';
-        const requestedReversible = data.reversible === true;
-        const reversible =
-            requestedReversible &&
-            logActor.role === 'teacher' &&
-            logType !== 'grade_change';
-
         await db
             .ref(`${ROOT}/${id}`)
             .set(
@@ -138,7 +130,8 @@
                     id,
 
                     type:
-                        logType,
+                        data.type ||
+                        'other',
 
                     summary:
                         data.summary ||
@@ -171,25 +164,18 @@
                     details:
                         data.details || {},
 
-                    reversible,
+                    reversible:
+                        data.reversible === true,
 
                     nonReversibleReason:
-                        reversible
-                            ? ''
-                            : (
-                                data.nonReversibleReason ||
-                                (logType === 'grade_change'
-                                    ? 'Điểm phải được thay đổi qua quy trình chấm/đối soát thưởng.'
-                                    : (logActor.role !== 'teacher'
-                                        ? 'Nhật ký do phía học sinh tạo chỉ dùng để xem, không phải lệnh hoàn tác có đặc quyền.'
-                                        : 'Giao dịch này không hỗ trợ hoàn tác.'))
-                            ),
+                        data.nonReversibleReason ||
+                        '',
 
                     status:
                         'active',
 
                     actor:
-                        logActor,
+                        actor(),
 
                     createdAt:
                         firebase.database
@@ -271,23 +257,6 @@
 
             const initialLog =
                 initialSnapshot.val() || {};
-
-            // Không bao giờ biến log do học sinh/client không đặc quyền tạo thành
-            // một lệnh ghi chạy bằng phiên giáo viên.
-            if (
-                initialLog?.actor?.role !== 'teacher' ||
-                !initialLog?.actor?.uid
-            ) {
-                throw new Error(
-                    'Nhật ký này không có nguồn giáo viên đáng tin cậy nên chỉ được xem.'
-                );
-            }
-
-            if (initialLog.type === 'grade_change') {
-                throw new Error(
-                    'Không hoàn tác điểm trực tiếp từ lịch sử. Hãy dùng Chấm lại/Lưu điểm để đối soát thưởng và vé.'
-                );
-            }
 
             if (
                 initialLog.status ===
@@ -1826,9 +1795,7 @@
             visibleLogs.map(log => {
                 const canUndo =
                     log.reversible === true &&
-                    log.status === 'active' &&
-                    log?.actor?.role === 'teacher' &&
-                    log.type !== 'grade_change';
+                    log.status === 'active';
 
                 const statusText =
                     log.status === 'undone'

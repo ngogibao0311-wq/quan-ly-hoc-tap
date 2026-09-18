@@ -1,34 +1,43 @@
 {
-  "version": "4.0.6",
-  "build": "2026.09.18.3-grade-reward-regrade-lock-recovery",
+  "version": "4.0.2",
+  "build": "2026.09.10.3-system-hardening-audit",
   "channel": "stable",
-  "releasedAt": "2026-09-18T19:30:00+07:00",
-  "title": "Bản cập nhật hệ thống v4.0.6 · Grade Reward regrade lock recovery",
-  "summary": "Hotfix luồng Chấm lại Grade Reward V4: tự giải phóng mutation lease của request lỗi, lưu dấu side-effect để retry idempotent và chặn double-click cùng bài.",
-  "mandatory": true,
+  "releasedAt": "2026-09-10T09:45:00+07:00",
+  "title": "Bản cập nhật hệ thống v4.0.2 · Ổn định & tối ưu",
+  "summary": "Bổ sung Nhạc Nga và cải thiện nhạc nền; đồng thời củng cố Firebase, bảo mật, cập nhật, lưu trữ, nhật ký, Hội họa, Service Worker và hiệu năng. Chi tiết cập nhật nay tách rõ hạng mục đã xử lý, rủi ro đang theo dõi và kế hoạch nâng cấp tiếp theo.",
+  "mandatory": false,
   "minSupportedVersion": "3.0.0",
   "changes": [
-    "Sửa GRADE_REWARD_HOLD_FINALIZE_CONFLICT để request lỗi không để event kẹt status mutating tới 10 phút.",
-    "Khi đã hoàn/thu hồi Vé hoặc Coin trước lúc lỗi, lưu recovery marker trên event để retry không áp dụng side-effect lần hai.",
-    "Nếu thư thưởng chưa nhận bị đặt HOLD nhưng event chưa finalize, tự mở lại thư khi request sở hữu lock được rollback.",
-    "Thêm mutex phía giáo viên để cùng một bài không thể bấm Chấm lại lặp trong cùng tab.",
-    "Bổ sung cache-busting riêng cho teacher.js và nâng Service Worker/app version lên 4.0.6.",
-    "Giữ nguyên js/firebase-config.js của bản chính; không thay project/database config trong quá trình vá."
+    "Bổ sung vật phẩm Nhạc Nga dùng nguồn YouTube mới và tiếp tục cải thiện độ ổn định của nhạc nền trên Chrome, Android, Safari và WebView.",
+    "Hạn chế Media Session/Media Control Center đối với nhạc nền theo cơ chế best-effort; không can thiệp luồng video bài tập.",
+    "Tách music runtime/lazy-load để nhạc và các module đặc biệt không làm chậm quá trình mở trang khi không cần thiết.",
+    "Bổ sung System Health Center 2.0 dạng chỉ đọc để kiểm tra Auth/RTDB, Service Worker/cache, R2/Cloudinary, module runtime, listener/timer và mật độ DOM hiệu ứng.",
+    "Chuẩn hóa cache Service Worker theo appVersion + build để giảm nguy cơ tiếp tục dùng runtime cache của bản cũ.",
+    "EffectQualityManager dùng ngân sách hiệu ứng tập trung, quota hạt và tự tạm dừng sinh hiệu ứng khi tab bị ẩn."
   ],
   "resolvedIssues": [
-    "Grade Reward V4: GRADE_REWARD_HOLD_FINALIZE_CONFLICT -> GRADE_REWARD_MUTATION_IN_PROGRESS do mutation lock không được dọn sau lỗi.",
-    "AUD-02, AUD-03, AUD-09, AUD-14, AUD-16, AUD-19, AUD-25, AUD-29, AUD-30, AUD-31 và AUD-34 được xử lý trực tiếp hoặc đóng đường khai thác được nêu trong báo cáo.",
-    "AUD-01, AUD-06, AUD-20 và AUD-35 được harden một phần; Rules mới của người dùng được giữ lại khi không xung đột."
+    "🔴 Rất cao — Firebase critical read: bổ sung getDBStrict() cho dữ liệu bắt buộc; lỗi đọc không còn bị biến thành [] rồi bị hiểu nhầm là node rỗng. Request Single-Flight chia sẻ cùng Promise đọc trong cửa sổ ngắn để giảm request trùng.",
+    "🔴 Cao — Hợp nhất hệ thống cập nhật: common.js không còn tự xóa cache/reload độc lập; applySystemUpdate cũ chỉ làm wrapper gọi SystemUpdateManager để giữ tương thích.",
+    "🔴 Cao — Security teacher-safe: bỏ debugger loop nặng; trạng thái pending/verified của giáo viên được tách rõ để tránh đá nhầm giáo viên hợp lệ trong lúc Firebase Auth/role đang xác minh.",
+    "🟠 Trung-cao — Khóa quà sinh nhật: trạng thái issuing được coi là lock thật và có TTL để invocation khác không cùng cấp quà; lock chết có thể được thu hồi an toàn.",
+    "🟠 Trung-cao — Upload: API Cloudinary cũ chỉ còn lớp tương thích; upload mới chuyển qua Cloudflare R2 có Firebase ID token trong Authorization: Bearer.",
+    "🟡 Trung bình — Nhật ký giao dịch: đọc Firebase theo batch bằng limitToLast + cursor thay vì tải toàn bộ lịch sử tháng rồi chỉ phân trang ở UI.",
+    "🟡 Trung bình — Hội họa: phần thống kê/quản lý vòng không còn đọc toàn bộ hoihoa_submissions; submission được query theo khóa/round phù hợp.",
+    "🟡 Trung bình — Service Worker: tên cache hiện gắn trực tiếp với APP_VERSION và APP_BUILD; cache cũ được loại khi worker mới activate.",
+    "🟡 Nhẹ — Ghi chú Performance Optimizer đã đồng bộ với logic thật: mặc định TẮT và chỉ tối ưu sau khi người dùng chủ động bật.",
+    "⚙️ Hiệu năng — Effect Budget v2 gom emitter EffectManager vào scheduler/quota tập trung, giới hạn số DOM hạt và pause/resume theo visibility."
   ],
   "knownIssues": [
-    "Không coi client là nguồn có thẩm quyền cho điểm, số dư, phần thưởng, claim, event score, video progress hoặc trạng thái pet. Những luồng này cần backend/ledger/callable operation trước khi có thể khóa Rules hoàn toàn mà không làm hỏng chức năng.",
-    "Assignments vẫn chứa answer key cho client theo kiến trúc hiện tại; tách answer key và chấm server là migration riêng.",
-    "Dữ liệu lịch cũ vẫn lưu chuỗi không offset; code mới hiểu chuỗi này là Asia/Ho_Chi_Minh nhưng chưa tự chuyển dữ liệu lịch sử sang epoch."
+    "🟠 Cao — CSS Tamon: đã phát hiện một khối CSS rất lớn bị lặp; cần xóa phần trùng sau khi đối chiếu chính xác file đang deploy để không đổi giao diện.",
+    "🟠 Cao — CSS thú cưng Hội họa: đã phát hiện một khối CSS/keyframe lặp; cần dọn bản lặp sau khi xác minh file production hiện tại.",
+    "🟡 Trung bình — Modal fallback: trường hợp không tìm thấy nút đóng vẫn có thể force-hide modal và bỏ qua cleanup riêng của module; cần lifecycle/close hook chung.",
+    "🟡 Trung bình — Giờ Vàng: cần tiếp tục kiểm tra cơ chế realtime + polling 15 giây để chỉ bật polling dự phòng khi realtime lỗi/mất kết nối."
   ],
   "plannedImprovements": [
-    "Backend authoritative grading và assignment revision/snapshot.",
-    "Append-only ledger/idempotent operations cho coin, ticket, inventory, claim và refund.",
-    "Server-side reward/event validation và owner-scoped privacy projections.",
-    "Emulator regression suite cho Rules, multi-tab race và migration dữ liệu cũ."
+    "Module Lifecycle Registry: chuẩn hóa init() / pause() / resume() / destroy() để dọn timer, MutationObserver, event listener và audio khi đóng modal hoặc đổi vật phẩm.",
+    "Error Boundary cho module phụ: lỗi Luxury/painting/music/effect không được làm loader chính hoặc Student/Teacher ngừng khởi động; lỗi chỉ được ghi vào Chẩn đoán.",
+    "Build Manifest tự động: một nguồn duy nhất chứa appVersion, build, cache version và version/hash từng JS/CSS để tránh lệch số phiên bản giữa HTML, Update Manager và Service Worker.",
+    "Firebase Read Monitor cho developer/teacher: đếm .once(), realtime listener và thời gian phản hồi theo node để xác định chính xác module tốn read trước khi tối ưu.",
+    "Tiếp tục mở rộng lazy-load: core nạp trước; Store/Studio/sự kiện/module đặc biệt chỉ nạp khi mở hoặc khi phát hiện vật phẩm đang trang bị, đồng thời preload CSS cần thiết trước khi bỏ loader."
   ]
 }
