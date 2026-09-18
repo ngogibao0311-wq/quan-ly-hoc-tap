@@ -8905,6 +8905,21 @@ async function reconcileTeacherGradeRewardHistoryDebtV4(
     };
 }
 
+// V4.4: Keep the event in the SDK cache through the compare-and-set.
+// A one-shot read does not keep a listener alive for a later transaction.
+async function runTeacherGradeRewardLiveTransactionV44(ref, updater) {
+    let listener;
+    try {
+        await new Promise((resolve, reject) => {
+            listener = () => resolve();
+            ref.on('value', listener, reject);
+        });
+        return await ref.transaction(updater, undefined, false);
+    } finally {
+        if (listener) ref.off('value', listener);
+    }
+}
+
 async function holdTeacherGradeRewardForRegradeV4(
     submission,
     reasonCode = 'request_regrade'
@@ -9248,7 +9263,7 @@ async function holdTeacherGradeRewardForRegradeV4(
         claim?.status === 'reversed'
     );
 
-    const holdFinalizeTx = await eventRef.transaction(current => {
+    const holdFinalizeTx = await runTeacherGradeRewardLiveTransactionV44(eventRef, current => {
         if (
             !current ||
             current.mutationId !== holdMutationId
@@ -9257,7 +9272,7 @@ async function holdTeacherGradeRewardForRegradeV4(
         }
 
         return {
-        ...source,
+        ...current,
         history: historyReconcile.history,
         version: GRADE_REWARD_V2_VERSION,
         status: 'regrade_hold',
