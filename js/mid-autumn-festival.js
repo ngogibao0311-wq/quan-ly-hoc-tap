@@ -316,66 +316,9 @@
         }
 
         /*
-         * Không hard-code ngày dương. Nếu lịch năm nay chưa tồn tại trên
-         * Firebase, dùng chính kết quả 15/8 âm lịch do MidAutumnCalendar tính.
-         * Từ D-5 đến hết ngày Trung Thu, thử đồng bộ bản ghi năm hiện tại để
-         * cả Đại Hội và cơ chế tự tặng Xu dùng chung một lịch server.
+         * Lịch chung là dữ liệu chính sách: học sinh không được tự tạo.
+         * teacher.js seedCalendar() là đường có thẩm quyền để phát lịch.
          */
-        if (database && localInfo) {
-            const t = now();
-            const canBootstrap =
-                t >= Number(localInfo.autoGrantStartAt) &&
-                t <= Number(localInfo.autoGrantEndAt);
-
-            if (canBootstrap) {
-                try {
-                    const calendarRef =
-                        database.ref(`mid_autumn_calendar/${year}`);
-
-                    const tx =
-                        await calendarRef.transaction(
-                            current => {
-                                if (current && typeof current === 'object') {
-                                    return current;
-                                }
-
-                                return {
-                                    year: String(year),
-                                    festivalDateKey: String(localInfo.festivalDateKey || ''),
-                                    festivalStartAt: Number(localInfo.festivalStartAt),
-                                    festivalEndAt: Number(localInfo.festivalEndAt),
-                                    autoGrantStartAt: Number(localInfo.autoGrantStartAt),
-                                    autoGrantEndAt: Number(localInfo.autoGrantEndAt),
-                                    updatedAt: t
-                                };
-                            },
-                            undefined,
-                            false
-                        );
-
-                    const synced = tx.snapshot?.val();
-                    if (
-                        synced &&
-                        Number(synced.festivalStartAt) > 0 &&
-                        Number(synced.festivalEndAt) > 0
-                    ) {
-                        state.calendar = {
-                            ...localInfo,
-                            ...synced,
-                            year: Number(synced.year || year),
-                            remoteConfigured: true
-                        };
-                        return state.calendar;
-                    }
-                } catch (error) {
-                    console.warn(
-                        '[Đại Hội Trung Thu] Chưa thể tự đồng bộ lịch năm hiện tại:',
-                        error
-                    );
-                }
-            }
-        }
-
         state.calendar = localInfo ? { ...localInfo, remoteConfigured: false } : null;
         return state.calendar;
     }
@@ -751,7 +694,7 @@
                         <section class="maf-ticket-shop">
                             <div>
                                 <strong>🎫 Quầy Vé Nguyệt Hội</strong>
-                                <p>Mở sự kiện lần đầu trong năm nhận 2 vé. Có thể mua thêm tối đa 4 vé/năm.</p>
+                                <p>Mở sự kiện lần đầu trong năm nhận 2 vé. Có thể mua thêm tối đa ${CONFIG.maxExtraTickets} vé/năm.</p>
                             </div>
                             <button id="mafBuyTicketBtn" class="maf-btn maf-btn-ticket" type="button" data-maf-action="buy-ticket"></button>
                         </section>
@@ -870,7 +813,7 @@
             const left = Math.max(0, CONFIG.maxExtraTickets - purchased);
             buyBtn.textContent = left > 0
                 ? `Mua 1 vé · ${CONFIG.extraTicketPrice} Coin (${left} lượt mua còn lại)`
-                : 'Đã mua tối đa 4 vé/năm';
+                : `Đã mua tối đa ${CONFIG.maxExtraTickets} vé/năm`;
             buyBtn.disabled = !status?.active || !state.annual || left <= 0;
         }
 
@@ -1001,7 +944,7 @@
             }
             const messages = {
                 EVENT_CLOSED: 'Sự kiện hiện chưa mở.',
-                PURCHASE_LIMIT: 'Bạn đã mua tối đa 4 vé trong sự kiện năm nay.',
+                PURCHASE_LIMIT: `Bạn đã mua tối đa ${CONFIG.maxExtraTickets} vé trong sự kiện năm nay.`,
                 INSUFFICIENT_COINS: `Bạn không đủ ${CONFIG.extraTicketPrice} Coin để mua vé.`
             };
             showToast(messages[error.message] || `Không mua được vé: ${error.message}`, 'error');
@@ -1951,7 +1894,7 @@
 
     function showRewards() {
         const lines = CONFIG.milestones.map(m => `${m.score} điểm: ${m.label}`).join('\n');
-        alert(`🎑 ĐẠI HỘI TRUNG THU\n\n${lines}\n\n🎟️ Mỗi năm: 2 vé miễn phí + tối đa 4 vé mua thêm.\n🪙 Giá vé mua thêm: ${CONFIG.extraTicketPrice} Coin/vé.\n🎮 4 trò tối đa ${CONFIG.maxScorePerPlay} điểm/lượt; Bắt Bánh tối đa 20 điểm/lượt.\n⚠️ Vào một trò chơi rồi thoát giữa chừng vẫn mất 1 vé.`);
+        alert(`🎑 ĐẠI HỘI TRUNG THU\n\n${lines}\n\n🎟️ Mỗi năm: 2 vé miễn phí + tối đa ${CONFIG.maxExtraTickets} vé mua thêm.\n🪙 Giá vé mua thêm: ${CONFIG.extraTicketPrice} Coin/vé.\n🎮 4 trò tối đa ${CONFIG.maxScorePerPlay} điểm/lượt; Bắt Bánh tối đa 20 điểm/lượt.\n⚠️ Vào một trò chơi rồi thoát giữa chừng vẫn mất 1 vé.`);
     }
 
     async function init() {

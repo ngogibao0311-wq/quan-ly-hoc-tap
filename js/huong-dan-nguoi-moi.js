@@ -1,9 +1,9 @@
 /**
  * NEW USER GUIDE — Hướng dẫn người mới cho website học tập
- * Phiên bản: 2.14.0 — đào tạo bắt buộc 1 lần về nộp bài, cập nhật và hiệu năng
+ * Phiên bản: 2.14.1 — đào tạo bắt buộc 1 lần về nộp bài, cập nhật và hiệu năng
  *
  * Cách nạp khuyến nghị (đặt cuối <body>, sau teacher.js hoặc student.js):
- * <script src="js/huong-dan-nguoi-moi.js?v=2.14.0"></script>
+ * <script src="js/huong-dan-nguoi-moi.js?v=2.14.1"></script>
  *
  * API có thể gọi từ nơi khác:
  *   NewUserGuide.open();          // Mở trung tâm hướng dẫn
@@ -17,7 +17,7 @@
 
     if (window.NewUserGuide) return;
 
-    const VERSION = '2.14.0';
+    const VERSION = '2.14.1';
     const REQUIRED_STUDENT_TRAINING_VERSION =
         '2026-09-06-submission-update-effects-v1';
     const REQUIRED_STUDENT_TRAINING_FEATURES = Object.freeze([
@@ -3085,13 +3085,18 @@
 
         const firstCard = settingsTab.querySelector('.card');
 
-        if (firstCard) {
-            settingsTab.insertBefore(
-                settingCard,
-                firstCard
-            );
+        /*
+         * querySelector() có thể trả về một .card nằm sâu trong wrapper/grid,
+         * không phải con trực tiếp của #tab-settings. Node.insertBefore() yêu cầu
+         * referenceNode phải là con trực tiếp của node cha, nên cách cũ có thể
+         * ném NotFoundError sau khi bố cục Cài đặt được tổ chức lại.
+         *
+         * Chèn theo chính parent của card tìm được để luôn hợp lệ với DOM hiện tại.
+         */
+        if (firstCard && firstCard.parentNode) {
+            firstCard.parentNode.insertBefore(settingCard, firstCard);
         } else {
-            settingsTab.appendChild(settingCard);
+            settingsTab.prepend(settingCard);
         }
 
         document.getElementById(

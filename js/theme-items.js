@@ -70,6 +70,17 @@ class ThemeManager {
             background: '#07090d',
             className: 'theme-lotm-mysteries'
         },
+        // =========================================================
+        // LORD OF THE MYSTERIES · HỘI TAROT · NGHỊ ĐIỆN HUYỀN BÍ
+        // Theme sự kiện độc lập hoàn toàn: lotmevt-*.
+        // Không dùng lại CSS/animation của theme_lotm_mysteries hay Klein/Amon.
+        // =========================================================
+        'theme_lotm_tarot_council_event': {
+            primary: '#c7a76a',
+            secondary: '#768497',
+            background: '#080a10',
+            className: 'theme-lotm-tarot-council-event'
+        },
         'theme_truyenthuyet_celestial': {
             primary: '#ffd700',       // Màu Vàng Thần Thánh (Divine Gold)
             secondary: '#e5e4e2',     // Màu Bạch Kim (Platinum)
@@ -169,6 +180,16 @@ class ThemeManager {
             background: '#030814',
             className: 'theme-nyx-moon-sanctum'
         },
+        // =========================================================
+        // AETHER · THIÊN QUANG THÁNH VỰC
+        // Theme riêng hoàn toàn: aettheme-*.
+        // =========================================================
+        'theme_truyenthuyet_aether_thien_quang_thanh_vuc': {
+            primary: '#8cecff',
+            secondary: '#f2d580',
+            background: '#030b18',
+            className: 'theme-aether-luminous-sanctum'
+        },
         // TAMON'S B-SIDE · HẬU TRƯỜNG NHIỄU SÓNG
         // Theme độc lập, không dùng class/effect của các theme Tamon cũ.
         'theme_tamon_bside_backstage': {
@@ -199,6 +220,31 @@ class ThemeManager {
             background: '#0b1430',
             className: 'theme-midautumn-lantern-festival'
         },
+
+
+        // =========================================================
+        // TRUNG THU · QUẢNG HÀN NGUYỆT QUẾ
+        // Theme độc lập hoàn toàn: mtq5-*
+        // Concept: lưu ly ngọc bích + nguyệt quế + nguyệt song.
+        // =========================================================
+        'theme_trung_thu_quang_han_nguyet_que': {
+            primary: '#b99243',
+            secondary: '#3f8b72',
+            background: '#edf1df',
+            className: 'theme-midautumn-osmanthus-jade'
+        },
+
+        // =========================================================
+        // LINK CLICK · KÝ ỨC PHÂN MẢNH
+        // Theme độc lập hoàn toàn: lct3-*
+        // Không dùng lcx-* của Luxury và không dùng lcc2-* của pet.
+        // =========================================================
+        'theme_linkclick_fragmented_memory': {
+            primary: '#35d9c5',
+            secondary: '#ef5b9d',
+            background: '#07131a',
+            className: 'theme-linkclick-fragmented-memory'
+        },
     };
 
     // Những popup phải giữ giao diện riêng,
@@ -228,6 +274,21 @@ class ThemeManager {
 
             styleId:
                 'amon-trinity-card-style'
+        }),
+
+        /*
+         * LORD OF THE MYSTERIES · KLEIN CHIBI EVENT PAIR
+         * Pet Klein + giao diện Hội Tarot dùng cùng skin/card Klein.
+         * Chỉ tag Lord of the Mysteries là dùng chung với Amon.
+         */
+        'lotm-klein-chibi-event': Object.freeze({
+            itemIds: Object.freeze([
+                'pet_lotm_klein_chibi_event_1',
+                'theme_lotm_tarot_council_event'
+            ]),
+
+            className:
+                'store-card-lotm-klein-chibi-event'
         }),
 
         'shizuka-trinity': Object.freeze({
@@ -327,6 +388,21 @@ class ThemeManager {
         }),
 
         /* =========================================================
+           AETHER · TIỂU THIÊN QUANG + THÁNH VỰC + THIÊN MÔN QUANG TRIỀU
+           Cùng tag, cùng thẻ Aether Chibi; miễn mọi theme khác.
+           ========================================================= */
+        'aether-little-spirit': Object.freeze({
+            itemIds: Object.freeze([
+                'pet_truyenthuyet_aether_chibi_2',
+                'theme_truyenthuyet_aether_thien_quang_thanh_vuc',
+                'effect_truyenthuyet_aether_thien_quang_thien_mon'
+            ]),
+
+            className:
+                'store-card-aether-little-spirit'
+        }),
+
+        /* =========================================================
            TAMON'S B-SIDE · TIỂU QUỶ + GIAO DIỆN HẬU TRƯỜNG
            Cùng tag, cùng thẻ; khóa khỏi mọi giao diện toàn web.
            ========================================================= */
@@ -395,6 +471,19 @@ class ThemeManager {
         }),
 
         /* =========================================================
+           TRUNG THU · CHÚ CUỘI PREMIUM
+           Card riêng, cùng tag Trung Thu nhưng khóa skin độc lập.
+           ========================================================= */
+        'midautumn-cuoi-premium': Object.freeze({
+            itemIds: Object.freeze([
+                'pet_trung_thu_chu_cuoi_2'
+            ]),
+
+            className:
+                'store-card-midautumn-cuoi'
+        }),
+
+        /* =========================================================
    BỘ VIỆT DIỆU 2/9
    Giữ card riêng, không bị theme toàn web ghi đè
    ========================================================= */
@@ -410,6 +499,35 @@ class ThemeManager {
 
             className:
                 'store-card-midautumn-chibi'
+        }),
+
+        /* =========================================================
+           TRUNG THU · TIỂU CHÚ CUỘI + QUẢNG HÀN + QUẾ ẢNH PHI DIỆP
+           Cùng tag/card; miễn tuyệt đối skin từ theme toàn web khác.
+           ========================================================= */
+        'midautumn-cuoi-chibi': Object.freeze({
+            itemIds: Object.freeze([
+                'pet_trung_thu_chu_cuoi_chibi_2',
+                'theme_trung_thu_quang_han_nguyet_que',
+                'effect_trung_thu_que_anh_phi_diep'
+            ]),
+
+            className:
+                'store-card-midautumn-cuoi-chibi'
+        }),
+
+        /* =========================================================
+           LINK CLICK · CHENG XIAOSHI + KÝ ỨC PHÂN MẢNH
+           Cùng tag, cùng thẻ; card miễn mọi theme toàn web khác.
+           ========================================================= */
+        'linkclick-chibi-pair': Object.freeze({
+            itemIds: Object.freeze([
+                'pet_linkclick_cheng_xiaoshi_chibi_1',
+                'theme_linkclick_fragmented_memory'
+            ]),
+
+            className:
+                'store-card-linkclick-chibi'
         }),
 
         'national-day-2-9': Object.freeze({
@@ -1362,6 +1480,177 @@ class ThemeManager {
         });
     }
 
+
+    // =========================================================
+    // TRUNG THU · QUẢNG HÀN NGUYỆT QUẾ
+    // Ambient/effect HOÀN TOÀN MỚI: mtq5-*
+    // Không dùng mttheme2-* và không sửa runtime theme/effect khác.
+    // =========================================================
+    static clearMidAutumnOsmanthusJadeDecor() {
+        document
+            .getElementById(
+                'mtq5-osmanthus-jade-decor'
+            )
+            ?.remove();
+
+        document.documentElement.classList.remove(
+            'mtq5-osmanthus-jade-mounted'
+        );
+    }
+
+    static createMidAutumnOsmanthusJadeDecor() {
+        this.clearMidAutumnOsmanthusJadeDecor();
+
+        if (!document.body) return;
+
+        const decor = document.createElement('div');
+
+        decor.id = 'mtq5-osmanthus-jade-decor';
+        decor.className = 'mtq5-osmanthus-jade-decor';
+        decor.setAttribute('aria-hidden', 'true');
+
+        decor.innerHTML = `
+            <div class="mtq5-silk-wash"></div>
+
+            <div class="mtq5-moon-window">
+                <span class="mtq5-window-disc"></span>
+                <span class="mtq5-window-lattice"></span>
+                <i class="mtq5-window-ring ring-a"></i>
+                <i class="mtq5-window-ring ring-b"></i>
+            </div>
+
+            <div class="mtq5-cloud-ribbon ribbon-a"></div>
+            <div class="mtq5-cloud-ribbon ribbon-b"></div>
+            <div class="mtq5-cloud-ribbon ribbon-c"></div>
+
+            <div class="mtq5-osmanthus-branch branch-left"></div>
+            <div class="mtq5-osmanthus-branch branch-right"></div>
+
+            <div class="mtq5-leaf-field"></div>
+            <div class="mtq5-glass-field"></div>
+            <div class="mtq5-moon-dust-field"></div>
+
+            <div class="mtq5-corner corner-tl">桂</div>
+            <div class="mtq5-corner corner-tr">月</div>
+            <div class="mtq5-corner corner-bl">玉</div>
+            <div class="mtq5-corner corner-br">光</div>
+
+            <div class="mtq5-theme-caption">
+                <small>中 秋 · 桂 影 · 玉 光</small>
+                <strong>QUẢNG HÀN NGUYỆT QUẾ</strong>
+            </div>
+        `;
+
+        const leafField =
+            decor.querySelector('.mtq5-leaf-field');
+
+        const glassField =
+            decor.querySelector('.mtq5-glass-field');
+
+        const dustField =
+            decor.querySelector('.mtq5-moon-dust-field');
+
+        const reduced =
+            window.matchMedia?.(
+                '(max-width: 768px), (pointer: coarse), (prefers-reduced-motion: reduce)'
+            ).matches;
+
+        const leafCount = reduced ? 10 : 26;
+        const glassCount = reduced ? 7 : 16;
+        const dustCount = reduced ? 15 : 38;
+
+        for (let index = 0; index < leafCount; index++) {
+            const leaf = document.createElement('i');
+            leaf.className = 'mtq5-floating-leaf';
+
+            leaf.style.setProperty(
+                '--mtq5-lx',
+                `${(index * 43 + 5) % 98}%`
+            );
+
+            leaf.style.setProperty(
+                '--mtq5-ld',
+                `${-(index % 12) * .58}s`
+            );
+
+            leaf.style.setProperty(
+                '--mtq5-lr',
+                `${(index * 31) % 180}deg`
+            );
+
+            leaf.style.setProperty(
+                '--mtq5-ls',
+                `${.72 + (index % 5) * .11}`
+            );
+
+            leafField?.appendChild(leaf);
+        }
+
+        for (let index = 0; index < glassCount; index++) {
+            const shard = document.createElement('i');
+            shard.className = 'mtq5-glass-shard';
+
+            shard.style.setProperty(
+                '--mtq5-gx',
+                `${(index * 61 + 8) % 96}%`
+            );
+
+            shard.style.setProperty(
+                '--mtq5-gy',
+                `${(index * 37 + 13) % 90}%`
+            );
+
+            shard.style.setProperty(
+                '--mtq5-gd',
+                `${-(index % 9) * .74}s`
+            );
+
+            shard.style.setProperty(
+                '--mtq5-gr',
+                `${(index * 27) % 160 - 80}deg`
+            );
+
+            glassField?.appendChild(shard);
+        }
+
+        for (let index = 0; index < dustCount; index++) {
+            const dust = document.createElement('i');
+
+            dust.style.setProperty(
+                '--mtq5-dx',
+                `${(index * 37 + 4) % 99}%`
+            );
+
+            dust.style.setProperty(
+                '--mtq5-dy',
+                `${(index * 59 + 9) % 94}%`
+            );
+
+            dust.style.setProperty(
+                '--mtq5-dd',
+                `${-(index % 14) * .46}s`
+            );
+
+            dust.style.setProperty(
+                '--mtq5-ds',
+                `${1.5 + (index % 4) * .75}px`
+            );
+
+            dustField?.appendChild(dust);
+        }
+
+        document.body.prepend(decor);
+
+        document.documentElement.classList.add(
+            'mtq5-osmanthus-jade-mounted'
+        );
+
+        requestAnimationFrame(() => {
+            decor.classList.add('is-mounted');
+        });
+    }
+
+
     // =========================================================
     // MÙA HẠ · HẠ QUANG LƯU LY — AMBIENT RIÊNG
     // Namespace: ha2theme-* (không dùng ha2l-* / summer-solstice-*).
@@ -1441,13 +1730,154 @@ class ThemeManager {
         });
     }
 
+    // =========================================================
+    // AETHER · THIÊN QUANG THÁNH VỰC V2 — DECOR TOÀN WEB
+    // Namespace aettheme2-* hoàn toàn riêng, không dùng decor của theme khác.
+    // =========================================================
+    static clearAetherLuminousSanctumDecor() {
+        document.documentElement.classList.remove('aettheme2-mounted');
+
+        document
+            .querySelectorAll(
+                '.aettheme2-sanctum-decor[data-aettheme2-decor="1"]'
+            )
+            .forEach(node => {
+                node.classList.add('is-leaving');
+                window.setTimeout(() => node.remove(), 360);
+            });
+    }
+
+    static createAetherLuminousSanctumDecor() {
+        this.clearAetherLuminousSanctumDecor();
+        this.ensureAetherLuminousSanctumStylesheet();
+
+        if (!document.body) return null;
+
+        const reduced = window.matchMedia?.(
+            '(max-width: 768px), (pointer: coarse), (prefers-reduced-motion: reduce)'
+        ).matches;
+
+        const decor = document.createElement('div');
+        decor.className = 'aettheme2-sanctum-decor';
+        decor.dataset.aettheme2Decor = '1';
+        decor.setAttribute('aria-hidden', 'true');
+        decor.innerHTML = `
+            <div class="aettheme2-aurora aurora-a"></div>
+            <div class="aettheme2-aurora aurora-b"></div>
+            <div class="aettheme2-celestial-grid"></div>
+
+            <div class="aettheme2-astrolabe">
+                <span class="aettheme2-astro-ring ring-a"></span>
+                <span class="aettheme2-astro-ring ring-b"></span>
+                <span class="aettheme2-astro-ring ring-c"></span>
+                <span class="aettheme2-astro-diamond diamond-a"></span>
+                <span class="aettheme2-astro-diamond diamond-b"></span>
+                <b class="aettheme2-astro-core">ΑΙΘΗΡ</b>
+            </div>
+
+            <span class="aettheme2-wing-arc wing-left"></span>
+            <span class="aettheme2-wing-arc wing-right"></span>
+
+            <div class="aettheme2-star-field"></div>
+            <div class="aettheme2-lance-field"></div>
+            <div class="aettheme2-sigil-field"></div>
+        `;
+
+        const starField = decor.querySelector('.aettheme2-star-field');
+        const starCount = reduced ? 18 : 38;
+        for (let index = 0; index < starCount; index++) {
+            const star = document.createElement('i');
+            star.textContent = index % 7 === 0 ? '✦' : '';
+            star.style.setProperty('--aettheme2-x', `${(index * 37 + 7) % 100}%`);
+            star.style.setProperty('--aettheme2-y', `${(index * 61 + 13) % 100}%`);
+            star.style.setProperty('--aettheme2-size', `${2 + (index % 4)}px`);
+            star.style.setProperty('--aettheme2-delay', `${-(index % 13) * .47}s`);
+            star.style.setProperty('--aettheme2-dur', `${4.6 + (index % 6) * .75}s`);
+            starField?.appendChild(star);
+        }
+
+        const lanceField = decor.querySelector('.aettheme2-lance-field');
+        const lanceCount = reduced ? 5 : 11;
+        for (let index = 0; index < lanceCount; index++) {
+            const lance = document.createElement('i');
+            lance.style.setProperty('--aettheme2-lance-x', `${5 + (index * 19) % 90}%`);
+            lance.style.setProperty('--aettheme2-lance-rot', `${-28 + (index % 7) * 9}deg`);
+            lance.style.setProperty('--aettheme2-lance-delay', `${-(index % 8) * 1.1}s`);
+            lance.style.setProperty('--aettheme2-lance-dur', `${10 + (index % 5) * 1.4}s`);
+            lanceField?.appendChild(lance);
+        }
+
+        const sigilField = decor.querySelector('.aettheme2-sigil-field');
+        const glyphs = ['✦','☼','◇','✧','✥','⋄','✦','☼'];
+        glyphs.forEach((glyph, index) => {
+            const sigil = document.createElement('span');
+            sigil.textContent = glyph;
+            sigil.style.setProperty('--aettheme2-sigil-angle', `${index * 45}deg`);
+            sigil.style.setProperty('--aettheme2-sigil-angle-back', `${index * -45}deg`);
+            sigil.style.setProperty('--aettheme2-sigil-delay', `${-index * .63}s`);
+            sigilField?.appendChild(sigil);
+        });
+
+        document.body.prepend(decor);
+        document.documentElement.classList.add('aettheme2-mounted');
+
+        requestAnimationFrame(() => decor.classList.add('is-mounted'));
+        return decor;
+    }
+
+    static ensureAetherLuminousSanctumStylesheet() {
+        if (typeof document === 'undefined' || !document.head) {
+            return null;
+        }
+
+        const existing = Array.from(
+            document.querySelectorAll('link[rel="stylesheet"][href]')
+        ).find(link =>
+            /(?:^|\/)aether-than-thoai(?:\(\d+\))?\.css(?:[?#].*)?$/i
+                .test(link.href || '')
+        );
+
+        if (existing) return existing;
+
+        const old = document.getElementById(
+            'aether-luminous-sanctum-runtime-style'
+        );
+        if (old) return old;
+
+        const link = document.createElement('link');
+        link.id = 'aether-luminous-sanctum-runtime-style';
+        link.rel = 'stylesheet';
+        link.href =
+            'css/aether-than-thoai.css?v=20260917.aether-theme-sanctum-v2';
+        link.dataset.aetherTheme = 'luminous-sanctum';
+
+        link.addEventListener('error', () => {
+            console.error(
+                '[AETHER THEME] Không tải được css/aether-than-thoai.css'
+            );
+        }, { once: true });
+
+        document.head.appendChild(link);
+        return link;
+    }
+
     static applyTheme(themeId) {
         this.initThemePopupIsolation();
         this.clearAcediaPalaceDecor();
         this.clearTamonBsideBackstageDecor();
         this.clearCamMongThanhHuyenDecor();
         this.clearMidAutumnLanternFestivalDecor();
+        this.clearMidAutumnOsmanthusJadeDecor();
         this.clearSummerPrismaticGardenDecor();
+        this.clearAetherLuminousSanctumDecor();
+
+        if (
+            themeId ===
+            'theme_truyenthuyet_aether_thien_quang_thanh_vuc'
+        ) {
+            this.ensureAetherLuminousSanctumStylesheet();
+        }
+
         const theme = this.themes[themeId] || this.themes['default'];
         const root = document.documentElement;
 
@@ -1466,6 +1896,14 @@ class ThemeManager {
         // 2. Tiêm class mới vào body nếu theme đó có yêu cầu thay đổi hình dáng
         if (theme.className) {
             document.body.classList.add(theme.className);
+        }
+
+
+        if (
+            themeId ===
+            'theme_truyenthuyet_aether_thien_quang_thanh_vuc'
+        ) {
+            this.createAetherLuminousSanctumDecor();
         }
 
         if (
@@ -1494,6 +1932,13 @@ class ThemeManager {
             'theme_trung_thu_nguyet_hoi_hoa_dang'
         ) {
             this.createMidAutumnLanternFestivalDecor();
+        }
+
+        if (
+            themeId ===
+            'theme_trung_thu_quang_han_nguyet_que'
+        ) {
+            this.createMidAutumnOsmanthusJadeDecor();
         }
 
         if (
