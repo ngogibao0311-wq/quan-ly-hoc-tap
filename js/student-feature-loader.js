@@ -93,7 +93,7 @@
     const SCRIPT = Object.freeze({
         themeItems: 'js/theme-items.js?v=4.2.1-lotm-klein',
         effectItems: 'js/effect-items.js?v=4.2',
-        petItems: 'js/pet-items.js?v=4.2',
+        petItems: 'js/pet-items.js?v=20260919.partial-fix1',
         petInteractions: 'js/pet-interactions.js?v=3.8',
         musicManager: 'js/music-manager.js?v=20260910.music-reliability-v3',
         storeManager: 'js/store-manager.js?v=20260917.frame-runtime-barrier-v1',
@@ -215,12 +215,14 @@
         // CSS cùng pathname chỉ được nạp một lần; ?v= chỉ dùng cache-busting.
         const key = normalizeStylesheetIdentity(url);
 
-        if (hasStylesheet(url)) {
-            return Promise.resolve(key);
-        }
-
+        // Thẻ đã có trong DOM vẫn có thể đang tải. Các caller phải cùng
+        // chờ Promise của lần nạp đầu tiên, kể cả khi khác query version.
         if (cssPromises.has(key)) {
             return cssPromises.get(key);
+        }
+
+        if (hasStylesheet(url)) {
+            return Promise.resolve(key);
         }
 
         const promise = new Promise((resolve, reject) => {
@@ -492,12 +494,13 @@ html[data-app-role="student"] body .dashboard > .content > :is(
 
         const key = normalizeResourceUrl(url);
 
-        if (hasScript(url)) {
-            return Promise.resolve(key);
-        }
-
+        // Không coi script đã append là script đã thực thi xong.
         if (scriptPromises.has(key)) {
             return scriptPromises.get(key);
+        }
+
+        if (hasScript(url)) {
+            return Promise.resolve(key);
         }
 
         const promise = new Promise((resolve, reject) => {

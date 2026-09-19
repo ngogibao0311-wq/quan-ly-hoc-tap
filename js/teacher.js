@@ -15537,7 +15537,8 @@ window.loadSpinHistory = async function () {
     const sortedHistory = [...history].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
     sortedHistory.forEach((record, index) => {
-        let isWin = record.reward.includes('Coin') || record.reward.includes('Quà');
+        const rewardText = String(record.reward ?? '');
+        let isWin = rewardText.includes('Coin') || rewardText.includes('Quà');
         let rewardColor = isWin ? '#059669' : '#888';
         let rewardBg = isWin ? 'rgba(16, 185, 129, 0.15)' : 'transparent';
 
@@ -15550,18 +15551,41 @@ window.loadSpinHistory = async function () {
             tr.style.display = 'none';
         }
 
-        tr.innerHTML = `
-            <td style="padding:12px; font-weight:bold; color:#2c3e50;">${record.studentName}</td>
-            <td style="padding:12px; text-align: center; color:#666; font-size: 0.9em;">${record.time}</td>
-            <td style="padding:12px;">
-                <span style="color: ${rewardColor}; background: ${rewardBg}; padding: 6px 12px; border-radius: 20px; font-weight: bold;">
-                    ${record.reward}
-                </span>
-            </td>
-            <td style="padding:12px; text-align: center;">
-                <button class="btn-reject" style="padding: 5px 12px; font-size: 0.85em;" onclick="deleteSpinRecord('${record._fbKey}')">Xóa</button>
-            </td>
-        `;
+        // Lịch sử có dữ liệu do học sinh ghi. Hiển thị dưới dạng chữ;
+        // không nội suy nội dung hoặc khóa Firebase vào HTML/inline JS.
+        const nameCell = document.createElement('td');
+        nameCell.style.cssText = 'padding:12px; font-weight:bold; color:#2c3e50;';
+        nameCell.textContent = String(record.studentName ?? '');
+
+        const timeCell = document.createElement('td');
+        timeCell.style.cssText = 'padding:12px; text-align:center; color:#666; font-size:0.9em;';
+        timeCell.textContent = String(record.time ?? '');
+
+        const rewardCell = document.createElement('td');
+        rewardCell.style.padding = '12px';
+        const rewardLabel = document.createElement('span');
+        rewardLabel.style.cssText = `color:${rewardColor}; background:${rewardBg}; padding:6px 12px; border-radius:20px; font-weight:bold;`;
+        rewardLabel.textContent = rewardText;
+        rewardCell.appendChild(rewardLabel);
+
+        const actionCell = document.createElement('td');
+        actionCell.style.cssText = 'padding:12px; text-align:center;';
+        const deleteButton = document.createElement('button');
+        deleteButton.type = 'button';
+        deleteButton.className = 'btn-reject';
+        deleteButton.style.cssText = 'padding:5px 12px; font-size:0.85em;';
+        deleteButton.textContent = 'Xóa';
+        const recordKey = String(record._fbKey ?? '');
+        deleteButton.disabled = !recordKey;
+        deleteButton.addEventListener('click', () => {
+            if (recordKey) window.deleteSpinRecord(recordKey);
+        });
+        actionCell.appendChild(deleteButton);
+
+        tr.appendChild(nameCell);
+        tr.appendChild(timeCell);
+        tr.appendChild(rewardCell);
+        tr.appendChild(actionCell);
         tbody.appendChild(tr);
     });
 

@@ -1245,7 +1245,13 @@ class PetManager {
         } else {
             petElement = document.createElement('img');
             petElement.id = 'virtual-pet-img';
-            petElement.src = petData.asset || petData.value || 'assets/default_pet.png';
+            const fallbackPetAsset = 'assets/pet/robot.png';
+            petElement.addEventListener('error', () => {
+                if (petElement.getAttribute('src') !== fallbackPetAsset) {
+                    petElement.src = fallbackPetAsset;
+                }
+            }, { once: true });
+            petElement.src = petData.asset || petData.value || fallbackPetAsset;
             petElement.style.width = '130px';
             petElement.style.height = 'auto';
             petElement.style.filter = 'drop-shadow(0 5px 15px rgba(0,0,0,0.3))';
@@ -4146,14 +4152,14 @@ class PetManager {
 
                 <img
                     class="lcc2-echo echo-cyan"
-                    src="assets/Lock/Tu tiên/Cheng Xiaoshi -chibi1.png"
+                    src="assets/Premium/Lock/Cheng Xiaoshi -chibi1.png"
                     alt=""
                     draggable="false"
                 >
 
                 <img
                     class="lcc2-echo echo-magenta"
-                    src="assets/Lock/Tu tiên/Cheng Xiaoshi -chibi1.png"
+                    src="assets/Premium/Lock/Cheng Xiaoshi -chibi1.png"
                     alt=""
                     draggable="false"
                 >

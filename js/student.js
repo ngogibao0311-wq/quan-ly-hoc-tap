@@ -7216,6 +7216,7 @@ window.onload = async function () {
 
         myInventory.forEach(item => {
             if (
+                item &&
                 item.isTrial &&
                 item.trialExpiry &&
                 now > item.trialExpiry
@@ -7236,7 +7237,7 @@ window.onload = async function () {
                         MusicManager.stopMusic();
                     }
                     if (
-                        itemDef.type === 'frame' &&
+                        itemDef?.type === 'frame' &&
                         window.AvatarFrameManager
                     ) {
                         window.AvatarFrameManager.clearFrame();
@@ -7251,8 +7252,14 @@ window.onload = async function () {
         });
 
         if (hasExpired) {
-            await db.ref().update(updates);
-            alert("⏰ Hệ thống ghi nhận có vật phẩm dùng thử của bạn đã hết hạn 24 giờ và vừa bị thu hồi!");
+            try {
+                await db.ref().update(updates);
+                alert("⏰ Hệ thống ghi nhận có vật phẩm dùng thử của bạn đã hết hạn 24 giờ và vừa bị thu hồi!");
+            } catch (error) {
+                // Giữ nguyên kho cục bộ để lần quét sau có thể thử lại.
+                // Không báo thu hồi thành công khi Firebase chưa xác nhận.
+                console.warn('[Trial Cleanup] Chưa thể thu hồi vật phẩm hết hạn:', error);
+            }
             // Hàm db.ref('student_inventory/').on('value') có sẵn của bạn sẽ tự động chạy lại để gỡ trang bị ngay lập tức
         }
     }, 60000);
@@ -19771,6 +19778,18 @@ window.restoreExamVisualItems = function () {
 };
 
 // Áp dụng các vật phẩm đang trang bị
+function getStudentRenderableEquippedInventory(inventory, now = Date.now()) {
+    if (!Array.isArray(inventory)) return [];
+
+    return inventory.filter(item => {
+        if (!item || item.isEquipped !== true) return false;
+        if (item.isTrial !== true) return true;
+
+        const expiry = Number(item.trialExpiry);
+        return Number.isFinite(expiry) && expiry > now;
+    });
+}
+
 window.applyEquippedItems = function () {
     if (!isStudentStoreRuntimeReady()) {
         return false;
@@ -19855,7 +19874,9 @@ window.applyEquippedItems = function () {
      * Xóa trạng thái cũ.
      * PetManager.spawnPet() sẽ ghi lại nếu kho vẫn có pet được trang bị.
      */
-    localStorage.removeItem('active_pet');
+    try {
+        localStorage.removeItem('active_pet');
+    } catch (_) {}
 
     if (
         typeof myInventory === 'undefined' ||
@@ -19868,8 +19889,26 @@ window.applyEquippedItems = function () {
     let equippedFrameId = '';
     let equippedBackgroundId = '';
 
-    myInventory.forEach(invItem => {
-        if (!invItem.isEquipped) return;
+    // Chỉ dựng vật phẩm đang dùng được; không chờ lượt quét thu hồi 60 giây.
+    // Đây là bộ lọc hiển thị, quyền sở hữu/thời hạn vẫn cần bảo vệ ở server.
+    const renderableInventory =
+        getStudentRenderableEquippedInventory(myInventory);
+
+    const hasRenderableTheme = renderableInventory.some(invItem => {
+        const itemDef = StoreConfig.items.find(item => item.id === invItem.id);
+        return itemDef?.type === 'theme' && itemDef.isLocked !== true;
+    });
+
+    // Reset trước khi mount pet Luxury để không xóa lớp theme do pet vừa tạo.
+    if (
+        !hasRenderableTheme &&
+        typeof ThemeManager !== 'undefined' &&
+        typeof ThemeManager.applyTheme === 'function'
+    ) {
+        ThemeManager.applyTheme('default');
+    }
+
+    renderableInventory.forEach(invItem => {
 
         const itemDef = StoreConfig.items.find(
             item => item.id === invItem.id
@@ -19888,10 +19927,6 @@ window.applyEquippedItems = function () {
          * trạng thái trang bị cũ có thể hoạt động lại.
          */
         if (itemDef.isLocked === true) {
-            if (itemDef.type === 'theme') {
-                ThemeManager.applyTheme('default');
-            }
-
             return;
         }
 
