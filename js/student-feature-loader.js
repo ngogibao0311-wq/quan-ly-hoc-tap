@@ -96,9 +96,9 @@
         petItems: 'js/pet-items.js?v=20260919.partial-fix1',
         petInteractions: 'js/pet-interactions.js?v=3.8',
         musicManager: 'js/music-manager.js?v=20260910.music-reliability-v3',
-        storeManager: 'js/store-manager.js?v=20260917.frame-runtime-barrier-v1',
+        storeManager: 'js/store-manager.js?v=20260919.store-access-unequip-v1',
 
-        luxuryStore: 'js/luxury-store.js?v=20260918.fx-store-v2',
+        luxuryStore: 'js/luxury-store.js?v=20260919.store-access-unequip-v1',
         collections: 'js/store-collections.js?v=20260908.four-seasons-lock-v1',
 
         royalBall: 'js/royal-ball.js?v=20260908.lazy-v1',

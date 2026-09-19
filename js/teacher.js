@@ -19202,15 +19202,41 @@ window.toggleStudentStoreGameAccess = async function (userKey, isEnabled, checkb
     }
 
     try {
-        await updateDB('users', userKey, {
-            storeGameAccessEnabled: enabled
-        });
+        // Một lần ghi nhiều vị trí: khóa quyền và tháo kho cùng thành công/thất bại.
+        // Đọc trực tiếp Firebase, không dùng danh sách học sinh đang cache trên UI.
+        const userSnapshot = await db.ref(`users/${userKey}`).once('value');
+        const student = userSnapshot.val();
+        if (!student || student.role !== 'student' || !student.username) {
+            throw new Error('Không tìm thấy tài khoản học sinh hợp lệ.');
+        }
+        const updates = {
+            [`users/${userKey}/storeGameAccessEnabled`]: enabled
+        };
+        // Mở lại tài khoản cũ đã khóa cũng dọn cờ trang bị còn sót.
+        if (!enabled || student.storeGameAccessEnabled === false) {
+            const inventorySnapshot = await db
+                .ref(`student_inventory/${student.username}`).once('value');
+            inventorySnapshot.forEach(child => {
+                if (child.val()?.isEquipped === true) {
+                    updates[`student_inventory/${student.username}/${child.key}/isEquipped`] = false;
+                }
+            });
+        }
+        await db.ref().update(updates);
+        try {
+            if (typeof DBReadSingleFlight !== 'undefined') {
+                DBReadSingleFlight.invalidate(`users/${userKey}`);
+                DBReadSingleFlight.invalidate(`student_inventory/${student.username}`);
+            }
+        } catch (cacheError) {
+            console.warn('[Store Access] Đã lưu; không làm mới được cache:', cacheError);
+        }
 
         if (typeof window.showToast === 'function') {
             window.showToast(
                 enabled
                     ? 'Đã mở Cửa hàng & Trò chơi cho học sinh.'
-                    : 'Đã tắt Cửa hàng & Trò chơi của học sinh.',
+                    : 'Đã tắt Cửa hàng & Trò chơi và tháo toàn bộ vật phẩm của học sinh.',
                 'success'
             );
         }

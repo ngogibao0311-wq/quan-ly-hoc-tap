@@ -71,6 +71,7 @@ window.getStudentPasswordPolicyError = getStudentPasswordPolicyError;
 
 // Hook UI/runtime. Firebase inventory vẫn là authority thật.
 window.studentStoreCanUseItemSync = function (itemId) {
+    if (window.isStudentStoreGameAccessEnabled?.() === false) return false;
     const id = String(itemId || '');
     if (!id) return false;
 
@@ -958,6 +959,91 @@ window.isStudentStoreGameAccessEnabled =
         return window.__studentStoreGameAccessEnabled !== false;
     };
 
+// Các manager được lazy-load: gắn lại guard khi module xuất hiện hoặc được bọc lại.
+function installStudentEquipmentAccessGuards() {
+    const targets = [
+        [typeof ThemeManager !== 'undefined' ? ThemeManager : null, 'applyTheme', true],
+        [typeof EffectManager !== 'undefined' ? EffectManager : null, 'applyEffect'],
+        [typeof PetManager !== 'undefined' ? PetManager : null, 'spawnPet'],
+        [typeof MusicManager !== 'undefined' ? MusicManager : null, 'applyMusic'],
+        [window.AvatarFrameManager, 'applyFrame'],
+        [window.WebBackgroundManager, 'applyBackground']
+    ];
+    targets.forEach(([manager, method, allowDefault]) => {
+        const original = manager?.[method];
+        if (typeof original !== 'function' || original.__studentAccessGuard) return;
+        const guarded = function (...args) {
+            if (!window.isStudentStoreGameAccessEnabled() &&
+                !(allowDefault && args[0] === 'default')) return false;
+            return original.apply(this, args);
+        };
+        guarded.__studentAccessGuard = true;
+        manager[method] = guarded;
+    });
+}
+
+window.clearStudentStoreEquipmentRuntime = function () {
+    // Một manager lỗi không được ngăn các manager còn lại dọn hiệu ứng.
+    const safely = action => {
+        try { action(); } catch (error) {
+            console.warn('[Store Access] Không dọn được một lớp vật phẩm:', error);
+        }
+    };
+    window.__studentDeferredMusicInventory = null;
+    // Xóa cờ hiển thị cục bộ để callback tải chậm không dùng snapshot cũ.
+    // Chỉ đổi cờ trang bị, giữ nguyên mọi dữ liệu sở hữu/thời hạn trong kho.
+    if (!window.isStudentStoreGameAccessEnabled() && typeof myInventory !== 'undefined' &&
+        Array.isArray(myInventory)) {
+        myInventory = myInventory.map(item => item && item.isEquipped === true
+            ? { ...item, isEquipped: false } : item);
+        window.myInventory = myInventory;
+    }
+    safely(() => window.LuxuryStore?.clearEquippedRuntime?.());
+    if (typeof PetManager !== 'undefined') {
+        ['clearSlothDreamRealm', 'clearBirthday2026Realm', 'clearPremiumSpringRealm',
+            'clearSummerLimitedHa2Realm', 'clearNationalDayRealm'].forEach(method => {
+            safely(() => PetManager[method]?.());
+        });
+        safely(() => {
+            PetManager.interactionAbortController?.abort();
+            PetManager.interactionAbortController = null;
+        });
+    }
+    safely(() => {
+        if (typeof PetInteractionManager !== 'undefined') {
+            PetInteractionManager.detachEvents?.({ keepLoop: false, removeHungerBar: true });
+        }
+    });
+    safely(() => { if (typeof EffectManager !== 'undefined') EffectManager.clearEffects(true); });
+    safely(() => { if (typeof ThemeManager !== 'undefined') ThemeManager.applyTheme('default'); });
+    safely(() => { if (typeof MusicManager !== 'undefined') MusicManager.stopMusic(); });
+    safely(() => window.AvatarFrameManager?.clearFrame?.());
+    safely(() => window.WebBackgroundManager?.clearBackground?.());
+    ['virtual-pet-container', 'global-effect-container'].forEach(id => safely(() => {
+        const container = document.getElementById(id);
+        if (container) {
+            container.replaceChildren();
+            container.style.display = 'none';
+        }
+    }));
+    safely(() => document.getElementById('birthday-2026-realm')?.remove());
+    safely(() => document.documentElement.classList.remove('birthday-2026-equipped'));
+    safely(() => document.querySelectorAll(
+        '.nd29-independence-flash, .nd29-pet-dialogue, .nyx-mythic-ultimate, ' +
+        '.tbc1-fullscreen-ultimate, .cam-mong-chibi-screen-ultimate-v2, ' +
+        '.lotme-klein-click-burst, .lotme-klein-right-ritual, .lotme-klein-screen-ultimate, ' +
+        '.mafc-screen-ultimate, .mafc-local-click-burst, .macc2-local-click-burst, .macc2-screen-ultimate'
+    ).forEach(node => node.remove()));
+    ['active_theme', 'active_effect', 'active_pet', 'active_frame', 'active_background'].forEach(key => {
+        safely(() => localStorage.removeItem(key));
+    });
+};
+
+window.addEventListener('student-feature-loaded', () => {
+    installStudentEquipmentAccessGuards();
+    if (!window.isStudentStoreGameAccessEnabled()) window.clearStudentStoreEquipmentRuntime();
+});
+
 function forceStudentLearningTabAfterAccessDisabled() {
     const gameTab = document.getElementById('tab-game');
     const storeTab = document.getElementById('tab-store');
@@ -992,7 +1078,12 @@ window.applyStudentStoreGameAccessState =
                 rawEnabled
             );
 
+        if (!enabled && window.__studentStoreGameAccessEnabled !== false) {
+            window.__studentEquipmentAccessEpoch = (window.__studentEquipmentAccessEpoch || 0) + 1;
+        }
         window.__studentStoreGameAccessEnabled = enabled;
+        installStudentEquipmentAccessGuards();
+        if (!enabled) window.clearStudentStoreEquipmentRuntime();
 
         document.documentElement.classList.toggle(
             'student-store-game-disabled',
@@ -5259,6 +5350,8 @@ window.onload = async function () {
 
     Object.assign(currentUser, realUser);
 
+    window.applyStudentStoreGameAccessState(realUser.storeGameAccessEnabled);
+
     // K1: Firebase Auth UID + users/<uid> là authority; password không cần ở client Học sinh.
     if (Object.prototype.hasOwnProperty.call(currentUser, 'password')) {
         delete currentUser.password;
@@ -5727,6 +5820,12 @@ window.onload = async function () {
 
             window.myInventory =
                 myInventory;
+
+            if (!window.isStudentStoreGameAccessEnabled()) {
+                window.clearStudentStoreEquipmentRuntime();
+                startupLoader?.markReady('student-inventory');
+                return;
+            }
 
             const equippedItems =
                 myInventory.filter(
@@ -13307,15 +13406,15 @@ async function syncUserData(
         normalizedUser
     );
 
-    localStorage.setItem(
-        'currentUser',
-        JSON.stringify(Object.fromEntries(Object.entries(currentUser).filter(([key]) => !['password', 'newPass', 'oldPass'].includes(key))))
-    );
-
     // Nhận quyền Cửa hàng & Trò chơi theo từng tài khoản ngay khi
     // users/<uid> thay đổi. Trường chưa tồn tại => mặc định mở.
     window.applyStudentStoreGameAccessState?.(
         userRecord.storeGameAccessEnabled
+    );
+
+    localStorage.setItem(
+        'currentUser',
+        JSON.stringify(Object.fromEntries(Object.entries(currentUser).filter(([key]) => !['password', 'newPass', 'oldPass'].includes(key))))
     );
 
     const studentNameEl =
@@ -19404,6 +19503,10 @@ function installStudentStoreManagerOverrides() {
     }
 
     StoreManager.applyItem = async function (itemId) {
+        const accessEpoch = window.__studentEquipmentAccessEpoch || 0;
+        const canFinishEquip = () => window.isStudentStoreGameAccessEnabled() &&
+            accessEpoch === (window.__studentEquipmentAccessEpoch || 0);
+        if (!canFinishEquip()) return false;
         const item = StoreManager.getItemById(itemId);
         if (!item) return false;
 
@@ -19418,6 +19521,7 @@ function installStudentStoreManagerOverrides() {
         );
         const ownedItemSnap = await ownedItemRef.once('value');
         const ownedItem = ownedItemSnap.val();
+        if (!canFinishEquip()) return false;
 
         if (!ownedItem || String(ownedItem.id || '') !== String(itemId)) {
             window.showToast?.('⛔ Bạn chưa sở hữu vật phẩm này.', 'error');
@@ -19459,9 +19563,12 @@ function installStudentStoreManagerOverrides() {
             return false;
         }
 
+        if (!canFinishEquip()) return false;
+
         // Chỉ ghi trạng thái trang bị sau khi quyền sở hữu Firebase đã được xác nhận.
         const invSnap = await db.ref(`student_inventory/${currentUser.username}`).once('value');
         const inventory = invSnap.val();
+        if (!canFinishEquip()) return false;
         if (inventory) {
             let updates = {};
             for (let key in inventory) {
@@ -19477,6 +19584,16 @@ function installStudentStoreManagerOverrides() {
             }
 
             await db.ref(`student_inventory/${currentUser.username}`).update(updates);
+
+            // Quyền có thể đổi trong lúc Firebase đang xác nhận lần ghi.
+            if (!canFinishEquip()) {
+                await ownedItemRef.transaction(value => {
+                    if (!value || value.isEquipped !== true) return;
+                    return { ...value, isEquipped: false };
+                }, undefined, false);
+                if (!window.isStudentStoreGameAccessEnabled()) window.clearStudentStoreEquipmentRuntime();
+                return false;
+            }
 
             // Cache visual chỉ ghi SAU KHI Firebase chấp nhận equip.
             try {
@@ -19779,7 +19896,7 @@ window.restoreExamVisualItems = function () {
 
 // Áp dụng các vật phẩm đang trang bị
 function getStudentRenderableEquippedInventory(inventory, now = Date.now()) {
-    if (!Array.isArray(inventory)) return [];
+    if (!window.isStudentStoreGameAccessEnabled() || !Array.isArray(inventory)) return [];
 
     return inventory.filter(item => {
         if (!item || item.isEquipped !== true) return false;
@@ -19791,6 +19908,11 @@ function getStudentRenderableEquippedInventory(inventory, now = Date.now()) {
 }
 
 window.applyEquippedItems = function () {
+    installStudentEquipmentAccessGuards();
+    if (!window.isStudentStoreGameAccessEnabled()) {
+        window.clearStudentStoreEquipmentRuntime();
+        return false;
+    }
     if (!isStudentStoreRuntimeReady()) {
         return false;
     }
@@ -35702,6 +35824,8 @@ window.downloadStudentRoadmapPDF = async function () {
     }
 
     async function repairEquippedProfileFrame(bar) {
+        if (!window.isStudentStoreGameAccessEnabled()) return;
+        const accessEpoch = window.__studentEquipmentAccessEpoch || 0;
         if (!bar) return;
 
         const profileButton =
@@ -35806,6 +35930,8 @@ window.downloadStudentRoadmapPDF = async function () {
             return;
         }
 
+        if (!window.isStudentStoreGameAccessEnabled() ||
+            accessEpoch !== (window.__studentEquipmentAccessEpoch || 0)) return;
         const currentId =
             profileButton.getAttribute(
                 'data-avatar-frame-id'

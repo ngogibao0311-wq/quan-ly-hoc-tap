@@ -4590,6 +4590,7 @@
     }
 
     function syncLinkClickChengRuntimeFromDom() {
+        if (window.isStudentStoreGameAccessEnabled?.() === false) return null;
         const container =
             document.getElementById('virtual-pet-container');
 
@@ -5710,6 +5711,7 @@
     let lotmKleinAutoSyncQueued = false;
 
     function syncLotmKleinRuntimeFromDom() {
+        if (window.isStudentStoreGameAccessEnabled?.() === false) return null;
         const pet = document.querySelector(
             '#virtual-pet-container #virtual-pet-img.lotm-klein-mystery-magic, ' +
             '#virtual-pet-container #virtual-pet-img.lotm-klein-pet'
@@ -10924,6 +10926,7 @@
 
         PetManager.spawnPet =
             function (petData) {
+                if (window.isStudentStoreGameAccessEnabled?.() === false) return false;
 
                 /*
                  * Mỗi lần đổi pet dọn toàn bộ runtime Luxury đang hoạt động.
@@ -11975,7 +11978,11 @@ if (isNationalDay) {
             LuxuryNyxRuntime,
             LuxuryAetherRuntime,
             LuxuryTamonBSideRuntime,
-            LuxuryTamonPinkStaticRuntime
+            LuxuryTamonPinkStaticRuntime,
+            LuxuryLotmKleinRuntime,
+            LuxuryCamCoCamMongRuntime,
+            LuxuryMidAutumnRuntime,
+            LuxuryLinkClickChengRuntime
         ].forEach(runtime => {
             try {
                 runtime?.clear?.();
@@ -11992,6 +11999,7 @@ if (isNationalDay) {
                 'clearSlothDreamRealm',
                 'clearBirthday2026Realm',
                 'clearPremiumSpringRealm',
+                'clearSummerLimitedHa2Realm',
                 'clearNationalDayRealm'
             ].forEach(methodName => {
                 try {
@@ -12470,6 +12478,7 @@ if (isNationalDay) {
         StoreManager.applyItem =
             async function (itemId) {
 
+                if (window.isStudentStoreGameAccessEnabled?.() === false) return false;
                 try {
                     const allowed =
                         await prepareStoreBoundaryEquip(
@@ -12479,7 +12488,7 @@ if (isNationalDay) {
                     /*
                      * Người dùng chọn Hủy.
                      */
-                    if (!allowed) {
+                    if (!allowed || window.isStudentStoreGameAccessEnabled?.() === false) {
                         return false;
                     }
 
@@ -15621,6 +15630,7 @@ if (isNationalDay) {
     let luxuryRehydratePromise = null;
 
     function getEquippedLuxuryInventoryItem() {
+        if (window.isStudentStoreGameAccessEnabled?.() === false) return null;
         const inventory =
             Array.isArray(window.myInventory)
                 ? window.myInventory
@@ -15712,6 +15722,7 @@ if (isNationalDay) {
     // API
     // ========================================================
     window.LuxuryStore = {
+        clearEquippedRuntime: hardClearBoundaryPetRuntime,
         ensureUI: buildLuxuryStoreUI,
         open: openLuxuryStore,
         close: closeLuxuryStore,
@@ -15985,6 +15996,20 @@ if (isNationalDay) {
     // ========================================================
     // KHỞI ĐỘNG
     // ========================================================
+    [LuxurySpringRuntime, LuxurySummerRuntime, LuxuryNationalDayRuntime,
+        LuxuryNyxRuntime, LuxuryAetherRuntime, LuxuryTamonBSideRuntime,
+        LuxuryTamonPinkStaticRuntime, LuxuryLotmKleinRuntime, LuxuryCamCoCamMongRuntime,
+        LuxuryMidAutumnRuntime, LuxuryLinkClickChengRuntime].forEach(runtime => {
+        ['mount', 'restore', 'repair', 'createUltimate'].forEach(method => {
+            const original = runtime[method];
+            if (typeof original !== 'function') return;
+            runtime[method] = function (...args) {
+                if (window.isStudentStoreGameAccessEnabled?.() === false) return false;
+                return original.apply(this, args);
+            };
+        });
+    });
+
     function bootLuxuryStore() {
 
         // Mount navigation before optional pet/effect recovery can fail.

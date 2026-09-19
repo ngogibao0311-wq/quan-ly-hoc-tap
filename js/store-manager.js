@@ -2956,6 +2956,7 @@ class StoreManager {
     }
 
     static applyItem(itemId) {
+        if (window.isStudentStoreGameAccessEnabled?.() === false) return false;
         const item = this.getItemById(itemId);
         if (!item) return false;
 
@@ -4866,6 +4867,7 @@ class StoreManager {
     }
 
     function repairFrame(itemOrId) {
+        if (window.isStudentStoreGameAccessEnabled?.() === false) return false;
         const item = getItem(itemOrId);
 
         if (!isTarget(item)) {
@@ -5023,6 +5025,7 @@ class StoreManager {
                         await originalApply(
                             itemId
                         );
+                    if (result === false || window.isStudentStoreGameAccessEnabled?.() === false) return false;
 
                     if (isTarget(itemId)) {
                         const item =
@@ -5386,6 +5389,7 @@ class StoreManager {
     }
 
     function repairFrame(itemOrId) {
+        if (window.isStudentStoreGameAccessEnabled?.() === false) return false;
         const item = getItem(itemOrId);
         if (!isTarget(item)) return false;
 
@@ -5468,6 +5472,7 @@ class StoreManager {
         if (originalApply) {
             StoreManager.applyItem = async function (itemId) {
                 const result = await originalApply(itemId);
+                if (result === false || window.isStudentStoreGameAccessEnabled?.() === false) return false;
                 if (isTarget(itemId)) {
                     const item = getItem(itemId);
                     if (
@@ -5828,6 +5833,7 @@ class StoreManager {
     }
 
     function repairFrame(itemOrId) {
+        if (window.isStudentStoreGameAccessEnabled?.() === false) return false;
         const item = getItem(itemOrId);
 
         if (!isTarget(item)) {
@@ -5955,6 +5961,7 @@ class StoreManager {
                 async function (itemId) {
                     const result =
                         await originalApply(itemId);
+                    if (result === false || window.isStudentStoreGameAccessEnabled?.() === false) return false;
 
                     if (isTarget(itemId)) {
                         const item = getItem(itemId);
