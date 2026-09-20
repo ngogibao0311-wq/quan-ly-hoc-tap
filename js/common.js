@@ -1,6 +1,330 @@
 const loginForm = document.getElementById('loginForm');
 let lockoutInterval = null;
 
+
+// ======================================================
+// IMAGE PROTECTION CORE v2 · GLOBAL + DESKTOP + MOBILE
+// - Chạy ngay từ common.js trên cả Giáo viên / Học sinh / Đăng nhập.
+// - Chặn menu lưu/copy ảnh, kéo ảnh, copy vùng có ảnh và Ctrl/Cmd+S.
+// - Chặn native long-press callout trên iOS/Safari bằng CSS + inline style.
+// - Ảnh render động sau này được bảo vệ bằng MutationObserver.
+// - Không dùng pointer-events:none / không chặn touchstart để không phá pet/UI.
+// - Giữ API StoreImageProtection cũ để Store/Luxury không cần sửa.
+// ======================================================
+(function installCoreSiteImageProtection() {
+    'use strict';
+
+    if (window.SiteImageProtection) {
+        window.StoreImageProtection = window.SiteImageProtection;
+        return;
+    }
+
+    window.__SITE_IMAGE_PROTECTION_BUILD =
+        '20260920.v2-core-global-mobile-klein-compatible';
+
+    let lastNoticeAt = 0;
+
+    function getElement(target) {
+        if (!target) return null;
+
+        if (target.nodeType === Node.ELEMENT_NODE) {
+            return target;
+        }
+
+        return target.parentElement || null;
+    }
+
+    function getImageElement(target) {
+        const element = getElement(target);
+        if (!element) return null;
+
+        if (element.matches?.('img')) {
+            return element;
+        }
+
+        return element.closest?.('img') || null;
+    }
+
+    function getEventImage(event) {
+        if (!event) return null;
+
+        try {
+            const path = event.composedPath?.() || [];
+            for (const node of path) {
+                if (
+                    node &&
+                    node.nodeType === Node.ELEMENT_NODE &&
+                    node.matches?.('img')
+                ) {
+                    return node;
+                }
+            }
+        } catch (_) {}
+
+        return getImageElement(event.target);
+    }
+
+    function isProtectedImage(target) {
+        return Boolean(getImageElement(target));
+    }
+
+    function isKleinRightClickSkillImage(target) {
+        const image = getImageElement(target);
+        return Boolean(
+            image &&
+            image.id === 'virtual-pet-img' &&
+            image.classList.contains('lotm-event-klein-chibi-magic')
+        );
+    }
+
+    function selectionContainsProtectedImage() {
+        const selection = window.getSelection?.();
+        if (!selection || selection.rangeCount === 0) {
+            return false;
+        }
+
+        for (let index = 0; index < selection.rangeCount; index++) {
+            const range = selection.getRangeAt(index);
+            const ancestor = getElement(range.commonAncestorContainer);
+            if (!ancestor) continue;
+
+            if (ancestor.matches?.('img')) {
+                return true;
+            }
+
+            const scope = ancestor.querySelectorAll
+                ? ancestor
+                : document.body;
+
+            if (!scope?.querySelectorAll) continue;
+
+            for (const image of scope.querySelectorAll('img')) {
+                try {
+                    if (range.intersectsNode(image)) {
+                        return true;
+                    }
+                } catch (_) {}
+            }
+        }
+
+        return false;
+    }
+
+    function showProtectionNotice() {
+        const now = Date.now();
+        if (now - lastNoticeAt < 900) return;
+        lastNoticeAt = now;
+
+        const message =
+            'Hình ảnh trên website được bảo vệ và không hỗ trợ sao chép/lưu trực tiếp.';
+
+        if (typeof window.showToast === 'function') {
+            window.showToast(message, 'warning');
+        } else {
+            console.info('[SiteImageProtection]', message);
+        }
+    }
+
+    function blockEvent(event, shouldNotify = true) {
+        if (!event) return false;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        if (typeof event.stopImmediatePropagation === 'function') {
+            event.stopImmediatePropagation();
+        }
+
+        if (shouldNotify) {
+            showProtectionNotice();
+        }
+
+        return false;
+    }
+
+    function protectImage(image) {
+        if (!image || !image.matches?.('img')) return;
+
+        image.setAttribute('draggable', 'false');
+        image.setAttribute('data-site-image-protected', 'true');
+
+        // Desktop / Chromium / Safari.
+        image.style.webkitUserDrag = 'none';
+        image.style.userSelect = 'none';
+        image.style.webkitUserSelect = 'none';
+
+        // iOS/iPadOS Safari: ẩn native menu khi nhấn giữ ảnh.
+        image.style.webkitTouchCallout = 'none';
+    }
+
+    function protectSubtree(root = document.body || document.documentElement) {
+        if (!root) return;
+
+        if (root.matches?.('img')) {
+            protectImage(root);
+        }
+
+        root.querySelectorAll?.('img').forEach(protectImage);
+    }
+
+    // API cũ vẫn tồn tại để student.js / store-manager.js / luxury-store.js gọi bình thường.
+    function protectFloatingStoreItemImages() {
+        document
+            .querySelectorAll('#virtual-pet-container img, #virtual-pet-img')
+            .forEach(protectImage);
+    }
+
+    function isStoreOpen() {
+        const root = document.querySelector('#tab-store');
+        if (!root) return false;
+
+        if (root.classList.contains('active')) {
+            return true;
+        }
+
+        const style = window.getComputedStyle(root);
+        return (
+            style.display !== 'none' &&
+            style.visibility !== 'hidden' &&
+            !root.hidden
+        );
+    }
+
+    /*
+     * Desktop + Android long-press:
+     * chỉ chặn context menu khi mục tiêu là ảnh.
+     * Riêng Klein: preventDefault để menu Save/Copy không hiện,
+     * nhưng KHÔNG stopPropagation để handler kỹ năng chuột phải vẫn chạy.
+     */
+    document.addEventListener(
+        'contextmenu',
+        event => {
+            const image = getEventImage(event);
+            if (!image) return;
+
+            if (isKleinRightClickSkillImage(image)) {
+                event.preventDefault();
+                return;
+            }
+
+            blockEvent(event);
+        },
+        true
+    );
+
+    // Không cho kéo ảnh ra Desktop, tab mới hoặc thanh địa chỉ.
+    document.addEventListener(
+        'dragstart',
+        event => {
+            if (getEventImage(event)) {
+                blockEvent(event);
+            }
+        },
+        true
+    );
+
+    // Chặn copy trực tiếp ảnh hoặc vùng chọn có chứa ảnh; text thuần vẫn copy bình thường.
+    document.addEventListener(
+        'copy',
+        event => {
+            const activeElement = document.activeElement;
+
+            if (
+                getEventImage(event) ||
+                isProtectedImage(activeElement) ||
+                selectionContainsProtectedImage()
+            ) {
+                blockEvent(event);
+            }
+        },
+        true
+    );
+
+    // Chặn Save Page / Save As; Ctrl/Cmd+C chỉ chặn khi vùng chọn có ảnh.
+    document.addEventListener(
+        'keydown',
+        event => {
+            const modifier = event.ctrlKey || event.metaKey;
+            if (!modifier) return;
+
+            const key = String(event.key || '').toLowerCase();
+
+            if (key === 's') {
+                blockEvent(event);
+                return;
+            }
+
+            if (
+                key === 'c' &&
+                (
+                    isProtectedImage(document.activeElement) ||
+                    selectionContainsProtectedImage()
+                )
+            ) {
+                blockEvent(event);
+            }
+        },
+        true
+    );
+
+    const startProtection = () => {
+        protectSubtree(document.body || document.documentElement);
+        protectFloatingStoreItemImages();
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener(
+            'DOMContentLoaded',
+            startProtection,
+            { once: true }
+        );
+    } else {
+        startProtection();
+    }
+
+    // Ảnh thêm động sau Firebase/modal/store/pet/event cũng được khóa ngay.
+    const observer = new MutationObserver(mutations => {
+        for (const mutation of mutations) {
+            for (const node of mutation.addedNodes) {
+                if (node.nodeType !== Node.ELEMENT_NODE) continue;
+                protectSubtree(node);
+            }
+        }
+    });
+
+    const observeWholePage = () => {
+        if (!document.body) return false;
+
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+
+        startProtection();
+        return true;
+    };
+
+    if (!observeWholePage()) {
+        document.addEventListener(
+            'DOMContentLoaded',
+            observeWholePage,
+            { once: true }
+        );
+    }
+
+    const protectionAPI = Object.freeze({
+        protectSubtree,
+        protectFloatingStoreItemImages,
+        isStoreOpen,
+        isProtectedStoreImage: isProtectedImage,
+        isProtectedImage,
+        selectionContainsProtectedImage
+    });
+
+    window.SiteImageProtection = protectionAPI;
+    window.StoreImageProtection = protectionAPI;
+})();
+
 // ======================================================
 // APP STARTUP LOADER
 // CHỜ DỮ LIỆU + VIDEO TRƯỚC KHI MỞ WEB
