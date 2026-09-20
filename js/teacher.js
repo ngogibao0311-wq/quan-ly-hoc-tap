@@ -19999,14 +19999,13 @@ window.toggleLeaderboardStatus = async function (isOpen) {
             manualStatusChangedAt: firebase.database.ServerValue.TIMESTAMP
         };
 
-        // Mở thủ công => lịch tự mở đã hoàn thành/không còn ý nghĩa.
-        // Xóa ngay để Firebase và giao diện luôn cùng một trạng thái.
-        if (isOpen) {
-            updates.targetMonth = null;
-            updates.targetYear = null;
-            updates.scheduledAt = null;
-            updates.scheduleClearedAt = firebase.database.ServerValue.TIMESTAMP;
-        }
+        // Thay đổi thủ công luôn có quyền ưu tiên cao nhất.
+        // Dọn lịch hẹn cũ ở cả lúc MỞ và ĐÓNG để phía học sinh
+        // không thể tự coi BXH là mở lại từ targetMonth/targetYear cũ.
+        updates.targetMonth = null;
+        updates.targetYear = null;
+        updates.scheduledAt = null;
+        updates.scheduleClearedAt = firebase.database.ServerValue.TIMESTAMP;
 
         await db.ref('leaderboard_settings').update(updates);
     } catch (error) {
