@@ -12,7 +12,7 @@
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link rel="icon" type="image/png" href="assets/icon.png">
     <link rel="stylesheet" href="css/common.css?v=4.0.4-login-layout4">
-    <link rel="stylesheet" href="css/teacher.css?v=4.0.10-sidebar-toggle-right">
+    <link rel="stylesheet" href="css/teacher.css?v=4.0.11-student-modal-ui-fix">
     <link rel="stylesheet" href="css/mobile.css?v=4.0.3-layout">
     <link rel="stylesheet" href="css/web-animations.css?v=1.0">
     <link rel="stylesheet" href="css/store-items.css?v=4.0.0">
@@ -3756,7 +3756,13 @@
                 </div>
             </div>
 
-            <div class="student-modal-overlay" id="customStudentModal">
+            
+        </div>
+    </div>
+
+
+    <!-- Popup chọn học sinh đặt trực tiếp dưới BODY để overlay phủ toàn bộ viewport -->
+<div class="student-modal-overlay" id="customStudentModal">
                 <div class="student-modal-box">
                     <div class="student-modal-header">
                         <div class="student-search-box">
@@ -3776,8 +3782,6 @@
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
 
     <!-- 1. Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
