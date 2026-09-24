@@ -307,6 +307,7 @@ const STUDENT_LUXURY_RUNTIME_ITEM_IDS = new Set([
     'pet_quoc_khanh_1',
     'pet_mythic_nyx_1',
     'pet_mythic_aether_1',
+    'pet_dem_day_sao_1',
     'pet_lotm_klein_event_1',
     'pet_cam_co_cam_mong_1',
     'pet_tamon_b_side_1',
@@ -317,13 +318,36 @@ const STUDENT_LUXURY_RUNTIME_ITEM_IDS = new Set([
 ]);
 
 function studentInventoryHasEquippedLuxury(items) {
-    return (Array.isArray(items) ? items : []).some(item =>
-        item &&
-        item.isEquipped === true &&
-        STUDENT_LUXURY_RUNTIME_ITEM_IDS.has(
-            String(item.id || '')
-        )
-    );
+    return (Array.isArray(items) ? items : []).some(item => {
+        if (!item || item.isEquipped !== true) {
+            return false;
+        }
+
+        const id = String(item.id || '');
+
+        if (STUDENT_LUXURY_RUNTIME_ITEM_IDS.has(id)) {
+            return true;
+        }
+
+        /*
+         * Sau khi Luxury runtime đã được nạp, StoreConfig là nguồn nhận diện
+         * đáng tin cậy hơn danh sách hard-code. Nhờ vậy Luxury mới vẫn được
+         * rehydrate khi pageshow/focus/visibilitychange mà không cần thêm ID ở đây.
+         */
+        try {
+            const itemDef =
+                typeof StoreConfig !== 'undefined' &&
+                Array.isArray(StoreConfig?.items)
+                    ? StoreConfig.items.find(entry =>
+                        String(entry?.id || '') === id
+                    )
+                    : null;
+
+            return itemDef?.luxuryOnly === true;
+        } catch (_) {
+            return false;
+        }
+    });
 }
 
 async function ensureStudentEquippedLuxuryRuntime(items) {
@@ -5916,29 +5940,16 @@ window.onload = async function () {
                     window.StudentFeatureLoader
                 ) {
                     /*
-                     * Luxury pet bắt buộc phải nạp store-ui vì item definition +
-                     * full runtime nằm trong luxury-store.js. Nếu chỉ nạp
-                     * visual-runtime thì applyEquippedItems() không tìm thấy
-                     * itemDef => phải bấm Cửa hàng mới thấy hiệu ứng.
+                     * Một đường khởi động duy nhất cho mọi vật phẩm đang trang bị.
+                     * StudentFeatureLoader tự phân loại item thường/Luxury và có
+                     * fallback cho Luxury mới chưa có trong StoreConfig thường.
+                     * Vì vậy F5 không còn phụ thuộc thao tác mở tab Cửa hàng.
                      */
-                    if (
-                        studentInventoryHasEquippedLuxury(
-                            myInventory
-                        )
-                    ) {
-                        await ensureStudentEquippedLuxuryRuntime(
+                    await window
+                        .StudentFeatureLoader
+                        .ensureForEquippedItems(
                             myInventory
                         );
-                    } else {
-                        /*
-                         * Vật phẩm thường giữ nguyên đường lazy-load cũ.
-                         */
-                        await window
-                            .StudentFeatureLoader
-                            .ensureForEquippedItems(
-                                myInventory
-                            );
-                    }
                 }
 
                 if (
@@ -7401,8 +7412,11 @@ window.onload = async function () {
         if (startupLoader) startupLoader.markReady('student-money-offset');
     });
 
-    // 2. Lắng nghe trạng thái duyệt/từ chối rút tiền mặt từ Giáo viên
-    listenFirebase(db.ref('cash_requests'), 'value', async () => {
+    // 2. Lắng nghe trạng thái duyệt/từ chối rút tiền mặt từ Giáo viên.
+    // SECURITY: Học sinh KHÔNG được listen toàn /cash_requests. Firebase Rules
+    // chỉ cho phép query theo username của chính tài khoản đang đăng nhập.
+    const studentCashRequestsRealtimeQuery = getStudentCashRequestsQuery('studentUsername');
+    listenFirebase(studentCashRequestsRealtimeQuery, 'value', async () => {
         // Khi trạng thái yêu cầu đổi, cập nhật cả lịch sử lẫn số tiền còn có thể yêu cầu.
         if (typeof window.initCashWithdrawInterface === 'function' && document.getElementById('displayRouteMoney')) {
             await window.initCashWithdrawInterface();
@@ -21644,7 +21658,7 @@ async function executeConversionCore() {
             getDB('assignments'),
             getDB('submissions'),
             db.ref(offsetPath).once('value'),
-            getDB('cash_requests'),
+            getCurrentStudentCashRequests(),
             getStudentConversionServerNow()
         ]);
 
@@ -30934,6 +30948,56 @@ window.renderStudentBag = async function () {
 // HỆ THỐNG YÊU CẦU LẤY TIỀN MẶT - PHÍA HỌC SINH (BẢN HỢP NHẤT / AN TOÀN)
 // =========================================================================
 
+// CASH REQUEST QUERY GUARD v1
+// Firebase Rules của /cash_requests không cho Student đọc toàn collection.
+// Mọi read/listen phía Student phải mang orderByChild + equalTo(username hiện tại).
+function getStudentCashRequestsQuery(field = 'studentUsername') {
+    const username = String(currentUser?.username || '').trim();
+
+    if (!username) {
+        throw new Error('Không xác định được username học sinh để đọc cash_requests an toàn.');
+    }
+
+    if (field !== 'studentUsername' && field !== 'username') {
+        throw new Error('Trường query cash_requests không hợp lệ.');
+    }
+
+    return db
+        .ref('cash_requests')
+        .orderByChild(field)
+        .equalTo(username);
+}
+
+// Đọc cả schema mới (studentUsername) và schema cũ (username), sau đó gộp
+// theo Firebase key. Không có thao tác nào đọc thẳng /cash_requests.
+async function getCurrentStudentCashRequests() {
+    const [studentUsernameSnap, legacyUsernameSnap] = await Promise.all([
+        getStudentCashRequestsQuery('studentUsername').once('value'),
+        getStudentCashRequestsQuery('username').once('value')
+    ]);
+
+    const byKey = new Map();
+
+    const collect = snapshot => {
+        snapshot.forEach(child => {
+            const value = child.val();
+            if (!value || typeof value !== 'object') return;
+
+            byKey.set(child.key, {
+                ...value,
+                firebaseKey: child.key
+            });
+        });
+    };
+
+    collect(studentUsernameSnap);
+    collect(legacyUsernameSnap);
+
+    return Array.from(byKey.values());
+}
+
+window.getCurrentStudentCashRequests = getCurrentStudentCashRequests;
+
 function isCashRequestOwnedByCurrentStudent(req) {
     if (!req) return false;
 
@@ -30992,7 +31056,7 @@ async function getCurrentRoadmapMoneyState() {
         getDB('assignments'),
         getDB('submissions'),
         db.ref('student_money_offset/' + currentUser.username).once('value'),
-        getDB('cash_requests')
+        getCurrentStudentCashRequests()
     ]);
 
     const baseMoney = calculateRoadmapBaseMoney(
@@ -31028,7 +31092,7 @@ async function renderCashRequestHistory() {
     if (!container) return;
 
     try {
-        const allRequests = await getDB('cash_requests');
+        const allRequests = await getCurrentStudentCashRequests();
 
         const myRequests = (allRequests || [])
             .filter(isCashRequestOwnedByCurrentStudent)
