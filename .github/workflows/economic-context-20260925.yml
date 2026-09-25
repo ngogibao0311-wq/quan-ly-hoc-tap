@@ -1,0 +1,52 @@
+name: economic-context-20260925
+on:
+  push:
+    branches: [audit-integrity-20260925]
+permissions:
+  contents: write
+jobs:
+  extract:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract mutation contexts
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          files=['js/student.js','js/daily-login.js','js/royal-ball.js','js/leaderboard.js','js/store-collections.js','js/painting.js','js/mid-autumn-festival.js','js/pet-interactions.js','js/transaction-history.js','js/bellum-event.js','js/lich-su-hao-hung.js','js/luxury-store.js','js/store-manager.js']
+          nodes=['student_coins','student_bonus_tickets','student_money_offset','historical_grade_tickets','student_discounts','student_inventory','spin_counts']
+          mutation_tokens=['.transaction(','.set(','.update(','.push(','ServerValue.increment','increment(']
+          out=['# Economic mutation contexts']
+          for fn in files:
+              p=Path(fn)
+              if not p.exists(): continue
+              lines=p.read_text(encoding='utf-8',errors='replace').splitlines()
+              hits=[]
+              for i,line in enumerate(lines):
+                  if not any(n in line for n in nodes): continue
+                  near='\n'.join(lines[max(0,i-12):min(len(lines),i+22)])
+                  if any(tok in near for tok in mutation_tokens): hits.append(i)
+              merged=[]
+              for i in hits:
+                  lo=max(0,i-15); hi=min(len(lines),i+30)
+                  if merged and lo <= merged[-1][1]+5: merged[-1]=(merged[-1][0],max(merged[-1][1],hi))
+                  else: merged.append((lo,hi))
+              if merged:
+                  out.append(f'\n# {fn}')
+                  for lo,hi in merged:
+                      out.append(f'\n## lines {lo+1}-{hi}\n```js')
+                      out.extend(f'{j+1:05d}: {lines[j]}' for j in range(lo,hi))
+                      out.append('```')
+          Path('_audit/economic-contexts.md').write_text('\n'.join(out)+'\n',encoding='utf-8')
+          PY
+      - name: Commit and remove workflow
+        run: |
+          rm -f .github/workflows/economic-context-20260925.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add _audit/economic-contexts.md .github/workflows/economic-context-20260925.yml
+          git commit -m "audit: add economic mutation contexts"
+          git push
