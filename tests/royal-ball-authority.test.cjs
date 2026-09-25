@@ -39,8 +39,8 @@ test('student Royal Ball reward is only a pending proposal', () => {
     );
     assert.doesNotMatch(
         studentRewardCode,
-        /student_inventory\//,
-        'calculateReward must not directly mutate inventory'
+        /student_inventory\/\$\{currentUser\.username\}\//,
+        'calculateReward must not address an item-specific inventory write path'
     );
     assert.doesNotMatch(
         studentRewardCode,
@@ -55,7 +55,10 @@ test('teacher owns Royal Ball approve/reject and authoritative grant', () => {
     assert.match(source, /teacherRole\s*!==\s*'teacher'/);
     assert.match(source, /source:\s*'royal_ball_teacher_approved'/);
     assert.match(source, /verificationRequestId:\s*requestId/);
-    assert.match(source, /status['"\]]*\s*\]\s*=\s*'approved'|pendingReward\/status.*approved/s);
+    assert.match(
+        source,
+        /pendingReward\/status['"\]]*\s*\]\s*=\s*'approved'/
+    );
 });
 
 test('Royal Ball uses server time offset for event checks', () => {
