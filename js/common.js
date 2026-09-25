@@ -368,6 +368,44 @@ let lockoutInterval = null;
             );
     }
 
+    function fail(title, detail = '', reason = 'runtime') {
+        if (isHidden) return;
+
+        const safeTitle = String(
+            title ||
+            'Không thể khởi tạo hệ thống.'
+        );
+        const safeDetail = String(detail || '');
+
+        setStatus(
+            safeDetail
+                ? `${safeTitle} ${safeDetail}`
+                : safeTitle
+        );
+
+        overlay.dataset.startupFailure =
+            String(reason || 'runtime');
+
+        overlay.setAttribute(
+            'aria-busy',
+            'false'
+        );
+
+        overlay.classList.add(
+            'has-error'
+        );
+
+        console.error(
+            '[AppStartupLoader]',
+            {
+                reason:
+                    String(reason || 'runtime'),
+                title: safeTitle,
+                detail: safeDetail
+            }
+        );
+    }
+
     function attachStartupMedia(element) {
         if (!(element instanceof Element)) {
             return;
@@ -697,6 +735,7 @@ let lockoutInterval = null;
             expect,
             markReady,
             setStatus,
+            fail,
             waitForExpected,
             waitForMedia,
             hide
