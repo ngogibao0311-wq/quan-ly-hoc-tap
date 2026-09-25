@@ -12,10 +12,10 @@ function getTeacherManagedPasswordPolicyError(password, username = '') {
 
     if (value.length < 10) return 'Mật khẩu phải có ít nhất 10 ký tự.';
     if (value.length > 128) return 'Mật khẩu tối đa 128 ký tự.';
-    if (/\\s/.test(value)) return 'Mật khẩu không được chứa khoảng trắng.';
+    if (/\s/.test(value)) return 'Mật khẩu không được chứa khoảng trắng.';
     if (!/[a-z]/.test(value)) return 'Mật khẩu phải có ít nhất 1 chữ thường.';
     if (!/[A-Z]/.test(value)) return 'Mật khẩu phải có ít nhất 1 chữ hoa.';
-    if (!/\\d/.test(value)) return 'Mật khẩu phải có ít nhất 1 chữ số.';
+    if (!/\d/.test(value)) return 'Mật khẩu phải có ít nhất 1 chữ số.';
     if (!/[^A-Za-z0-9]/.test(value)) return 'Mật khẩu phải có ít nhất 1 ký tự đặc biệt.';
     if (normalizedUsername.length >= 3 && value.toLowerCase().includes(normalizedUsername)) {
         return 'Mật khẩu không được chứa tên đăng nhập.';
@@ -3507,7 +3507,6 @@ window.onload = async function () {
     if (typeof initTicketManagement === 'function') await initTicketManagement();
     if (startupLoader) startupLoader.markReady('teacher-ticket-management');
     if (document.getElementById('teacherRoadmapBody')) renderTeacherRoadmap();
-    if (document.getElementById('studentRoadmapBody')) renderStudentRoadmap();
 
     // ==========================================
     // PHẦN 2: LẮNG NGHE DỮ LIỆU NẶNG BẰNG DEBOUNCE
@@ -3517,13 +3516,11 @@ window.onload = async function () {
     const renderSubmissions = debounce(async () => {
         // Không getDB('submissions') toàn bộ nữa; loadSubmissions tự phân trang 20 bài/lần.
         await loadSubmissions(false);
-        if (document.getElementById('studentRoadmapBody')) renderStudentRoadmap();
     }, 1500);
 
     const renderAssignments = debounce(async () => {
         // Không getDB('assignments') toàn bộ nữa; loadAssignedList tự phân trang 20 bài/lần.
         await loadAssignedList(false);
-        if (document.getElementById('studentRoadmapBody')) renderStudentRoadmap();
     }, 1500);
 
     const renderUsers = debounce(async () => {
@@ -3549,7 +3546,6 @@ window.onload = async function () {
         }
 
         // Chỉ cập nhật giao diện nhỏ của Lộ trình học tập (Roadmap) nếu đang mở
-        if (document.getElementById('studentRoadmapBody')) renderStudentRoadmap();
         if (document.getElementById('teacherRoadmapBody')) renderTeacherRoadmap();
         if (startupLoader) startupLoader.markReady('teacher-roadmap-settings');
     });
@@ -3562,7 +3558,6 @@ window.onload = async function () {
             const idx = window.cachedAssignments.findIndex(a => a._fbKey === updatedAssign._fbKey || a.id === updatedAssign.id);
             if (idx !== -1) window.cachedAssignments[idx] = updatedAssign;
         }
-        if (document.getElementById('studentRoadmapBody')) renderStudentRoadmap();
     });
 
     // 3. Khi có bài nộp hoàn toàn MỚI, ta không tải lại toàn bộ mà chỉ cần thông báo hoặc tải lại trang đầu
@@ -11765,9 +11760,6 @@ window.deleteStudent = async function (uid) {
             await loadSubmissions(false);
         }
 
-        if (document.getElementById('studentRoadmapBody') && typeof renderStudentRoadmap === 'function') {
-            renderStudentRoadmap();
-        }
 
         if (document.getElementById('teacherRoadmapBody') && typeof renderTeacherRoadmap === 'function') {
             renderTeacherRoadmap();
@@ -15733,208 +15725,11 @@ window.updateStoreItem = async function () {
     }
 };
 
-// Bộ lắng nghe tự động cập nhật bảng quản lý của giáo viên khi database có thay đổi
-listenFirebase(db.ref('store_settings'), 'value', (snapshot) => {
-    const settings = snapshot.val();
-
-    StoreConfig.items.forEach(item => {
-        const itemSettings =
-            settings &&
-            settings[item.id] &&
-            typeof settings[item.id] === 'object'
-                ? settings[item.id]
-                : null;
-
-        if (itemSettings) {
-            if (itemSettings.price !== undefined) item.price = itemSettings.price;
-            if (itemSettings.startDate !== undefined) item.startDate = itemSettings.startDate;
-            if (itemSettings.endDate !== undefined) item.endDate = itemSettings.endDate;
-        }
-
-        item.isLocked =
-            window.normalizeStoreItemLockState(
-                itemSettings?.isLocked
-            );
-    });
-
-    if (typeof initTeacherStoreManagement === 'function') {
-        initTeacherStoreManagement();
-    }
-    if (typeof initTeacherLuxuryStoreManagement === 'function') {
-        initTeacherLuxuryStoreManagement();
-    }
-});
-
 window.deleteStoreItem = async function (fbKey) {
     if (confirm("Chắc chắn muốn xóa vật phẩm này khỏi cửa hàng?")) {
         await removeDB('store_items', fbKey);
     }
 };
-
-let myInventory = [];
-let storeItemsGlobal = [];
-let currentFilter = 'all';
-
-window.checkStoreStatus = function (settings) {
-    const isOpen = settings ? settings.isOpen : true;
-    document.getElementById('storeActiveView').style.display = isOpen ? 'block' : 'none';
-    document.getElementById('storeLockedView').style.display = isOpen ? 'none' : 'block';
-};
-
-window.filterStore = function (type) {
-    currentFilter = type;
-    loadStoreItems();
-};
-
-window.loadStoreItems = async function () {
-    const items = await getDB('store_items');
-    storeItemsGlobal = items;
-    const container = document.getElementById('storeItemsContainer');
-    if (!container) return;
-    container.innerHTML = '';
-
-    const now = new Date();
-
-    items.forEach(item => {
-        // Kiểm tra thời hạn mở bán
-        const start = new Date(item.startDate.replace(" ", "T"));
-        const end = new Date(item.endDate.replace(" ", "T"));
-
-        if (now < start || now > end) return; // Chỉ hiển thị hàng đang mở bán
-        if (currentFilter !== 'all' && item.type !== currentFilter) return;
-
-        const isOwned = myInventory.find(i => i.id === item.id);
-        const isEquipped = isOwned && isOwned.isEquipped;
-
-        let btnHtml = '';
-        if (isOwned) {
-            if (isEquipped) {
-                btnHtml = `<button onclick="equipItem('${item.id}', false)" style="width:100%; padding: 8px; background: #95a5a6; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Hủy trang bị</button>`;
-            } else {
-                btnHtml = `<button onclick="equipItem('${item.id}', true)" style="width:100%; padding: 8px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Sử dụng</button>`;
-            }
-        } else {
-            btnHtml = `<button onclick="buyStoreItem('${item.id}', ${item.price})" style="width:100%; padding: 8px; background: linear-gradient(135deg, #f6d365 0%, #fda085 100%); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Mua: ${item.price} 🪙</button>`;
-        }
-
-        const div = document.createElement('div');
-        div.style.cssText = 'background: rgba(255,255,255,0.6); border-radius: 12px; padding: 15px; text-align: center; border: 1px solid rgba(0,0,0,0.05); box-shadow: 0 4px 10px rgba(0,0,0,0.05);';
-
-        let typeIcon = item.type === 'theme' ? '🎨' : (item.type === 'effect' ? '✨' : '🐾');
-
-        div.innerHTML = `
-            ${item.image ? `<img src="${item.image}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 12px; margin-bottom: 10px;">` : `<div style="font-size: 3em; margin-bottom: 10px;">📦</div>`}
-            <h4 style="margin: 0 0 5px 0; color: #2c3e50;">${item.name}</h4>
-            <p style="font-size: 0.85em; color: #666; margin-bottom: 15px;">${typeIcon} ${item.type === 'theme' ? 'Giao diện' : (item.type === 'effect' ? 'Hiệu ứng' : 'Thú cưng')}</p>
-            ${btnHtml}
-        `;
-        container.appendChild(div);
-    });
-};
-
-window.buyStoreItem = async function (itemId, price) {
-    const coinRef = db.ref('student_coins/' + currentUser.username);
-    const snap = await coinRef.once('value');
-    const currentCoins = snap.val() || 0;
-
-    if (currentCoins < price) {
-        return alert("Bạn không đủ Coin để mua vật phẩm này!");
-    }
-
-    if (confirm(`Xác nhận mua vật phẩm này với giá ${price} Coin?`)) {
-        // Trừ tiền
-        await coinRef.set(currentCoins - price);
-        // Lưu vào kho
-        await pushDB(`student_inventory/${currentUser.username}`, {
-            id: itemId,
-            purchaseTime: new Date().getTime(),
-            isEquipped: false
-        });
-        alert("Mua thành công! Vật phẩm đã được thêm vào kho của bạn.");
-    }
-};
-
-window.equipItem = async function (itemId, equipState) {
-    const itemInfo = storeItemsGlobal.find(i => i.id === itemId);
-    if (!itemInfo) return;
-
-    // Lấy toàn bộ kho đồ của User
-    const invSnap = await db.ref(`student_inventory/${currentUser.username}`).once('value');
-    const inventory = invSnap.val();
-
-    if (inventory) {
-        let updates = {};
-        for (let key in inventory) {
-            let invItem = inventory[key];
-
-            // Logic: Chỉ được trang bị 1 item cho 1 loại (1 thú cưng, 1 hiệu ứng, 1 theme cùng lúc)
-            if (equipState) {
-                const checkTypeItem = storeItemsGlobal.find(i => i.id === invItem.id);
-                if (checkTypeItem && checkTypeItem.type === itemInfo.type) {
-                    updates[`${key}/isEquipped`] = false; // Gỡ các item cùng loại
-                }
-            }
-
-            if (invItem.id === itemId) {
-                updates[`${key}/isEquipped`] = equipState;
-            }
-        }
-        await db.ref(`student_inventory/${currentUser.username}`).update(updates);
-    }
-};
-
-window.applyEquippedItems = function () {
-    // Reset hiệu ứng và thú cưng
-    document.getElementById('global-effect-container').innerHTML = '';
-    const petContainer = document.getElementById('virtual-pet-container');
-    petContainer.style.display = 'none';
-
-    myInventory.forEach(invItem => {
-        if (invItem.isEquipped) {
-            const itemDef = storeItemsGlobal.find(i => i.id === invItem.id);
-            if (itemDef) {
-                if (itemDef.type === 'theme') {
-                    document.body.style.background = itemDef.value; // Ví dụ: giá trị là mã màu hoặc link ảnh url(...)
-                } else if (itemDef.type === 'pet') {
-                    petContainer.style.display = 'block';
-                    document.getElementById('virtual-pet-img').src = itemDef.value; // Link ảnh gif thú cưng
-                } else if (itemDef.type === 'effect') {
-                    renderGlobalEffect(itemDef.value);
-                }
-            }
-        }
-    });
-};
-
-window.renderGlobalEffect = function (effectType) {
-    const container = document.getElementById('global-effect-container');
-    if (effectType === 'snow') {
-        for (let i = 0; i < 30; i++) {
-            let flake = document.createElement('div');
-            flake.style.cssText = `position: absolute; width: 8px; height: 8px; background: white; border-radius: 50%; opacity: ${Math.random()}; top: -10px; left: ${Math.random() * 100}vw; animation: fall ${Math.random() * 3 + 2}s linear infinite;`;
-            container.appendChild(flake);
-        }
-    } else if (effectType === 'sparkle') {
-        for (let i = 0; i < 20; i++) {
-            let spark = document.createElement('div');
-            spark.style.cssText = `position: absolute; width: 4px; height: 4px; background: #ffd700; border-radius: 50%; box-shadow: 0 0 10px #ffd700; top: ${Math.random() * 100}vh; left: ${Math.random() * 100}vw; animation: blink ${Math.random() * 2 + 1}s infinite alternate;`;
-            container.appendChild(spark);
-        }
-    }
-};
-
-// Cấu hình CSS Animations cho Hiệu ứng bằng JS
-const styleSheet = document.createElement("style");
-styleSheet.innerText = `
-@keyframes fall {
-    to { transform: translateY(100vh); }
-}
-@keyframes blink {
-    0% { opacity: 0; transform: scale(0.5); }
-    100% { opacity: 1; transform: scale(1.5); }
-}
-`;
-document.head.appendChild(styleSheet);
 
 // ====== LOGIC KẾT NỐI QUẢN LÝ CỬA HÀNG (GIÁO VIÊN) ======
 
@@ -22797,3 +22592,4 @@ window.changeTeacherPassword = async function () {
 
 // Khởi chạy tải danh sách khi giáo viên mở trang
 loadTeacherCashRequests();
+

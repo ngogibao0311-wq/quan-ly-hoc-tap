@@ -949,7 +949,7 @@
       ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'teacher'",
       "$requestId": {
         ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'teacher' || (!data.exists() && newData.exists() && newData.child('requestId').val() === $requestId && newData.child('username').val() === root.child('users').child(auth.uid).child('username').val() && root.child('profile_request_active').child(newData.child('username').val()).child('requestId').val() === $requestId && root.child('profile_request_active').child(newData.child('username').val()).child('status').val() === 'pending'))",
-        ".validate": "!newData.exists() || root.child('users').child(auth.uid).child('role').val() === 'teacher' || (newData.hasChildren(['requestId','username','newPass','createdAt']) && newData.child('requestId').val() === $requestId && newData.child('username').val() === root.child('users').child(auth.uid).child('username').val() && newData.child('newPass').isString() && newData.child('newPass').val().length >= 6 && newData.child('newPass').val().length <= 128 && newData.child('createdAt').isNumber() && newData.child('createdAt').val() >= now - 300000 && newData.child('createdAt').val() <= now + 300000)"
+        ".validate": "!newData.exists() || root.child('users').child(auth.uid).child('role').val() === 'teacher' || (newData.hasChildren(['requestId','username','newPass','createdAt']) && newData.child('requestId').val() === $requestId && newData.child('username').val() === root.child('users').child(auth.uid).child('username').val() && newData.child('newPass').isString() && newData.child('newPass').val().length >= 10 && newData.child('newPass').val().length <= 128 && newData.child('newPass').val().matches(/.*[a-z].*/) && newData.child('newPass').val().matches(/.*[A-Z].*/) && newData.child('newPass').val().matches(/.*[0-9].*/) && newData.child('newPass').val().matches(/.*[^A-Za-z0-9].*/) && !newData.child('newPass').val().matches(/.*\\s.*/) && newData.child('createdAt').isNumber() && newData.child('createdAt').val() >= now - 300000 && newData.child('createdAt').val() <= now + 300000)"
       }
     },
     "profile_request_mutations": {
@@ -976,3 +976,4 @@
     }
   }
 }
+

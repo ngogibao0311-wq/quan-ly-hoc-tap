@@ -51,6 +51,17 @@
     const cssPromises = new Map();
     const scriptPromises = new Map();
     const groupPromises = new Map();
+    const loadedScriptElements = new WeakSet();
+    const failedScriptElements = new WeakSet();
+
+    // Installed in <head>, before the page's other scripts. A tag's presence
+    // alone does not prove that its module has executed.
+    document.addEventListener('load', event => {
+        if (event.target?.tagName === 'SCRIPT') loadedScriptElements.add(event.target);
+    }, true);
+    document.addEventListener('error', event => {
+        if (event.target?.tagName === 'SCRIPT') failedScriptElements.add(event.target);
+    }, true);
 
     // Khi người dùng đã mở khu vực Cửa hàng, CSS của THẺ vật phẩm
     // được giữ đầy đủ cho cả Cửa hàng thường và Cửa hàng Sang trọng.
@@ -171,7 +182,10 @@
 
     function normalizeResourceUrl(url) {
         try {
-            return new URL(url, document.baseURI).href;
+            const parsed = new URL(url, document.baseURI);
+            parsed.searchParams.delete('v');
+            parsed.hash = '';
+            return parsed.href;
         } catch (_) {
             return String(url || '');
         }
@@ -199,11 +213,11 @@
             );
     }
 
-    function hasScript(url) {
+    function findScript(url) {
         const wanted = normalizeResourceUrl(url);
 
         return [...document.scripts]
-            .some(script =>
+            .find(script =>
                 script.src &&
                 normalizeResourceUrl(script.src) === wanted
             );
@@ -499,29 +513,41 @@ html[data-app-role="student"] body .dashboard > .content > :is(
             return scriptPromises.get(key);
         }
 
-        if (hasScript(url)) {
-            return Promise.resolve(key);
-        }
-
+        const existing = findScript(url);
         const promise = new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.src = url;
-            script.async = false;
-            script.dataset.studentLazyScript = '1';
-
-            script.onload = () => resolve(key);
-            script.onerror = () => {
-                script.remove();
-                scriptPromises.delete(key);
-                reject(
-                    new Error(
-                        `Không tải được module: ${url}`
-                    )
-                );
+            const script = existing || document.createElement('script');
+            const cleanup = () => {
+                clearTimeout(timer);
+                script.removeEventListener('load', onLoad);
+                script.removeEventListener('error', onError);
             };
-
-            (document.body || document.head)
-                .appendChild(script);
+            const onLoad = () => {
+                cleanup();
+                loadedScriptElements.add(script);
+                resolve(key);
+            };
+            const onError = () => {
+                cleanup();
+                script.remove();
+                reject(new Error(`Không tải được module: ${url}`));
+            };
+            const timer = setTimeout(() => {
+                cleanup();
+                // Keep the rejected promise: a timed-out tag can still execute
+                // later, so appending a second tag would duplicate the runtime.
+                reject(new Error(`Module chưa tải xong: ${url}. Hãy tải lại trang.`));
+            }, 30000);
+            script.addEventListener('load', onLoad);
+            script.addEventListener('error', onError);
+            if (existing) {
+                if (loadedScriptElements.has(script)) onLoad();
+                else if (failedScriptElements.has(script)) onError();
+            } else {
+                script.src = url;
+                script.async = false;
+                script.dataset.studentLazyScript = '1';
+                (document.body || document.head).appendChild(script);
+            }
         });
 
         scriptPromises.set(key, promise);
@@ -1375,3 +1401,4 @@ html[data-app-role="student"] body .dashboard > .content > :is(
 
     preloadFromLocalStorage();
 })();
+
