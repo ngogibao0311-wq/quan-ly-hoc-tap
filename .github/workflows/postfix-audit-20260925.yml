@@ -1,0 +1,143 @@
+name: postfix-audit-20260925
+
+on:
+  push:
+    branches:
+      - audit-integrity-20260925
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan repository after replacements
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import re, json, subprocess, collections
+
+          ROOT=Path('.')
+          skip={'.git','node_modules','_audit'}
+          exts={'.js','.html','.json','.md','.txt'}
+          files=[]
+          for p in ROOT.rglob('*'):
+              if p.is_file() and p.suffix.lower() in exts and not any(x in skip for x in p.parts):
+                  files.append(p)
+          texts={str(p):p.read_text(encoding='utf-8',errors='replace') for p in files}
+
+          checks={
+            'legacy_question_bank': r'\bquestion_bank\b|LEGACY_QB_PATH',
+            'plaintext_user_password_write': r'(?:users/[^`\"\']+/?password|updateData\.password\s*=|currentUser\.password\s*=|studentData[\s\S]{0,300}\bpassword\s*[,:])',
+            'stored_student_password_read': r'\bstudent\.password\b|\bst\.password\b|\brecord\.password\b',
+            'removed_old_password_helpers': r'changeStudentPasswordWithCurrentCredential|rollbackStudentAuthPassword',
+            'startup_fail_call': r'AppStartupLoader\.fail\s*\(',
+            'purchase_locks_client': r'purchase_locks',
+            'window_buyitem_override': r'window\.buyItem\s*=|window\.trialItem\s*=',
+            'store_monkey_patch': r'StoreManager\.(?:applyItem|unapplyItem)\s*=|const\s+original(?:Apply|Unapply)|setTimeout\s*\([^\n]*StoreManager',
+            'self_economic_nodes': r'student_coins|student_money_offset|student_bonus_tickets|historical_grade_tickets|student_discounts|student_inventory|spin_counts|mid_autumn_wallets|birthday_coins|student_special_birthday_coins',
+            'client_rng': r'Math\.random\s*\(',
+          }
+
+          findings={}
+          for key,pat in checks.items():
+              rx=re.compile(pat,re.I|re.S if '[\\s\\S]' in pat else re.I)
+              rows=[]
+              for path,text in texts.items():
+                  if key in {'self_economic_nodes','client_rng','store_monkey_patch','window_buyitem_override','purchase_locks_client'} and not path.endswith('.js'):
+                      continue
+                  lines=text.splitlines()
+                  for i,line in enumerate(lines,1):
+                      if re.search(pat,line,re.I):
+                          rows.append((path,i,line.strip()[:350]))
+              findings[key]=rows
+
+          # Exact Firebase ref callsites to economic nodes. Classify operation by nearby text.
+          nodes=['student_coins','student_money_offset','student_bonus_tickets','historical_grade_tickets','student_discounts','student_inventory','spin_counts','mid_autumn_wallets','birthday_coins','student_special_birthday_coins']
+          econ=[]
+          for path,text in texts.items():
+              if not path.endswith('.js'): continue
+              lines=text.splitlines()
+              for i,line in enumerate(lines):
+                  if not any(n in line for n in nodes): continue
+                  near='\n'.join(lines[max(0,i-3):min(len(lines),i+12)])
+                  op='read/unknown'
+                  for name,rx in [('transaction',r'\.transaction\s*\('),('update',r'\.update\s*\('),('set',r'\.set\s*\('),('remove',r'\.remove\s*\('),('push',r'\.push\s*\('),('increment',r'ServerValue\.increment'),('read',r'\.once\s*\(|\.on\s*\(')]:
+                      if re.search(rx,near): op=name; break
+                  econ.append((path,i+1,op,line.strip()[:350]))
+
+          # Root reads potentially broken by child-only privacy rules.
+          sensitive=['student_coins','student_money_offset','student_bonus_tickets','historical_grade_tickets','student_discounts','student_inventory']
+          broad=[]
+          for path,text in texts.items():
+              if not path.endswith('.js'): continue
+              for i,line in enumerate(text.splitlines(),1):
+                  for node in sensitive:
+                      # Literal exact-root refs only, not /username or template child.
+                      if re.search(rf"(?:ref|getDB|listenFirebase)\(\s*['\"]{node}['\"]\s*\)",line):
+                          broad.append((path,i,node,line.strip()[:350]))
+
+          # Function duplicate definitions within each file (same identifier repeated as declaration/assignment).
+          dup=[]
+          for path,text in texts.items():
+              if not path.endswith('.js'): continue
+              seen=collections.defaultdict(list)
+              for i,line in enumerate(text.splitlines(),1):
+                  for rx in [r'\bfunction\s+([A-Za-z_$][\w$]*)\s*\(', r'\b(?:window\.)?([A-Za-z_$][\w$]*)\s*=\s*(?:async\s+)?function\b']:
+                      m=re.search(rx,line)
+                      if m: seen[m.group(1)].append(i)
+              for name,locs in seen.items():
+                  if len(locs)>1: dup.append((path,name,','.join(map(str,locs))))
+
+          # Rules summary of critical nodes.
+          rules=json.loads(Path('database.rules.patched.json').read_text(encoding='utf-8'))['rules']
+          rules_rows=[]
+          for node in sensitive+['store_purchase_ops','hoihoa_vote_usage','hoihoa_rounds','profile_request_secrets']:
+              if node in rules:
+                  obj=rules[node]
+                  rules_rows.append((node,str(obj.get('.read','')),str(obj.get('.write','')),str(obj.get('$username',{}).get('.read','')),str(obj.get('$username',{}).get('.write',''))))
+
+          # Syntax JSON/JS.
+          syntax=[]
+          for p in files:
+              if p.suffix=='.js':
+                  cp=subprocess.run(['node','--check',str(p)],capture_output=True,text=True)
+                  if cp.returncode: syntax.append((str(p),'FAIL',cp.stderr[-500:]))
+              elif p.suffix=='.json':
+                  try: json.loads(p.read_text(encoding='utf-8'))
+                  except Exception as e: syntax.append((str(p),'FAIL',str(e)))
+
+          def table(rows, headers):
+              if not rows: return '_none_\n'
+              out=['| '+' | '.join(headers)+' |','| '+' | '.join(['---']*len(headers))+' |']
+              for row in rows:
+                  out.append('| '+' | '.join(str(x).replace('|','\\|').replace('\n','<br>') for x in row)+' |')
+              return '\n'.join(out)+'\n'
+
+          out=['# Post-fix whole-repository scan','',f'Files scanned: {len(files)}','']
+          out += ['## Syntax failures',table(syntax,['file','status','detail'])]
+          out += ['## Broad sensitive-node root reads',table(broad,['file','line','node','text'])]
+          out += ['## Economic node callsites',table(econ,['file','line','op','text'])]
+          out += ['## Duplicate function declarations/assignments',table(dup,['file','name','lines'])]
+          out += ['## Critical Rules summary',table(rules_rows,['node','parent_read','parent_write','child_read','child_write'])]
+          for key,rows in findings.items():
+              out += [f'## Pattern: {key} ({len(rows)})',table(rows,['file','line','text'])]
+          Path('_audit/postfix-scan.md').write_text('\n'.join(out),encoding='utf-8')
+          PY
+
+      - name: Commit scan and remove one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/postfix-audit-20260925.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add _audit/postfix-scan.md .github/workflows/postfix-audit-20260925.yml
+          git commit -m "audit: add post-fix repository scan"
+          git push
