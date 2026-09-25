@@ -1,0 +1,317 @@
+name: integrity-audit-20260925
+
+on:
+  push:
+    branches:
+      - audit-integrity-20260925
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run repository integrity audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p _audit
+          cat > /tmp/audit_repo.py <<'PY'
+          from __future__ import annotations
+          import json, re, subprocess, pathlib, collections, sys, os
+
+          ROOT = pathlib.Path('.')
+          OUT_JSON = ROOT / '_audit' / 'integrity-audit.json'
+          OUT_MD = ROOT / '_audit' / 'integrity-audit.md'
+          TEXT_EXTS = {'.js', '.html', '.json', '.css', '.md', '.txt'}
+          EXCLUDE_PARTS = {'.git', '_audit', 'node_modules'}
+
+          def text_files():
+              for p in ROOT.rglob('*'):
+                  if not p.is_file() or p.suffix.lower() not in TEXT_EXTS:
+                      continue
+                  if any(part in EXCLUDE_PARTS for part in p.parts):
+                      continue
+                  yield p
+
+          files = list(text_files())
+          texts = {}
+          for p in files:
+              try:
+                  texts[str(p)] = p.read_text(encoding='utf-8')
+              except Exception as e:
+                  texts[str(p)] = ''
+
+          patterns = [
+              'student_coins','student_money_offset','student_bonus_tickets','historical_grade_tickets',
+              'student_discounts','student_inventory','cash_requests','purchase_locks','refund_pending',
+              'daily_login','leaderboard_chest','royal_ball','bellum','leaderboard_reward','question_bank',
+              'AppStartupLoader.fail','firebaseConfig','renderStudentRoadmap','StoreManager.unapplyItem',
+              'MidAutumnCalendar','window.buyItem','window.trialItem','MidAutumnCoinManager.redeem',
+              'redeemBirthdayItem','redeemSpecialBirthdayItem','studentStoreCanUseItemSync','openHoiHoaChest',
+              'Math.random','buyFood','isLocked','operationId','reservationId','leaseUntil','heartbeatAt',
+              'profile_request','approval','approved','rejected','pending','teacher_gift','daily_login_reward',
+              'source:', 'source =', '.password','password:'
+          ]
+
+          def find_literal(pattern):
+              hits=[]
+              for path, text in texts.items():
+                  if pattern not in text:
+                      continue
+                  lines=text.splitlines()
+                  for i,line in enumerate(lines,1):
+                      if pattern in line:
+                          hits.append({
+                              'file':path,'line':i,'text':line.strip()[:500],
+                              'context':'\n'.join(lines[max(0,i-2):min(len(lines),i+1)])[:1600]
+                          })
+              return hits
+
+          literal_hits={p:find_literal(p) for p in patterns}
+
+          econ_nodes = [
+              'student_coins','student_money_offset','student_bonus_tickets','historical_grade_tickets',
+              'student_discounts','student_inventory','spin_counts','mid_autumn_wallets',
+              'student_special_birthday_coins','birthday_coins','cash_requests','store_purchase_ops',
+              'store_trial_claims','student_collection_rewards','leaderboard_reward_claims','grade_reward_claims'
+          ]
+          econ_access=[]
+          ref_re = re.compile(r"(?:db\.)?ref\(\s*([`'\"])(.*?)\1\s*\)")
+          for path,text in texts.items():
+              if not path.endswith('.js'): continue
+              lines=text.splitlines()
+              for i,line in enumerate(lines,1):
+                  if not any(n in line for n in econ_nodes): continue
+                  kind='unknown'
+                  neighborhood='\n'.join(lines[i-1:min(len(lines),i+8)])
+                  if re.search(r'\.transaction\s*\(', neighborhood): kind='transaction'
+                  elif re.search(r'\.update\s*\(', neighborhood): kind='update'
+                  elif re.search(r'\.set\s*\(', neighborhood): kind='set'
+                  elif re.search(r'\.push\s*\(', neighborhood): kind='push'
+                  elif re.search(r'\.once\s*\(|\.on\s*\(', neighborhood): kind='read/listen'
+                  econ_access.append({'file':path,'line':i,'kind':kind,'text':line.strip()[:500]})
+
+          source_hits=[]
+          source_re = re.compile(r"\bsource\s*:\s*['\"]([^'\"]+)['\"]")
+          for path,text in texts.items():
+              if not path.endswith('.js'): continue
+              for i,line in enumerate(text.splitlines(),1):
+                  m=source_re.search(line)
+                  if m:
+                      source_hits.append({'file':path,'line':i,'source':m.group(1),'text':line.strip()[:500]})
+
+          type_hits=[]
+          type_re = re.compile(r"\btype\s*:\s*['\"]([^'\"]+)['\"]")
+          for path,text in texts.items():
+              if not path.endswith('.js'): continue
+              for i,line in enumerate(text.splitlines(),1):
+                  m=type_re.search(line)
+                  if m:
+                      type_hits.append({'file':path,'line':i,'type':m.group(1),'text':line.strip()[:500]})
+
+          # Function declarations and obvious duplicate implementations.
+          defs=collections.defaultdict(list)
+          def_res=[
+              re.compile(r'\bfunction\s+([A-Za-z_$][\w$]*)\s*\('),
+              re.compile(r'^\s*(?:async\s+)?([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{'),
+              re.compile(r'^\s*static\s+(?:async\s+)?([A-Za-z_$][\w$]*)\s*\('),
+          ]
+          for path,text in texts.items():
+              if not path.endswith('.js'): continue
+              for i,line in enumerate(text.splitlines(),1):
+                  for rx in def_res:
+                      m=rx.search(line)
+                      if m:
+                          defs[m.group(1)].append({'file':path,'line':i,'text':line.strip()[:300]})
+                          break
+          duplicates={k:v for k,v in defs.items() if len(v)>1}
+
+          # Targeted rules extraction.
+          rules_info={}
+          rules_path=ROOT/'database.rules.patched.json'
+          rules_error=None
+          if rules_path.exists():
+              try:
+                  rules=json.loads(rules_path.read_text(encoding='utf-8')).get('rules',{})
+                  target_nodes = econ_nodes + [
+                      'users','submissions','video_tracking','transaction_logs','hoihoa_rounds','hoihoa_vote_usage',
+                      'profile_request_secrets','profile_requests','profile_request_active','exam_sessions',
+                      'exam_active_locks','store_settings','game_settings','global_notifications','global_surveys'
+                  ]
+                  for node in target_nodes:
+                      if node in rules:
+                          obj=rules[node]
+                          rules_info[node]={
+                              'read':obj.get('.read'), 'write':obj.get('.write'),
+                              'indexOn':obj.get('.indexOn'),
+                              'raw':obj
+                          }
+              except Exception as e:
+                  rules_error=repr(e)
+
+          # Check whether inventory-rule source literals cover source literals used by JS writers.
+          inv_rule_sources=[]
+          if 'student_inventory' in rules_info:
+              raw=json.dumps(rules_info['student_inventory']['raw'], ensure_ascii=False)
+              inv_rule_sources=sorted(set(re.findall(r"source'\)\.val\(\) === '([^']+)'",raw)))
+          js_inv_sources=sorted(set(x['source'] for x in source_hits if 'inventory' in x['text'].lower() or True))
+          # Narrow actual inventory writer sources by proximity to student_inventory.
+          actual_inv_sources=[]
+          for path,text in texts.items():
+              if not path.endswith('.js'): continue
+              lines=text.splitlines()
+              for i,line in enumerate(lines):
+                  if 'student_inventory' not in line: continue
+                  block='\n'.join(lines[i:min(len(lines),i+45)])
+                  actual_inv_sources += source_re.findall(block)
+          actual_inv_sources=sorted(set(actual_inv_sources))
+
+          # Direct browser access to purchase_locks.
+          purchase_lock_client=[]
+          for path,text in texts.items():
+              if path.endswith('.js') and 'purchase_locks' in text:
+                  for i,line in enumerate(text.splitlines(),1):
+                      if 'purchase_locks' in line:
+                          purchase_lock_client.append({'file':path,'line':i,'text':line.strip()[:500]})
+
+          # AppStartupLoader API and fail callsites.
+          startup_fail_calls=[]
+          startup_fail_defs=[]
+          for path,text in texts.items():
+              if not path.endswith('.js'): continue
+              for i,line in enumerate(text.splitlines(),1):
+                  if 'AppStartupLoader' in line and '.fail' in line:
+                      startup_fail_calls.append({'file':path,'line':i,'text':line.strip()[:500]})
+                  if re.search(r'\bfunction\s+fail\s*\(|\bfail\s*[:=]\s*(?:async\s*)?\(?', line):
+                      startup_fail_defs.append({'file':path,'line':i,'text':line.strip()[:500]})
+
+          # Syntax checks.
+          syntax={'json':{},'js':{}}
+          for p in files:
+              ps=str(p)
+              if p.suffix.lower()=='.json':
+                  try:
+                      json.loads(p.read_text(encoding='utf-8'))
+                      syntax['json'][ps]='ok'
+                  except Exception as e:
+                      syntax['json'][ps]=f'FAIL: {e}'
+              elif p.suffix.lower()=='.js':
+                  cp=subprocess.run(['node','--check',ps],capture_output=True,text=True)
+                  syntax['js'][ps]='ok' if cp.returncode==0 else ('FAIL: '+(cp.stderr or cp.stdout)[-2000:])
+
+          # HTML script order.
+          html_scripts={}
+          script_re=re.compile(r'<script[^>]+src=["\']([^"\']+)["\']',re.I)
+          for path,text in texts.items():
+              if path.endswith('.html'):
+                  html_scripts[path]=script_re.findall(text)
+
+          audit={
+              'base_sha':os.environ.get('GITHUB_SHA',''),
+              'file_count':len(files),
+              'patterns':literal_hits,
+              'economic_access':econ_access,
+              'source_literals':source_hits,
+              'type_literals':type_hits,
+              'duplicate_definitions':duplicates,
+              'rules':rules_info,
+              'rules_error':rules_error,
+              'inventory_rule_sources':inv_rule_sources,
+              'inventory_writer_sources':actual_inv_sources,
+              'inventory_sources_missing_from_rules':sorted(set(actual_inv_sources)-set(inv_rule_sources)),
+              'purchase_lock_client_access':purchase_lock_client,
+              'startup_fail_calls':startup_fail_calls,
+              'startup_fail_defs':startup_fail_defs,
+              'syntax':syntax,
+              'html_scripts':html_scripts,
+          }
+          OUT_JSON.write_text(json.dumps(audit,ensure_ascii=False,indent=2),encoding='utf-8')
+
+          def md_table(rows, cols):
+              if not rows: return '_Không có._\n'
+              out=['| '+' | '.join(cols)+' |','| '+' | '.join(['---']*len(cols))+' |']
+              for r in rows:
+                  vals=[]
+                  for c in cols:
+                      v=str(r.get(c,'' )).replace('|','\\|').replace('\n','<br>')
+                      vals.append(v)
+                  out.append('| '+' | '.join(vals)+' |')
+              return '\n'.join(out)+'\n'
+
+          md=[]
+          md.append('# Repository integrity audit — 2026-09-25')
+          md.append(f'Base SHA: `{audit["base_sha"]}`  ')
+          md.append(f'Text files scanned: **{len(files)}**')
+          md.append('## Syntax')
+          js_fail=[{'file':k,'result':v} for k,v in syntax['js'].items() if v!='ok']
+          json_fail=[{'file':k,'result':v} for k,v in syntax['json'].items() if v!='ok']
+          md.append(f'JS checked: {len(syntax["js"])}; failures: {len(js_fail)}. JSON checked: {len(syntax["json"])}; failures: {len(json_fail)}.')
+          if js_fail: md.append(md_table(js_fail,['file','result']))
+          if json_fail: md.append(md_table(json_fail,['file','result']))
+
+          md.append('## Economic node access (client)')
+          md.append(md_table(econ_access,['file','line','kind','text']))
+
+          md.append('## Inventory source cross-check')
+          md.append('Rules source literals: `'+', '.join(inv_rule_sources)+'`')
+          md.append('Client inventory writer source literals: `'+', '.join(actual_inv_sources)+'`')
+          md.append('Missing from Rules: `'+', '.join(audit['inventory_sources_missing_from_rules'])+'`')
+          md.append(md_table([x for x in source_hits if x['source'] in actual_inv_sources],['file','line','source','text']))
+
+          md.append('## purchase_locks browser access')
+          md.append(md_table(purchase_lock_client,['file','line','text']))
+
+          md.append('## AppStartupLoader.fail')
+          md.append('Callsites:')
+          md.append(md_table(startup_fail_calls,['file','line','text']))
+          md.append('Definitions / candidate implementations:')
+          md.append(md_table(startup_fail_defs,['file','line','text']))
+
+          md.append('## Duplicate function-name candidates')
+          dup_rows=[]
+          for name,locs in sorted(duplicates.items()):
+              if name.startswith(('if','for','while','switch','catch')): continue
+              dup_rows.append({'name':name,'count':len(locs),'locations':'<br>'.join(f"{x['file']}:{x['line']} {x['text']}" for x in locs[:12])})
+          md.append(md_table(dup_rows,['name','count','locations']))
+
+          md.append('## Targeted pattern evidence')
+          for pat in patterns:
+              hits=literal_hits[pat]
+              if not hits: continue
+              md.append(f'### `{pat}` ({len(hits)} hits)')
+              md.append(md_table(hits[:120],['file','line','text']))
+
+          md.append('## Targeted Firebase Rules')
+          for node,info in rules_info.items():
+              md.append(f'### `{node}`')
+              md.append(f'- `.read`: `{info.get("read")}`')
+              md.append(f'- `.write`: `{info.get("write")}`')
+
+          md.append('## HTML script load order')
+          for path,scripts in html_scripts.items():
+              md.append(f'### `{path}`')
+              md.extend([f'{i+1}. `{s}`' for i,s in enumerate(scripts)])
+
+          OUT_MD.write_text('\n\n'.join(md)+'\n',encoding='utf-8')
+          print(f'Wrote {OUT_JSON} and {OUT_MD}')
+          PY
+          python /tmp/audit_repo.py
+          git diff --check
+
+      - name: Commit audit report and remove one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/integrity-audit-20260925.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add _audit/integrity-audit.json _audit/integrity-audit.md .github/workflows/integrity-audit-20260925.yml
+          git commit -m "audit: verify repository integrity claims [skip audit]"
+          git push
