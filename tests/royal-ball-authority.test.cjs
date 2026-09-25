@@ -57,7 +57,7 @@ test('teacher owns Royal Ball approve/reject and authoritative grant', () => {
     assert.match(source, /verificationRequestId:\s*requestId/);
     assert.match(
         source,
-        /pendingReward\/status['"\]]*\s*\]\s*=\s*'approved'/
+        /pendingReward\/status`\]\s*=\s*'approved'/
     );
 });
 
