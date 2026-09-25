@@ -4,6 +4,51 @@ const RoyalBallEvent = {
     isDancing: false,
     defaultSettings: { probItem: 5, probCoin: 95, isEnabled: true, useCustomDates: false, startDate: '', endDate: '' },
     currentSettings: null,
+    serverTimeOffset: 0,
+
+    async syncServerTimeOffset() {
+        try {
+            const snapshot = await db
+                .ref('.info/serverTimeOffset')
+                .once('value');
+
+            this.serverTimeOffset =
+                Number(snapshot.val()) || 0;
+        } catch (error) {
+            console.warn(
+                '[RoyalBall] Không đồng bộ được serverTimeOffset:',
+                error
+            );
+        }
+
+        return this.serverTimeOffset;
+    },
+
+    getServerNow: function () {
+        return Date.now() + (Number(this.serverTimeOffset) || 0);
+    },
+
+    getVietnamDateKey: function (timestamp = this.getServerNow()) {
+        return new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Asia/Ho_Chi_Minh',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        }).format(new Date(timestamp));
+    },
+
+    escapeHTML: function (value) {
+        return String(value ?? '').replace(
+            /[&<>"']/g,
+            character => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            })[character]
+        );
+    },
 
     updateStudentEventCard: function (settings) {
         const card =
@@ -29,7 +74,7 @@ const RoyalBallEvent = {
 
         this.currentSettings = safeSettings;
 
-        const now = new Date();
+        const now = new Date(this.getServerNow());
 
         const formatDate = dateString => {
             if (!dateString) return '';
@@ -155,10 +200,6 @@ const RoyalBallEvent = {
 
         description.textContent = descriptionText;
 
-        /*
-         * Cập nhật title để người dùng rê chuột
-         * cũng biết trạng thái.
-         */
         joinButton.title = canJoin
             ? 'Bấm để tham gia Dạ Hội Hoàng Gia'
             : descriptionText;
@@ -217,10 +258,6 @@ const RoyalBallEvent = {
         modal.classList.add('royal-ball-premium');
         content.classList.add('royal-premium-shell');
 
-        /*
-         * Thêm ánh sáng, vương miện và bụi phép.
-         * Chỉ thêm một lần.
-         */
         if (!content.querySelector('.royal-atmosphere')) {
             const particles = Array.from(
                 { length: 20 },
@@ -368,9 +405,6 @@ const RoyalBallEvent = {
 `;
         }
 
-        /*
-         * Thêm thanh tiến trình trước nút bắt đầu.
-         */
         if (
             !document.getElementById('royalDanceProgress')
         ) {
@@ -561,31 +595,24 @@ const RoyalBallEvent = {
     },
 
     isEventActive: function () {
-        const now = new Date();
+        const now = new Date(this.getServerNow());
 
-        // LUỒNG 1: Nếu giáo viên bật thời gian tùy chỉnh
         if (this.currentSettings && this.currentSettings.useCustomDates && this.currentSettings.startDate && this.currentSettings.endDate) {
             const start = new Date(this.currentSettings.startDate + "T00:00:00");
             const end = new Date(this.currentSettings.endDate + "T23:59:59");
             return now >= start && now <= end;
         }
 
-        // LUỒNG 2: Lịch mặc định (29/07 -> 01/05 năm sau)
+        // Lịch mặc định: 29/07 -> hết 01/08 hằng năm.
         const month = now.getMonth();
         const date = now.getDate();
 
-        // Mở từ 29/07 đến hết tháng 7
         if (month === 6 && date >= 29) return true;
-        // Mở vào ngày 01/08
         if (month === 7 && date === 1) return true;
 
         return false;
     },
 
-    /*
-     * Tạo dữ liệu thông báo cho hệ thống
-     * sự kiện giới hạn thời gian.
-     */
     buildLimitedEventAnnouncement: function (settings) {
         const safeSettings = {
             ...this.defaultSettings,
@@ -600,30 +627,15 @@ const RoyalBallEvent = {
                 'Hãy tham gia khiêu vũ để nhận Coin ' +
                 'hoặc vật phẩm Truyền Thuyết cực hiếm!',
 
-            /*
-             * Vị trí thẻ Dạ Hội trên trang học sinh.
-             */
             targetClass: 'royal-event-card',
             targetSelector: '#royalEventCard',
 
-            /*
-             * Giáo viên khóa Dạ Hội thì
-             * thông báo cũng tự tắt.
-             */
             isOpen:
                 safeSettings.isEnabled !== false,
 
-            /*
-             * Đây là sự kiện giới hạn thời gian,
-             * không phải sự kiện mở vô hạn.
-             */
             isUnlimited: false,
             announcementEnabled: true,
 
-            /*
-             * Số càng lớn thì càng ưu tiên
-             * hiện thông báo trước.
-             */
             priority: 100,
 
             updatedAt:
@@ -631,9 +643,6 @@ const RoyalBallEvent = {
                     .ServerValue.TIMESTAMP
         };
 
-        /*
-         * Giáo viên bật lịch tùy chỉnh.
-         */
         if (
             safeSettings.useCustomDates &&
             safeSettings.startDate &&
@@ -647,10 +656,6 @@ const RoyalBallEvent = {
             eventData.endDate =
                 safeSettings.endDate;
         } else {
-            /*
-             * Lịch mặc định:
-             * lặp lại từ 29/07 đến 01/08 hằng năm.
-             */
             eventData.scheduleType = 'annual';
 
             eventData.startMonthDay = '07-29';
@@ -669,16 +674,16 @@ const RoyalBallEvent = {
         }
 
         try {
+            await this.syncServerTimeOffset();
+
             const snap = await db.ref('game_settings/royal_ball').once('value');
             const settings = snap.exists() ? snap.val() : this.defaultSettings;
             this.currentSettings = settings;
 
-            // 1. Kiểm tra lệnh Khóa/Mở thủ công của giáo viên (Nút đỏ/xanh)
             if (settings.isEnabled === false) {
                 return alert("🔒 Sự kiện Dạ Hội Hoàng Gia hiện đã bị Giáo viên ĐÓNG. Học sinh tạm thời không thể truy cập lúc này!");
             }
 
-            // 2. Kiểm tra điều kiện thời gian
             if (!this.isEventActive()) {
                 if (settings.useCustomDates) {
                     return alert(`⚠️ Sự kiện đang trong chế độ Lịch Tùy Chỉnh nhưng hiện tại không nằm trong thời gian cho phép.\n(Mở từ: ${settings.startDate} đến ${settings.endDate})`);
@@ -687,7 +692,6 @@ const RoyalBallEvent = {
                 }
             }
 
-            // Mở Modal nếu pass hết điều kiện
             const modal = document.getElementById('royalBallModal');
             if (!modal) return alert("❌ Lỗi HTML: Không tìm thấy khung giao diện sự kiện (royalBallModal)!");
 
@@ -730,20 +734,15 @@ const RoyalBallEvent = {
     startDance: async function () {
         if (this.isDancing) return;
 
-        // --- BẮT ĐẦU: LOGIC KIỂM TRA GIỚI HẠN 1 LẦN / NGÀY ---
         const serverOffsetSnap = await db
             .ref('.info/serverTimeOffset')
             .once('value');
 
         const serverOffset = Number(serverOffsetSnap.val()) || 0;
+        this.serverTimeOffset = serverOffset;
         const serverNow = Date.now() + serverOffset;
 
-        const today = new Intl.DateTimeFormat('en-CA', {
-            timeZone: 'Asia/Ho_Chi_Minh',
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit'
-        }).format(new Date(serverNow));
+        const today = this.getVietnamDateKey(serverNow);
 
         const limitRef = db.ref(
             `royal_ball_limits/${currentUser.username}`
@@ -801,11 +800,7 @@ const RoyalBallEvent = {
 
             return;
         }
-        // --- KẾT THÚC: LOGIC KIỂM TRA ---
 
-        // =====================================================
-        // PHÍ KHIÊU VŨ: 5 COIN / 1 LẦN
-        // =====================================================
         const DANCE_ENTRY_FEE = 5;
 
         const danceCoinRef = db.ref(
@@ -820,7 +815,6 @@ const RoyalBallEvent = {
                     currentDanceCoins =
                         Number(currentValue) || 0;
 
-                    // Không đủ Coin thì hủy transaction.
                     if (
                         currentDanceCoins <
                         DANCE_ENTRY_FEE
@@ -835,11 +829,6 @@ const RoyalBallEvent = {
                 });
 
             if (!feeTransaction.committed) {
-                /*
-                 * Đã giữ lượt trong ngày nhưng không đủ Coin,
-                 * vì vậy phải xóa lượt để học sinh có thể
-                 * quay lại sau khi kiếm đủ Coin.
-                 */
                 await limitRef.remove();
 
                 alert(
@@ -855,9 +844,6 @@ const RoyalBallEvent = {
                 error
             );
 
-            /*
-             * Trừ Coin lỗi thì hoàn lại lượt trong ngày.
-             */
             try {
                 await limitRef.remove();
             } catch (rollbackError) {
@@ -874,7 +860,6 @@ const RoyalBallEvent = {
 
             return;
         }
-
 
         this.enhanceUI();
         this.isDancing = true;
@@ -894,10 +879,8 @@ const RoyalBallEvent = {
         if (!btn || !floor || !status) {
             this.isDancing = false;
 
-            // Hoàn lại lượt trong ngày.
             await limitRef.remove();
 
-            // Hoàn lại 5 Coin.
             await danceCoinRef.transaction(
                 currentValue =>
                     (Number(currentValue) || 0) +
@@ -921,10 +904,6 @@ const RoyalBallEvent = {
         status.innerText =
             '🎼 Khúc nhạc mở màn đang vang lên...';
 
-        /*
-         * Khởi động lại animation ngay cả khi
-         * người dùng vừa mở lại modal.
-         */
         floor.classList.remove('dancing');
         void floor.offsetWidth;
         floor.classList.add('dancing');
@@ -979,17 +958,17 @@ const RoyalBallEvent = {
             this.setDanceProgress(
                 100,
                 0,
-                'Điệu Waltz hoàn tất — đang mở quà...'
+                'Điệu Waltz hoàn tất — đang tạo yêu cầu xác minh...'
             );
 
             status.innerText =
                 '✨ Điệu Waltz hoàn tất — ' +
-                'đang mở quà Hoàng gia...';
+                'đang gửi kết quả cho Giáo viên xác minh...';
 
             floor.classList.remove('dancing');
 
             try {
-                await this.calculateReward();
+                await this.calculateReward(today);
 
                 status.style.display = 'none';
 
@@ -1004,34 +983,55 @@ const RoyalBallEvent = {
                 }
             } catch (error) {
                 console.error(
-                    'Lỗi trao thưởng Dạ hội:',
+                    'Lỗi tạo yêu cầu xác minh Dạ hội:',
                     error
                 );
 
+                let requestExists = false;
+
                 try {
-                    await limitRef.remove();
-                    await danceCoinRef.transaction(
-                        currentValue =>
-                            (Number(currentValue) || 0) +
-                            DANCE_ENTRY_FEE
+                    const latestLimit =
+                        (await limitRef.once('value')).val();
+
+                    requestExists = Boolean(
+                        latestLimit &&
+                        latestLimit.lastDate === today &&
+                        latestLimit.pendingReward &&
+                        latestLimit.pendingReward.requestId
                     );
-                } catch (rollbackError) {
-                    console.error(
-                        'Không thể hoàn lại lượt Dạ hội:',
-                        rollbackError
+                } catch (_) {}
+
+                if (!requestExists) {
+                    try {
+                        await limitRef.remove();
+                        await danceCoinRef.transaction(
+                            currentValue =>
+                                (Number(currentValue) || 0) +
+                                DANCE_ENTRY_FEE
+                        );
+                    } catch (rollbackError) {
+                        console.error(
+                            'Không thể hoàn lại lượt Dạ hội:',
+                            rollbackError
+                        );
+                    }
+
+                    this.setDanceProgress(
+                        0,
+                        10,
+                        'Gửi xác minh lỗi — lượt đã được hoàn lại'
+                    );
+
+                    alert(
+                        '❌ Không thể tạo yêu cầu xác minh phần thưởng. ' +
+                        'Hệ thống đã mở lại lượt để bạn thử lại.'
+                    );
+                } else {
+                    alert(
+                        'ℹ️ Kết quả đã được ghi nhận ở máy chủ và đang chờ Giáo viên xác minh. ' +
+                        'Hệ thống không hoàn lượt để tránh nhận thưởng hai lần.'
                     );
                 }
-
-                this.setDanceProgress(
-                    0,
-                    10,
-                    'Trao thưởng lỗi — lượt đã được hoàn lại'
-                );
-
-                alert(
-                    '❌ Trao thưởng thất bại. ' +
-                    'Hệ thống đã mở lại lượt để bạn thử lại.'
-                );
             } finally {
                 this.isDancing = false;
                 btn.disabled = false;
@@ -1039,7 +1039,7 @@ const RoyalBallEvent = {
         }, 10000);
     },
 
-    calculateReward: async function () {
+    calculateReward: async function (today) {
         const resultBox =
             document.getElementById('royalBallResult');
 
@@ -1049,59 +1049,23 @@ const RoyalBallEvent = {
             );
         }
 
-        const escapeHTML = value => {
-            return String(value ?? '').replace(
-                /[&<>"']/g,
-                character => ({
-                    '&': '&amp;',
-                    '<': '&lt;',
-                    '>': '&gt;',
-                    '"': '&quot;',
-                    "'": '&#039;'
-                })[character]
-            );
-        };
-
         resultBox.style.display = 'block';
         resultBox.className = 'royal-reward-result';
 
-        /*
-         * Hiển thị rương đang được mở.
-         */
         resultBox.innerHTML = `
         <div class="royal-reward-loading">
             <div class="royal-loading-rays"></div>
-
-            <div class="royal-loading-crown">
-                ♛
-            </div>
-
+            <div class="royal-loading-crown">♛</div>
             <div class="royal-loading-chest">
                 <div class="royal-loading-chest-lid"></div>
-                <div class="royal-loading-chest-body">
-                    <span>R</span>
-                </div>
+                <div class="royal-loading-chest-body"><span>R</span></div>
             </div>
-
-            <div class="royal-loading-title">
-                Đang mở rương Hoàng gia
-            </div>
-
-            <div class="royal-loading-subtitle">
-                Vận may đang chọn phần thưởng dành cho bạn...
-            </div>
-
-            <div class="royal-loading-dots">
-                <span></span>
-                <span></span>
-                <span></span>
-            </div>
+            <div class="royal-loading-title">Đang mở rương Hoàng gia</div>
+            <div class="royal-loading-subtitle">Kết quả sẽ được gửi Giáo viên xác minh trước khi cộng tài sản.</div>
+            <div class="royal-loading-dots"><span></span><span></span><span></span></div>
         </div>
     `;
 
-        /*
-         * Khoảng nghỉ nhỏ để hiệu ứng mở rương được nhìn thấy.
-         */
         await new Promise(resolve =>
             setTimeout(resolve, 850)
         );
@@ -1122,19 +1086,21 @@ const RoyalBallEvent = {
 
         let rewardTheme = 'coin';
         let rewardIcon = '🪙';
-        let rewardLabel = 'Kho báu Hoàng gia';
+        let rewardLabel = 'Đề xuất phần thưởng';
         let rewardTitle = '';
         let rewardDetail = '';
         let rewardValueText = '';
-
         let wonCoins = 0;
-        let actualRewardRecord = '';
+        let itemId = '';
+        let itemName = '';
 
         if (rewardType === 'item') {
             const legendaryItems =
                 typeof StoreConfig !== 'undefined' &&
                     Array.isArray(StoreConfig.items)
                     ? StoreConfig.items.filter(item =>
+                        item &&
+                        item.id &&
                         item.tag &&
                         item.tag
                             .toLowerCase()
@@ -1151,20 +1117,9 @@ const RoyalBallEvent = {
                 const currentOwned = new Set();
 
                 inventorySnapshot.forEach(child => {
-                    const inventoryItem =
-                        child.val() || {};
-
-                    if (child.key) {
-                        currentOwned.add(
-                            String(child.key)
-                        );
-                    }
-
-                    if (inventoryItem.id) {
-                        currentOwned.add(
-                            String(inventoryItem.id)
-                        );
-                    }
+                    const inventoryItem = child.val() || {};
+                    if (child.key) currentOwned.add(String(child.key));
+                    if (inventoryItem.id) currentOwned.add(String(inventoryItem.id));
                 });
 
                 const randomItem =
@@ -1175,89 +1130,40 @@ const RoyalBallEvent = {
                     )
                     ];
 
-                const itemId = String(randomItem.id);
+                itemId = String(randomItem.id);
+                itemName = String(randomItem.name || randomItem.id);
 
                 if (currentOwned.has(itemId)) {
-                    /*
-                     * Vật phẩm bị trùng:
-                     * chuyển thành 500 Coin.
-                     */
+                    rewardType = 'coin';
                     wonCoins = 500;
+                    itemId = '';
 
                     rewardTheme = 'duplicate';
                     rewardIcon = '♻️';
-                    rewardLabel =
-                        'Quà trùng được quy đổi';
-
-                    rewardTitle =
-                        'Bạn đã sở hữu vật phẩm này';
-
-                    rewardValueText =
-                        '+500 Coin';
-
+                    rewardTitle = 'Quà trùng chờ xác minh';
+                    rewardValueText = '+500 Coin';
                     rewardDetail =
-                        `"${randomItem.name}" đã có trong kho. ` +
-                        `Hoàng gia đã đổi món quà thành Coin.`;
-
-                    actualRewardRecord =
-                        `Trùng Truyền thuyết: ` +
-                        `${randomItem.name} (+500 Coin)`;
+                        `"${itemName}" đã có trong kho. ` +
+                        'Đề xuất quy đổi 500 Coin đang chờ Giáo viên xác nhận.';
                 } else {
-                    /*
-                     * Trao vật phẩm trước khi hiển thị thành công.
-                     */
-                    await db.ref(
-                        `student_inventory/` +
-                        `${currentUser.username}/` +
-                        `${randomItem.id}`
-                    ).update({
-                        id: randomItem.id,
-                        purchaseTime:
-                            firebase.database
-                                .ServerValue.TIMESTAMP,
-                        isEquipped: false,
-                        source: 'royal_ball'
-                    });
-
                     rewardTheme = 'item';
                     rewardIcon = '💎';
-                    rewardLabel =
-                        'Vật phẩm Truyền thuyết';
-
-                    rewardTitle =
-                        randomItem.name;
-
-                    rewardValueText =
-                        'TRUYỀN THUYẾT';
-
+                    rewardTitle = itemName;
+                    rewardValueText = 'TRUYỀN THUYẾT';
                     rewardDetail =
-                        'Vật phẩm đã được đưa vào kho đồ của bạn.';
-
-                    actualRewardRecord =
-                        `Truyền thuyết: ${randomItem.name}`;
+                        'Vật phẩm chưa được cộng vào kho. ' +
+                        'Yêu cầu đang chờ Giáo viên xác minh.';
                 }
             } else {
-                /*
-                 * Không tìm thấy vật phẩm Truyền thuyết.
-                 */
+                rewardType = 'coin';
                 wonCoins = 500;
-
                 rewardTheme = 'compensation';
                 rewardIcon = '🎁';
-                rewardLabel =
-                    'Quà bù Hoàng gia';
-
-                rewardTitle =
-                    'Kho báu bí ẩn';
-
-                rewardValueText =
-                    '+500 Coin';
-
+                rewardTitle = 'Kho báu bí ẩn';
+                rewardValueText = '+500 Coin';
                 rewardDetail =
-                    'Danh sách vật phẩm Truyền thuyết đang được cập nhật.';
-
-                actualRewardRecord =
-                    '500 Coin bù vật phẩm Dạ hội';
+                    'Danh sách vật phẩm Truyền thuyết chưa sẵn sàng; ' +
+                    'đề xuất bù 500 Coin đang chờ Giáo viên xác minh.';
             }
         } else {
             wonCoins =
@@ -1268,76 +1174,103 @@ const RoyalBallEvent = {
 
             rewardTheme = 'coin';
             rewardIcon = '🪙';
-            rewardLabel =
-                'Kho báu Hoàng gia';
-
-            rewardTitle =
-                'Coin Dạ Hội';
-
+            rewardTitle = 'Coin Dạ Hội';
             rewardValueText =
                 `+${wonCoins.toLocaleString('vi-VN')} Coin`;
-
             rewardDetail =
-                'Phần thưởng đã được cộng vào số dư của bạn.';
-
-            actualRewardRecord =
-                `${wonCoins} Coin (Dạ hội)`;
+                'Coin chưa được cộng vào số dư. ' +
+                'Yêu cầu đang chờ Giáo viên xác minh.';
         }
 
-        /*
-         * Cộng Coin trước khi hiển thị thông báo thành công.
-         */
-        if (wonCoins > 0) {
-            const coinReference =
-                db.ref(
-                    `student_coins/${currentUser.username}`
-                );
+        const requestDate =
+            String(today || this.getVietnamDateKey());
 
-            const coinTransaction =
-                await coinReference.transaction(
-                    currentValue =>
-                        (Number(currentValue) || 0) +
-                        wonCoins
-                );
+        const requestId =
+            `royal_ball_${requestDate.replace(/-/g, '')}`;
 
-            if (!coinTransaction.committed) {
-                throw new Error(
-                    'Không thể cộng Coin Dạ hội'
-                );
+        const requestedAt = this.getServerNow();
+
+        const pendingReward = {
+            version: 1,
+            requestId,
+            source: 'royal_ball',
+            status: 'pending',
+            username: String(currentUser.username || ''),
+            studentName: String(currentUser.name || currentUser.username || ''),
+            eventDate: requestDate,
+            entryFee: 5,
+            rewardType,
+            coinAmount: rewardType === 'coin' ? wonCoins : 0,
+            itemId: rewardType === 'item' ? itemId : '',
+            itemName: rewardType === 'item' ? itemName : '',
+            requestedAt,
+            clientProposal: true
+        };
+
+        const limitRef = db.ref(
+            `royal_ball_limits/${currentUser.username}`
+        );
+
+        let existingRequest = null;
+
+        const queueResult = await limitRef.transaction(current => {
+            if (!current || current.lastDate !== requestDate) {
+                return;
             }
+
+            if (
+                current.pendingReward &&
+                current.pendingReward.requestId
+            ) {
+                existingRequest = current.pendingReward;
+                return;
+            }
+
+            return {
+                ...current,
+                pendingReward
+            };
+        });
+
+        if (!queueResult.committed && !existingRequest) {
+            throw new Error(
+                'Không thể lưu yêu cầu xác minh phần thưởng Dạ hội'
+            );
         }
 
-        /*
-         * Ghi lịch sử.
-         */
-        const recordNow = new Date();
+        const queued = existingRequest || pendingReward;
 
-        await pushDB('spin_history', {
-            studentName: currentUser.name,
-            username: currentUser.username,
-            reward: actualRewardRecord,
-            time:
-                recordNow.toLocaleTimeString('vi-VN') +
-                ' ' +
-                recordNow.toLocaleDateString('vi-VN'),
-            timestamp:
-                firebase.database
-                    .ServerValue.TIMESTAMP,
-            source: 'royal_ball'
-        });
+        rewardType = String(queued.rewardType || rewardType);
+        wonCoins = Number(queued.coinAmount || 0);
+        itemId = String(queued.itemId || itemId || '');
+        itemName = String(queued.itemName || itemName || '');
+
+        if (rewardType === 'item') {
+            rewardTheme = 'item';
+            rewardIcon = '💎';
+            rewardTitle = itemName || itemId || 'Vật phẩm Truyền thuyết';
+            rewardValueText = 'CHỜ DUYỆT';
+            rewardDetail =
+                'Kết quả đã được gửi Giáo viên. ' +
+                'Chỉ sau khi được duyệt, vật phẩm mới được thêm vào kho.';
+        } else {
+            rewardTheme = 'coin';
+            rewardIcon = '🪙';
+            rewardTitle = 'Coin Dạ Hội';
+            rewardValueText =
+                `+${wonCoins.toLocaleString('vi-VN')} Coin · CHỜ DUYỆT`;
+            rewardDetail =
+                'Kết quả đã được gửi Giáo viên. ' +
+                'Chỉ sau khi được duyệt, Coin mới được cộng vào số dư.';
+        }
 
         const burstParticles =
             Array.from(
                 { length: 24 },
                 (_, index) => {
-                    const angle =
-                        index * (360 / 24);
-
-                    const distance =
-                        70 + (index % 6) * 12;
-
-                    const size =
-                        4 + (index % 4);
+                    const angle = index * (360 / 24);
+                    const distance = 70 + (index % 6) * 12;
+                    const size = 4 + (index % 4);
 
                     return `
                     <i
@@ -1345,8 +1278,7 @@ const RoyalBallEvent = {
                             --reward-angle:${angle}deg;
                             --reward-distance:${distance}px;
                             --reward-size:${size}px;
-                            --reward-delay:${(index % 5) * 0.035
-                        }s;
+                            --reward-delay:${(index % 5) * 0.035}s;
                         "
                     ></i>
                 `;
@@ -1364,67 +1296,419 @@ const RoyalBallEvent = {
 
         <div class="royal-reward-card">
             <div class="royal-reward-light"></div>
-
             <div class="royal-reward-top-decoration">
-                <span></span>
-                <strong>♛</strong>
-                <span></span>
+                <span></span><strong>♛</strong><span></span>
             </div>
-
             <div class="royal-open-chest">
                 <div class="royal-open-chest-glow"></div>
-
-                <div class="royal-open-chest-lid">
-                    <span></span>
-                </div>
-
-                <div class="royal-open-chest-body">
-                    <span class="royal-chest-lock">
-                        ♛
-                    </span>
-                </div>
-
-                <div class="royal-reward-icon">
-                    ${rewardIcon}
-                </div>
+                <div class="royal-open-chest-lid"><span></span></div>
+                <div class="royal-open-chest-body"><span class="royal-chest-lock">♛</span></div>
+                <div class="royal-reward-icon">${rewardIcon}</div>
             </div>
-
-            <div class="royal-reward-label">
-                ${escapeHTML(rewardLabel)}
-            </div>
-
-            <h3 class="royal-reward-name">
-                ${escapeHTML(rewardTitle)}
-            </h3>
-
-            <div class="royal-reward-value">
-                ${escapeHTML(rewardValueText)}
-            </div>
-
-            <p class="royal-reward-description">
-                ${escapeHTML(rewardDetail)}
-            </p>
-
-            <div class="royal-reward-divider">
-                <span></span>
-                <b>✦</b>
-                <span></span>
-            </div>
-
+            <div class="royal-reward-label">${this.escapeHTML(rewardLabel)}</div>
+            <h3 class="royal-reward-name">${this.escapeHTML(rewardTitle)}</h3>
+            <div class="royal-reward-value">${this.escapeHTML(rewardValueText)}</div>
+            <p class="royal-reward-description">${this.escapeHTML(rewardDetail)}</p>
+            <div class="royal-reward-divider"><span></span><b>✦</b><span></span></div>
             <button
                 type="button"
                 class="royal-reward-claim"
                 onclick="RoyalBallEvent.closeModal()"
             >
                 <span>♛</span>
-                Nhận thưởng và rời đại sảnh
+                Đã gửi xác minh · Rời đại sảnh
             </button>
-
             <div class="royal-reward-confirmed">
-                ✓ Phần thưởng đã được ghi nhận
+                ⏳ pending → Giáo viên approved/rejected
             </div>
         </div>
     `;
+    },
+
+    // ==========================================
+    // XÁC MINH PHẦN THƯỞNG DẠ HỘI — GIÁO VIÊN LÀ AUTHORITY
+    // ==========================================
+    ensureTeacherVerificationPanel: function () {
+        const manageView =
+            document.getElementById('royalBallManageView');
+
+        if (!manageView) return null;
+
+        let panel =
+            document.getElementById('royalBallVerificationPanel');
+
+        if (panel) return panel;
+
+        panel = document.createElement('div');
+        panel.id = 'royalBallVerificationPanel';
+        panel.style.cssText =
+            'margin:15px 0;padding:15px;border-radius:12px;border:1px solid rgba(192,57,43,.22);background:rgba(255,255,255,.64);';
+
+        panel.innerHTML = `
+            <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
+                <div>
+                    <strong style="color:#9f1239;">🛡️ Xác minh phần thưởng Dạ Hội</strong>
+                    <div style="font-size:.84em;color:#666;margin-top:4px;">
+                        Kết quả RNG từ học sinh chỉ là proposal. Chỉ nút duyệt của Giáo viên mới cấp tài sản authoritative.
+                    </div>
+                </div>
+                <button type="button" onclick="RoyalBallEvent.loadRewardVerificationRequests()"
+                    style="width:auto;padding:8px 12px;margin:0;">↻ Làm mới</button>
+            </div>
+            <div id="royalBallVerificationList" style="margin-top:12px;display:grid;gap:10px;">
+                <div style="color:#777;font-size:.9em;">Đang tải yêu cầu...</div>
+            </div>
+        `;
+
+        manageView.insertBefore(panel, manageView.firstChild);
+        return panel;
+    },
+
+    loadRewardVerificationRequests: async function () {
+        let teacherRole = '';
+        try {
+            teacherRole = String(currentUser?.role || '');
+        } catch (_) {}
+
+        if (teacherRole !== 'teacher') return;
+
+        this.ensureTeacherVerificationPanel();
+
+        const list =
+            document.getElementById('royalBallVerificationList');
+
+        if (!list) return;
+
+        list.innerHTML =
+            '<div style="color:#777;font-size:.9em;">Đang tải yêu cầu...</div>';
+
+        try {
+            const usersSnapshot =
+                await db.ref('users').once('value');
+
+            const usernames = [];
+
+            usersSnapshot.forEach(child => {
+                const user = child.val() || {};
+                if (
+                    user.role === 'student' &&
+                    user.username
+                ) {
+                    usernames.push(String(user.username));
+                }
+            });
+
+            const records = await Promise.all(
+                usernames.map(async username => {
+                    const snapshot = await db
+                        .ref(`royal_ball_limits/${username}`)
+                        .once('value');
+
+                    const data = snapshot.val() || {};
+                    const request = data.pendingReward || null;
+
+                    if (
+                        !request ||
+                        !request.requestId ||
+                        !['pending', 'processing'].includes(
+                            String(request.status || '')
+                        )
+                    ) {
+                        return null;
+                    }
+
+                    return {
+                        username,
+                        request
+                    };
+                })
+            );
+
+            const pending = records
+                .filter(Boolean)
+                .sort((a, b) =>
+                    Number(a.request.requestedAt || 0) -
+                    Number(b.request.requestedAt || 0)
+                );
+
+            if (!pending.length) {
+                list.innerHTML =
+                    '<div style="color:#15803d;font-size:.9em;font-weight:700;">✓ Không có yêu cầu Dạ Hội đang chờ xác minh.</div>';
+                return;
+            }
+
+            list.innerHTML = pending.map(({ username, request }) => {
+                const type = String(request.rewardType || '');
+                const rewardText = type === 'item'
+                    ? `💎 ${this.escapeHTML(request.itemName || request.itemId || 'Vật phẩm')}`
+                    : `🪙 ${Number(request.coinAmount || 0).toLocaleString('vi-VN')} Coin`;
+
+                const processing = request.status === 'processing';
+
+                return `
+                    <div style="padding:12px;border-radius:10px;background:#fff;border:1px solid rgba(0,0,0,.08);">
+                        <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:flex-start;">
+                            <div>
+                                <strong>${this.escapeHTML(request.studentName || username)}</strong>
+                                <span style="color:#777;"> · ${this.escapeHTML(username)}</span>
+                                <div style="margin-top:5px;font-weight:800;">${rewardText}</div>
+                                <div style="font-size:.82em;color:#777;margin-top:4px;">
+                                    ${this.escapeHTML(request.eventDate || '')} · phí client khai báo ${Number(request.entryFee || 0)} Coin · request ${this.escapeHTML(request.requestId)}
+                                </div>
+                                <div style="font-size:.8em;color:#b45309;margin-top:4px;">
+                                    ⚠️ Proposal do client tạo; Giáo viên phải tự xác minh trước khi duyệt.
+                                </div>
+                            </div>
+                            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                                <button type="button" ${processing ? 'disabled' : ''}
+                                    onclick="RoyalBallEvent.approveRewardRequest('${this.escapeHTML(username)}','${this.escapeHTML(request.requestId)}')"
+                                    style="width:auto;margin:0;padding:8px 12px;background:#059669;color:white;">
+                                    ${processing ? 'Đang xử lý...' : '✓ Duyệt'}
+                                </button>
+                                <button type="button" ${processing ? 'disabled' : ''}
+                                    onclick="RoyalBallEvent.rejectRewardRequest('${this.escapeHTML(username)}','${this.escapeHTML(request.requestId)}')"
+                                    style="width:auto;margin:0;padding:8px 12px;background:#dc2626;color:white;">
+                                    ✕ Từ chối
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        } catch (error) {
+            console.error(
+                '[RoyalBall] Không tải được yêu cầu xác minh:',
+                error
+            );
+
+            list.innerHTML =
+                `<div style="color:#b91c1c;font-size:.9em;">Không tải được yêu cầu: ${this.escapeHTML(error.message)}</div>`;
+        }
+    },
+
+    approveRewardRequest: async function (username, requestId) {
+        let teacherRole = '';
+        try {
+            teacherRole = String(currentUser?.role || '');
+        } catch (_) {}
+
+        if (teacherRole !== 'teacher') {
+            return alert('❌ Chỉ Giáo viên được xác minh phần thưởng Dạ Hội.');
+        }
+
+        const limitRef = db.ref(`royal_ball_limits/${username}`);
+        const requestRef = limitRef.child('pendingReward');
+        const now = this.getServerNow();
+        const approvalToken =
+            `rb_approve_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+
+        let requestSnapshot = null;
+
+        const lockResult = await requestRef.transaction(current => {
+            if (!current || current.requestId !== requestId) {
+                return;
+            }
+
+            if (
+                current.status === 'approved' ||
+                current.status === 'rejected'
+            ) {
+                return;
+            }
+
+            if (
+                current.status === 'processing' &&
+                Number(current.processingAt || 0) > now - 120000
+            ) {
+                return;
+            }
+
+            requestSnapshot = { ...current };
+
+            return {
+                ...current,
+                status: 'processing',
+                approvalToken,
+                processingAt: now
+            };
+        });
+
+        if (!lockResult.committed || !requestSnapshot) {
+            alert('ℹ️ Yêu cầu đã được xử lý ở phiên khác hoặc không còn hợp lệ.');
+            await this.loadRewardVerificationRequests();
+            return;
+        }
+
+        const request = requestSnapshot;
+
+        try {
+            const updates = {};
+            let rewardText = '';
+
+            if (request.rewardType === 'coin') {
+                const amount = Number(request.coinAmount);
+
+                if (
+                    !Number.isInteger(amount) ||
+                    amount < 100 ||
+                    amount > 1000
+                ) {
+                    throw new Error('Số Coin proposal không hợp lệ.');
+                }
+
+                updates[`student_coins/${username}`] =
+                    firebase.database.ServerValue.increment(amount);
+
+                rewardText = `${amount} Coin (Dạ hội · Giáo viên duyệt)`;
+            } else if (request.rewardType === 'item') {
+                const itemId = String(request.itemId || '');
+                const item =
+                    typeof StoreConfig !== 'undefined' &&
+                    Array.isArray(StoreConfig.items)
+                        ? StoreConfig.items.find(entry =>
+                            entry &&
+                            String(entry.id) === itemId
+                        )
+                        : null;
+
+                if (
+                    !item ||
+                    String(item.tag || '').trim().toLowerCase() !== 'truyền thuyết'
+                ) {
+                    throw new Error(
+                        'Vật phẩm proposal không thuộc catalog Truyền Thuyết hiện tại.'
+                    );
+                }
+
+                const inventorySnapshot = await db
+                    .ref(`student_inventory/${username}/${itemId}`)
+                    .once('value');
+
+                if (inventorySnapshot.exists()) {
+                    throw new Error(
+                        'Học sinh đã sở hữu vật phẩm này; không tự quy đổi khi chưa có xác nhận mới.'
+                    );
+                }
+
+                updates[`student_inventory/${username}/${itemId}`] = {
+                    id: itemId,
+                    purchaseTime:
+                        firebase.database.ServerValue.TIMESTAMP,
+                    isEquipped: false,
+                    source: 'royal_ball_teacher_approved',
+                    verificationRequestId: requestId
+                };
+
+                rewardText =
+                    `Truyền thuyết: ${item.name || itemId} (Giáo viên duyệt)`;
+            } else {
+                throw new Error('Loại phần thưởng proposal không hợp lệ.');
+            }
+
+            const historyId =
+                `royal_ball_${String(username).replace(/[^A-Za-z0-9_-]/g, '_')}_${String(requestId).replace(/[^A-Za-z0-9_-]/g, '_')}`;
+
+            updates[`spin_history/${historyId}`] = {
+                studentName: request.studentName || username,
+                username,
+                reward: rewardText,
+                time: new Date(now).toLocaleString('vi-VN'),
+                timestamp:
+                    firebase.database.ServerValue.TIMESTAMP,
+                source: 'royal_ball_teacher_approved',
+                operationId: historyId
+            };
+
+            updates[`royal_ball_limits/${username}/pendingReward/status`] = 'approved';
+            updates[`royal_ball_limits/${username}/pendingReward/approvedAt`] =
+                firebase.database.ServerValue.TIMESTAMP;
+            updates[`royal_ball_limits/${username}/pendingReward/approvedBy`] =
+                String(currentUser.username || 'teacher');
+            updates[`royal_ball_limits/${username}/pendingReward/approvalToken`] = approvalToken;
+
+            await db.ref().update(updates);
+
+            alert(`✅ Đã duyệt phần thưởng Dạ Hội cho ${username}.`);
+        } catch (error) {
+            console.error(
+                '[RoyalBall] Duyệt phần thưởng thất bại:',
+                error
+            );
+
+            try {
+                await requestRef.transaction(current => {
+                    if (
+                        current &&
+                        current.status === 'processing' &&
+                        current.approvalToken === approvalToken
+                    ) {
+                        const reverted = { ...current };
+                        reverted.status = 'pending';
+                        delete reverted.approvalToken;
+                        delete reverted.processingAt;
+                        return reverted;
+                    }
+
+                    return current;
+                });
+            } catch (_) {}
+
+            alert(`❌ Không thể duyệt: ${error.message}`);
+        }
+
+        await this.loadRewardVerificationRequests();
+    },
+
+    rejectRewardRequest: async function (username, requestId) {
+        let teacherRole = '';
+        try {
+            teacherRole = String(currentUser?.role || '');
+        } catch (_) {}
+
+        if (teacherRole !== 'teacher') {
+            return alert('❌ Chỉ Giáo viên được từ chối yêu cầu.');
+        }
+
+        const requestRef = db.ref(
+            `royal_ball_limits/${username}/pendingReward`
+        );
+
+        const now = this.getServerNow();
+
+        const result = await requestRef.transaction(current => {
+            if (!current || current.requestId !== requestId) {
+                return;
+            }
+
+            if (
+                current.status === 'approved' ||
+                current.status === 'rejected'
+            ) {
+                return;
+            }
+
+            if (
+                current.status === 'processing' &&
+                Number(current.processingAt || 0) > now - 120000
+            ) {
+                return;
+            }
+
+            return {
+                ...current,
+                status: 'rejected',
+                rejectedAt: now,
+                rejectedBy: String(currentUser.username || 'teacher')
+            };
+        });
+
+        if (result.committed) {
+            alert(`✅ Đã từ chối yêu cầu Dạ Hội của ${username}.`);
+        } else {
+            alert('ℹ️ Yêu cầu đã được xử lý ở phiên khác.');
+        }
+
+        await this.loadRewardVerificationRequests();
     },
 
     // ==========================================
@@ -1452,9 +1736,6 @@ const RoyalBallEvent = {
             ).value = settings.probCoin;
         }
 
-        // Những phần còn lại giữ nguyên
-
-        // Đồng bộ trạng thái đóng/mở thủ công
         const statusBtn = document.getElementById('btnToggleRoyalStatus');
         if (statusBtn) {
             const isEnabled = settings.isEnabled !== undefined ? settings.isEnabled : this.defaultSettings.isEnabled;
@@ -1469,7 +1750,6 @@ const RoyalBallEvent = {
             }
         }
 
-        // ĐỒNG BỘ CẤU HÌNH THỜI GIAN TÙY CHỈNH
         const useCustomCheck = document.getElementById('useCustomDates');
         if (useCustomCheck) {
             useCustomCheck.checked = settings.useCustomDates || false;
@@ -1513,7 +1793,6 @@ const RoyalBallEvent = {
     },
 
     saveSettings: async function () {
-        // Lấy Element cực kỳ cẩn thận để tránh crash ngầm
         const errorMsg = document.getElementById('royalErrorMsg');
         if (!errorMsg) {
             alert("❌ Lỗi: Thiếu thẻ thông báo lỗi (id: royalErrorMsg) trong HTML!");
@@ -1531,7 +1810,6 @@ const RoyalBallEvent = {
             return;
         }
 
-        // Lấy thông tin thời gian tùy chỉnh an toàn
         const checkEl = document.getElementById('useCustomDates');
         const startEl = document.getElementById('royalStartDate');
         const endEl = document.getElementById('royalEndDate');
@@ -1546,7 +1824,7 @@ const RoyalBallEvent = {
             return;
         }
         if (useCustomDates && (new Date(startDate) > new Date(endDate))) {
-            errorMsg.innerText = "❌ LỖI: Ngày bắt đầu không được lớn hơn ngày kết thúc!";
+            errorMsg.innerText = "❌ LỖI: Ngày bắt đầu không được lớn hơn Ngày kết thúc!";
             errorMsg.style.display = 'block';
             return;
         }
@@ -1557,7 +1835,6 @@ const RoyalBallEvent = {
         const isEnabled = statusBtn ? (statusBtn.dataset.status === "open") : true;
 
         try {
-            // Đẩy toàn bộ dữ liệu cấu hình lên Firebase
             const savedSettings = {
                 probItem: itemProb,
                 probCoin: coinProb,
@@ -1583,7 +1860,6 @@ const RoyalBallEvent = {
     }
 };
 
-// Đăng ký sự kiện DOM — tương thích cả eager-load và lazy-load
 function initRoyalBallDOM() {
     if (window.__royalBallDomInitialized) {
         return;
@@ -1592,6 +1868,13 @@ function initRoyalBallDOM() {
     window.__royalBallDomInitialized = true;
 
     RoyalBallEvent.enhanceUI();
+    RoyalBallEvent.syncServerTimeOffset().then(() => {
+        RoyalBallEvent.updateStudentEventCard(
+            RoyalBallEvent.currentSettings ||
+            RoyalBallEvent.defaultSettings
+        );
+    });
+
     const probItemInp = document.getElementById('probRoyalItem');
     const probCoinInp = document.getElementById('probRoyalCoin');
     if (probItemInp && probCoinInp) {
@@ -1625,6 +1908,15 @@ function initRoyalBallDOM() {
         });
     }
 
+    let role = '';
+    try {
+        role = String(currentUser?.role || '');
+    } catch (_) {}
+
+    if (role === 'teacher') {
+        RoyalBallEvent.ensureTeacherVerificationPanel();
+        RoyalBallEvent.loadRewardVerificationRequests();
+    }
 }
 
 if (document.readyState === 'loading') {
