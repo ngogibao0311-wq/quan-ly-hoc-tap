@@ -1,0 +1,93 @@
+name: Targeted source audit
+
+on:
+  push:
+    branches: [audit-docx-replacement-fixes-20260925]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  targeted:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Teacher roadmap linkage
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '=== teacher.html studentRoadmapBody ==='
+          git grep -n -F 'studentRoadmapBody' -- teacher.html || true
+          echo '=== teacher.html student.js include ==='
+          git grep -n -F 'js/student.js' -- teacher.html || true
+          echo '=== teacher renderStudentRoadmap ==='
+          git grep -n -F 'renderStudentRoadmap' -- js/teacher.js || true
+      - name: Password persistence audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '=== password field references ==='
+          git grep -n -E "users/.+password|\.password|password:" -- js/teacher.js js/student.js js/common.js database.rules.patched.json || true
+          echo '=== student create/edit context ==='
+          sed -n '1120,1280p' js/teacher.js
+          sed -n '19950,20230p' js/teacher.js
+      - name: Refund recovery audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '=== refund_pending all code ==='
+          git grep -n -F 'refund_pending' -- js database.rules.patched.json || true
+          echo '=== store_purchase_ops teacher references ==='
+          git grep -n -F 'store_purchase_ops' -- js/teacher.js js/student.js js/store-manager.js js/luxury-store.js || true
+          sed -n '17920,18150p' js/student.js
+          sed -n '18390,18530p' js/student.js
+          sed -n '19280,19520p' js/student.js
+      - name: Question bank compatibility context
+        shell: bash
+        run: |
+          set -euo pipefail
+          sed -n '20170,20270p' js/teacher.js
+          echo '=== questionBank rules ==='
+          git grep -n -F '"questionBank"' -- database.rules.patched.json || true
+          git grep -n -F '"question_bank"' -- database.rules.patched.json || true
+      - name: Economic Rules exact context
+        shell: bash
+        run: |
+          set -euo pipefail
+          sed -n '220,250p' database.rules.patched.json
+          sed -n '345,410p' database.rules.patched.json
+          sed -n '600,670p' database.rules.patched.json
+          sed -n '750,825p' database.rules.patched.json
+      - name: Unapply implementation contexts
+        shell: bash
+        run: |
+          set -euo pipefail
+          sed -n '4950,5125p' js/store-manager.js
+          sed -n '5420,5545p' js/store-manager.js
+          sed -n '5900,6045p' js/store-manager.js
+          sed -n '19570,19710p' js/student.js
+          sed -n '11320,11480p' js/luxury-store.js
+      - name: Loader script identity context
+        shell: bash
+        run: |
+          set -euo pipefail
+          sed -n '490,575p' js/student-feature-loader.js
+          echo '=== script src references to lazy modules ==='
+          git grep -n -E 'student-feature-loader|daily-login\.js|leaderboard\.js|royal-ball\.js|painting\.js' -- student.html js || true
+      - name: Inventory event sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          sed -n '1840,1915p' js/lich-su-hao-hung.js
+          sed -n '8250,8355p' js/painting.js
+          sed -n '1330,1455p' js/bellum-event.js
+          sed -n '1030,1125p' js/daily-login.js
+          sed -n '1180,1345p' js/royal-ball.js
+      - name: Auth role and lock audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git grep -n -E "role.*teacher|role.*student|isLocked" -- js/common.js js/student.js js/teacher.js database.rules.patched.json | head -n 500 || true
