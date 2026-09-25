@@ -28,7 +28,6 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import re, sys
-          root=Path('.')
           missing=[]
           for html in [Path('index.html'),Path('student.html'),Path('teacher.html')]:
               if not html.exists(): continue
@@ -41,8 +40,21 @@ jobs:
               print('Missing script references:', missing)
               sys.exit(1)
           PY
+      - name: Build source snapshot
+        if: always()
+        shell: bash
+        run: |
+          tar -czf source-snapshot.tar.gz \
+            js functions tools .github/workflows \
+            index.html student.html teacher.html 404.html offline.html sw.js \
+            database.rules.patched.json version.json cors.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: chatgpt-audit-report
           path: audit-report.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: chatgpt-source-snapshot
+          path: source-snapshot.tar.gz
