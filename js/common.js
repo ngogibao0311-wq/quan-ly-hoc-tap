@@ -2178,6 +2178,7 @@ if (loginForm) {
             if (!user) {
                 errorMsg.innerHTML = '❌ Tài khoản không tồn tại dữ liệu trên máy chủ!';
                 errorMsg.style.color = 'red';
+                await firebase.auth().signOut().catch(() => {});
                 return;
             }
 
@@ -2196,8 +2197,14 @@ if (loginForm) {
 
             if (user.role === 'teacher') {
                 window.location.href = 'teacher.html';
-            } else {
+            } else if (user.role === 'student') {
                 window.location.href = 'student.html';
+            } else {
+                await firebase.auth().signOut().catch(() => {});
+                localStorage.removeItem('currentUser');
+                errorMsg.textContent = '❌ Vai trò tài khoản không hợp lệ.';
+                errorMsg.style.color = 'red';
+                return;
             }
 
         } catch (error) {

@@ -11185,7 +11185,7 @@ async function loadStudentsList() {
                 </div>
             </td>
             <td style="padding:12px;">${st.username}</td>
-            <td style="padding:12px;">${st.password}</td>
+            <td style="padding:12px;"><span title="Mật khẩu không được lưu trong RTDB">Firebase Auth</span></td>
 
             <td style="
     padding:12px;
@@ -11464,7 +11464,6 @@ async function createStudent() {
         // Dữ liệu học sinh cần lưu
         const studentData = {
             username,
-            password,
             name,
             role: 'student',
             isLocked: false,
@@ -11649,7 +11648,6 @@ window.deleteStudent = async function (uid) {
 
         const student = studentSnap.val();
         const username = student.username;
-        const password = student.password;
         const email = `${username}@hethong.edu.vn`;
 
         if (!username) {
@@ -11679,35 +11677,14 @@ window.deleteStudent = async function (uid) {
 
         let authDeleteSuccess = false;
 
-        // 3. Xóa Auth trước. Nếu thất bại thì hủy toàn bộ bước xóa Database.
-        if (!password) {
-            throw new Error(
-                'Không có mật khẩu học sinh trong dữ liệu legacy để xác thực Auth. Dữ liệu chưa bị xóa.'
-            );
+        // 3. Xóa Auth bằng Admin SDK phía server. Client giáo viên không cần và không được biết mật khẩu học sinh.
+        if (!window.TeacherAdminFunctions?.deleteStudentAuth) {
+            throw new Error('Chức năng quản trị Firebase Auth chưa sẵn sàng.');
         }
+        await window.TeacherAdminFunctions.deleteStudentAuth(uid);
+        authDeleteSuccess = true;
 
-        try {
-            const secondaryAuth = secondaryApp.auth();
-            await secondaryAuth.signOut().catch(() => {});
-
-            const credential = await secondaryAuth.signInWithEmailAndPassword(email, password);
-            if (!credential.user || credential.user.uid !== uid) {
-                await secondaryAuth.signOut().catch(() => {});
-                throw new Error('UID tài khoản Auth không khớp.');
-            }
-
-            await credential.user.delete();
-            authDeleteSuccess = true;
-        } catch (authError) {
-            await secondaryApp.auth().signOut().catch(() => {});
-            console.error('Không thể xóa Firebase Auth; hủy xóa Database:', authError);
-            throw new Error(
-                'Không thể xóa tài khoản đăng nhập Firebase Auth. Database CHƯA bị xóa. Chi tiết: ' +
-                String(authError?.message || authError)
-            );
-        }
-
-        // 4. Chỉ xóa Database sau khi Auth học sinh đã bị xóa thành công.
+        // 4. Chỉ xóa Database sau khi server xác nhận Auth đã bị xóa thành công.
         const updates = {};
         let changedAssignmentCount = 0;
         let privateAssignmentCount = 0;
@@ -11936,77 +11913,6 @@ async function supersedeOtherPendingProfileRequests(username, approvedRequestId)
     }
 }
 
-async function changeStudentPasswordWithCurrentCredential(username, newPass) {
-    let record = await getTeacherProfileUserRecord(username);
-    if (!record) throw new Error('PROFILE_USER_NOT_FOUND');
-
-    const fakeEmail = `${username}@hethong.edu.vn`;
-    let attemptedPassword = String(record.password || '');
-
-    if (!attemptedPassword) {
-        const error = new Error('PROFILE_CURRENT_PASSWORD_MISSING');
-        error.code = 'profile/current-password-missing';
-        throw error;
-    }
-
-    const tryChange = async oldPass => {
-        await secondaryApp.auth().signOut().catch(() => {});
-        const credential = await secondaryApp.auth()
-            .signInWithEmailAndPassword(fakeEmail, oldPass);
-        try {
-            await credential.user.updatePassword(newPass);
-        } finally {
-            await secondaryApp.auth().signOut().catch(() => {});
-        }
-        return oldPass;
-    };
-
-    try {
-        const oldPassword = await tryChange(attemptedPassword);
-        return { oldPassword, userRecord: record };
-    } catch (firstError) {
-        const retryCodes = new Set([
-            'auth/wrong-password',
-            'auth/invalid-credential',
-            'auth/user-mismatch'
-        ]);
-
-        if (!retryCodes.has(String(firstError?.code || ''))) {
-            throw firstError;
-        }
-
-        // Có thể một request cũ vừa đổi Auth/DB. Đọc lại record MỚI NHẤT
-        // rồi thử đúng một lần nữa.
-        const refreshed = await getTeacherProfileUserRecord(username);
-        const refreshedPassword = String(refreshed?.password || '');
-
-        if (!refreshed || !refreshedPassword || refreshedPassword === attemptedPassword) {
-            throw firstError;
-        }
-
-        const oldPassword = await tryChange(refreshedPassword);
-        return { oldPassword, userRecord: refreshed };
-    }
-}
-
-async function rollbackStudentAuthPassword(username, newPass, oldPass) {
-    if (!newPass || !oldPass) return false;
-    const fakeEmail = `${username}@hethong.edu.vn`;
-
-    try {
-        await secondaryApp.auth().signOut().catch(() => {});
-        const credential = await secondaryApp.auth()
-            .signInWithEmailAndPassword(fakeEmail, newPass);
-        await credential.user.updatePassword(oldPass);
-        await secondaryApp.auth().signOut().catch(() => {});
-        return true;
-    } catch (error) {
-        console.error('[Profile Request Guard] Không rollback được Auth:', error);
-        await secondaryApp.auth().signOut().catch(() => {});
-        return false;
-    }
-}
-
 async function handleRequest(reqKey, isApprove) {
     const requestRef = db.ref(`profile_requests/${reqKey}`);
     const initialSnap = await requestRef.once('value');
@@ -12125,69 +12031,31 @@ async function handleRequest(reqKey, isApprove) {
             }
         }
 
-        let latestUser = await getTeacherProfileUserRecord(username);
+        const latestUser = await getTeacherProfileUserRecord(username);
         if (!latestUser) throw new Error('PROFILE_USER_NOT_FOUND');
 
-        let authChanged = false;
-        let authOldPassword = '';
+        const previousName = String(latestUser.name || '');
+        let nameUpdated = false;
+        try {
+            await db.ref(`users/${latestUser._fbKey}`).update({ name: newName });
+            nameUpdated = true;
 
-        if (newPass) {
-            try {
-                const authResult = await changeStudentPasswordWithCurrentCredential(
-                    username,
+            if (newPass) {
+                if (!window.TeacherAdminFunctions?.updateStudentPassword) {
+                    throw new Error('TEACHER_ADMIN_FUNCTIONS_NOT_READY');
+                }
+                await window.TeacherAdminFunctions.updateStudentPassword(
+                    latestUser._fbKey,
                     newPass
                 );
-                authChanged = true;
-                authOldPassword = authResult.oldPassword;
-                latestUser = authResult.userRecord;
-            } catch (authError) {
-                console.error('[Profile Request Guard] Auth conflict:', authError);
-
-                await requestRef.update({
-                    status: 'auth_conflict',
-                    resolvedAt: Date.now(),
-                    processingOperationId: null,
-                    authErrorCode: String(authError?.code || authError?.message || 'AUTH_CONFLICT'),
-                    newPass: null
-                }).catch(() => {});
-                await db.ref(`profile_request_secrets/${reqKey}`).remove().catch(() => {});
-                await resolveTeacherProfileActiveLock(username, reqKey, 'auth_conflict');
-
-                return alert(
-                    '⚠️ Mật khẩu Auth hiện tại không còn khớp dữ liệu hệ thống. ' +
-                    'Request đã được đánh dấu xung đột; học sinh cần đăng nhập lại và gửi yêu cầu mới.'
-                );
             }
-        }
-
-        try {
-            const updateData = { name: newName };
-            if (newPass) updateData.password = newPass;
-
-            await db.ref(`users/${latestUser._fbKey}`).update(updateData);
-        } catch (dbError) {
-            if (authChanged) {
-                const rolledBack = await rollbackStudentAuthPassword(
-                    username,
-                    newPass,
-                    authOldPassword
-                );
-
-                if (!rolledBack) {
-                    await requestRef.update({
-                        status: 'auth_conflict',
-                        resolvedAt: Date.now(),
-                        authErrorCode: 'AUTH_DB_DIVERGED',
-                        processingOperationId: null,
-                        newPass: null
-                    }).catch(() => {});
-                    await db.ref(`profile_request_secrets/${reqKey}`).remove().catch(() => {});
-                    await resolveTeacherProfileActiveLock(username, reqKey, 'auth_conflict');
-                    throw new Error('AUTH_DB_DIVERGED');
-                }
+        } catch (accountError) {
+            if (nameUpdated && previousName !== newName) {
+                await db.ref(`users/${latestUser._fbKey}/name`)
+                    .set(previousName)
+                    .catch(() => {});
             }
-
-            throw dbError;
+            throw accountError;
         }
 
         await requestRef.update({
@@ -12260,14 +12128,19 @@ async function updateProfile() {
             }
         }
 
-        // 2. KHI AUTH THÀNH CÔNG, LƯU VÀO DATABASE
-        const updateData = { name: newName };
-        if (newPass) updateData.password = newPass;
-        await updateDB('users', userRecord._fbKey, updateData);
+        // 2. RTDB chỉ lưu hồ sơ; Firebase Auth là authority duy nhất của mật khẩu.
+        await updateDB('users', userRecord._fbKey, { name: newName });
 
         currentUser.name = newName;
-        if (newPass) currentUser.password = newPass;
-        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+        delete currentUser.password;
+        localStorage.setItem(
+            'currentUser',
+            JSON.stringify(Object.fromEntries(
+                Object.entries(currentUser).filter(([key]) =>
+                    !['password', 'newPass', 'oldPass'].includes(key)
+                )
+            ))
+        );
 
         alert("✅ Cập nhật thông tin thành công!");
         document.getElementById('settingPass').value = '';
@@ -14899,30 +14772,20 @@ window.saveStudentEdit = async function () {
         updateObj.birthDate = null;
     }
 
-    // NẾU GIÁO VIÊN CÓ NHẬP MẬT KHẨU MỚI
+    // Lưu hồ sơ RTDB trước. Mật khẩu không được ghi vào RTDB.
+    await updateDB('users', fbKey, updateObj);
+
     if (password) {
+        if (!window.TeacherAdminFunctions?.updateStudentPassword) {
+            return alert('❌ Chức năng quản trị Firebase Auth chưa sẵn sàng. Hồ sơ đã lưu nhưng mật khẩu chưa đổi.');
+        }
         try {
-            const users = await getDB('users');
-            const st = users.find(u => u._fbKey === fbKey);
-
-            if (st) {
-                const fakeEmail = st.username + "@hethong.edu.vn";
-                const oldPass = st.password;
-
-                // Đăng nhập ngầm và đổi pass
-                const userCredential = await secondaryApp.auth().signInWithEmailAndPassword(fakeEmail, oldPass);
-                await userCredential.user.updatePassword(password);
-                await secondaryApp.auth().signOut();
-
-                updateObj.password = password;
-            }
+            await window.TeacherAdminFunctions.updateStudentPassword(fbKey, password);
         } catch (error) {
-            console.error("Lỗi Auth phụ khi sửa HS:", error);
-            return alert("❌ Lỗi khi đổi mật khẩu trên hệ thống Auth: " + error.message);
+            console.error('Lỗi Admin SDK khi đổi mật khẩu học sinh:', error);
+            return alert('❌ Hồ sơ đã lưu nhưng không thể đổi mật khẩu Firebase Auth: ' + (error?.message || error));
         }
     }
-
-    await updateDB('users', fbKey, updateObj);
     closeEditStudentModal();
     alert('✅ Cập nhật thông tin học sinh thành công!');
 
@@ -20163,14 +20026,17 @@ window.changeTeacherPassword = async function () {
             // 1. Cập nhật trên Firebase Authentication
             await user.updatePassword(newPassword);
 
-            // 2. Cập nhật vào Realtime Database để đồng bộ với dữ liệu cũ của bạn
-            await db.ref('users/' + currentUser._fbKey).update({
-                password: newPassword
-            });
-
-            // 3. Cập nhật lại localStorage để tránh bị lỗi khi tải lại trang
-            currentUser.password = newPassword;
-            localStorage.setItem('currentUser', JSON.stringify(currentUser));
+            // Firebase Auth là authority duy nhất. Không mirror mật khẩu vào RTDB/localStorage.
+            await db.ref('users/' + currentUser._fbKey + '/password').remove().catch(() => {});
+            delete currentUser.password;
+            localStorage.setItem(
+                'currentUser',
+                JSON.stringify(Object.fromEntries(
+                    Object.entries(currentUser).filter(([key]) =>
+                        !['password', 'newPass', 'oldPass'].includes(key)
+                    )
+                ))
+            );
 
             alert("✅ Đổi mật khẩu thành công! Hãy nhớ mật khẩu mới của bạn.");
             // Reset ô nhập
@@ -20194,9 +20060,6 @@ window.changeTeacherPassword = async function () {
 (function initQuestionBankModule() {
     // Đường dẫn chuẩn của Ngân hàng câu hỏi
     const QB_PATH = 'questionBank';
-
-    // Tương thích dữ liệu từng bị lưu nhầm vào question_bank
-    const LEGACY_QB_PATH = 'question_bank';
 
     const LETTERS = ['A', 'B', 'C', 'D'];
 
@@ -20763,93 +20626,21 @@ window.changeTeacherPassword = async function () {
 
     window.loadQuestionBank =
         async function (force = false) {
-            if (
-                !force &&
-                window.questionBankCache.length > 0
-            ) {
+            if (!force && window.questionBankCache.length > 0) {
                 window.renderQuestionBank();
                 return;
             }
 
-            const [
-                primarySnapshot,
-                legacySnapshot
-            ] = await Promise.all([
-                db.ref(QB_PATH).once('value'),
-                db.ref(LEGACY_QB_PATH).once('value')
-            ]);
-
-            const rowsByFingerprint =
-                new Map();
-
-            const appendSnapshot = (
-                snapshot,
-                storagePath,
-                preferCurrent = false
-            ) => {
-                snapshot.forEach(child => {
-                    const row =
-                        normalizeQuestion(
-                            child.val(),
-                            child.key,
-                            storagePath
-                        );
-
-                    const fp =
-                        fingerprint(row);
-
-                    const mergeKey =
-                        fp && fp !== '|||||'
-                            ? fp
-                            : `${storagePath}/${child.key}`;
-
-                    if (
-                        preferCurrent ||
-                        !rowsByFingerprint.has(
-                            mergeKey
-                        )
-                    ) {
-                        rowsByFingerprint.set(
-                            mergeKey,
-                            row
-                        );
-                    }
-                });
-            };
-
-            // Đọc dữ liệu cũ trước
-            appendSnapshot(
-                legacySnapshot,
-                LEGACY_QB_PATH
+            const primarySnapshot = await db.ref(QB_PATH).once('value');
+            const rows = [];
+            primarySnapshot.forEach(child => {
+                rows.push(normalizeQuestion(child.val(), child.key, QB_PATH));
+            });
+            rows.sort((a, b) =>
+                (b.updatedAt || b.createdAt) - (a.updatedAt || a.createdAt)
             );
-
-            // Dữ liệu chuẩn được ưu tiên nếu bị trùng
-            appendSnapshot(
-                primarySnapshot,
-                QB_PATH,
-                true
-            );
-
-            const rows =
-                Array.from(
-                    rowsByFingerprint.values()
-                );
-
-            rows.sort(
-                (a, b) =>
-                    (
-                        b.updatedAt ||
-                        b.createdAt
-                    ) -
-                    (
-                        a.updatedAt ||
-                        a.createdAt
-                    )
-            );
-
             window.questionBankCache = rows;
             window.questionBankLoaded = true;
-
             window.renderQuestionBank();
         };
 

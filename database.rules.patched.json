@@ -31,6 +31,9 @@
         },
         "$other": {
           ".write": false
+        },
+        "password": {
+          ".validate": false
         }
       }
     },
@@ -62,7 +65,7 @@
         "endTime"
       ],
       "$roundId": {
-        ".validate": "!newData.exists() || (newData.child('id').val() === $roundId && newData.child('title').isString() && newData.child('topic').isString() && newData.child('startTime').isNumber() && newData.child('endTime').isNumber() && newData.child('endTime').val() > newData.child('startTime').val() && newData.child('status').isString() && (newData.child('status').val() === 'scheduled' || newData.child('status').val() === 'active' || newData.child('status').val() === 'voting' || newData.child('status').val() === 'closed') && (!newData.child('maxVotes').exists() || (newData.child('maxVotes').isNumber() && newData.child('maxVotes').val() >= 1 && newData.child('maxVotes').val() <= 10)) && (!newData.child('teacherWeight').exists() || (newData.child('teacherWeight').isNumber() && newData.child('teacherWeight').val() >= 0 && newData.child('teacherWeight').val() <= 100)) && (!newData.child('voteWeight').exists() || (newData.child('voteWeight').isNumber() && newData.child('voteWeight').val() >= 0 && newData.child('voteWeight').val() <= 100)) && (!newData.child('isArchived').exists() || newData.child('isArchived').isBoolean()))"
+        ".validate": "!newData.exists() || (newData.child('id').val() === $roundId && newData.child('title').isString() && newData.child('topic').isString() && newData.child('startTime').isNumber() && newData.child('endTime').isNumber() && newData.child('endTime').val() > newData.child('startTime').val() && newData.child('status').isString() && (newData.child('status').val() === 'scheduled' || newData.child('status').val() === 'active' || newData.child('status').val() === 'voting' || newData.child('status').val() === 'closed') && (!newData.child('maxVotes').exists() || (newData.child('maxVotes').isNumber() && newData.child('maxVotes').val() >= 1 && newData.child('maxVotes').val() <= 10)) && (!newData.child('teacherWeight').exists() || (newData.child('teacherWeight').isNumber() && newData.child('teacherWeight').val() >= 0 && newData.child('teacherWeight').val() <= 100)) && (!newData.child('voteWeight').exists() || (newData.child('voteWeight').isNumber() && newData.child('voteWeight').val() >= 0 && newData.child('voteWeight').val() <= 100)) && ((!newData.child('teacherWeight').exists() && !newData.child('voteWeight').exists()) || (newData.child('teacherWeight').isNumber() && newData.child('voteWeight').isNumber() && newData.child('teacherWeight').val() + newData.child('voteWeight').val() === 100)) && (!newData.child('isArchived').exists() || newData.child('isArchived').isBoolean()))"
       }
     },
     "hoihoa_submissions": {
@@ -148,7 +151,8 @@
           ".write": "auth != null && (root.child('users').child(auth.uid).child('username').val() === $username || root.child('users').child(auth.uid).child('role').val() === 'teacher')",
           "$submissionId": {
             ".validate": "!newData.exists() || newData.val() === true"
-          }
+          },
+          ".validate": "!newData.exists() || (newData.numChildren() <= (root.child('hoihoa_rounds').child($roundId).child('maxVotes').exists() ? root.child('hoihoa_rounds').child($roundId).child('maxVotes').val() : 3))"
         }
       }
     },
@@ -221,10 +225,11 @@
       }
     },
     "student_coins": {
-      ".read": "auth != null",
+      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'teacher'",
       "$username": {
         ".write": "auth != null && (root.child('users').child(auth.uid).child('username').val() === $username || root.child('users').child(auth.uid).child('role').val() === 'teacher')",
-        ".validate": "newData.isNumber() && newData.val() >= -9999999 && newData.val() <= 999999999 && (newData.val() >= 0 || root.child('users').child(auth.uid).child('role').val() === 'teacher' || (data.isNumber() && data.val() < 0 && newData.val() >= data.val()))"
+        ".validate": "newData.isNumber() && newData.val() >= -9999999 && newData.val() <= 999999999 && (newData.val() >= 0 || root.child('users').child(auth.uid).child('role').val() === 'teacher' || (data.isNumber() && data.val() < 0 && newData.val() >= data.val()))",
+        ".read": "auth != null && (root.child('users').child(auth.uid).child('username').val() === $username || root.child('users').child(auth.uid).child('role').val() === 'teacher')"
       }
     },
     "student_collection_rewards": {
@@ -295,7 +300,7 @@
       }
     },
     "student_inventory": {
-      ".read": "auth != null",
+      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'teacher'",
       "$username": {
         ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'teacher'",
         "$itemId": {
@@ -337,7 +342,8 @@
             ".validate": "root.child('users').child(auth.uid).child('role').val() === 'teacher' || (newData.isString() && newData.val().length >= 8 && newData.val().length <= 200 && root.child('student_hoihoa_chest_limit').child($username).child('operationId').val() === newData.val() && (root.child('student_hoihoa_chest_limit').child($username).child('status').val() === 'reserved' || root.child('student_hoihoa_chest_limit').child($username).child('status').val() === 'claimed'))"
           },
           ".validate": "root.child('users').child(auth.uid).child('role').val() === 'teacher' || (!newData.exists() && data.child('isTrial').val() === true && data.child('trialExpiry').isNumber() && data.child('trialExpiry').val() <= now) || (newData.exists() && newData.child('id').val() === $itemId && (!data.exists() || (data.exists() && ((data.child('isTrial').val() === true && newData.child('source').val() === 'store_purchase' && newData.child('purchaseOperationId').isString()) || (newData.child('source').val() === data.child('source').val() && newData.child('purchaseTime').val() === data.child('purchaseTime').val() && newData.child('isTrial').val() === data.child('isTrial').val() && newData.child('trialExpiry').val() === data.child('trialExpiry').val())))))"
-        }
+        },
+        ".read": "auth != null && (root.child('users').child(auth.uid).child('username').val() === $username || root.child('users').child(auth.uid).child('role').val() === 'teacher')"
       }
     },
     "student_history_events": {
@@ -351,10 +357,11 @@
       }
     },
     "student_bonus_tickets": {
-      ".read": "auth != null",
+      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'teacher'",
       "$username": {
         ".write": "auth != null && (root.child('users').child(auth.uid).child('username').val() === $username || root.child('users').child(auth.uid).child('role').val() === 'teacher')",
-        ".validate": "newData.isNumber() && newData.val() >= -9999 && newData.val() <= 9999"
+        ".validate": "newData.isNumber() && newData.val() >= -9999 && newData.val() <= 9999",
+        ".read": "auth != null && (root.child('users').child(auth.uid).child('username').val() === $username || root.child('users').child(auth.uid).child('role').val() === 'teacher')"
       }
     },
     "spin_counts": {
@@ -390,10 +397,11 @@
       ]
     },
     "student_money_offset": {
-      ".read": "auth != null",
+      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'teacher'",
       "$username": {
         ".write": "auth != null && (root.child('users').child(auth.uid).child('username').val() === $username || root.child('users').child(auth.uid).child('role').val() === 'teacher')",
-        ".validate": "newData.isNumber() && newData.val() >= -9999999 && newData.val() <= 9999999"
+        ".validate": "newData.isNumber() && newData.val() >= -9999999 && newData.val() <= 9999999",
+        ".read": "auth != null && (root.child('users').child(auth.uid).child('username').val() === $username || root.child('users').child(auth.uid).child('role').val() === 'teacher')"
       }
     },
     "student_conversion_usage": {
@@ -607,9 +615,10 @@
       }
     },
     "historical_grade_tickets": {
-      ".read": "auth != null",
+      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'teacher'",
       "$username": {
-        ".write": "auth != null && (root.child('users').child(auth.uid).child('username').val() === $username || root.child('users').child(auth.uid).child('role').val() === 'teacher')"
+        ".write": "auth != null && (root.child('users').child(auth.uid).child('username').val() === $username || root.child('users').child(auth.uid).child('role').val() === 'teacher')",
+        ".read": "auth != null && (root.child('users').child(auth.uid).child('username').val() === $username || root.child('users').child(auth.uid).child('role').val() === 'teacher')"
       }
     },
     "ticket_purchases": {
@@ -632,12 +641,13 @@
       }
     },
     "student_discounts": {
-      ".read": "auth != null",
+      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'teacher'",
       "$username": {
         ".write": "auth != null && (root.child('users').child(auth.uid).child('username').val() === $username || root.child('users').child(auth.uid).child('role').val() === 'teacher')",
         "$discountId": {
           ".validate": "root.child('users').child(auth.uid).child('role').val() === 'teacher' || data.exists() || newData.child('source').val() !== 'teacher_gift' || (newData.child('originMessageKey').isString() && root.child('inbox_gift_claims').child($username).child(newData.child('originMessageKey').val()).child('status').val() === 'processing' && root.child('inbox_messages').child($username).child(newData.child('originMessageKey').val()).child('giftType').val() === 'discount' && root.child('inbox_messages').child($username).child(newData.child('originMessageKey').val()).child('giftValue').val() === newData.child('percent').val() && (!root.child('inbox_messages').child($username).child(newData.child('originMessageKey').val()).child('expiry').exists() || root.child('inbox_messages').child($username).child(newData.child('originMessageKey').val()).child('expiry').val() > now))"
-        }
+        },
+        ".read": "auth != null && (root.child('users').child(auth.uid).child('username').val() === $username || root.child('users').child(auth.uid).child('role').val() === 'teacher')"
       }
     },
     "store_items": {
@@ -915,7 +925,7 @@
         ".read": "auth != null && (root.child('users').child(auth.uid).child('username').val() === $username || root.child('users').child(auth.uid).child('role').val() === 'teacher')",
         "$itemId": {
           ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'teacher' || (root.child('users').child(auth.uid).child('username').val() === $username && root.child('users').child(auth.uid).child('isLocked').val() !== true && newData.exists()))",
-          ".validate": "root.child('users').child(auth.uid).child('role').val() === 'teacher' || (newData.exists() && newData.child('version').val() === 1 && newData.child('username').val() === $username && newData.child('itemId').val() === $itemId && newData.child('operationId').isString() && newData.child('operationId').val().length >= 8 && newData.child('operationId').val().length <= 200 && newData.child('status').isString() && (newData.child('status').val() === 'reserved' || newData.child('status').val() === 'debit_pending' || newData.child('status').val() === 'paid' || newData.child('status').val() === 'completed' || newData.child('status').val() === 'failed_refunded' || newData.child('status').val() === 'refund_pending') && newData.child('startedAt').isNumber() && newData.child('expiresAt').isNumber() && newData.child('expiresAt').val() === newData.child('startedAt').val() + 600000 && newData.child('updatedAt').isNumber() && newData.child('updatedAt').val() <= now + 10000 && newData.child('updatedAt').val() >= now - 900000 && (!newData.child('basePrice').exists() || (newData.child('basePrice').isNumber() && newData.child('basePrice').val() >= 0 && newData.child('basePrice').val() <= 999999)) && (!newData.child('finalPrice').exists() || (newData.child('finalPrice').isNumber() && newData.child('finalPrice').val() >= 0 && newData.child('finalPrice').val() <= 999999)) && ((!data.exists() && newData.child('status').val() === 'reserved' && newData.child('startedAt').val() >= now - 300000 && newData.child('startedAt').val() <= now + 10000 && root.child('users').child(auth.uid).child('isLocked').val() !== true) || (data.exists() && data.child('status').val() === 'failed_refunded' && newData.child('status').val() === 'reserved' && newData.child('operationId').val() !== data.child('operationId').val() && newData.child('startedAt').val() >= now - 300000 && newData.child('startedAt').val() <= now + 10000 && root.child('users').child(auth.uid).child('isLocked').val() !== true) || (data.exists() && data.child('status').val() === 'reserved' && data.child('expiresAt').val() <= now && newData.child('status').val() === 'reserved' && newData.child('operationId').val() !== data.child('operationId').val() && root.child('users').child(auth.uid).child('isLocked').val() !== true) || (data.exists() && newData.child('operationId').val() === data.child('operationId').val() && newData.child('startedAt').val() === data.child('startedAt').val() && newData.child('expiresAt').val() === data.child('expiresAt').val() && ((data.child('status').val() === 'reserved' && (newData.child('status').val() === 'reserved' || newData.child('status').val() === 'debit_pending' || newData.child('status').val() === 'failed_refunded')) || (data.child('status').val() === 'debit_pending' && (newData.child('status').val() === 'debit_pending' || newData.child('status').val() === 'paid' || newData.child('status').val() === 'failed_refunded' || newData.child('status').val() === 'refund_pending')) || (data.child('status').val() === 'paid' && (newData.child('status').val() === 'paid' || newData.child('status').val() === 'completed' || newData.child('status').val() === 'failed_refunded' || newData.child('status').val() === 'refund_pending')) || (data.child('status').val() === 'refund_pending' && newData.child('status').val() === 'refund_pending') || (data.child('status').val() === 'completed' && newData.child('status').val() === 'completed') || (data.child('status').val() === 'failed_refunded' && newData.child('status').val() === 'failed_refunded')))))"
+          ".validate": "root.child('users').child(auth.uid).child('role').val() === 'teacher' || (newData.exists() && newData.child('version').val() === 1 && newData.child('username').val() === $username && newData.child('itemId').val() === $itemId && newData.child('operationId').isString() && newData.child('operationId').val().length >= 8 && newData.child('operationId').val().length <= 200 && newData.child('status').isString() && (newData.child('status').val() === 'reserved' || newData.child('status').val() === 'debit_pending' || newData.child('status').val() === 'paid' || newData.child('status').val() === 'completed' || newData.child('status').val() === 'failed_refunded' || newData.child('status').val() === 'refund_pending') && newData.child('startedAt').isNumber() && newData.child('expiresAt').isNumber() && newData.child('expiresAt').val() === newData.child('startedAt').val() + 600000 && newData.child('updatedAt').isNumber() && newData.child('updatedAt').val() <= now + 10000 && newData.child('updatedAt').val() >= now - 900000 && (!newData.child('basePrice').exists() || (newData.child('basePrice').isNumber() && newData.child('basePrice').val() >= 0 && newData.child('basePrice').val() <= 999999)) && (!newData.child('finalPrice').exists() || (newData.child('finalPrice').isNumber() && newData.child('finalPrice').val() >= 0 && newData.child('finalPrice').val() <= 999999)) && ((!data.exists() && newData.child('status').val() === 'reserved' && newData.child('startedAt').val() >= now - 300000 && newData.child('startedAt').val() <= now + 10000 && root.child('users').child(auth.uid).child('isLocked').val() !== true) || (data.exists() && data.child('status').val() === 'failed_refunded' && newData.child('status').val() === 'reserved' && newData.child('operationId').val() !== data.child('operationId').val() && newData.child('startedAt').val() >= now - 300000 && newData.child('startedAt').val() <= now + 10000 && root.child('users').child(auth.uid).child('isLocked').val() !== true) || (data.exists() && data.child('status').val() === 'reserved' && data.child('expiresAt').val() <= now && newData.child('status').val() === 'reserved' && newData.child('operationId').val() !== data.child('operationId').val() && root.child('users').child(auth.uid).child('isLocked').val() !== true) || (data.exists() && newData.child('operationId').val() === data.child('operationId').val() && newData.child('startedAt').val() === data.child('startedAt').val() && newData.child('expiresAt').val() === data.child('expiresAt').val() && ((data.child('status').val() === 'reserved' && (newData.child('status').val() === 'reserved' || newData.child('status').val() === 'debit_pending' || newData.child('status').val() === 'failed_refunded')) || (data.child('status').val() === 'debit_pending' && (newData.child('status').val() === 'debit_pending' || newData.child('status').val() === 'paid' || newData.child('status').val() === 'failed_refunded' || newData.child('status').val() === 'refund_pending')) || (data.child('status').val() === 'paid' && (newData.child('status').val() === 'paid' || newData.child('status').val() === 'completed' || newData.child('status').val() === 'failed_refunded' || newData.child('status').val() === 'refund_pending')) || (data.child('status').val() === 'refund_pending' && (newData.child('status').val() === 'refund_pending' || newData.child('status').val() === 'failed_refunded')) || (data.child('status').val() === 'completed' && newData.child('status').val() === 'completed') || (data.child('status').val() === 'failed_refunded' && newData.child('status').val() === 'failed_refunded')))))"
         }
       }
     },
@@ -949,7 +959,7 @@
       ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'teacher'",
       "$requestId": {
         ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'teacher' || (!data.exists() && newData.exists() && newData.child('requestId').val() === $requestId && newData.child('username').val() === root.child('users').child(auth.uid).child('username').val() && root.child('profile_request_active').child(newData.child('username').val()).child('requestId').val() === $requestId && root.child('profile_request_active').child(newData.child('username').val()).child('status').val() === 'pending'))",
-        ".validate": "!newData.exists() || root.child('users').child(auth.uid).child('role').val() === 'teacher' || (newData.hasChildren(['requestId','username','newPass','createdAt']) && newData.child('requestId').val() === $requestId && newData.child('username').val() === root.child('users').child(auth.uid).child('username').val() && newData.child('newPass').isString() && newData.child('newPass').val().length >= 6 && newData.child('newPass').val().length <= 128 && newData.child('createdAt').isNumber() && newData.child('createdAt').val() >= now - 300000 && newData.child('createdAt').val() <= now + 300000)"
+        ".validate": "!newData.exists() || root.child('users').child(auth.uid).child('role').val() === 'teacher' || (newData.hasChildren(['requestId','username','newPass','createdAt']) && newData.child('requestId').val() === $requestId && newData.child('username').val() === root.child('users').child(auth.uid).child('username').val() && newData.child('newPass').isString() && newData.child('newPass').val().length >= 10 && newData.child('newPass').val().length <= 128 && newData.child('createdAt').isNumber() && newData.child('createdAt').val() >= now - 300000 && newData.child('createdAt').val() <= now + 300000)"
       }
     },
     "profile_request_mutations": {
