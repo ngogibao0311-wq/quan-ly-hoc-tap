@@ -42,7 +42,7 @@ jobs:
           python -m json.tool firebase.json >/dev/null
           python -m json.tool functions/package.json >/dev/null
           for f in js/*.js functions/*.js; do node --check "$f" >/dev/null; done
-          git diff --check
+          git -c core.whitespace=cr-at-eol diff --check
           ! grep -q "LEGACY_QB_PATH" js/teacher.js
           ! grep -q 'const password = student.password' js/teacher.js
           ! grep -q 'currentUser.password = newPassword' js/teacher.js
