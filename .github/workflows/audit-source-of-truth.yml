@@ -1,6 +1,8 @@
 name: Source of truth audit
 
 on:
+  push:
+    branches: [audit-docx-replacement-fixes-20260925]
   pull_request:
     branches: [main]
   workflow_dispatch:
