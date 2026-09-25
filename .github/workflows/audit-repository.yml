@@ -1,0 +1,77 @@
+name: Repository Audit Verification
+
+on:
+  push:
+    branches:
+      - audit-docx-authority-20260925
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Repository snapshot
+        run: |
+          set -euo pipefail
+          echo "HEAD=$(git rev-parse HEAD)"
+          echo "FILES=$(find . -type f -not -path './.git/*' | wc -l)"
+          echo "JS_FILES=$(find . -type f -name '*.js' -not -path './.git/*' | wc -l)"
+          echo "JSON_FILES=$(find . -type f -name '*.json' -not -path './.git/*' | wc -l)"
+
+      - name: Parse JSON
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, pathlib
+          for p in pathlib.Path('.').rglob('*.json'):
+              if '.git' in p.parts:
+                  continue
+              with p.open('r', encoding='utf-8-sig') as f:
+                  json.load(f)
+              print('JSON_OK', p)
+          PY
+
+      - name: JavaScript syntax
+        run: |
+          set -euo pipefail
+          while IFS= read -r -d '' f; do
+            node --check "$f" >/dev/null
+            echo "NODE_CHECK_OK $f"
+          done < <(find . -type f -name '*.js' -not -path './.git/*' -print0)
+
+      - name: Economic authority callsites
+        run: |
+          set -euo pipefail
+          echo '=== ECONOMIC NODES ==='
+          grep -RInE --exclude-dir=.git --exclude='*.min.js' 'student_coins|student_money_offset|student_bonus_tickets|historical_grade_tickets|student_discounts|student_inventory|spin_counts|cash_requests|store_purchase_ops|store_trial_claims|leaderboard_reward_claims|student_daily_login|student_event_rewards' . || true
+          echo '=== ECONOMIC MUTATIONS ==='
+          grep -RInE --exclude-dir=.git --exclude='*.min.js' '\.(set|update|remove|transaction|push)\(' js functions *.html 2>/dev/null || true
+
+      - name: Reward and inventory source cross-check
+        run: |
+          set -euo pipefail
+          echo '=== SOURCE LITERALS ==='
+          grep -RInE --exclude-dir=.git --exclude='*.min.js' "source[[:space:]]*:[[:space:]]*['\"](daily_login|leaderboard_chest|leaderboard_rank_reward|royal_ball|bellum_completion_reward|hoihoa_chest|lucky_wheel|lucky_wheel_multi|store_purchase|store_trial|teacher_gift|mid_autumn_coin|birthday_coin|special_birthday_coin)['\"]" . || true
+          echo '=== TRANSACTION TYPES ==='
+          grep -RInE --exclude-dir=.git --exclude='*.min.js' "type[[:space:]]*:[[:space:]]*['\"](leaderboard_reward|daily_login_reward|store_purchase|coin_conversion|coin_change|inventory_grant|discount_used|gift_claimed)['\"]" . || true
+
+      - name: Runtime and legacy symbol cross-check
+        run: |
+          set -euo pipefail
+          for term in 'AppStartupLoader.fail' 'firebaseConfig' 'renderStudentRoadmap' 'StoreManager.unapplyItem' 'MidAutumnCalendar' 'purchase_locks' 'refund_pending' 'question_bank' 'studentStoreCanUseItemSync' 'getDBStrict' 'SystemUpdateManager' 'operationId' 'lease' 'isLocked'; do
+            echo "=== TERM: $term ==="
+            grep -RInF --exclude-dir=.git --exclude='*.min.js' "$term" . || true
+          done
+
+      - name: Forbidden replacement anti-pattern scan
+        run: |
+          set -euo pipefail
+          echo '=== DUPLICATE GLOBAL IMPLEMENTATION SIGNALS ==='
+          grep -RInE --exclude-dir=.git --exclude='*.min.js' 'window\.[A-Za-z0-9_]+[[:space:]]*=[[:space:]]*(async[[:space:]]*)?function|function[[:space:]]+[A-Za-z0-9_]+' js | head -n 500 || true
