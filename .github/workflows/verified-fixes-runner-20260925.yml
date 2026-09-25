@@ -21,6 +21,7 @@ jobs:
           set -euo pipefail
           python -c "from pathlib import Path; p=Path('.github/workflows/verified-fixes-20260925.yml').read_text(encoding='utf-8'); s=p.split(\"python - <<'PY'\\n\",1)[1].split('\\n          PY\\n',1)[0]; s='\\n'.join((line[10:] if line.startswith('          ') else line) for line in s.splitlines()); Path('/tmp/apply_verified_fixes.py').write_text(s+'\\n',encoding='utf-8')"
           python /tmp/apply_verified_fixes.py
+          python -c "from pathlib import Path; [p.write_text((lambda t: t[2:] if t.startswith('\\\\\\n') else t)(p.read_text(encoding='utf-8')), encoding='utf-8') for p in [Path('functions/index.js'), Path('js/teacher-admin-functions.js')]]"
 
       - name: Static validation
         shell: bash
