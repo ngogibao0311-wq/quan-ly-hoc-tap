@@ -1,0 +1,48 @@
+name: ChatGPT repository audit
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [chatgpt/docx-audit-20260925]
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Repository inventory and risk grep
+        run: python3 tools/chatgpt_audit.py > audit-report.txt
+      - name: Parse Firebase Rules JSON
+        run: python3 -m json.tool database.rules.patched.json > /dev/null
+      - name: JavaScript syntax check
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r -d '' file; do
+            node --check "$file"
+          done < <(find js functions -type f -name '*.js' -print0)
+      - name: HTML inline/external reference sanity
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re, sys
+          root=Path('.')
+          missing=[]
+          for html in [Path('index.html'),Path('student.html'),Path('teacher.html')]:
+              if not html.exists(): continue
+              text=html.read_text(encoding='utf-8')
+              for src in re.findall(r'<script[^>]+src=["\']([^"\']+)', text, re.I):
+                  if src.startswith(('http://','https://','//')): continue
+                  p=(html.parent/src.split('?',1)[0]).resolve()
+                  if not p.exists(): missing.append((str(html),src))
+          if missing:
+              print('Missing script references:', missing)
+              sys.exit(1)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: chatgpt-audit-report
+          path: audit-report.txt
