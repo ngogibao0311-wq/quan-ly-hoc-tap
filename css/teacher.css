@@ -3241,3 +3241,104 @@ html[data-app-role="teacher"] body #customStudentModal #customStudentSearch:focu
     }
 }
 
+
+
+/* =========================================================
+   HOTFIX 2026-09-23 · TEACHER MODAL VIEWPORT PORTAL
+   - Các modal chính của giáo viên đã được đưa ra khỏi .content và đặt
+     trực tiếp dưới <body> trong teacher.html.
+   - Lý do: .content dùng backdrop-filter, tạo containing block cho
+     position: fixed ở Chromium. Modal con vì thế chỉ phủ vùng nội dung,
+     không phủ sidebar và bị căn giữa lệch sang phải.
+   - Guard này khóa overlay theo đúng viewport mà không thay đổi logic
+     mở/đóng, ID, dữ liệu hay sự kiện của các modal.
+   ========================================================= */
+html[data-app-role="teacher"] body > :is(
+    #materialModal,
+    #editMaterialModal,
+    #scheduleModal,
+    #studentModal,
+    #editStudentModal,
+    #editAssignmentModal,
+    #assignmentStatusModal,
+    #notificationHistoryModal,
+    #surveyHistoryModal,
+    #surveyResultsModal
+) {
+    position: fixed !important;
+    inset: 0 !important;
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: auto !important;
+    height: auto !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    z-index: 9990;
+}
+
+html[data-app-role="teacher"] body > :is(
+    #materialModal,
+    #editMaterialModal,
+    #scheduleModal,
+    #studentModal,
+    #editStudentModal,
+    #editAssignmentModal,
+    #assignmentStatusModal,
+    #notificationHistoryModal,
+    #surveyHistoryModal,
+    #surveyResultsModal
+).active {
+    display: flex;
+}
+
+/* Modal kết quả khảo sát vốn cần nằm trên modal lịch sử khảo sát. */
+html[data-app-role="teacher"] body > #surveyResultsModal {
+    z-index: 100000 !important;
+}
+
+
+/* Keep teacher dialogs inside the visible screen, including mobile browser chrome. */
+html[data-app-role="teacher"] body > .teacher-viewport-modal {
+    padding: 16px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    overflow: auto;
+    overscroll-behavior: contain;
+}
+
+html[data-app-role="teacher"] body > .teacher-viewport-modal > .modal-content {
+    box-sizing: border-box;
+    min-width: 0;
+    width: 100% !important;
+    max-width: min(550px, 100%);
+    max-height: calc(100vh - 32px) !important;
+    max-height: calc(100dvh - 32px) !important;
+    margin: 0 !important;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+html[data-app-role="teacher"] body > .teacher-viewport-modal > .modal-content > h3 {
+    flex-shrink: 0;
+    padding-right: 40px;
+    overflow-wrap: anywhere;
+}
+
+/* Flex form bodies must shrink so their own scrollbars remain reachable. */
+html[data-app-role="teacher"] body > .teacher-viewport-modal > .modal-content > div {
+    min-height: 0;
+    min-width: 0;
+}
+
+html[data-app-role="teacher"] body:has(> .teacher-viewport-modal.active) {
+    overflow: hidden;
+}
+
+@media (max-width: 600px) {
+    html[data-app-role="teacher"] body > .teacher-viewport-modal > .modal-content {
+        padding: 20px 16px !important;
+        max-width: 100% !important;
+    }
+}
