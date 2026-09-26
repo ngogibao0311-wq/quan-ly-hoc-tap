@@ -46,22 +46,11 @@
 
     if (window.StudentFeatureLoader) return;
 
-    const VERSION = '3.4.6-security-k2-firebase-owned-css';
+    const VERSION = '3.4.7-equipped-rehydrate-v2';
 
     const cssPromises = new Map();
     const scriptPromises = new Map();
     const groupPromises = new Map();
-    const loadedScriptElements = new WeakSet();
-    const failedScriptElements = new WeakSet();
-
-    // Installed in <head>, before the page's other scripts. A tag's presence
-    // alone does not prove that its module has executed.
-    document.addEventListener('load', event => {
-        if (event.target?.tagName === 'SCRIPT') loadedScriptElements.add(event.target);
-    }, true);
-    document.addEventListener('error', event => {
-        if (event.target?.tagName === 'SCRIPT') failedScriptElements.add(event.target);
-    }, true);
 
     // Khi người dùng đã mở khu vực Cửa hàng, CSS của THẺ vật phẩm
     // được giữ đầy đủ cho cả Cửa hàng thường và Cửa hàng Sang trọng.
@@ -182,10 +171,7 @@
 
     function normalizeResourceUrl(url) {
         try {
-            const parsed = new URL(url, document.baseURI);
-            parsed.searchParams.delete('v');
-            parsed.hash = '';
-            return parsed.href;
+            return new URL(url, document.baseURI).href;
         } catch (_) {
             return String(url || '');
         }
@@ -213,11 +199,11 @@
             );
     }
 
-    function findScript(url) {
+    function hasScript(url) {
         const wanted = normalizeResourceUrl(url);
 
         return [...document.scripts]
-            .find(script =>
+            .some(script =>
                 script.src &&
                 normalizeResourceUrl(script.src) === wanted
             );
@@ -513,41 +499,29 @@ html[data-app-role="student"] body .dashboard > .content > :is(
             return scriptPromises.get(key);
         }
 
-        const existing = findScript(url);
+        if (hasScript(url)) {
+            return Promise.resolve(key);
+        }
+
         const promise = new Promise((resolve, reject) => {
-            const script = existing || document.createElement('script');
-            const cleanup = () => {
-                clearTimeout(timer);
-                script.removeEventListener('load', onLoad);
-                script.removeEventListener('error', onError);
-            };
-            const onLoad = () => {
-                cleanup();
-                loadedScriptElements.add(script);
-                resolve(key);
-            };
-            const onError = () => {
-                cleanup();
+            const script = document.createElement('script');
+            script.src = url;
+            script.async = false;
+            script.dataset.studentLazyScript = '1';
+
+            script.onload = () => resolve(key);
+            script.onerror = () => {
                 script.remove();
-                reject(new Error(`Không tải được module: ${url}`));
+                scriptPromises.delete(key);
+                reject(
+                    new Error(
+                        `Không tải được module: ${url}`
+                    )
+                );
             };
-            const timer = setTimeout(() => {
-                cleanup();
-                // Keep the rejected promise: a timed-out tag can still execute
-                // later, so appending a second tag would duplicate the runtime.
-                reject(new Error(`Module chưa tải xong: ${url}. Hãy tải lại trang.`));
-            }, 30000);
-            script.addEventListener('load', onLoad);
-            script.addEventListener('error', onError);
-            if (existing) {
-                if (loadedScriptElements.has(script)) onLoad();
-                else if (failedScriptElements.has(script)) onError();
-            } else {
-                script.src = url;
-                script.async = false;
-                script.dataset.studentLazyScript = '1';
-                (document.body || document.head).appendChild(script);
-            }
+
+            (document.body || document.head)
+                .appendChild(script);
         });
 
         scriptPromises.set(key, promise);
@@ -1110,6 +1084,8 @@ html[data-app-role="student"] body .dashboard > .content > :is(
         'pet_luxury_mua_ha',
         'pet_quoc_khanh_1',
         'pet_mythic_nyx_1',
+        'pet_mythic_aether_1',
+        'pet_dem_day_sao_1',
         'pet_lotm_klein_event_1',
         'pet_cam_co_cam_mong_1',
         'pet_tamon_b_side_1',
@@ -1208,6 +1184,7 @@ html[data-app-role="student"] body .dashboard > .content > :is(
         );
 
         const needs = new Set();
+        const unresolvedEquippedIds = [];
 
         for (const inventoryItem of equipped) {
             const rawId = String(inventoryItem?.id || '').trim();
@@ -1218,15 +1195,22 @@ html[data-app-role="student"] body .dashboard > .content > :is(
 
             /*
              * CỬA HÀNG SANG TRỌNG:
-             * chỉ cần 1 item Luxury được trang bị -> nạp luxury runtime.
-             * luxury-store.js sẽ mount TOÀN BỘ premiumLayers/full-suite được
-             * gắn với đúng ID đó (world + interface + pet realm + skill/...).
+             * - Fast path: ID Luxury đã biết hoặc catalog đã đánh dấu luxuryOnly.
+             * - Fallback an toàn: nếu Firebase nói item đang trang bị nhưng catalog
+             *   Cửa hàng thường không có ID đó, thử nạp Luxury runtime. Đây chính
+             *   là tình huống xảy ra với item Luxury mới sau F5: definition chỉ
+             *   được đăng ký khi luxury-store.js chạy.
              */
             if (
                 LUXURY_ITEM_IDS.has(id) ||
                 itemDef?.luxuryOnly === true
             ) {
                 needs.add('luxury-runtime');
+                continue;
+            }
+
+            if (!itemDef) {
+                unresolvedEquippedIds.push(rawId);
                 continue;
             }
 
@@ -1239,11 +1223,37 @@ html[data-app-role="student"] body .dashboard > .content > :is(
             );
         }
 
+        /*
+         * Không yêu cầu người dùng mở tab Cửa hàng để luxury-store.js được load.
+         * Chỉ kích hoạt fallback khi có item đang trang bị mà StoreConfig thường
+         * chưa nhận diện được. Item rác/cũ nếu có cũng chỉ làm nạp Luxury bundle
+         * một lần; applyEquippedItems() vẫn bỏ qua vì không có definition hợp lệ.
+         */
+        if (unresolvedEquippedIds.length) {
+            needs.add('luxury-runtime');
+        }
+
         if (!needs.size) return false;
 
         await Promise.all(
             [...needs].map(ensure)
         );
+
+        /*
+         * Luxury runtime vừa đăng ký thêm item vào StoreConfig. Preload lại CSS
+         * của đúng các item đã trang bị để runtime mới có style trước khi apply.
+         */
+        if (unresolvedEquippedIds.length) {
+            const resolvedAfterLuxuryLoad =
+                unresolvedEquippedIds
+                    .map(id => getCatalogItemById(id))
+                    .filter(Boolean);
+
+            if (resolvedAfterLuxuryLoad.length) {
+                await preloadEquippedCss(resolvedAfterLuxuryLoad);
+                releaseUnusedSpecialCss(resolvedAfterLuxuryLoad);
+            }
+        }
 
         return true;
     }
@@ -1401,4 +1411,3 @@ html[data-app-role="student"] body .dashboard > .content > :is(
 
     preloadFromLocalStorage();
 })();
-

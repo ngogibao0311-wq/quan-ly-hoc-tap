@@ -2176,23 +2176,12 @@ if (loginForm) {
             const user = snapshot.val();
 
             if (!user) {
-                localStorage.removeItem('currentUser');
-                await firebase.auth().signOut();
                 errorMsg.innerHTML = '❌ Tài khoản không tồn tại dữ liệu trên máy chủ!';
                 errorMsg.style.color = 'red';
                 return;
             }
 
-            if (!['teacher', 'student'].includes(user.role)) {
-                localStorage.removeItem('currentUser');
-                await firebase.auth().signOut();
-                errorMsg.textContent = '❌ Tài khoản chưa có quyền truy cập hợp lệ. Vui lòng liên hệ Giáo viên.';
-                errorMsg.style.color = 'red';
-                return;
-            }
-
             if (user.isLocked) {
-                localStorage.removeItem('currentUser');
                 errorMsg.innerHTML = '🔒 LỖI: Tài khoản đã bị khóa.<br>Vui lòng liên hệ Giáo viên để giải quyết!';
                 errorMsg.style.color = 'red';
                 await firebase.auth().signOut();
@@ -5568,4 +5557,3 @@ window.securityHotfix = Object.freeze({
     try { const url = new URL(String(value)); return ['https:', 'http:'].includes(url.protocol) && !url.username && !url.password ? url.href : ''; } catch { return ''; }
   }
 });
-

@@ -4597,11 +4597,19 @@
         state.reviewPracticeRealAssignmentId = '';
     }
 
-    async function activateStoreTabForCollectionGuide() {
+    function activateStoreTabForCollectionGuide() {
         const tab = document.getElementById('tab-store');
         if (!tab) return false;
 
-        await openGuideTab('tab-store');
+        const navButton = getNavButton('tab-store');
+
+        if (!tab.classList.contains('active')) {
+            try {
+                navButton?.click();
+            } catch (_) {
+                activateTabFallback('tab-store', navButton);
+            }
+        }
 
         return true;
     }
@@ -4643,8 +4651,8 @@
         return true;
     }
 
-    async function safeOpenCollectionMenuForGuide(options = {}) {
-        if (!await activateStoreTabForCollectionGuide()) return false;
+    function safeOpenCollectionMenuForGuide(options = {}) {
+        if (!activateStoreTabForCollectionGuide()) return false;
 
         if (options.keepCollectionPage !== true) {
             safeCloseCollectionPageForGuide();
@@ -4660,8 +4668,8 @@
         return true;
     }
 
-    async function safeOpenCollectionPageForGuide(collectionId = 'all') {
-        if (!await activateStoreTabForCollectionGuide()) return false;
+    function safeOpenCollectionPageForGuide(collectionId = 'all') {
+        if (!activateStoreTabForCollectionGuide()) return false;
 
         try {
             if (typeof window.StoreCollectionPage?.open === 'function') {
@@ -4672,7 +4680,7 @@
             // Thử mở bằng nút giao diện bên dưới.
         }
 
-        if (!await safeOpenCollectionMenuForGuide()) return false;
+        if (!safeOpenCollectionMenuForGuide()) return false;
         document.getElementById('storeCollectionOpenButton')?.click();
         return Boolean(
             document.getElementById('tab-store')
@@ -4680,8 +4688,8 @@
         );
     }
 
-    async function safeOpenCollectionReturnMenuForGuide() {
-        if (!await safeOpenCollectionPageForGuide('all')) return false;
+    function safeOpenCollectionReturnMenuForGuide() {
+        if (!safeOpenCollectionPageForGuide('all')) return false;
         return safeOpenCollectionMenuForGuide({ keepCollectionPage: true });
     }
 
@@ -4727,12 +4735,12 @@
         return true;
     }
 
-    async function safeOpenCollectionAcquisitionForGuide(
+    function safeOpenCollectionAcquisitionForGuide(
         collectionId = 'all'
     ) {
         safeCloseCollectionAcquisitionForGuide();
 
-        if (!await safeOpenCollectionPageForGuide(collectionId)) {
+        if (!safeOpenCollectionPageForGuide(collectionId)) {
             return false;
         }
 
@@ -5480,28 +5488,9 @@
             state.activeTarget = target || document.querySelector('.dashboard') || document.body;
             renderTourContent(step);
             updateTourPosition();
-        } catch (error) {
-            console.warn('[NewUserGuide] Không chuẩn bị được bước hướng dẫn:', error);
-            showToast('Chưa mở được mục hướng dẫn. Hãy thử lại sau khi mục này tải xong.');
         } finally {
             state.transitionLocked = false;
         }
-    }
-
-    async function openGuideTab(tabId) {
-        const navButton = getNavButton(tabId);
-        const tab = document.getElementById(tabId);
-        if (!tab) throw new Error(`Không tìm thấy mục: ${tabId}`);
-        if (!tab.classList.contains('active')) {
-            if (typeof window.switchTab !== 'function') {
-                throw new Error('Chức năng chuyển mục chưa sẵn sàng.');
-            }
-            await window.switchTab(tabId, navButton);
-            if (!tab.classList.contains('active')) {
-                throw new Error(`Chưa thể mở mục: ${tabId}`);
-            }
-        }
-        return navButton;
     }
 
     async function prepareStep(step) {
@@ -5522,7 +5511,16 @@
         }
 
         if (step.tabId) {
-            await openGuideTab(step.tabId);
+            const navButton = getNavButton(step.tabId);
+            const tab = document.getElementById(step.tabId);
+
+            if (navButton && tab && !tab.classList.contains('active')) {
+                try {
+                    navButton.click();
+                } catch (_) {
+                    activateTabFallback(step.tabId, navButton);
+                }
+            }
         }
 
         if (typeof step.before === 'function') {
@@ -5568,6 +5566,13 @@
                 // Bỏ qua nếu nhóm không hỗ trợ mở bằng click.
             }
         }
+    }
+
+    function activateTabFallback(tabId, navButton) {
+        document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(button => button.classList.remove('active'));
+        document.getElementById(tabId)?.classList.add('active');
+        navButton?.classList.add('active');
     }
 
     function getNavButton(tabId) {
@@ -5945,12 +5950,11 @@
         if (feature.tabId) {
             const dashboard = document.querySelector('.dashboard');
 
-            let navButton;
-            try {
-                navButton = await openGuideTab(feature.tabId);
-            } catch (error) {
-                showToast(error.message);
-                return false;
+            const navButton = getNavButton(feature.tabId);
+            if (navButton) {
+                navButton.click();
+            } else {
+                activateTabFallback(feature.tabId, null);
             }
 
             /* Sau khi chọn mục trên điện thoại, đóng menu để hiện trọn nội dung tab. */
@@ -6220,4 +6224,3 @@
         runInitSafely();
     }
 })();
-
