@@ -13169,7 +13169,7 @@ async function submitAssignment(assignId, isAuto = false, isCheat = false) {
                             Math.random() * 1000
                         );
 
-                    await pushDB(
+                    savedSubmissionKey = await pushDB(
                         'submissions',
                         payload
                     );
@@ -24558,6 +24558,30 @@ window.getLiveStudentExamSubmission =
     };
 
 
+// EXAM SUBMISSION FIX V2: keep session data loaded throughout a transaction.
+// A cold Firebase cache can otherwise pass null to the updater and abort it.
+async function runStudentExamTransaction(ref, update, onComplete, applyLocally) {
+    let listener;
+    let timer;
+    try {
+        await new Promise((resolve, reject) => {
+            timer = setTimeout(() => {
+                const error = new Error('Chưa tải được phiên thi từ Firebase. Kiểm tra kết nối rồi thử nộp lại.');
+                error.code = 'EXAM_SESSION_READ_TIMEOUT';
+                reject(error);
+            }, 15000);
+            listener = () => resolve();
+            ref.on('value', listener, reject);
+        });
+        clearTimeout(timer);
+        // Keep this listener until commit/abort; once('value') alone can lose its cache.
+        return await ref.transaction(update, onComplete, applyLocally);
+    } finally {
+        clearTimeout(timer);
+        if (listener) ref.off('value', listener);
+    }
+}
+
 window.examRecoveryManager = {
     syncTimers: {},
     heartbeatTimers: {},
@@ -24609,7 +24633,7 @@ window.examRecoveryManager = {
             );
 
         const tx =
-            await ref.transaction(
+            await runStudentExamTransaction(ref,
                 current => {
                     const existing =
                         current &&
@@ -24703,7 +24727,7 @@ window.examRecoveryManager = {
             );
 
         const tx =
-            await ref.transaction(
+            await runStudentExamTransaction(ref,
                 current => {
                     if (
                         !current ||
@@ -24761,7 +24785,7 @@ window.examRecoveryManager = {
             );
 
         const tx =
-            await ref.transaction(
+            await runStudentExamTransaction(ref,
                 current => {
                     if (!current) {
                         return;
@@ -25108,7 +25132,7 @@ window.examRecoveryManager = {
             );
 
         const tx =
-            await ref.transaction(
+            await runStudentExamTransaction(ref,
                 current => {
                     const existing =
                         current &&
@@ -25476,7 +25500,7 @@ window.examRecoveryManager = {
             db.ref(this.firebasePath(key));
 
         const tx =
-            await ref.transaction(
+            await runStudentExamTransaction(ref,
                 current => {
                     if (
                         !current ||
@@ -25648,7 +25672,7 @@ window.examRecoveryManager = {
             db.ref(this.firebasePath(key));
 
         const tx =
-            await ref.transaction(
+            await runStudentExamTransaction(ref,
                 current => {
                     if (
                         !current ||
@@ -25803,7 +25827,7 @@ window.examRecoveryManager = {
             db.ref(this.firebasePath(key));
 
         const tx =
-            await ref.transaction(
+            await runStudentExamTransaction(ref,
                 current => {
                     if (
                         !current ||
@@ -25975,7 +25999,7 @@ window.examRecoveryManager = {
             db.ref(this.firebasePath(key));
 
         const tx =
-            await ref.transaction(
+            await runStudentExamTransaction(ref,
                 current => {
                     if (
                         !current ||
@@ -26092,7 +26116,7 @@ window.examRecoveryManager = {
                 db.ref(this.firebasePath(key));
 
             const tx =
-                await ref.transaction(
+                await runStudentExamTransaction(ref,
                     current => {
                         if (
                             !current ||
