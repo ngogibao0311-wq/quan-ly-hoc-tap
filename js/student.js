@@ -121,6 +121,29 @@ const EXAM_OWNER_LEASE_MS = 45 * 1000;
 const EXAM_FINALIZE_LEASE_MS = 120 * 1000;
 const EXAM_HEARTBEAT_MS = 10 * 1000;
 
+// Đồng bộ đồng hồ của phiên thi với Firebase (không thay đổi giờ toàn trang).
+let studentExamServerOffset = 0;
+let studentExamClockListener = null;
+function getStudentExamNow() {
+    return Date.now() + studentExamServerOffset;
+}
+async function syncStudentExamClock() {
+    const offsetRef = db.ref('.info/serverTimeOffset');
+    const applyOffset = snapshot => {
+        const offset = snapshot.val();
+        if (typeof offset === 'number' && Number.isFinite(offset)) {
+            studentExamServerOffset = offset;
+        }
+    };
+    applyOffset(await offsetRef.once('value'));
+    if (!studentExamClockListener) {
+        studentExamClockListener = applyOffset;
+        offsetRef.on('value', studentExamClockListener, error => {
+            console.warn('[Exam Guard] Không cập nhật được giờ Firebase:', error);
+        });
+    }
+}
+
 function createStudentExamRandomId(prefix = 'exam') {
     try {
         if (window.crypto?.randomUUID) {
@@ -9949,7 +9972,7 @@ async function loadAssignments() {
 
                                 autoPayload
                                     .examFinalizedAt =
-                                    saveTime;
+                                    getStudentExamNow();
                             }
 
                             if (!needsWrite) {
@@ -12267,6 +12290,7 @@ async function submitAssignment(assignId, isAuto = false, isCheat = false) {
             ).includes(normalizedAssignId)
     );
     if (!assign) return;
+    if (assign.assessmentType === 'thi') await syncStudentExamClock();
 
     const submissions = await getDB('submissions');
     const mySub = getPreferredStudentSubmission(
@@ -12276,7 +12300,7 @@ async function submitAssignment(assignId, isAuto = false, isCheat = false) {
     );
     const isRedoing = mySub && mySub.isRedoing;
 
-    const now = new Date();
+    const now = new Date(assign.assessmentType === 'thi' ? getStudentExamNow() : Date.now());
     const startTime = assign.startDate ? new Date(assign.startDate.replace(" ", "T")) : new Date(0);
     const endTime = assign.endDate ? new Date(assign.endDate.replace(" ", "T")) : new Date("2100-01-01");
 
@@ -12704,7 +12728,7 @@ async function submitAssignment(assignId, isAuto = false, isCheat = false) {
     if (answer) finalAnswerText += `[PHẦN TỰ LUẬN]\n${answer}`;
 
     const processSubmission = async (fileData) => {
-        const submitNow = new Date();
+        const submitNow = new Date(assign.assessmentType === 'thi' ? getStudentExamNow() : Date.now());
 
         const hasNewUploadedFiles =
             Array.isArray(fileData)
@@ -12973,7 +12997,7 @@ async function submitAssignment(assignId, isAuto = false, isCheat = false) {
                     );
 
                 payload.examFinalizedAt =
-                    submitNow.getTime();
+                    getStudentExamNow();
             }
 
             if (isCurrentlyRedoing) {
@@ -24429,7 +24453,7 @@ window.startExamTimeLimitCountdown =
 
         const updateCountdown = () => {
             const remaining =
-                deadline - Date.now();
+                deadline - getStudentExamNow();
 
             badge.innerHTML = `
             <span style="
@@ -24563,7 +24587,7 @@ window.examRecoveryManager = {
         const key = String(assignId || '');
         const tabId =
             String(window.__studentExamTabId);
-        const now = Date.now();
+        const now = getStudentExamNow();
         const requestedLeaseMs =
             Math.min(
                 Math.max(
@@ -24672,7 +24696,7 @@ window.examRecoveryManager = {
         const key = String(assignId || '');
         const tabId =
             String(window.__studentExamTabId);
-        const now = Date.now();
+        const now = getStudentExamNow();
         const ref =
             db.ref(
                 this.globalLockPath()
@@ -24730,7 +24754,7 @@ window.examRecoveryManager = {
         const key = String(assignId || '');
         const tabId =
             String(window.__studentExamTabId);
-        const now = Date.now();
+        const now = getStudentExamNow();
         const ref =
             db.ref(
                 this.globalLockPath()
@@ -24892,7 +24916,7 @@ window.examRecoveryManager = {
                 patch.uiLastReason ??
                 oldMarker.uiLastReason ??
                 '',
-            updatedAtLocal: Date.now()
+            updatedAtLocal: getStudentExamNow()
         };
 
         if (authoritative) {
@@ -25061,6 +25085,7 @@ window.examRecoveryManager = {
             );
         }
 
+        await syncStudentExamClock();
         const globalLock =
             await this.acquireGlobalLock(
                 key,
@@ -25071,7 +25096,7 @@ window.examRecoveryManager = {
             return null;
         }
 
-        const now = Date.now();
+        const now = getStudentExamNow();
         const tabId =
             String(window.__studentExamTabId);
         const ref =
@@ -25385,7 +25410,7 @@ window.examRecoveryManager = {
                                         .ownerLeaseUntil ||
                                     0
                                 ) >
-                                    Date.now();
+                                    getStudentExamNow();
 
                             if (
                                 ownedByOther &&
@@ -25446,7 +25471,7 @@ window.examRecoveryManager = {
         const draft = this.getDraft(key);
         const tabId =
             String(window.__studentExamTabId);
-        const now = Date.now();
+        const now = getStudentExamNow();
         const ref =
             db.ref(this.firebasePath(key));
 
@@ -25617,7 +25642,7 @@ window.examRecoveryManager = {
         const key = String(assignId || '');
         const tabId =
             String(window.__studentExamTabId);
-        const now = Date.now();
+        const now = getStudentExamNow();
         const draft = this.getDraft(key);
         const ref =
             db.ref(this.firebasePath(key));
@@ -25742,25 +25767,16 @@ window.examRecoveryManager = {
     ) {
         const key = String(assignId || '');
 
-        const existingLocal =
-            this.finalizeLeases[key];
-
-        if (
-            existingLocal &&
-            Number(
-                existingLocal.expiresAt || 0
-            ) > Date.now()
-        ) {
-            return existingLocal;
-        }
+        // Tải file có thể kéo dài: xác minh/gia hạn trên Firebase mỗi lần lưu.
+        // Không dùng lại quyền nộp chỉ vì bộ nhớ của tab còn ghi là hợp lệ.
+        await syncStudentExamClock();
 
         let globalLock =
             await this
                 .renewGlobalLock(
                     key,
                     EXAM_FINALIZE_LEASE_MS
-                )
-                .catch(() => null);
+                );
 
         if (!globalLock) {
             globalLock =
@@ -25768,8 +25784,7 @@ window.examRecoveryManager = {
                     .acquireGlobalLock(
                         key,
                         EXAM_FINALIZE_LEASE_MS
-                    )
-                    .catch(() => null);
+                    );
         }
 
         if (!globalLock) {
@@ -25778,7 +25793,7 @@ window.examRecoveryManager = {
 
         const tabId =
             String(window.__studentExamTabId);
-        const now = Date.now();
+        const now = getStudentExamNow();
         const finalizeId =
             createStudentExamRandomId(
                 `finalize_${key}`
@@ -25841,7 +25856,13 @@ window.examRecoveryManager = {
                             now +
                             EXAM_FINALIZE_LEASE_MS,
                         finalizeOwnerTabId: tabId,
-                        finalizeId,
+                        // Gia hạn cùng lượt nộp để auto-submit không đổi mã giữa lúc lưu.
+                        finalizeId:
+                            status === 'finalizing' &&
+                            current.finalizeOwnerTabId === tabId &&
+                            current.finalizeId
+                                ? current.finalizeId
+                                : finalizeId,
                         finalizeLeaseUntil:
                             now +
                             EXAM_FINALIZE_LEASE_MS,
@@ -25933,7 +25954,7 @@ window.examRecoveryManager = {
                     window.__studentExamTabId
                 ) &&
             Number(lease.expiresAt || 0) >
-                Date.now()
+                getStudentExamNow()
         );
     },
 
@@ -25945,13 +25966,11 @@ window.examRecoveryManager = {
         const lease =
             this.finalizeLeases[key];
 
-        delete this.finalizeLeases[key];
-
         if (!lease) return false;
 
         const tabId =
             String(window.__studentExamTabId);
-        const now = Date.now();
+        const now = getStudentExamNow();
         const ref =
             db.ref(this.firebasePath(key));
 
@@ -25985,7 +26004,8 @@ window.examRecoveryManager = {
                                 reason ||
                                 'submit_failed'
                             ),
-                        finalizeOwnerTabId: null,
+                        // Rules yêu cầu giữ chủ sở hữu khi nhả finalize lease còn hạn.
+                        finalizeOwnerTabId: tabId,
                         finalizeId: null,
                         finalizeLeaseUntil: null,
                         finalizeReason: null,
@@ -26000,6 +26020,7 @@ window.examRecoveryManager = {
             );
 
         if (tx.committed) {
+            delete this.finalizeLeases[key];
             this.cacheSession(
                 key,
                 tx.snapshot.val() || {}
@@ -26037,7 +26058,7 @@ window.examRecoveryManager = {
         const key = String(assignId || '');
         const tabId =
             String(window.__studentExamTabId);
-        const now = Date.now();
+        const now = getStudentExamNow();
 
         this.stopHeartbeat(key);
         clearTimeout(
@@ -26199,6 +26220,7 @@ window.restoreInterruptedExam = async function () {
     window.isRestoringExam = true;
 
     try {
+        await syncStudentExamClock();
         /*
          * EXAM GUARD V5:
          * Không còn dựng security state từ localStorage.
@@ -26247,7 +26269,7 @@ window.restoreInterruptedExam = async function () {
             ) === 'active' &&
             Number(
                 globalLock.leaseUntil || 0
-            ) > Date.now() &&
+            ) > getStudentExamNow() &&
             String(
                 globalLock.ownerTabId || ''
             ) !==
@@ -26272,7 +26294,7 @@ window.restoreInterruptedExam = async function () {
                                 globalLock.ownerTabId ||
                                 ''
                             ),
-                        at: Date.now()
+                        at: getStudentExamNow()
                     };
 
                 window
@@ -26403,7 +26425,7 @@ window.restoreInterruptedExam = async function () {
              * Nếu tab khác vẫn đang sở hữu lease/finalize lease thì tab hiện tại
              * không được giành quyền resume.
              */
-            const now = Date.now();
+            const now = getStudentExamNow();
 
             const ownerBusy =
                 String(session.ownerTabId || '') &&
@@ -26547,7 +26569,7 @@ window.restoreInterruptedExam = async function () {
                     )
                     : assignmentEndTime;
 
-            if (Date.now() <= effectiveEndTime) {
+            if (getStudentExamNow() <= effectiveEndTime) {
                 resumableSessions.push({
                     assignment,
                     session
@@ -26556,7 +26578,7 @@ window.restoreInterruptedExam = async function () {
                 timeLimitDeadline &&
                 timeLimitDeadline <=
                     assignmentEndTime &&
-                Date.now() >
+                getStudentExamNow() >
                     timeLimitDeadline
             ) {
                 expiredTimeLimitSessions.push({
@@ -26860,8 +26882,20 @@ window.handleManualExamSubmissionError =
         if (
             typeof window.showToast === 'function'
         ) {
+            const code = String(error?.code || error?.message || 'UNKNOWN_ERROR');
+            let detail = String(error?.message || code);
+            if (/permission[_ -]?denied/i.test(code + ' ' + detail)) {
+                detail = 'Firebase từ chối lưu. Cần kiểm tra rules, quyền tài khoản và trạng thái phiên thi.';
+            } else if (code.includes('EXAM_FINALIZE_LEASE_CONFLICT')) {
+                detail = 'Không lấy được quyền nộp. Phiên có thể đã kết thúc hoặc đang do tab khác giữ.';
+            } else if (/EXAM_ALREADY_(GRADED|SUBMITTED)/.test(code)) {
+                detail = 'Bài đã được nộp hoặc chấm điểm trên Firebase; không thể nộp đè.';
+            } else if (code.includes('EXAM_REDO_NO_LONGER_ACTIVE')) {
+                detail = 'Quyền làm lại đã hết hiệu lực. Hãy liên hệ giáo viên.';
+            }
             window.showToast(
-                'Nộp bài chưa thành công. Bài làm và file đã chọn vẫn được giữ; hãy thử lại.',
+                'Nộp bài chưa thành công: ' + detail.slice(0, 220) +
+                ' Bài làm và file đã chọn vẫn được giữ.',
                 'error'
             );
         }
@@ -27379,6 +27413,7 @@ window.startExamFullscreen = async function (
      * Không dùng cachedSubmissions để quyết định resume.
      */
     try {
+        await syncStudentExamClock();
         const liveSubmission =
             await window
                 .getLiveStudentExamSubmission(
@@ -27425,7 +27460,7 @@ window.startExamFullscreen = async function (
                 .examRecoveryManager
                 .readGlobalLock();
 
-        const now = Date.now();
+        const now = getStudentExamNow();
 
         const anotherExamOwnsGlobalLock =
             globalLock &&
