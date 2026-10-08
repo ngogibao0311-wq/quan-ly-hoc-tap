@@ -1,0 +1,16 @@
+/* Assignment authoring and dedicated quiz editor. */
+html body #teacherDashboard #tab-create>.form-container{padding:24px!important;max-width:1100px!important;margin-inline:auto!important}
+html body #teacherDashboard #tab-create>.form-container>label{display:block;margin:18px 0 7px!important;font-size:14px!important}
+html body #teacherDashboard #tab-create>.form-container>label:first-child{margin-top:0!important}
+html body #teacherDashboard #tab-create .form-row{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px!important;margin:18px 0!important;align-items:start!important}
+html body #teacherDashboard #tab-create .form-group{min-width:0!important;margin:0!important}
+html body #teacherDashboard #tab-create :is(#tracNghiemFields,#tuLuanFields,#videoLinkGroup){border:1px solid var(--campus-line,#dee5f0)!important;border-radius:14px!important;padding:20px!important;margin-top:20px!important;background:#f8faff!important;color:#22314d!important}
+html body #teacherDashboard #tab-create :is(input:not([type=checkbox]):not([type=radio]),select,textarea){padding:11px 13px!important;margin-bottom:10px!important;font-size:14px!important}
+html body #teacherDashboard #tab-create #publishAssignmentButton{width:100%;min-height:48px;margin-top:24px!important}
+.assigned-quiz-actions{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:16px 0}
+@media(max-width:700px){html body #teacherDashboard #tab-create .form-row{grid-template-columns:1fr!important}}
+html body dialog.teacher-quiz-editor{position:fixed!important;inset:0!important;margin:auto!important;padding:0!important;border:0!important;background:transparent!important;width:min(1120px,calc(100vw - 40px))!important;height:min(820px,calc(100dvh - 40px))!important;max-width:none!important;max-height:none!important;overflow:visible!important}
+@media(max-width:650px){html body dialog.teacher-quiz-editor{width:calc(100vw - 16px)!important;height:calc(100dvh - 16px)!important}}
+.teacher-quiz-editor::backdrop{background:#10203a88;backdrop-filter:blur(4px)}
+.authoring-section-title{display:flex;align-items:center;gap:12px;margin:24px 0 18px;padding-top:20px;border-top:1px solid #dce3f0}.authoring-section-title:first-child{margin-top:0;padding-top:0;border-top:0}.authoring-section-title>span{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:#eef0ff;color:#5865d8;font-size:13px;font-weight:800;flex-shrink:0}.authoring-section-title h3{margin:0!important;font-size:17px!important}.authoring-section-title p{margin:4px 0 0;font-size:13px;color:#64748b}
+html body #teacherDashboard #tab-create .form-group:has(#condDay)>div{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px!important;padding:8px!important}html body #teacherDashboard #tab-create .form-group:has(#condDay)>div>span{display:none}html body #teacherDashboard #tab-create :is(#condDay,#condHour,#condMin,#condSec){width:100%!important;min-width:0;padding:10px 6px!important;margin:0!important}
