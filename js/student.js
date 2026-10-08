@@ -24522,10 +24522,19 @@ window.stopExamTimeLimitCountdown = function (
 };
 
 
+window.isObsoleteExamExpiry = function (session, submission, expectedSessionId) {
+    return !session || ['submitted', 'redo_authorized'].includes(session.status) ||
+        (!!expectedSessionId && String(session.sessionId || '') !== expectedSessionId) ||
+        (!!submission && (submission.isRedoing !== true ||
+            Number(submission.redoStartedAt || 0) > Number(session.startedAt || 0)));
+};
+
 window.handleExamTimeLimitExpired =
-    async function (assignId) {
+    async function (assignId, expectedSessionId) {
         const key = String(assignId);
         if (window.isAssignmentTeacherLocked?.(key)) return;
+        const manager = window.examRecoveryManager;
+        const sessionId = expectedSessionId ?? String(manager?.getAuthoritativeSession?.(key)?.sessionId || '');
 
 
         if (
@@ -24541,6 +24550,17 @@ window.handleExamTimeLimitExpired =
         window.stopExamTimeLimitCountdown(key);
         window.setInterruptedExamLock?.(key, true);
 
+        try {
+            // Revalidate every retry: a teacher may have authorized a new attempt.
+            const liveSession = await manager.readAuthoritativeSession(key);
+            const liveSubmission = await window.getLiveStudentExamSubmission(key);
+            if (window.isObsoleteExamExpiry(liveSession, liveSubmission, sessionId)) {
+                window.examTimeLimitExpiredPending[key] = false;
+                manager.stopHeartbeat(key);
+                localStorage.removeItem(manager.markerKey(key));
+                window.setInterruptedExamLock?.(key, false);
+                return;
+            }
         if (
             typeof window.showToast ===
             'function'
@@ -24551,7 +24571,6 @@ window.handleExamTimeLimitExpired =
             );
         }
 
-        try {
             await submitAssignment(
                 key,
                 true,
@@ -24562,6 +24581,7 @@ window.handleExamTimeLimitExpired =
                 false;
 
         } catch (error) {
+            const permissionDenied = /permission[_ -]?denied/i.test(String(error?.code || '') + ' ' + String(error?.message || error));
             console.error(
                 'Không thể tự thu bài khi hết giới hạn thời gian:',
                 error
@@ -24580,14 +24600,16 @@ window.handleExamTimeLimitExpired =
                 'function'
             ) {
                 window.showToast(
-                    'Mất kết nối khi tự thu bài. Bài đã khóa chỉnh sửa. Bản nháp vẫn được giữ và hệ thống sẽ thử lại.',
+                    permissionDenied
+                        ? 'Firebase từ chối quyền tự thu bài. Bản nháp vẫn được giữ và bài vẫn khóa chỉnh sửa. Hãy báo giáo viên kiểm tra phiên thi và Rules.'
+                        : 'Mất kết nối khi tự thu bài. Bài đã khóa chỉnh sửa. Bản nháp vẫn được giữ và hệ thống sẽ thử lại.',
                     'error'
                 );
             }
 
-            setTimeout(() => {
+            if (!permissionDenied) setTimeout(() => {
                 window.handleExamTimeLimitExpired(
-                    key
+                    key, sessionId
                 );
             }, 5000);
 
@@ -25454,14 +25476,14 @@ window.examRecoveryManager = {
                             ),
                         deadlineAt:
                             Number(
-                                existing.deadlineAt ||
+                                existing.deadlineAt ??
                                 this.calculateDeadlineAt(
                                     Number(
                                         existing.startedAt ||
                                         now
                                     ),
                                     assignment
-                                ) ||
+                                ) ??
                                 0
                             ),
                         interruptionCount:
@@ -26557,6 +26579,15 @@ window.restoreInterruptedExam = async function () {
                 !assignment ||
                 assignment.assessmentType !== 'thi'
             ) {
+                continue;
+            }
+
+            // A redo authorization retains old timing for audit, not for recovery.
+            if (session.status === 'redo_authorized') {
+                window.stopExamTimeLimitCountdown(assignId);
+                window.examTimeLimitExpiredPending[assignId] = false;
+                manager.stopHeartbeat(assignId);
+                localStorage.removeItem(manager.markerKey(assignId));
                 continue;
             }
 
