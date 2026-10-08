@@ -1175,6 +1175,28 @@ class PetManager {
             )
             .forEach(node => node.remove());
 
+        // Dọn riêng Mùa Thu cửa hàng thường. Namespace autreg5-* KHÔNG dùng với Luxury autumn3-*.
+        document
+            .querySelectorAll(
+                '.autreg5-local-burst, .autreg5-screen-ultimate'
+            )
+            .forEach(node => node.remove());
+
+        // Dọn riêng Acedia Chibi 850 Coin. Namespace acch1-* không dùng với Acedia sự kiện/Luxury.
+        document
+            .querySelectorAll(
+                '.acch1-local-burst, .acch1-screen-ultimate'
+            )
+            .forEach(node => node.remove());
+
+        document.documentElement.classList.remove(
+            'acch1-screen-active'
+        );
+
+        if (this.container?.dataset) {
+            delete this.container.dataset.acch1SkillLocked;
+        }
+
         // Dọn toàn bộ tương tác và vòng lặp của thú cưng trước
         if (
             typeof PetInteractionManager !== 'undefined' &&
@@ -1194,12 +1216,18 @@ class PetManager {
             'pet-seven-sins-sloth-stage',
             'sloth-dream-release',
             'sloth-domain-casting',
+            'pet-acedia-chibi-stage',
+            'acch1-awakening',
+            'acch1-casting',
             'pet-birthday-serpent-2026-stage',
             'pet-saturn-cassini-stage',
             'pet-rainy-day-stage',
             'pet-spring-vintage-stage',
             'spring-vintage-awakening',
             'spring-vintage-casting',
+            'pet-autreg5-stage',
+            'autreg5-awakening',
+            'autreg5-casting',
             'pet-ha2l-summer-stage',
             'ha2l-awakening',
             'ha2l-casting',
@@ -1356,8 +1384,6 @@ class PetManager {
                 }
             }, { once: true });
             petElement.src = petData.asset || petData.value || fallbackPetAsset;
-            petElement.style.width = '130px';
-            petElement.style.height = 'auto';
             petElement.style.filter = 'drop-shadow(0 5px 15px rgba(0,0,0,0.3))';
         }
         if (petData.petEffect) {
@@ -3984,6 +4010,104 @@ class PetManager {
         }
 
         // =========================================================
+        // ACEDIA · LINH THÚ LƯỜI BIẾNG CHIBI — 850 COIN
+        // Hiệu ứng chỉ quanh pet, namespace acch1-* hoàn toàn riêng.
+        // Không dùng dream realm của Acedia sự kiện và không gọi Luxury runtime.
+        // =========================================================
+        if (
+            petData.id === 'pet_thatdaitoi_luoibieng_chibi_1' ||
+            petData.petEffect === 'acedia-chibi-dream-magic'
+        ) {
+            petElement.setAttribute('draggable', 'false');
+
+            this.container.classList.add(
+                'pet-acedia-chibi-stage',
+                'acch1-awakening'
+            );
+
+            const localRealm = document.createElement('div');
+            localRealm.className = 'acch1-local-realm';
+            localRealm.setAttribute('aria-hidden', 'true');
+
+            localRealm.innerHTML = `
+                <span class="acch1-dream-haze haze-a"></span>
+                <span class="acch1-dream-haze haze-b"></span>
+
+                <span class="acch1-local-sigil">
+                    <i class="acch1-sigil-ring ring-a"></i>
+                    <i class="acch1-sigil-ring ring-b"></i>
+                    <i class="acch1-sigil-ring ring-c"></i>
+                    <b>Ⅶ</b>
+                </span>
+
+                <span class="acch1-moon-crown">☾</span>
+                <span class="acch1-sleep-cloud cloud-a"></span>
+                <span class="acch1-sleep-cloud cloud-b"></span>
+                <span class="acch1-orbit-field"></span>
+            `;
+
+            const orbitField = localRealm.querySelector(
+                '.acch1-orbit-field'
+            );
+
+            for (let index = 0; index < 7; index++) {
+                const rune = document.createElement('i');
+                const angle = index * (360 / 7);
+
+                rune.className = 'acch1-orbit-rune';
+                rune.textContent = index === 6 ? 'Ⅶ' : '✦';
+                rune.style.setProperty(
+                    '--acch1-angle',
+                    `${angle}deg`
+                );
+                rune.style.setProperty(
+                    '--acch1-angle-back',
+                    `${-angle}deg`
+                );
+                rune.style.setProperty(
+                    '--acch1-delay',
+                    `${-index * 0.36}s`
+                );
+
+                orbitField?.appendChild(rune);
+            }
+
+            for (let index = 0; index < 10; index++) {
+                const mote = document.createElement('span');
+
+                mote.className = 'acch1-dream-mote';
+                mote.textContent = index % 3 === 0 ? 'z' : '✧';
+                mote.setAttribute('aria-hidden', 'true');
+                mote.style.setProperty(
+                    '--acch1-x',
+                    `${10 + ((index * 23) % 80)}%`
+                );
+                mote.style.setProperty(
+                    '--acch1-delay',
+                    `${-index * 0.43}s`
+                );
+                mote.style.setProperty(
+                    '--acch1-duration',
+                    `${4.2 + (index % 4) * 0.55}s`
+                );
+                mote.style.setProperty(
+                    '--acch1-size',
+                    `${9 + (index % 4) * 2}px`
+                );
+
+                localRealm.appendChild(mote);
+            }
+
+            this.container.appendChild(localRealm);
+
+            requestAnimationFrame(() => {
+                this.container?.classList.remove(
+                    'acch1-awakening'
+                );
+            });
+        }
+
+        // =========================================================
         // BÉ RẮN PHÚC LỘC 2026
         // Trang trí riêng quanh thú cưng.
         // Hiệu ứng toàn màn hình được tạo sau khi pet đã xuất hiện.
@@ -4369,6 +4493,186 @@ class PetManager {
             });
         }
 
+
+        // =========================================================
+        // MÙA THU · TIỂU PHONG DIỆP — CỬA HÀNG THƯỜNG
+        // Namespace RIÊNG: autreg5-*.
+        // Không gọi ThemeManager/EffectManager và không dùng autumn3-* của Luxury.
+        // Idle chỉ nằm quanh pet; click kích hoạt Ultimate tạm thời toàn màn hình.
+        // =========================================================
+        if (
+            petData.id === 'pet_premium_mua_thu_chibi_3' ||
+            petData.petEffect === 'autreg5-maple-chibi-magic'
+        ) {
+            petElement.setAttribute('draggable', 'false');
+            petElement.classList.add('autreg5-maple-avatar');
+
+            this.container.classList.add('pet-autreg5-stage');
+
+            const realm = document.createElement('div');
+            realm.className = 'autreg5-pet-realm';
+            realm.setAttribute('aria-hidden', 'true');
+            realm.innerHTML = `
+                <span class="autreg5-aura autreg5-aura-outer"></span>
+                <span class="autreg5-aura autreg5-aura-inner"></span>
+                <span class="autreg5-maple-ring autreg5-maple-ring-a"></span>
+                <span class="autreg5-maple-ring autreg5-maple-ring-b"></span>
+                <span class="autreg5-ground-glow"></span>
+                <span class="autreg5-sigil">秋</span>
+                <div class="autreg5-leaf-field"></div>
+                <div class="autreg5-ember-field"></div>
+            `;
+
+            const leafField = realm.querySelector('.autreg5-leaf-field');
+            const leafCount = this.getQualityCount(
+                window.matchMedia?.('(max-width: 768px), (pointer: coarse)').matches
+                    ? 12
+                    : 22,
+                8
+            );
+
+            for (let index = 0; index < leafCount; index++) {
+                const leaf = document.createElement('i');
+                leaf.className = 'autreg5-leaf';
+                leaf.textContent = index % 3 === 0 ? '◆' : '✦';
+                leaf.style.setProperty('--a4-angle', `${(index * 137.5) % 360}deg`);
+                leaf.style.setProperty('--a4-radius', `${48 + (index % 6) * 11}px`);
+                leaf.style.setProperty('--a4-delay', `${-(index % 9) * .47}s`);
+                leaf.style.setProperty('--a4-size', `${5 + (index % 4) * 2}px`);
+                leafField?.appendChild(leaf);
+            }
+
+            const emberField = realm.querySelector('.autreg5-ember-field');
+            const emberCount = this.getQualityCount(18, 7);
+            for (let index = 0; index < emberCount; index++) {
+                const ember = document.createElement('i');
+                ember.className = 'autreg5-ember';
+                ember.style.setProperty('--a4-x', `${8 + (index * 37) % 84}%`);
+                ember.style.setProperty('--a4-y', `${12 + (index * 53) % 72}%`);
+                ember.style.setProperty('--a4-delay', `${-(index % 8) * .51}s`);
+                ember.style.setProperty('--a4-drift', `${10 + (index % 5) * 7}px`);
+                realm.querySelector('.autreg5-ember-field')?.appendChild(ember);
+            }
+
+            this.container.appendChild(realm);
+
+            let autreg5CastLocked = false;
+
+            petElement.addEventListener('click', event => {
+                if (autreg5CastLocked) return;
+
+                if (
+                    typeof PetInteractionManager !== 'undefined' &&
+                    PetInteractionManager.isPetDragging
+                ) {
+                    return;
+                }
+
+                event.preventDefault();
+                event.stopPropagation();
+                autreg5CastLocked = true;
+
+                this.container.classList.remove('autreg5-casting');
+                void this.container.offsetWidth;
+                this.container.classList.add('autreg5-casting');
+
+                const localBurst = document.createElement('div');
+                localBurst.className = 'autreg5-local-burst';
+                localBurst.setAttribute('aria-hidden', 'true');
+
+                const localCount = this.getQualityCount(20, 10);
+                for (let index = 0; index < localCount; index++) {
+                    const shard = document.createElement('i');
+                    shard.textContent = index % 2 === 0 ? '◆' : '✦';
+                    shard.style.setProperty('--a4-burst-angle', `${index * (360 / localCount)}deg`);
+                    shard.style.setProperty('--a4-burst-distance', `${66 + (index % 5) * 15}px`);
+                    shard.style.setProperty('--a4-burst-delay', `${(index % 4) * .035}s`);
+                    localBurst.appendChild(shard);
+                }
+                this.container.appendChild(localBurst);
+
+                document
+                    .querySelectorAll('.autreg5-screen-ultimate')
+                    .forEach(node => node.remove());
+
+                const ultimate = document.createElement('div');
+                ultimate.className = 'autreg5-screen-ultimate';
+                ultimate.setAttribute('aria-hidden', 'true');
+                ultimate.innerHTML = `
+                    <div class="autreg5-ultimate-vignette"></div>
+                    <div class="autreg5-ultimate-sun"></div>
+                    <div class="autreg5-ultimate-gate gate-left"></div>
+                    <div class="autreg5-ultimate-gate gate-right"></div>
+                    <div class="autreg5-ultimate-river"></div>
+                    <div class="autreg5-ultimate-seal">
+                        <span>秋</span>
+                        <small>PHONG DIỆP · THIÊN GIÁNG</small>
+                    </div>
+                    <div class="autreg5-ultimate-leaves"></div>
+                    <div class="autreg5-ultimate-sparks"></div>
+                `;
+
+                const ultimateLeaves = ultimate.querySelector('.autreg5-ultimate-leaves');
+                const screenLeafCount = this.getQualityCount(
+                    window.matchMedia?.('(max-width: 768px), (pointer: coarse)').matches
+                        ? 26
+                        : 54,
+                    16
+                );
+                for (let index = 0; index < screenLeafCount; index++) {
+                    const leaf = document.createElement('i');
+                    leaf.textContent = index % 4 === 0 ? '◆' : '✦';
+                    leaf.style.setProperty('--a4-u-x', `${(index * 47) % 101}%`);
+                    leaf.style.setProperty('--a4-u-y', `${-12 - (index % 7) * 8}vh`);
+                    leaf.style.setProperty('--a4-u-delay', `${(index % 13) * .055}s`);
+                    leaf.style.setProperty('--a4-u-drift', `${-110 + (index % 11) * 24}px`);
+                    leaf.style.setProperty('--a4-u-spin', `${180 + (index % 8) * 70}deg`);
+                    leaf.style.setProperty('--a4-u-size', `${7 + (index % 5) * 3}px`);
+                    ultimateLeaves?.appendChild(leaf);
+                }
+
+                const sparks = ultimate.querySelector('.autreg5-ultimate-sparks');
+                const sparkCount = this.getQualityCount(34, 12);
+                for (let index = 0; index < sparkCount; index++) {
+                    const spark = document.createElement('i');
+                    spark.style.setProperty('--a4-s-x', `${4 + (index * 61) % 92}%`);
+                    spark.style.setProperty('--a4-s-y', `${12 + (index * 43) % 76}%`);
+                    spark.style.setProperty('--a4-s-delay', `${(index % 10) * .08}s`);
+                    sparks?.appendChild(spark);
+                }
+
+                document.body.appendChild(ultimate);
+
+                requestAnimationFrame(() => {
+                    ultimate.classList.add('is-active');
+                });
+
+                window.setTimeout(() => {
+                    ultimate.classList.add('is-climax');
+                }, 900);
+
+                window.setTimeout(() => {
+                    ultimate.classList.add('is-ending');
+                    this.container?.classList.remove('autreg5-casting');
+                }, 3600);
+
+                window.setTimeout(() => {
+                    localBurst.remove();
+                    ultimate.remove();
+                }, 4700);
+
+                window.setTimeout(() => {
+                    autreg5CastLocked = false;
+                }, 5400);
+            });
+
+            requestAnimationFrame(() => {
+                this.container.classList.add('autreg5-awakening');
+                window.setTimeout(() => {
+                    this.container?.classList.remove('autreg5-awakening');
+                }, 1200);
+            });
+        }
 
         // =========================================================
         // LINK CLICK · CHENG XIAOSHI CHIBI — TIME DIVE V2
@@ -5022,6 +5326,25 @@ class PetManager {
             }, true);
         }
 
+        // One size contract for equipped companions, independent of each item's skin.
+        // Height keeps tall portraits comparable; the width cap protects wide artwork.
+        const premiumCompanion = petData.luxuryOnly === true;
+        this.container.dataset.petSizeTier = premiumCompanion ? 'premium' : 'regular';
+        if (petElement.tagName === 'IMG') {
+            petElement.style.setProperty('height', premiumCompanion
+                ? 'min(300px, 38vh, 48vw)' : 'min(160px, 22vh, 36vw)', 'important');
+            petElement.style.setProperty('width', 'auto', 'important');
+            petElement.style.setProperty('max-width', premiumCompanion
+                ? 'min(275px, 42vw)' : 'min(175px, 36vw)', 'important');
+            petElement.style.setProperty('max-height', premiumCompanion
+                ? 'min(300px, 38vh, 48vw)' : 'min(160px, 22vh, 36vw)', 'important');
+            petElement.style.setProperty('object-fit', 'contain', 'important');
+        } else {
+            petElement.style.setProperty('font-size', 'min(100px, 25vw)', 'important');
+        }
+        this.container.style.setProperty('width', 'max-content', 'important');
+        this.container.style.setProperty('height', 'auto', 'important');
+        this.container.style.setProperty('max-width', '70vw', 'important');
         this.container.appendChild(petElement);
 
         // =========================================================
@@ -5130,6 +5453,181 @@ class PetManager {
         // Khôi phục kéo-thả + lưu pet hiện tại như cơ chế cũ.
         this.makePetDraggable();
         localStorage.setItem('active_pet', petData.id);
+
+        // =========================================================
+        // ACEDIA · CHIBI — CLICK ULTIMATE TOÀN MÀN HÌNH
+        // "THẤT TRỌNG MIÊN GIỚI"
+        // Namespace acch1-* độc lập hoàn toàn với seven-sins-sloth-magic/Luxury.
+        // =========================================================
+        if (
+            petData.id === 'pet_thatdaitoi_luoibieng_chibi_1' ||
+            petData.petEffect === 'acedia-chibi-dream-magic'
+        ) {
+            let acch1SkillLocked = false;
+
+            petElement.addEventListener(
+                'click',
+                event => {
+                    if (acch1SkillLocked) return;
+
+                    if (
+                        typeof PetInteractionManager !== 'undefined' &&
+                        PetInteractionManager.isPetDragging
+                    ) {
+                        return;
+                    }
+
+                    event.preventDefault();
+                    event.stopPropagation();
+                    event.stopImmediatePropagation?.();
+
+                    acch1SkillLocked = true;
+
+                    const acch1CastToken =
+                        `${Date.now()}-${Math.random()
+                            .toString(36)
+                            .slice(2, 9)}`;
+
+                    this.container.dataset.acch1SkillLocked =
+                        acch1CastToken;
+
+                    this.container.classList.add('acch1-casting');
+
+                    document
+                        .querySelectorAll(
+                            '.acch1-local-burst, .acch1-screen-ultimate'
+                        )
+                        .forEach(node => node.remove());
+
+                    const localBurst = document.createElement('div');
+                    localBurst.className = 'acch1-local-burst';
+                    localBurst.setAttribute('aria-hidden', 'true');
+
+                    for (let index = 0; index < 14; index++) {
+                        const shard = document.createElement('span');
+                        shard.style.setProperty(
+                            '--acch1-burst-angle',
+                            `${index * (360 / 14)}deg`
+                        );
+                        shard.style.setProperty(
+                            '--acch1-burst-distance',
+                            `${72 + (index % 4) * 18}px`
+                        );
+                        shard.style.setProperty(
+                            '--acch1-burst-delay',
+                            `${(index % 5) * 0.025}s`
+                        );
+                        localBurst.appendChild(shard);
+                    }
+
+                    this.container.appendChild(localBurst);
+
+                    const ultimate = document.createElement('div');
+                    ultimate.className = 'acch1-screen-ultimate';
+                    ultimate.setAttribute('aria-hidden', 'true');
+                    ultimate.innerHTML = `
+                        <div class="acch1-screen-veil"></div>
+                        <div class="acch1-screen-mist mist-a"></div>
+                        <div class="acch1-screen-mist mist-b"></div>
+                        <div class="acch1-screen-eclipse">
+                            <span class="acch1-eclipse-core">Ⅶ</span>
+                            <span class="acch1-eclipse-ring ring-a"></span>
+                            <span class="acch1-eclipse-ring ring-b"></span>
+                            <span class="acch1-eclipse-ring ring-c"></span>
+                        </div>
+                        <div class="acch1-screen-gate">
+                            <span class="acch1-gate-wing wing-left"></span>
+                            <span class="acch1-gate-wing wing-right"></span>
+                            <span class="acch1-gate-seal">☾</span>
+                        </div>
+                        <div class="acch1-seven-field"></div>
+                        <div class="acch1-screen-title">
+                            <small>ACEDIA · SOMNIA VII</small>
+                            <strong>THẤT TRỌNG MIÊN GIỚI</strong>
+                        </div>
+                    `;
+
+                    const sevenField = ultimate.querySelector(
+                        '.acch1-seven-field'
+                    );
+
+                    for (let index = 0; index < 21; index++) {
+                        const rune = document.createElement('span');
+                        rune.textContent =
+                            index % 7 === 6
+                                ? 'Ⅶ'
+                                : index % 3 === 0
+                                    ? '☾'
+                                    : '✦';
+                        const screenAngle =
+                            index * (360 / 21);
+
+                        rune.style.setProperty(
+                            '--acch1-screen-angle',
+                            `${screenAngle}deg`
+                        );
+                        rune.style.setProperty(
+                            '--acch1-screen-angle-back',
+                            `${-screenAngle}deg`
+                        );
+                        rune.style.setProperty(
+                            '--acch1-screen-radius',
+                            `${18 + (index % 7) * 7}vmin`
+                        );
+                        rune.style.setProperty(
+                            '--acch1-screen-delay',
+                            `${(index % 7) * 0.045}s`
+                        );
+                        sevenField?.appendChild(rune);
+                    }
+
+                    document.body.appendChild(ultimate);
+                    document.documentElement.classList.add(
+                        'acch1-screen-active'
+                    );
+
+                    requestAnimationFrame(() => {
+                        ultimate.classList.add('is-active');
+                    });
+
+                    window.setTimeout(() => {
+                        ultimate.classList.add('is-collapse');
+                    }, 2800);
+
+                    window.setTimeout(() => {
+                        ultimate.classList.add('is-ending');
+                    }, 4050);
+
+                    window.setTimeout(() => {
+                        localBurst.remove();
+                        ultimate.remove();
+
+                        const isCurrentCast =
+                            this.container?.dataset
+                                ?.acch1SkillLocked ===
+                            acch1CastToken;
+
+                        if (isCurrentCast) {
+                            document.documentElement.classList.remove(
+                                'acch1-screen-active'
+                            );
+
+                            this.container?.classList.remove(
+                                'acch1-casting'
+                            );
+
+                            delete this.container.dataset
+                                .acch1SkillLocked;
+
+                            acch1SkillLocked = false;
+                        }
+                    }, 5100);
+                },
+                {
+                    signal: this.interactionAbortController?.signal
+                }
+            );
+        }
 
         // =========================================================
         // AETHER · TIỂU THIÊN QUANG — CLICK ULTIMATE TOÀN MÀN HÌNH

@@ -2,6 +2,16 @@ const loginForm = document.getElementById('loginForm');
 let lockoutInterval = null;
 
 
+// Shared inbox lifetime; permanent messages and item lifetimes are independent.
+window.getInboxMessageExpiry = function (message) {
+    const expiry = Number(message?.expiry || 0);
+    if (!Number.isFinite(expiry) || expiry <= 0) return 0;
+    const sentAt = Number(message?.timestamp || 0);
+    return Number.isFinite(sentAt) && sentAt > 0
+        ? Math.min(expiry, sentAt + 3 * 86400000)
+        : expiry;
+};
+
 // ======================================================
 // IMAGE PROTECTION CORE v2 · GLOBAL + DESKTOP + MOBILE
 // - Chạy ngay từ common.js trên cả Giáo viên / Học sinh / Đăng nhập.
@@ -2437,9 +2447,9 @@ window.addEventListener('beforeunload', function () {
 });
 
 window.logout = async function () {
-    const accepted = confirm(
+    const accepted = (await AppDialog.confirm(
         'Bạn có chắc chắn muốn đăng xuất?'
-    );
+    ));
 
     if (!accepted) return;
 
@@ -2524,6 +2534,8 @@ window.applySystemUpdate = function () {
 // HỆ THỐNG THAY ĐỔI GIAO DIỆN (ĐỘC LẬP TỪNG TÀI KHOẢN)
 // ==============================================================
 window.changeTheme = function (themeName, saveToStorage = true) {
+    if (!['default', 'blue', 'green', 'pink'].includes(themeName)) themeName = 'default';
+    document.documentElement.dataset.uiTheme = themeName;
     // 1. Xóa các class theme cũ trên thẻ body
     document.body.classList.remove('theme-blue', 'theme-green', 'theme-pink');
 
@@ -2651,7 +2663,7 @@ window.filterItems = function (containerId, keyword) {
 (() => {
     'use strict';
 
-    const VERSION = '2.0.0';
+    const VERSION = '2.1.0';
     const R2_PROBE_TIMEOUT_MS = 3500;
     const SW_PING_TIMEOUT_MS = 1800;
 
@@ -4230,7 +4242,7 @@ window.filterItems = function (containerId, keyword) {
         const paragraph = card.querySelector('p');
 
         if (heading) {
-            heading.textContent = '🩺 System Health Center 2.0';
+            heading.textContent = '🩺 System Health Center 2.1';
         }
 
         if (paragraph) {
@@ -4243,6 +4255,17 @@ window.filterItems = function (containerId, keyword) {
             'Chỉ đọc trạng thái hệ thống; không sửa hoặc xóa dữ liệu.';
     }
 
+    async function checkResponsiveness() {
+        const started=performance.now();
+        await new Promise(resolve=>setTimeout(resolve,50));
+        const delay=Math.max(0,Math.round(performance.now()-started-50));
+        return row('responsiveness','Độ phản hồi giao diện',delay>200?'warn':'pass','Độ trễ vòng xử lý: '+delay+' ms',delay>200?['Đóng các cửa sổ không dùng và chọn mức thấp trong Tối ưu hiệu năng.']:['Đây là mẫu đo tại thời điểm quét, không phải tốc độ mạng.']);
+    }
+    function checkExamWorkspace() {
+        const exam=window.currentActiveExamId;
+        const full=!!document.fullscreenElement;
+        return row('exam-workspace','Phiên thi và trắc nghiệm',exam&&!full?'warn':'info',exam?(full?'Đang thi trong toàn màn hình.':'Bài thi cần quay lại toàn màn hình.'):'Không có bài thi đang hoạt động.',[window.MCWorkspace?'Bộ trắc nghiệm đã tải.':'Bộ trắc nghiệm chưa tải.',exam&&!full?'Dùng nút Tiếp tục thi; không mở thêm tab làm bài.':'Không thay đổi hay kết thúc phiên thi khi quét.']);
+    }
     async function run() {
         if (state.running) {
             return state.lastResult;
@@ -4259,9 +4282,9 @@ window.filterItems = function (containerId, keyword) {
         );
 
         if (!resultBox || !statusText) {
-            alert(
+            (await AppDialog.alert(
                 'Không tìm thấy vùng hiển thị System Health Center.'
-            );
+            ));
             return null;
         }
 
@@ -4287,10 +4310,10 @@ window.filterItems = function (containerId, keyword) {
                 swResult,
                 r2Row
             ] = await Promise.all([
-                checkAuth(),
-                checkRTDB(),
-                checkServiceWorker(),
-                checkR2()
+                checkAuth().catch(error=>row('auth','Firebase Auth','error',error.message)),
+                checkRTDB().catch(error=>row('rtdb','Firebase Database','error',error.message)),
+                checkServiceWorker().catch(error=>({healthRow:row('sw','Service Worker','warn',error.message),pong:null})),
+                checkR2().catch(error=>row('r2','Cloudflare R2','error',error.message))
             ]);
 
             const rows = [
@@ -4303,7 +4326,9 @@ window.filterItems = function (containerId, keyword) {
                 checkModules(),
                 checkListeners(),
                 checkTimers(),
-                checkDomEffects()
+                checkDomEffects(),
+                await checkResponsiveness(),
+                checkExamWorkspace()
             ];
 
             const scannedAt = Date.now();
@@ -4335,6 +4360,10 @@ window.filterItems = function (containerId, keyword) {
                 scannedAt
             };
 
+            const actions=document.createElement('div');actions.id='diagnosticActions';
+            const download=document.createElement('button');download.type='button';download.textContent='Tải báo cáo chẩn đoán';
+            download.onclick=()=>{const blob=new Blob([JSON.stringify(result,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='chan-doan-he-thong.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
+            actions.append(download);resultBox.append(actions);
             state.lastResult = result;
             return result;
         } catch (error) {
@@ -4370,7 +4399,7 @@ window.filterItems = function (containerId, keyword) {
 
     window.SystemDiagnostics = Object.freeze({
         version: VERSION,
-        name: 'System Health Center 2.0',
+        name: 'System Health Center 2.1',
         readOnly: true,
         run,
         resolvePageRole,
@@ -4638,6 +4667,30 @@ window.clearAutoSave = function (storageKey) {
         window.__filePreviewRegistry || {};
 
     let previewCounter = 0;
+    let previewGeneration = 0;
+    let previewPendingKey = null;
+    // Only retain in-flight document work. Large/private documents are not cached on disk.
+    const docxWork = new Map();
+    function loadDocx(item) {
+        if (docxWork.has(item.url)) return docxWork.get(item.url);
+        const work = (async () => {
+            let buffer;
+            if (item.url.startsWith('data:')) buffer = dataUrlToArrayBuffer(item.url);
+            else {
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 30000);
+                try {
+                    const response = await fetch(item.url, {signal: controller.signal});
+                    if (!response.ok) throw Error('Không tải được DOCX');
+                    buffer = await response.arrayBuffer();
+                } finally { clearTimeout(timeout); }
+            }
+            return window.mammoth.convertToHtml({arrayBuffer: buffer});
+        })();
+        docxWork.set(item.url, work);
+        work.then(() => docxWork.delete(item.url), () => docxWork.delete(item.url));
+        return work;
+    }
 
     // Chống chèn mã HTML vào giao diện
     function escapeHTML(value) {
@@ -5169,13 +5222,16 @@ window.clearAutoSave = function (storageKey) {
         const item = registry[key];
 
         if (!item) {
-            alert(
+            (await AppDialog.alert(
                 'Không tìm thấy dữ liệu tài liệu để mở.'
-            );
+            ));
 
             return;
         }
 
+        if (previewPendingKey === key) return;
+        const generation = ++previewGeneration;
+        previewPendingKey = key;
         const modal = ensureModal();
 
         window.__activePreviewKey = key;
@@ -5282,39 +5338,8 @@ window.clearAutoSave = function (storageKey) {
                 // Ưu tiên dùng Mammoth.js
                 if (window.mammoth) {
                     try {
-                        let arrayBuffer;
-
-                        // DOCX được lưu Base64 trong Firebase
-                        if (
-                            item.url.startsWith(
-                                'data:'
-                            )
-                        ) {
-                            arrayBuffer =
-                                dataUrlToArrayBuffer(
-                                    item.url
-                                );
-                        } else {
-                            // DOCX dạng link công khai
-                            const response =
-                                await fetch(item.url);
-
-                            if (!response.ok) {
-                                throw new Error(
-                                    'Không tải được DOCX'
-                                );
-                            }
-
-                            arrayBuffer =
-                                await response.arrayBuffer();
-                        }
-
-                        const result =
-                            await window.mammoth
-                                .convertToHtml({
-                                    arrayBuffer:
-                                        arrayBuffer
-                                });
+                        const result = await loadDocx(item);
+                        if (generation !== previewGeneration) return;
 
                         const article =
                             document.createElement(
@@ -5342,6 +5367,7 @@ window.clearAutoSave = function (storageKey) {
 
                         return;
                     } catch (docxError) {
+                        if (generation !== previewGeneration) return;
                         console.warn(
                             'Không thể đọc DOCX trực tiếp bằng Mammoth:',
                             docxError
@@ -5458,6 +5484,8 @@ window.clearAutoSave = function (storageKey) {
                     Không thể tải nội dung tài liệu.
                 </div>
             `;
+        } finally {
+            if (generation === previewGeneration) previewPendingKey = null;
         }
     };
 
@@ -5494,7 +5522,7 @@ window.clearAutoSave = function (storageKey) {
                     // Không cần xử lý
                 }
             } else {
-                alert(
+                AppDialog.notify(
                     'Trình duyệt đang chặn cửa sổ mới. Vui lòng cho phép pop-up cho trang này.'
                 );
             }
@@ -5502,6 +5530,8 @@ window.clearAutoSave = function (storageKey) {
 
     // Đóng cửa sổ xem file
     window.closeFilePreview = function () {
+        previewGeneration++;
+        previewPendingKey = null;
         const modal =
             document.getElementById(
                 'universalFilePreviewModal'

@@ -6,6 +6,7 @@ window.__STORE_MANAGER_GUARD_BUILD = '20260918.v2-K2-K3-ownership';
 
 const StoreConfig = {
     items: [
+
         { id: 'theme_ocean', name: 'Đại Dương Xanh', type: 'theme', price: 150, isNonCoin: false, tag: 'Giao diện' },
         { id: 'effect_snow', name: 'Tuyết Mùa Đông', type: 'effect', price: 200, isNonCoin: false, tag: 'Hiệu ứng' },
         { id: 'pet_shiba', name: 'Chó Shiba', type: 'pet', price: 300, isNonCoin: false, tag: 'Thú cưng', value: '🐕', isIcon: true },
@@ -536,7 +537,22 @@ const StoreConfig = {
             isNonCoin: false,
             tag: 'Âm nhạc',
             customIcon: '🎧',
-            musicUrl: 'https://youtu.be/TWX6Eq8v46M?si=xOz5ZQcJmbKI1Paa',
+            musicUrl: 'assets/music/hi-khuc.mp3',
+            musicEngine: 'web-audio',
+            volume: 0.35,
+            loop: true,
+            hideFromMediaControls: true
+        },
+        {
+            id: 'music_quy_linh_01',
+            name: 'Nhạc',
+            type: 'music',
+            price: 350,
+            isNonCoin: false,
+            tag: 'Âm nhạc',
+            customIcon: '🎵',
+            musicUrl: 'assets/music/归零2.0 - Quy Linh (ver2.0) -- Hot Douyin -- Rứa official.mp3',
+            musicEngine: 'web-audio',
             volume: 0.35,
             loop: true,
             hideFromMediaControls: true
@@ -792,6 +808,91 @@ const StoreConfig = {
             acediaIndex: 'VII·FAMILIAR'
         },
         {
+            id: 'pet_thatdaitoi_luoibieng_chibi_1',
+            name: 'Acedia · Linh Thú Lười Biếng Chibi',
+            type: 'pet',
+            price: 850,
+            isNonCoin: false,
+            tag: 'Thất Đại Tội',
+            tags: [
+                'Thất Đại Tội',
+                'Acedia',
+                'Lười Biếng',
+                'Thú cưng'
+            ],
+            value: 'assets/Premium/thất đại tội/lười biếng/luoi_bieng_chipi1.png',
+            isIcon: false,
+
+            /*
+             * PET CỬA HÀNG THƯỜNG · 850 COIN.
+             * Namespace acch1-* hoàn toàn riêng, không dùng seven-sins-sloth-magic
+             * của Acedia sự kiện và không dùng bất kỳ runtime Luxury nào.
+             */
+            petEffect: 'acedia-chibi-dream-magic',
+            disableClickEffect: true
+        },
+        {
+            id: 'effect_thatdaitoi_mien_vu_tinh_da',
+            name: 'Acedia · Miên Vũ Tĩnh Dạ',
+            type: 'effect',
+            price: 900,
+            isNonCoin: false,
+            tag: 'Thất Đại Tội',
+            tags: ['Thất Đại Tội', 'Acedia', 'Lười Biếng', 'Hiệu ứng'],
+            customIcon: '✦'
+        },
+        {
+            id: 'background_thatdaitoi_mien_canh_tinh_da',
+            name: 'Acedia · Miên Cảnh Tĩnh Dạ',
+            type: 'background',
+            price: 150,
+            isNonCoin: false,
+            tag: 'Thất Đại Tội',
+            tags: ['Thất Đại Tội', 'Acedia', 'Lười Biếng', 'Nền'],
+            value: 'assets/Premium/thất đại tội/lười biếng/luoi_bieng_nen1.png',
+            isIcon: false,
+            backgroundFit: 'cover',
+            backgroundPosition: 'center center',
+            backgroundRepeat: 'no-repeat',
+            backgroundAttachment: 'fixed'
+        },
+        {
+            id: 'frame_thatdaitoi_mien_khe_chi_hoan',
+            name: 'Acedia · Miên Khế Chi Hoàn',
+            type: 'frame',
+            price: 250,
+            isNonCoin: false,
+            tag: 'Thất Đại Tội',
+            tags: ['Thất Đại Tội', 'Acedia', 'Lười Biếng', 'Khung viền'],
+            value: 'assets/Premium/thất đại tội/lười biếng/luoi_bieng_khung1.png',
+            isIcon: false,
+            frameEffect: 'acedia-slumber-ring'
+        },
+        {
+            id: 'theme_thatdaitoi_mien_khe_tinh_gioi',
+            name: 'Acedia · Miên Khế Tĩnh Giới',
+            type: 'theme',
+            price: 800,
+            isNonCoin: false,
+            tag: 'Thất Đại Tội',
+            tags: [
+                'Thất Đại Tội',
+                'Acedia',
+                'Lười Biếng',
+                'Giao diện'
+            ],
+            value: 'theme-seven-sins-languor-codex',
+            customIcon: '⌁',
+
+            /*
+             * GIAO DIỆN CỬA HÀNG THƯỜNG · 800 COIN.
+             * Namespace tdtui2-* hoàn toàn riêng.
+             * Không dùng theme-seven-sins-acedia / acedia-palace-* của bộ sự kiện
+             * và không dùng bất kỳ runtime Luxury nào.
+             */
+            themeRuntime: 'tdtui2-languor-codex'
+        },
+        {
             id: 'theme_thatdaitoi_acedia_dream',
             name: 'Mộng Điện Trì Hoãn',
             type: 'theme',
@@ -1008,6 +1109,143 @@ const StoreConfig = {
             tag: 'Cơn mưa',
             value: 'effect_doisong_mua_ngoai_o_cua',
             customIcon: '🌧️'
+        },
+        {
+            id: 'pet_premium_mua_thu_chibi_3',
+            name: 'Tiểu Phong Diệp',
+            type: 'pet',
+            price: 850,
+            isNonCoin: false,
+            tag: 'Mùa thu',
+            value: 'assets/Premium/Bốn mùa/thu_chibi3.png',
+            isIcon: false,
+            petEffect: 'autreg5-maple-chibi-magic',
+            disableClickEffect: true,
+            runtimeCss: 'css/premium-mua-thu.css?v=20261003.cleanup1',
+
+            // ==========================================
+            // MỞ BÁN GIỚI HẠN · MÙA THU
+            // Chỉ ngày 01 → 05 của tháng 09, 10 và 11
+            // ==========================================
+            annualSaleIcon: '🍁',
+            annualSaleTitle:
+                'Chỉ mở bán ngày 01–05 của tháng 09, 10 và 11 hằng năm',
+            annualSaleWindows: [
+                {
+                    startMonth: 9,
+                    startDay: 1,
+                    endMonth: 9,
+                    endDay: 5
+                },
+                {
+                    startMonth: 10,
+                    startDay: 1,
+                    endMonth: 10,
+                    endDay: 5
+                },
+                {
+                    startMonth: 11,
+                    startDay: 1,
+                    endMonth: 11,
+                    endDay: 5
+                }
+            ]
+        },
+        {
+            id: 'theme_mua_thu_phong_diep_kinh_suong',
+            name: 'Phong Diệp Kính Sương',
+            type: 'theme',
+            price: 800,
+            isNonCoin: false,
+            tag: 'Mùa thu',
+            value: 'theme-autumn-frosted-grove',
+            customIcon: '🍁',
+            runtimeCss: 'css/premium-mua-thu.css?v=20261003.cleanup1',
+
+            // MỞ BÁN GIỚI HẠN · 01–05 THÁNG 09, 10, 11
+            annualSaleIcon: '🍁',
+            annualSaleTitle:
+                'Chỉ mở bán ngày 01–05 của tháng 09, 10 và 11 hằng năm',
+            annualSaleWindows: [
+                { startMonth: 9, startDay: 1, endMonth: 9, endDay: 5 },
+                { startMonth: 10, startDay: 1, endMonth: 10, endDay: 5 },
+                { startMonth: 11, startDay: 1, endMonth: 11, endDay: 5 }
+            ]
+        },
+        {
+            id: 'effect_mua_thu_phong_diep_quang_trieu',
+            name: 'Phong Diệp Quang Triều',
+            type: 'effect',
+            price: 900,
+            isNonCoin: false,
+            tag: 'Mùa thu',
+            value: 'effect_mua_thu_phong_diep_quang_trieu',
+            customIcon: '🍂',
+            runtimeCss: 'css/premium-mua-thu.css?v=20261003.cleanup1',
+
+            // MỞ BÁN GIỚI HẠN · 01–05 THÁNG 09, 10, 11
+            annualSaleIcon: '🍁',
+            annualSaleTitle:
+                'Chỉ mở bán ngày 01–05 của tháng 09, 10 và 11 hằng năm',
+            annualSaleWindows: [
+                { startMonth: 9, startDay: 1, endMonth: 9, endDay: 5 },
+                { startMonth: 10, startDay: 1, endMonth: 10, endDay: 5 },
+                { startMonth: 11, startDay: 1, endMonth: 11, endDay: 5 }
+            ]
+        },
+        {
+            id: 'frame_mua_thu_phong_diep_chi_hoan',
+            name: 'Phong Diệp · Lưu Ly Chi Hoàn',
+            type: 'frame',
+            price: 250,
+            isNonCoin: false,
+            tag: 'Mùa thu',
+            value: 'assets/Premium/Bốn mùa/thu_khung3.png',
+            isIcon: false,
+            frameEffect: 'autf1-autumn-maple-ring',
+            runtimeCss: 'css/premium-mua-thu.css?v=20261003.cleanup1',
+
+            // Chỉ mở bán ngày 01–05 tháng 09, 10 và 11 hằng năm
+            annualSaleIcon: '🍁',
+            annualSaleTitle:
+                'Chỉ mở bán ngày 01–05 của tháng 09, 10 và 11 hằng năm',
+            annualSaleWindows: [
+                { startMonth: 9, startDay: 1, endMonth: 9, endDay: 5 },
+                { startMonth: 10, startDay: 1, endMonth: 10, endDay: 5 },
+                { startMonth: 11, startDay: 1, endMonth: 11, endDay: 5 }
+            ]
+        },
+        {
+            id: 'background_mua_thu_phong_lam_mong_canh',
+            name: 'Phong Diệp · Thu Lâm Mộng Cảnh',
+            type: 'background',
+            price: 150,
+            isNonCoin: false,
+            tag: 'Mùa thu',
+            value: 'assets/Premium/Bốn mùa/thu_nen3.png',
+            isIcon: false,
+
+            // Chỉ mở bán ngày 01–05 tháng 09, 10 và 11 hằng năm.
+            annualSaleIcon: '🍁',
+            annualSaleTitle:
+                'Chỉ mở bán ngày 01–05 của tháng 09, 10 và 11 hằng năm',
+            annualSaleWindows: [
+                { startMonth: 9, startDay: 1, endMonth: 9, endDay: 5 },
+                { startMonth: 10, startDay: 1, endMonth: 10, endDay: 5 },
+                { startMonth: 11, startDay: 1, endMonth: 11, endDay: 5 }
+            ],
+
+            /*
+             * NỀN MÙA THU RIÊNG — cấu hình chỉ thuộc item này.
+             * 100vw 100vh: toàn bộ ảnh vừa đúng màn hình, không bị cắt bởi cover.
+             * Không sửa WebBackgroundManager và không thay đổi backgroundFit của nền khác.
+             */
+            backgroundFit: '100vw 100vh',
+            backgroundPosition: 'center center',
+            backgroundRepeat: 'no-repeat',
+            backgroundAttachment: 'fixed',
+            runtimeCss: 'css/premium-mua-thu.css?v=20261003.cleanup1',
+            premiumSuite: 'autbg1-autumn-maple-background-v1'
         },
         {
             id: 'pet_premium_mua_xuan',
@@ -2746,6 +2984,16 @@ const StoreConfig = {
             premiumCard:
                 'linkclick-chibi-memory-card-v1'
         },
+        {"id": "pet_kim_lien_regular_3", "name": "Kim Liên · Tiểu Liên Đồng", "type": "pet", "price": 850, "isNonCoin": false, "tag": "Kim Liên", "tags": ["Kim Liên"], "runtimeCss": "css/premium-kim-lien.css?v=20261008.3", "value": "assets/Premium/Tu tiên/kim_lien_chipi3.png", "asset": "assets/Premium/Tu tiên/kim_lien_chipi3.png", "isIcon": false, "disableClickEffect": true, "petEffect": "kim-lien-regular-dewdrop"},
+        {"id": "theme_kim_lien_regular_3", "name": "Kim Liên · Ngọc Diệp Hiên", "type": "theme", "price": 800, "isNonCoin": false, "tag": "Kim Liên", "tags": ["Kim Liên"], "runtimeCss": "css/premium-kim-lien.css?v=20261008.3", "customIcon": "❖", "value": "theme_kim_lien_regular_3"},
+        {"id": "effect_kim_lien_regular_3", "name": "Kim Liên · Kim Vũ Phù Quang", "type": "effect", "price": 900, "isNonCoin": false, "tag": "Kim Liên", "tags": ["Kim Liên"], "runtimeCss": "css/premium-kim-lien.css?v=20261008.3", "customIcon": "✧", "value": "effect_kim_lien_regular_3"},
+        {"id": "frame_kim_lien_regular_3", "name": "Kim Liên · Liên Hoa Bảo Hoàn", "type": "frame", "price": 250, "isNonCoin": false, "tag": "Kim Liên", "tags": ["Kim Liên"], "runtimeCss": "css/premium-kim-lien.css?v=20261008.3", "value": "assets/Premium/Tu tiên/kim_lien_khung3.png", "asset": "assets/Premium/Tu tiên/kim_lien_khung3.png", "isIcon": false},
+        {"id": "background_kim_lien_regular_3", "name": "Kim Liên · Bích Đàm Kim Liên", "type": "background", "price": 150, "isNonCoin": false, "tag": "Kim Liên", "tags": ["Kim Liên"], "runtimeCss": "css/premium-kim-lien.css?v=20261008.3", "value": "assets/Premium/Tu tiên/kim_lien_nen3.png", "asset": "assets/Premium/Tu tiên/kim_lien_nen3.png", "isIcon": false, "backgroundFit": "cover", "backgroundPosition": "center center", "backgroundRepeat": "no-repeat", "backgroundAttachment": "fixed"},
+        {"id": "pet_hac_mong_regular_2", "name": "Hạc Mộng · Tiểu Vân Hạc", "type": "pet", "price": 850, "isNonCoin": false, "tag": "Hạc Mộng", "tags": ["Hạc Mộng"], "runtimeCss": "css/premium-hac-mong.css?v=20261008.regular1", "value": "assets/Premium/Tu tiên/hac_mong_chipi2.png", "asset": "assets/Premium/Tu tiên/hac_mong_chipi2.png", "isIcon": false, "disableClickEffect": true, "petEffect": "hac-mong-regular-cloud"},
+        {"id": "theme_hac_mong_regular_2", "name": "Hạc Mộng · Thanh Vân Các", "type": "theme", "price": 800, "isNonCoin": false, "tag": "Hạc Mộng", "tags": ["Hạc Mộng"], "runtimeCss": "css/premium-hac-mong.css?v=20261008.regular1", "customIcon": "☁", "value": "theme_hac_mong_regular_2"},
+        {"id": "effect_hac_mong_regular_2", "name": "Hạc Mộng · Vũ Thư Phiêu Vân", "type": "effect", "price": 900, "isNonCoin": false, "tag": "Hạc Mộng", "tags": ["Hạc Mộng"], "runtimeCss": "css/premium-hac-mong.css?v=20261008.regular1", "customIcon": "〰", "value": "effect_hac_mong_regular_2"},
+        {"id": "frame_hac_mong_regular_2", "name": "Hạc Mộng · Vân Vũ Ngọc Hoàn", "type": "frame", "price": 250, "isNonCoin": false, "tag": "Hạc Mộng", "tags": ["Hạc Mộng"], "runtimeCss": "css/premium-hac-mong.css?v=20261008.regular1", "value": "assets/Premium/Tu tiên/hac_mong_khung2.png", "asset": "assets/Premium/Tu tiên/hac_mong_khung2.png", "isIcon": false},
+        {"id": "background_hac_mong_regular_2", "name": "Hạc Mộng · Vân Hải Tĩnh Cảnh", "type": "background", "price": 150, "isNonCoin": false, "tag": "Hạc Mộng", "tags": ["Hạc Mộng"], "runtimeCss": "css/premium-hac-mong.css?v=20261008.regular1", "value": "assets/Premium/Tu tiên/hac_mong_nen2.png", "asset": "assets/Premium/Tu tiên/hac_mong_nen2.png", "isIcon": false, "backgroundFit": "cover", "backgroundPosition": "center center", "backgroundRepeat": "no-repeat", "backgroundAttachment": "fixed"},
     ]
 };
 
@@ -2767,7 +3015,7 @@ const FRAME_RUNTIME_CSS_BY_ITEM_ID = Object.freeze({
         'css/premium-mua-xuan.css?v=20260917.frame-runtime-barrier-v1'
     ]),
     frame_quoc_khanh_viet_dieu_quoc_an: Object.freeze([
-        'css/quoc-khanh-pet.css?v=20260917.frame-runtime-barrier-v1'
+        'css/quoc-khanh-pet.css?v=20261003.cleanup1'
     ]),
     frame_tamon_bside_signal_ring: Object.freeze([
         'css/tamon-b-side.css?v=20260917.bmask-frame-selfcontained-v1'
@@ -2786,10 +3034,10 @@ const FRAME_RUNTIME_CSS_BY_ITEM_ID = Object.freeze({
         'css/cam-co-cam-mong.css?v=20260917.frame-runtime-barrier-v1'
     ]),
     frame_trung_thu_chu_cuoi_que_anh_chi_hoan: Object.freeze([
-        'css/trung-thu-nguyet-cung.css?v=20260917.frame-runtime-barrier-v1'
+        'css/trung-thu-nguyet-cung.css?v=20261003.cleanup1'
     ]),
     frame_trung_thu_nguyet_que_hoa_hoan: Object.freeze([
-        'css/trung-thu-nguyet-cung.css?v=20260917.frame-runtime-barrier-v1'
+        'css/trung-thu-nguyet-cung.css?v=20261003.cleanup1'
     ]),
     frame_linkclick_cheng_xiaoshi_time_window: Object.freeze([
         'css/link-click-cheng-xiaoshi.css?v=20260917.frame-runtime-barrier-v1'
@@ -2895,12 +3143,12 @@ function ensureStarryNightChibiStylesheet() {
 
 class StoreManager {
     static getItemsByType(type) {
-        if (type === 'all') return StoreConfig.items;
-        return StoreConfig.items.filter(item => item.type === type);
+        return StoreConfig.items.filter(item => type === 'all' || item.type === type)
+            .sort((a, b) => Number(a.id.endsWith('_kim_lien_regular_3')) - Number(b.id.endsWith('_kim_lien_regular_3')));
     }
 
     static getItemById(id) {
-        return StoreConfig.items.find(item => item.id === id);
+        return window.CollectionRewards?.getItem(id) || StoreConfig.items.find(item => item.id === id);
     }
 
     static getAnnualSaleState(item, now = new Date()) {
@@ -3090,7 +3338,7 @@ class StoreManager {
         }
 
         if (item.isLocked === true) {
-            window.alert(
+            AppDialog.notify(
                 `🔒 ${item.name} đang bị Giáo viên khóa.`
             );
             return;
@@ -3109,7 +3357,7 @@ class StoreManager {
             saleState.hasAnnualSale &&
             !saleState.isOpen
         ) {
-            window.alert(
+            AppDialog.notify(
                 `${item.name} chỉ mở bán từ ` +
                 `${saleState.windowLabel} hằng năm.\n\n` +
                 `Đợt mở bán tiếp theo: ${saleState.nextOpenLabel}.`
@@ -3134,7 +3382,7 @@ class StoreManager {
             return;
         }
 
-        purchaseHandler(itemId, isUpgrade);
+        return purchaseHandler(itemId, isUpgrade);
     }
 
     /*
@@ -3151,7 +3399,7 @@ class StoreManager {
         }
 
         if (item.isLocked === true) {
-            window.alert(
+            AppDialog.notify(
                 `🔒 ${item.name} đang bị Giáo viên khóa.`
             );
             return;
@@ -3164,7 +3412,7 @@ class StoreManager {
             saleState.hasAnnualSale &&
             !saleState.isOpen
         ) {
-            window.alert(
+            AppDialog.notify(
                 `${item.name} hiện chưa mở bán.\n\n` +
                 `Thời gian: ${saleState.windowLabel} hằng năm.\n` +
                 `Mở lại: ${saleState.nextOpenLabel}.`
@@ -3189,7 +3437,7 @@ class StoreManager {
             return;
         }
 
-        trialHandler(itemId);
+        return trialHandler(itemId);
     }
 
     static applyItem(itemId) {
@@ -3202,14 +3450,14 @@ class StoreManager {
             typeof window.studentStoreCanUseItemSync === 'function' &&
             window.studentStoreCanUseItemSync(itemId) !== true
         ) {
-            window.alert('⛔ Bạn chưa sở hữu vật phẩm này.');
+            AppDialog.notify('⛔ Bạn chưa sở hữu vật phẩm này.');
             return false;
         }
 
         // Chặn trang bị từ mọi đường dẫn khi Giáo viên đã khóa vật phẩm.
         // Không ảnh hưởng thao tác Gỡ vật phẩm đang mặc.
         if (item.isLocked === true) {
-            window.alert(
+            AppDialog.notify(
                 `🔒 ${item.name} đang bị Giáo viên khóa, không thể sử dụng.`
             );
             return false;
@@ -3270,9 +3518,12 @@ class StoreManager {
             'Sinh nhật 2026': 'tag-sinh-nhat-2026',
             'Cơn mưa': 'tag-con-mua',
             'Mùa xuân': 'tag-mua-xuan',
+            'Mùa thu': 'tag-mua-thu-regular',
             'Mùa Hạ': 'tag-mua-ha-limited',
             '2/9': 'tag-quoc-khanh-2-9',
             'Cầm Mộng': 'tag-cam-mong-chibi',
+            'Kim Liên': 'tag-kim-lien-regular',
+            'Hạc Mộng': 'tag-hac-mong-regular',
             'Trung thu': 'tag-trung-thu-chibi',
             'Link Click': 'tag-link-click-chibi',
             'Đêm đầy sao': 'tag-starry-night-chibi',
@@ -3694,6 +3945,16 @@ class StoreManager {
             'background_premium_mua_xuan_hoa_mong'
         ]);
 
+        // MÙA THU · CỬA HÀNG THƯỜNG — card riêng, DOM/bố cục vẫn dùng store-item-card chuẩn.
+        // Namespace/card group này KHÔNG dùng chung với pet_luxury_mua_thu.
+        const premiumAutumnRegularIds = new Set([
+            'pet_premium_mua_thu_chibi_3',
+            'theme_mua_thu_phong_diep_kinh_suong',
+            'effect_mua_thu_phong_diep_quang_trieu',
+            'frame_mua_thu_phong_diep_chi_hoan',
+            'background_mua_thu_phong_lam_mong_canh'
+        ]);
+
         const premiumSummerLimitedIds = new Set([
             'pet_premium_mua_ha_chibi_2',
             'theme_mua_ha_ha_quang_luu_ly',
@@ -3757,6 +4018,18 @@ class StoreManager {
             'pet_thatdaitoi_luoibieng_1',
             'theme_thatdaitoi_acedia_dream',
             'effect_thatdaitoi_acedia_domain'
+        ]);
+
+        /*
+         * ACEDIA · CHIBI — pet 850 Coin ở CỬA HÀNG THƯỜNG.
+         * Card riêng hoàn toàn: không dùng skin/tag của bộ relic Acedia sự kiện.
+         */
+        const sevenSinsSlothChibiIds = new Set([
+            'pet_thatdaitoi_luoibieng_chibi_1',
+            'theme_thatdaitoi_mien_khe_tinh_gioi',
+            'frame_thatdaitoi_mien_khe_chi_hoan',
+            'background_thatdaitoi_mien_canh_tinh_da',
+            'effect_thatdaitoi_mien_vu_tinh_da'
         ]);
 
         const birthday2026Ids = new Set([
@@ -3899,6 +4172,15 @@ class StoreManager {
 
         let specialCardGroup = '';
         let isThemeImmune = false;
+        if (item.id.endsWith('_hac_mong_regular_2')) {
+            cardClasses.push('hmr-card', 'store-theme-locked', 'ui-theme-immune');
+            specialCardGroup = 'hac-mong-regular'; isThemeImmune = true;
+        }
+        if (item.id.endsWith('_kim_lien_regular_3')) {
+            cardClasses.push('klr-card', 'store-theme-locked', 'ui-theme-immune');
+            specialCardGroup = 'kim-lien-regular';
+            isThemeImmune = true;
+        }
 
         /* TAMON'S B-SIDE · CHIBI — card riêng nhưng giữ nguyên bố cục chuẩn */
         if (tamonBsideChibiIds.has(item.id)) {
@@ -3948,6 +4230,18 @@ class StoreManager {
             );
 
             specialCardGroup = 'premium-spring';
+            isThemeImmune = true;
+        }
+
+        /* MÙA THU · CỬA HÀNG THƯỜNG — skin riêng, tuyệt đối không đổi DOM/bố cục card. */
+        if (premiumAutumnRegularIds.has(item.id)) {
+            cardClasses.push(
+                'store-card-autumn-regular',
+                'store-theme-locked',
+                'ui-theme-immune'
+            );
+
+            specialCardGroup = 'autumn-regular';
             isThemeImmune = true;
         }
 
@@ -4133,6 +4427,19 @@ class StoreManager {
             );
 
             specialCardGroup = 'seven-sins-sloth';
+            isThemeImmune = true;
+        }
+
+        /* Hai vật phẩm Acedia thường dùng chung thẻ Chibi và tag Thất Đại Tội. */
+        if (sevenSinsSlothChibiIds.has(item.id)) {
+            cardClasses.push(
+                'store-card-acedia-chibi-reverie',
+                'store-theme-locked',
+                'ui-theme-immune'
+            );
+
+            tagClass = 'tag-that-dai-toi';
+            specialCardGroup = 'seven-sins-acedia-chibi';
             isThemeImmune = true;
         }
 
@@ -5165,6 +5472,9 @@ class StoreManager {
     function repairFrame(itemOrId) {
         if (window.isStudentStoreGameAccessEnabled?.() === false) return false;
         const item = getItem(itemOrId);
+        if (item && typeof myInventory !== 'undefined' && Array.isArray(myInventory) &&
+            !myInventory.some(entry => String(entry?.id) === String(item.id) && entry.isEquipped === true &&
+                !(entry.isTrial === true && Number(entry.trialExpiry || 0) <= Date.now()))) return false;
 
         if (!isTarget(item)) {
             return false;
@@ -5687,6 +5997,9 @@ class StoreManager {
     function repairFrame(itemOrId) {
         if (window.isStudentStoreGameAccessEnabled?.() === false) return false;
         const item = getItem(itemOrId);
+        if (item && typeof myInventory !== 'undefined' && Array.isArray(myInventory) &&
+            !myInventory.some(entry => String(entry?.id) === String(item.id) && entry.isEquipped === true &&
+                !(entry.isTrial === true && Number(entry.trialExpiry || 0) <= Date.now()))) return false;
         if (!isTarget(item)) return false;
 
         ensureLayer(
@@ -6131,6 +6444,9 @@ class StoreManager {
     function repairFrame(itemOrId) {
         if (window.isStudentStoreGameAccessEnabled?.() === false) return false;
         const item = getItem(itemOrId);
+        if (item && typeof myInventory !== 'undefined' && Array.isArray(myInventory) &&
+            !myInventory.some(entry => String(entry?.id) === String(item.id) && entry.isEquipped === true &&
+                !(entry.isTrial === true && Number(entry.trialExpiry || 0) <= Date.now()))) return false;
 
         if (!isTarget(item)) {
             return false;
@@ -6583,6 +6899,9 @@ class StoreManager {
     function repairFrame(itemOrId) {
         if (window.isStudentStoreGameAccessEnabled?.() === false) return false;
         const item = getItem(itemOrId);
+        if (item && typeof myInventory !== 'undefined' && Array.isArray(myInventory) &&
+            !myInventory.some(entry => String(entry?.id) === String(item.id) && entry.isEquipped === true &&
+                !(entry.isTrial === true && Number(entry.trialExpiry || 0) <= Date.now()))) return false;
         if (!isTarget(item)) return false;
 
         ensureLayer(
@@ -6733,3 +7052,92 @@ class StoreManager {
     }
 })();
 
+
+
+// STORE_CONCURRENCY_V2: shared by student.js and teacher.js.
+// The matching database.rules.json is required; denied writes fail closed.
+window.StoreConcurrency = (() => {
+    const validKey = value => typeof value === 'string' && value.length > 0 &&
+        !/[.#$\[\]\/]/.test(value);
+    function online() {
+        if (window.isOffline || navigator.onLine === false) throw new Error('STORE_OFFLINE');
+    }
+    async function charge(username, itemId, operation, kind, amount, patch, coupon = null) {
+        online();
+        if (!validKey(username) || !validKey(String(itemId)) || !validKey(operation.operationId) ||
+            !Number.isFinite(amount) || amount < 0 || amount > 999999) throw new Error('INVALID_AMOUNT');
+        const table = kind === 'trial' ? 'store_trial_claims' : 'store_purchase_ops';
+        const updates = {};
+        for (const [key, value] of Object.entries(patch)) updates[`${table}/${username}/${itemId}/${key}`] = value;
+        updates[`store_charge_receipts/${username}/${operation.operationId}`] = {
+            version: 1, itemId: String(itemId), kind, amount, createdAt: Date.now(),
+            ...(coupon ? { discountKey: coupon.key, percent: coupon.percent } : {})
+        };
+        if (amount > 0) updates[`student_coins/${username}`] = firebase.database.ServerValue.increment(-amount);
+        if (coupon) {
+            const prefix = `student_discounts/${username}/${coupon.key}`;
+            updates[`${prefix}/isUsed`] = true;
+            updates[`${prefix}/usedAt`] = Date.now();
+            updates[`${prefix}/usedForItem`] = String(itemId);
+            updates[`${prefix}/usedTransactionId`] = operation.operationId;
+        }
+        // Never retry this increment. On reconnect, recover the saved item grant instead.
+        await db.ref().update(updates);
+    }
+    async function equipment(username, itemId, equip, lookup, canContinue = () => true) {
+        online();
+        if (!validKey(username) || !validKey(String(itemId))) throw new Error('INVALID_ITEM');
+        const revisionRef = db.ref(`store_equipment_revisions/${username}`);
+        const inventoryRef = db.ref(`student_inventory/${username}`);
+        const exempt = item => ['frame', 'music'].includes(String(item?.type || ''));
+        for (let attempt = 0; attempt < 6; attempt++) {
+            // Read revision FIRST: any later concurrent equipment commit invalidates this snapshot.
+            const revision = Number((await revisionRef.once('value')).val() || 0);
+            if (!Number.isSafeInteger(revision) || revision < 0) throw new Error('INVALID_EQUIPMENT_REVISION');
+            const inventory = (await inventoryRef.once('value')).val() || {};
+            if (!canContinue()) return false;
+            const target = lookup(itemId);
+            if (!target || (equip && target.isLocked === true)) return false;
+            const specialBackground = entry => entry?.source === 'collection_reward' &&
+                String(entry.id || '').startsWith('reward_bg_') && entry.isTrial !== true;
+            const targetSpecial = Object.values(inventory).some(entry => String(entry?.id) === String(itemId) && specialBackground(entry));
+            const activeSpecial = Object.values(inventory).find(entry => specialBackground(entry) && entry.isEquipped === true);
+            // Never silently remove an active special background when equipping a shop item.
+            // Re-evaluate after every revision conflict, including changes from other tabs.
+            if (equip && activeSpecial && String(activeSpecial.id) !== String(itemId) &&
+                (target.type === 'background' || target.luxuryOnly === true)) {
+                const message = 'Hãy vào Phần thưởng và bấm Tháo nền đặc biệt trước khi mặc nền khác hoặc vật phẩm cửa hàng sang trọng.';
+                if (typeof window.showToast === 'function') window.showToast(message, 'error'); else (await AppDialog.alert(message));
+                return false;
+            }
+            const matches = Object.entries(inventory).filter(([, entry]) => String(entry?.id) === String(itemId));
+            const usable = matches.filter(([, entry]) => entry.isTrial !== true ||
+                (Number.isFinite(Number(entry.trialExpiry)) && Number(entry.trialExpiry) > Date.now()));
+            if (!matches.length || (equip && !usable.length)) return false;
+            const chosenKey = (usable.find(([key]) => key === String(itemId)) || usable[0])?.[0];
+            const updates = { [`store_equipment_revisions/${username}`]: revision + 1 };
+            for (const [key, entry] of Object.entries(inventory)) {
+                if (!entry) continue;
+                const definition = lookup(entry.id);
+                const sameId = String(entry.id) === String(itemId);
+                const conflict = equip && ((targetSpecial && (definition?.luxuryOnly === true || definition?.type === 'background' || entry.type === 'background')) || (definition && (definition.type === target.type ||
+                    (!exempt(definition) && !exempt(target) &&
+                        Boolean(definition.luxuryOnly) !== Boolean(target.luxuryOnly)))));
+                if (!sameId && !conflict) continue;
+                const next = sameId && equip && key === chosenKey;
+                if (entry.isEquipped !== next) updates[`student_inventory/${username}/${key}/isEquipped`] = next;
+            }
+            if (!canContinue()) return false;
+            try {
+                await db.ref().update(updates);
+                return true;
+            } catch (error) {
+                if (!/permission.denied/i.test(String(error.code || error.message))) throw error;
+                const latestRevision = Number((await revisionRef.once('value')).val() || 0);
+                if (latestRevision === revision) throw error; // Rules/auth error, not a race.
+            }
+        }
+        throw new Error('EQUIPMENT_BUSY');
+    }
+    return { charge, equipment };
+})();

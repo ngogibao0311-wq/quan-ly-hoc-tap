@@ -2,7 +2,9 @@
 
 class ThemeManager {
     static themes = {
-        'default': { primary: '#667eea', secondary: '#764ba2', background: '#f4f7f6', className: '' },
+        theme_hac_mong_regular_2: {primary:'#397d8a',secondary:'#adcdd0',background:'#eff5f7',className:'theme-hac-mong-regular'},
+        theme_kim_lien_regular_3: { primary:'#397567', secondary:'#b38a3c', background:'#edf4ef', className:'theme-kim-lien-regular' },
+        'default': { primary: '#5865d8', secondary: '#5865d8', background: '#f4f6fb', className: '' },
         'theme_ocean': { primary: '#4facfe', secondary: '#00f2fe', background: '#e0f7fa', className: '' },
         'theme_cotich': {
             primary: '#d4af37',     // Vàng hoàng gia
@@ -111,6 +113,18 @@ class ThemeManager {
             background: '#0b0712',
             className: 'theme-seven-sins-acedia'
         },
+
+        // =========================================================
+        // THẤT ĐẠI TỘI · ACEDIA · MIÊN KHẾ TĨNH GIỚI
+        // Theme cửa hàng thường 800 Coin, namespace tdtui2-* riêng hoàn toàn.
+        // Không dùng acedia-palace-* / theme-seven-sins-acedia của bộ sự kiện.
+        // =========================================================
+        'theme_thatdaitoi_mien_khe_tinh_gioi': {
+            primary: '#665378',
+            secondary: '#b6a7c4',
+            background: '#ece9ef',
+            className: 'theme-seven-sins-languor-codex'
+        },
         'theme_he_mat_troi_sinh_quyen': {
             primary: '#36d6c3',
             secondary: '#ffbd45',
@@ -162,6 +176,18 @@ class ThemeManager {
             secondary: '#2f9f9a',
             background: '#f7f2d8',
             className: 'theme-summer-prismatic-garden'
+        },
+
+        // =========================================================
+        // MÙA THU · PHONG DIỆP KÍNH SƯƠNG
+        // Runtime riêng hoàn toàn: auttheme8-*
+        // Không dùng autumn3-*, autumn4-*, autreg5-* của các vật phẩm cũ.
+        // =========================================================
+        'theme_mua_thu_phong_diep_kinh_suong': {
+            primary: '#d36a32',
+            secondary: '#496a5d',
+            background: '#e9eee8',
+            className: 'theme-autumn-frosted-grove'
         },
         // =========================================================
         // QUỐC KHÁNH 2/9
@@ -274,7 +300,9 @@ class ThemeManager {
     // Những popup phải giữ giao diện riêng,
     // không nhận CSS từ vật phẩm giao diện.
     static themeImmunePopupSelectors = Object.freeze([
-        '[data-theme-immune="true"]'
+        '[data-theme-immune="true"]',
+        '.modal-overlay', '.student-modal-overlay', 'dialog',
+        '.ql-toolbar', '.ql-container', '.mcw2-overlay'
     ]);
 
     /* =========================================================
@@ -286,6 +314,21 @@ class ThemeManager {
    ========================================================= */
 
     static specialStoreCardGroups = Object.freeze({
+        'hacmong2-premium': Object.freeze({ itemIds: Object.freeze(['pet_hac_mong_2']), className: 'hacmong2-card' }),
+        'autumn3-premium': Object.freeze({
+            itemIds: Object.freeze(['pet_luxury_mua_thu']),
+            className: 'autumn3-card'
+        }),
+        'autumn-regular': Object.freeze({
+            itemIds: Object.freeze([
+                'pet_premium_mua_thu_chibi_3',
+                'theme_mua_thu_phong_diep_kinh_suong',
+                'effect_mua_thu_phong_diep_quang_trieu',
+                'frame_mua_thu_phong_diep_chi_hoan',
+                'background_mua_thu_phong_lam_mong_canh'
+            ]),
+            className: 'store-card-autumn-regular'
+        }),
         'amon-trinity': Object.freeze({
             itemIds: Object.freeze([
                 'pet_lotm_amon',
@@ -338,6 +381,20 @@ class ThemeManager {
 
             className:
                 'store-card-seven-sins-sloth'
+        }),
+
+        /*
+         * Acedia Chibi 850 Coin: cùng nhãn Thất Đại Tội nhưng card độc lập.
+         * Đăng ký tại ThemeManager để preserveSpecialStoreCards() luôn khôi phục
+         * class miễn nhiễm sau khi đổi giao diện.
+         */
+        'seven-sins-acedia-chibi': Object.freeze({
+            itemIds: Object.freeze([
+                'pet_thatdaitoi_luoibieng_chibi_1',
+                'theme_thatdaitoi_mien_khe_tinh_gioi',
+                'effect_thatdaitoi_mien_vu_tinh_da'
+            ]),
+            className: 'store-card-acedia-chibi-reverie'
         }),
 
         /* Bộ Thần Hệ Tinh Vân */
@@ -1021,6 +1078,41 @@ class ThemeManager {
         document.documentElement.classList.add(
             'acedia-palace-mounted'
         );
+
+        requestAnimationFrame(() => {
+            decor.classList.add('is-mounted');
+        });
+    }
+
+    // =========================================================
+    // THẤT ĐẠI TỘI · MIÊN KHẾ TĨNH GIỚI — DECOR RUNTIME RIÊNG
+    // Namespace tdtui2-*; không dùng acedia-palace-* của theme sự kiện.
+    // =========================================================
+    static clearSevenSinsLanguorCodexDecor() {
+        document
+            .getElementById('tdtui2-languor-codex')
+            ?.remove();
+
+        document.documentElement.classList.remove(
+            'tdtui2-mounted'
+        );
+    }
+
+    static createSevenSinsLanguorCodexDecor() {
+        this.clearSevenSinsLanguorCodexDecor();
+
+        if (!document.body) return;
+
+        const decor = document.createElement('div');
+        decor.id = 'tdtui2-languor-codex';
+        decor.className = 'tdtui2-languor-codex';
+        decor.setAttribute('aria-hidden', 'true');
+
+        // Một lớp ánh màu nhẹ, không sinh hạt hoặc thay bố cục nội dung.
+        decor.innerHTML = '<div class="tdtui2-dream-glow"></div>';
+
+        document.body.prepend(decor);
+        document.documentElement.classList.add('tdtui2-mounted');
 
         requestAnimationFrame(() => {
             decor.classList.add('is-mounted');
@@ -1956,6 +2048,7 @@ class ThemeManager {
     static applyTheme(themeId) {
         this.initThemePopupIsolation();
         this.clearAcediaPalaceDecor();
+        this.clearSevenSinsLanguorCodexDecor();
         this.clearTamonBsideBackstageDecor();
         this.clearCamMongThanhHuyenDecor();
         this.clearMidAutumnLanternFestivalDecor();
@@ -1974,8 +2067,16 @@ class ThemeManager {
             this.ensureStarryNightPaintedGalleryStylesheet();
         }
 
-        const theme = this.themes[themeId] || this.themes['default'];
+        const resolvedThemeId =
+            Object.prototype.hasOwnProperty.call(this.themes, themeId)
+                ? themeId
+                : 'default';
+        const theme = this.themes[resolvedThemeId];
         const root = document.documentElement;
+
+        // Marker duy nhất cho giao diện đang hoạt động.
+        // Không đụng các class runtime của pet/effect; chỉ cô lập skin giao diện.
+        root.dataset.activeThemeId = resolvedThemeId;
 
         // Áp dụng biến màu sắc CSS
         root.style.setProperty('--primary-color', theme.primary);
@@ -2007,6 +2108,13 @@ class ThemeManager {
             'theme_thatdaitoi_acedia_dream'
         ) {
             this.createAcediaPalaceDecor();
+        }
+
+        if (
+            themeId ===
+            'theme_thatdaitoi_mien_khe_tinh_gioi'
+        ) {
+            this.createSevenSinsLanguorCodexDecor();
         }
 
         if (
@@ -2045,7 +2153,7 @@ class ThemeManager {
         }
 
         // Lưu lựa chọn vào bộ nhớ trình duyệt
-        localStorage.setItem('active_theme', themeId);
+        localStorage.setItem('active_theme', resolvedThemeId);
         requestAnimationFrame(() => {
             this.preserveSpecialStoreCards(
                 document

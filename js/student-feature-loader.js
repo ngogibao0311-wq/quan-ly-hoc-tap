@@ -46,7 +46,7 @@
 
     if (window.StudentFeatureLoader) return;
 
-    const VERSION = '3.4.7-equipped-rehydrate-v2';
+    const VERSION = '3.6.0-autumn-four-effects-restored-v1';
 
     const cssPromises = new Map();
     const scriptPromises = new Map();
@@ -58,58 +58,62 @@
     let storeCardCssPinned = false;
 
     const CSS = Object.freeze({
-        storeBase: 'css/store-items.css?v=20260917.frame-runtime-barrier-v1',
+        storeBase: 'css/store-items.css?v=20261003.fonts1',
         effectsBase: 'css/effects-pets.css?v=20260917.frame-runtime-barrier-v1',
 
         royalBall: 'css/royal-ball.css?v=3.8',
         dailyLogin: 'css/daily-login.css?v=3.8',
         leaderboard: 'css/leaderboard.css?v=20260905.redo-scope-v1',
-        painting: 'css/painting.css?v=3.8',
+        painting: 'css/painting.css?v=20261001.ui8',
         history: 'css/lich-su-hao-hung.css?v=20260831.1',
         bellum: 'css/bellum-event.css?v=20260912.4',
         midAutumnFestival: 'css/mid-autumn-festival.css?v=20260914.4-balanced-games',
 
-        collections: 'css/store-collections.css?v=20260908.four-seasons-lock-v1',
-        luxury: 'css/luxury-store.css?v=3.8',
-        camMong: 'css/cam-co-cam-mong.css?v=20260917.frame-runtime-barrier-v1',
-        midAutumnMoon: 'css/trung-thu-nguyet-cung.css?v=20260917.frame-runtime-barrier-v1',
+        collections: 'css/store-collections.css?v=20261001.scroll1',
+        luxury: 'css/luxury-store.css?v=20261007.card-reveal',
+        camMong: 'css/cam-co-cam-mong.css?v=20260927.realms10',
+        midAutumnMoon: 'css/trung-thu-nguyet-cung.css?v=20261003.aclp3',
 
         lotm: 'css/lord-of-mysteries.css?v=3.3',
-        lotmKlein: 'css/lord-of-mysteries-klein.css?v=20260917.frame-runtime-barrier-v1',
+        lotmKlein: 'css/lord-of-mysteries-klein.css?v=20260927.realms10',
         legendary: 'css/legendery.css?v=20260917.frame-runtime-barrier-v1',
-        doraemon: 'css/doraemon.css?v=3.8',
+        doraemon: 'css/doraemon.css?v=20261003.cleanup1',
         paintingItems: 'css/hoi-hoa.css?v=3.8',
-        sevenSins: 'css/that-dai-toi.css?v=3.8',
+        sevenSins: 'css/that-dai-toi.css?v=20261004.web-audio1',
         birthday: 'css/pet-sinh-nhat.css?v=3.8',
         weather: 'css/thoi-tiet.css?v=3.8',
-        seasons: 'css/premium-mua-xuan.css?v=20260917.frame-runtime-barrier-v1',
-        nationalDay: 'css/quoc-khanh-pet.css?v=20260917.frame-runtime-barrier-v1',
-        nyx: 'css/nyx-than-thoai.css?v=20260917.frame-runtime-barrier-v1',
-        aether: 'css/aether-than-thoai.css?v=20260917.aether-frame-v1',
-        tamon: 'css/tamon-b-side.css?v=20260917.frame-runtime-barrier-v1',
-        linkClickCheng: 'css/link-click-cheng-xiaoshi.css?v=20260917.frame-runtime-barrier-v1'
+        hacmong: 'css/premium-hac-mong.css?v=20261008.regular1',
+        autumn: 'css/premium-mua-thu.css?v=20261003.cleanup1',
+        seasons: 'css/premium-mua-xuan.css?v=20261003.aclp3',
+        nationalDay: 'css/quoc-khanh-pet.css?v=20261003.aclp3',
+        nyx: 'css/nyx-than-thoai.css?v=20260927.realms10',
+        aether: 'css/aether-than-thoai.css?v=20260927.realms10',
+        tamon: 'css/tamon-b-side.css?v=20261003.aclp3',
+        linkClickCheng: 'css/link-click-cheng-xiaoshi.css?v=20261003.aclp3'
     });
 
     const SCRIPT = Object.freeze({
-        themeItems: 'js/theme-items.js?v=4.2.1-lotm-klein',
-        effectItems: 'js/effect-items.js?v=4.2',
-        petItems: 'js/pet-items.js?v=20260919.partial-fix1',
-        petInteractions: 'js/pet-interactions.js?v=3.8',
-        musicManager: 'js/music-manager.js?v=20260910.music-reliability-v3',
-        storeManager: 'js/store-manager.js?v=20260919.store-access-unequip-v1',
+        themeItems: 'js/theme-items.js?v=20261008.kim-lien3',
+        effectItems: 'js/effect-items.js?v=20261003.mienvu2',
+        petItems: 'js/pet-items.js?v=20261008.pet-size2',
+        petInteractions: 'js/pet-interactions.js?v=20261001.dialog1',
+        musicManager: 'js/music-manager.js?v=20261004.web-audio2',
+        storeManager: 'js/store-manager.js?v=20261008.kim-lien3',
 
-        luxuryStore: 'js/luxury-store.js?v=20260919.store-access-unequip-v1',
-        collections: 'js/store-collections.js?v=20260908.four-seasons-lock-v1',
+        kimLien: 'js/premium-kim-lien.js?v=20261008.3',
+        hacMongRegular: 'js/hac-mong-regular.js?v=20261008.1',
+        luxuryStore: 'js/luxury-store.js?v=20261008.kim-lien3',
+        collections: 'js/store-collections.js?v=20261008.kim-lien3',
 
-        royalBall: 'js/royal-ball.js?v=20260908.lazy-v1',
-        leaderboard: 'js/leaderboard.js?v=20260910.trigger-autoload-v1',
-        painting: 'js/painting.js?v=20260908.round-query-v1',
-        history: 'js/lich-su-hao-hung.js?v=20260831.1',
-        bellum: 'js/bellum-event.js?v=20260912.4',
-        midAutumnFestival: 'js/mid-autumn-festival.js?v=20260917.1-accessibility-focus-fix',
+        royalBall: 'js/royal-ball.js?v=20261001.dialog1',
+        leaderboard: 'js/leaderboard.js?v=20261001.dialog1',
+        painting: 'js/painting.js?v=20261001.dialog1',
+        history: 'js/lich-su-hao-hung.js?v=20261001.dialog1',
+        bellum: 'js/bellum-event.js?v=20261001.dialog1',
+        midAutumnFestival: 'js/mid-autumn-festival.js?v=20261001.dialog1',
 
-        dailyLogin: 'js/daily-login.js?v=20260908.lazy-v1',
-        guide: 'js/huong-dan-nguoi-moi.js?v=2.14.0'
+        dailyLogin: 'js/daily-login.js?v=20261001.dialog1',
+        guide: 'js/huong-dan-nguoi-moi.js?v=20261004.profile-practice1'
     });
 
     /*
@@ -120,6 +124,7 @@
         frame_lotm_klein_gray_fog_ring_event: Object.freeze([CSS.lotmKlein]),
         frame_mua_ha_nhat_diep_chi_hoan: Object.freeze([CSS.seasons]),
         frame_premium_mua_xuan_hoa_mong: Object.freeze([CSS.seasons]),
+        frame_mua_thu_phong_diep_chi_hoan: Object.freeze([CSS.autumn]),
         frame_quoc_khanh_viet_dieu_quoc_an: Object.freeze([CSS.nationalDay]),
         frame_tamon_bside_signal_ring: Object.freeze([CSS.tamon]),
         frame_truyenthuyet_nyx_hac_nguyet_chi_hoan: Object.freeze([
@@ -151,6 +156,8 @@
     ]);
 
     const ALL_SPECIAL_STORE_CSS = Object.freeze([
+        CSS.autumn,
+        CSS.hacmong,
         CSS.camMong,
         CSS.midAutumnMoon,
         CSS.lotm,
@@ -652,6 +659,14 @@ html[data-app-role="student"] body .dashboard > .content > :is(
             result.add(CSS.weather);
         }
 
+        if (id === 'pet_hac_mong_2') result.add(CSS.hacmong);
+        if (id === 'pet_luxury_mua_thu') result.add(CSS.autumn);
+        if (id === 'pet_premium_mua_thu_chibi_3') result.add(CSS.autumn);
+        if (id === 'theme_mua_thu_phong_diep_kinh_suong') result.add(CSS.autumn);
+        if (id === 'effect_mua_thu_phong_diep_quang_trieu') result.add(CSS.autumn);
+        if (id === 'frame_mua_thu_phong_diep_chi_hoan') result.add(CSS.autumn);
+        if (id === 'background_mua_thu_phong_lam_mong_canh') result.add(CSS.autumn);
+
         if (/(premium_mua_xuan|mua_xuan|mua_ha|summer|spring)/.test(id)) {
             result.add(CSS.seasons);
         }
@@ -874,7 +889,9 @@ html[data-app-role="student"] body .dashboard > .content > :is(
             await loadCss(CSS.storeBase);
             await loadScriptsSequentially([
                 SCRIPT.themeItems,
-                SCRIPT.storeManager
+                SCRIPT.storeManager,
+                SCRIPT.kimLien,
+                SCRIPT.hacMongRegular
             ]);
         },
 
@@ -885,7 +902,9 @@ html[data-app-role="student"] body .dashboard > .content > :is(
             ]);
             await loadScriptsSequentially([
                 SCRIPT.effectItems,
-                SCRIPT.storeManager
+                SCRIPT.storeManager,
+                SCRIPT.kimLien,
+                SCRIPT.hacMongRegular
             ]);
         },
 
@@ -897,7 +916,9 @@ html[data-app-role="student"] body .dashboard > .content > :is(
             await loadScriptsSequentially([
                 SCRIPT.petItems,
                 SCRIPT.petInteractions,
-                SCRIPT.storeManager
+                SCRIPT.storeManager,
+                SCRIPT.kimLien,
+                SCRIPT.hacMongRegular
             ]);
         },
 
@@ -910,6 +931,7 @@ html[data-app-role="student"] body .dashboard > .content > :is(
             /* Luxury hiện tại là pet runtime + bộ đăng ký/runtime riêng. */
             await ensure('pet-runtime');
             await loadCss(CSS.luxury);
+            await loadScript(SCRIPT.kimLien);
             await loadScript(SCRIPT.luxuryStore);
         },
 
@@ -945,6 +967,7 @@ html[data-app-role="student"] body .dashboard > .content > :is(
 
             await loadScriptsSequentially([
                 SCRIPT.collections,
+                SCRIPT.kimLien,
                 SCRIPT.luxuryStore
             ]);
         },
@@ -1082,6 +1105,8 @@ html[data-app-role="student"] body .dashboard > .content > :is(
     const LUXURY_ITEM_IDS = new Set([
         'pet_luxury_mua_xuan',
         'pet_luxury_mua_ha',
+    'pet_luxury_mua_thu',
+        'pet_hac_mong_2',
         'pet_quoc_khanh_1',
         'pet_mythic_nyx_1',
         'pet_mythic_aether_1',

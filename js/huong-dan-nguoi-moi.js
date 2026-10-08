@@ -1,9 +1,9 @@
 /**
  * NEW USER GUIDE — Hướng dẫn người mới cho website học tập
- * Phiên bản: 2.14.1 — đào tạo bắt buộc 1 lần về nộp bài, cập nhật và hiệu năng
+ * Phiên bản: 2.17.1 — đào tạo bắt buộc 1 lần về nộp bài, cập nhật và hiệu năng
  *
  * Cách nạp khuyến nghị (đặt cuối <body>, sau teacher.js hoặc student.js):
- * <script src="js/huong-dan-nguoi-moi.js?v=2.14.1"></script>
+ * <script src="js/huong-dan-nguoi-moi.js?v=2.17.1"></script>
  *
  * API có thể gọi từ nơi khác:
  *   NewUserGuide.open();          // Mở trung tâm hướng dẫn
@@ -17,13 +17,11 @@
 
     if (window.NewUserGuide) return;
 
-    const VERSION = '2.14.1';
+    const VERSION = '2.17.1';
     const REQUIRED_STUDENT_TRAINING_VERSION =
-        '2026-09-06-submission-update-effects-v1';
+        '2026-09-30-new-features-v1';
     const REQUIRED_STUDENT_TRAINING_FEATURES = Object.freeze([
-        'submission-guide',
-        'system-update',
-        'effects-performance'
+        'mc-workspace-new', 'appeals-new', 'collection-rewards-new', 'list-performance-new'
     ]);
     const ROOT_ID = 'nug-root';
     const STYLE_ID = 'nug-style';
@@ -42,8 +40,6 @@
         resizeTimer: null,
         transitionLocked: false,
         activeFeatureTour: null,
-        coinWidgetTemporarilyRevealed: false,
-        coinWidgetInitialStoredVisibility: null,
         mandatoryMode: false,
         mandatoryScope: 'full',
         mandatoryTourCompleted: false,
@@ -361,6 +357,429 @@
         }
     };
 
+
+    // September 2026: guides only; preserve completed mandatory training.
+    const recentFeatureGuides = {
+    "teacher": [
+        {
+            "id": "mc-review-new",
+            "icon": "📝",
+            "title": "Xem bài trắc nghiệm mới",
+            "tabId": "tab-list",
+            "selector": "#submissionsList",
+            "access": "Danh sách bài đã nộp → mở bài → Xem đáp án.",
+            "description": "Nút Xem đáp án mở cửa sổ trắc nghiệm toàn trang; Điểm TN nằm ngay cạnh nút. Viền xanh thể hiện đáp án đúng, viền đỏ thể hiện lựa chọn sai của học sinh.",
+            "details": [
+                "Nút Xem đáp án mở cửa sổ trắc nghiệm toàn trang; Điểm TN nằm ngay cạnh nút. Viền xanh thể hiện đáp án đúng, viền đỏ thể hiện lựa chọn sai của học sinh.",
+                "Phần tóm tắt đáp án dạng chữ bị lặp đã được bỏ. Tự luận và tệp đính kèm vẫn được giữ trong bài nộp.",
+                "Học sinh xác nhận trắc nghiệm bên trong cửa sổ chưa phải là gửi toàn bài cho giáo viên. Các em vẫn phải bấm Nộp bài bên ngoài.",
+                "Giới hạn thời gian làm bài của bài thi áp dụng cho toàn bài; cho làm lại không tự tha lỗi hoặc hoàn phạt."
+            ]
+        },
+        {
+            "id": "appeals-new",
+            "icon": "⚖️",
+            "title": "Tiếp nhận và xử lý kháng cáo",
+            "tabId": "tab-list",
+            "selector": "#appeals-notification",
+            "access": "Nút nổi Kháng cáo ở góc dưới bên phải.",
+            "description": "Số trên nút là kháng cáo chưa hoàn tất. Mở danh sách và chọn kháng cáo; mở bản Đã gửi sẽ chuyển thành Đang tiếp nhận.",
+            "details": [
+                "Số trên nút là kháng cáo chưa hoàn tất. Mở danh sách và chọn kháng cáo; mở bản Đã gửi sẽ chuyển thành Đang tiếp nhận.",
+                "Đọc lý do học sinh, bài làm và bằng chứng trạng thái. Đối chiếu hạn nộp, lần làm lại và khoản phạt thực tế trước khi quyết định.",
+                "Ghi lý do quyết định ít nhất 10 ký tự rồi chọn Đồng ý hoặc Từ chối. Quyết định hoàn tất và thư thông báo được lưu cùng lúc; thư không chạy hiệu ứng.",
+                "Phạt nhầm: có thể hoàn khoản phạt đã xác minh và xét lại thưởng. Vi phạm nhẹ: chỉ duyệt xét thưởng lại, không hoàn khoản phạt cũ.",
+                "Khi đồng ý, đối soát chỉ phần thưởng còn thiếu và khoản phạt chưa hoàn. Không nhập lại toàn bộ thưởng đã nhận. Biên nhận đối soát chỉ được ghi một lần.",
+                "Mất mạng khi xác nhận: đóng và mở lại để kiểm tra quyết định/biên nhận. Lỗi mạng không chứng minh giao dịch thất bại, không cộng thủ công lần nữa.",
+                "Hoàn tất quá 7 ngày được rút gọn và ẩn khi giáo viên mở web; hệ thống kiểm tra định kỳ khi trang đang mở. Bản đồng ý chưa đối soát được giữ lại. Dấu xác nhận và biên nhận không bị xóa."
+            ]
+        },
+        {
+            "id": "collection-rewards-new",
+            "icon": "🎁",
+            "title": "Cấu hình phần thưởng bộ sưu tập",
+            "tabId": "tab-game-manage",
+            "selector": "#teacherCollectionRewardCard",
+            "access": "Quản lý trò chơi → dưới Quản lý Cửa hàng Sang trọng → Quản lý Phần thưởng.",
+            "description": "Mở Quản lý Phần thưởng để cấu hình bộ vật phẩm học sinh cần thu thập và nền đặc biệt được nhận.",
+            "details": [
+                "Mở Quản lý Phần thưởng để cấu hình bộ vật phẩm học sinh cần thu thập và nền đặc biệt được nhận.",
+                "Danh mục nền được đồng bộ khi công bố bộ. Nếu danh sách trống, cần người quản lý website bổ sung nền trong collection-reward-catalog.js trước.",
+                "Dùng bộ lọc tag rồi tích chọn 1–24 vật phẩm cần sở hữu đủ và 1–8 nền thưởng. Tag của bộ lấy từ cấu hình nền, không nhập tên trên giao diện. Các món đã tích vẫn được giữ khi đổi bộ lọc.",
+                "Chọn 1–8 nền thưởng rồi bấm Công bố bộ thưởng. Khi đủ điều kiện, học sinh phải bấm Nhận phần thưởng; nếu có nhiều nền thì chọn một trước khi nhận.",
+                "Nền đã dùng trong bộ đang công bố được ẩn khỏi danh sách tạo mới. Trong Các bộ đã công bố, bấm Sửa để hiện lại nền của bộ và đổi vật phẩm yêu cầu hoặc nền thưởng, rồi Lưu thay đổi. Hai danh sách Nền thưởng và Các bộ đã công bố cuộn riêng khi dài.",
+                "Bấm Xóa và xác nhận để ngừng nhận từ bộ đó; nền được đưa lại vào danh sách cấu hình. Nền học sinh đã nhận vẫn giữ; sửa bộ không cho học sinh nhận lần hai.",
+                "Tính mọi vật phẩm sở hữu vĩnh viễn trong kho, kể cả quà tặng, phần thưởng sự kiện và vật phẩm từ bản cũ thiếu biên nhận. Đồ dùng thử không tính; học sinh không cần mua lại.",
+                "Mỗi bộ nhận miễn phí một lần. Khi bộ có nhiều nền, sau khi nhận một nền học sinh được mua các nền còn lại với giá cố định 5.000 Coin mỗi nền. Giáo viên không cần đặt giá. Giao dịch mua trừ Coin và cấp nền cùng lúc; không cấp thêm vì học sinh báo lỗi mạng.",
+                "Khi mất mạng, bản chờ được giữ. Bấm Kiểm tra / thử lưu lại để đối soát đúng thao tác, tránh tạo trùng. Nếu bộ đã bị sửa ở phiên khác, mở Sửa lại để dùng dữ liệu mới nhất."
+            ]
+        },
+        {
+            "id": "list-performance-new",
+            "icon": "⚡",
+            "title": "Tải tài liệu và danh sách nhẹ hơn",
+            "tabId": "tab-settings",
+            "selector": "#webPerformanceOptimizerSettingsRow",
+            "access": "Cài đặt → Tối ưu hiệu năng.",
+            "description": "Bật Tối ưu hiệu năng để giảm tải Bài tập đã giao, Danh sách bài đã nộp, Tài liệu học tập, Lộ trình và Lịch.",
+            "details": [
+                "Bật Tối ưu hiệu năng để giảm tải Bài tập đã giao, Danh sách bài đã nộp, Tài liệu học tập, Lộ trình và Lịch.",
+                "Ảnh/video tải khi gần vùng xem; âm thanh chờ bấm phát. Dòng và thẻ ngoài vùng xem được giảm công việc hiển thị khi trình duyệt hỗ trợ.",
+                "Xem trực tiếp chỉ tải tài liệu bạn mở. Bấm lặp khi DOCX đang tải dùng chung một lượt xử lý; mở tài liệu khác không bị kết quả cũ ghi đè. Mất mạng thì mở lại khi kết nối ổn định.",
+                "Tùy chọn không thay dữ liệu, quyền truy cập, chấm điểm hoặc thời hạn; không làm giảm dung lượng gốc của tệp tài liệu."
+            ]
+        }
+    ],
+    "student": [
+        {
+            "id": "mc-workspace-new",
+            "icon": "📝",
+            "title": "Trắc nghiệm toàn màn hình",
+            "tabId": "tab-todo",
+            "selector": "#assignmentsList",
+            "access": "Bài tập cần làm → mở bài → Làm trắc nghiệm.",
+            "description": "Bấm Làm trắc nghiệm để mở cửa sổ toàn trang; phần tự luận vẫn ở bài tập bên ngoài.",
+            "details": [
+                "Bấm Làm trắc nghiệm để mở cửa sổ toàn trang; phần tự luận vẫn ở bài tập bên ngoài.",
+                "Chọn đáp án và dùng danh sách số câu để chuyển nhanh giữa các câu. Kiểm tra các câu còn bỏ trống trước khi hoàn tất.",
+                "Nút nộp trong cửa sổ trắc nghiệm chỉ xác nhận phần trắc nghiệm với website. Muốn gửi toàn bài cho giáo viên, đóng cửa sổ và bấm Nộp bài ở bài tập bên ngoài.",
+                "Bài trắc nghiệm/kết hợp hiển thị hạn nộp. Bài thi chỉ có bộ đếm khi giáo viên bật Giới hạn thời gian làm bài; đó là thời gian thu toàn bài, không phải riêng phần trắc nghiệm.",
+                "Mất mạng hoặc tải lại: mở lại đúng tài khoản và bài để kiểm tra bản nháp. Đừng xóa dữ liệu trình duyệt khi chưa gửi được bài; chỉ coi là đã nộp khi website xác nhận.",
+                "Chỉ làm trên một tab hoặc thiết bị. Nếu bài đang do phiên khác giữ, phiên mở sau bị khóa; quay lại phiên đang làm, không cố gửi song song.",
+                "Sau khi nộp cho giáo viên, vào Kết quả học tập → Xem đáp án. Điểm TN nằm cạnh nút; đáp án đúng có viền xanh, đáp án đã chọn sai có viền đỏ."
+            ]
+        },
+        {
+            "id": "appeals-new",
+            "icon": "⚖️",
+            "title": "Kháng cáo bài vi phạm",
+            "tabId": "tab-grades",
+            "selector": "#gradesList",
+            "access": "Kết quả học tập → mở bài vi phạm đã được chấm → Kháng cáo.",
+            "description": "Chỉ bài vi phạm đã được giáo viên chấm xong mới có thể gửi kháng cáo. Nhập lý do từ 10–2000 ký tự, nêu rõ vấn đề và bằng chứng cần kiểm tra.",
+            "details": [
+                "Chỉ bài vi phạm đã được giáo viên chấm xong mới có thể gửi kháng cáo. Nhập lý do từ 10–2000 ký tự, nêu rõ vấn đề và bằng chứng cần kiểm tra.",
+                "Trạng thái lần lượt là Đã gửi → Đang tiếp nhận khi giáo viên mở xem → Đã hoàn tất khi có quyết định.",
+                "Hoàn tất có thể là Đồng ý hoặc Từ chối. Hộp thư sẽ nhận kết quả và lý do, không có hiệu ứng thư bay.",
+                "Đồng ý chưa đồng nghĩa tiền/vé đã được cộng. Giáo viên cần kiểm tra và đối soát; phạt nhầm có thể được hoàn phạt, vi phạm nhẹ chỉ được xét thưởng lại.",
+                "Cho làm lại không phải tha lỗi. Làm lại và nhận điểm mới không tự xóa vi phạm, hoàn phạt hoặc cấp thưởng.",
+                "Nếu mạng gián đoạn, mở lại kháng cáo để đọc trạng thái đã lưu trước khi thử lại; không gửi một kháng cáo khác cho cùng bài.",
+                "Sau 7 ngày, kháng cáo hoàn tất được ẩn và rút gọn nội dung khi giáo viên mở web. Kháng cáo đồng ý còn chờ đối soát được giữ lại; dấu xác nhận đã xử lý vẫn được lưu."
+            ]
+        },
+        {
+            "id": "collection-rewards-new",
+            "icon": "🎁",
+            "title": "Phần thưởng bộ sưu tập",
+            "tabId": "tab-store",
+            "selector": "#storeCollectionArrow",
+            "access": "Cửa hàng → mũi tên cạnh tiêu đề → Phần thưởng.",
+            "description": "Thu thập đủ bộ để nhận một nền miễn phí. Sau khi nhận, các nền còn lại trong cùng bộ mở bán riêng cho bạn với giá 5.000 Coin mỗi nền.",
+            "details": [
+                "Nền chưa mở giữ ảnh tối đen và tag. Sau khi bạn nhận một nền trong bộ có nhiều lựa chọn, nền còn lại hiện tên và nút Mua nền · 5.000 Coin. Chỉ mở ảnh sau khi mua thành công; mua thêm là tùy chọn.",
+                "Bấm Mua nền và xác nhận giá 5.000 Coin. Nếu mất mạng, chờ hoặc bấm Kiểm tra mua để kiểm tra cùng giao dịch; không trừ lần hai khi nền đã mua. Không đủ Coin thì không cấp nền hoặc trừ tiền. Mỗi nền chỉ mua một lần, không dùng giảm giá hay dùng thử.",
+                "Mở Xem vật phẩm cần thu thập để biết món nào còn thiếu; danh sách dài cuộn riêng trong thẻ. Tính mọi vật phẩm sở hữu vĩnh viễn trong kho, bao gồm quà tặng, đồ sự kiện và đồ từ bản cũ. Không tính đồ dùng thử.",
+                "Đủ điều kiện sẽ hiện nút Nhận phần thưởng. Nếu bộ có nhiều nền, bấm Chọn phần thưởng này rồi bấm Nhận phần thưởng và xác nhận. Nền chỉ hiện sau khi máy chủ xác nhận, không tự mở khi đủ bộ.",
+                "Nền đã mở có nút Sử dụng nền; đang mặc thì nút đổi thành Tháo nền. Tag Mùa Xuân hiển thị bằng ảnh. Nhận thưởng không trừ Coin và không tự trang bị nền.",
+                "Khi bật nền đặc biệt, nền thường và các vật phẩm sang trọng đang mặc sẽ được tháo. Trong lúc dùng nền đặc biệt, không mặc được nền thường hoặc bất kỳ vật phẩm sang trọng nào. Vào Phần thưởng và bấm Tháo nền trước khi mặc lại; vật phẩm vẫn ở trong kho.",
+                "Mỗi bộ chỉ nhận một lần kể cả mở nhiều tab hoặc giáo viên sửa bộ. Nếu mất mạng, lựa chọn được giữ; khi có mạng bấm Kiểm tra / thử lại. Mở lại trang hoặc kết nối lại không tự gửi yêu cầu nhận. Nền đã nhận vẫn giữ nếu giáo viên xóa bộ.",
+                "Không cần biên nhận mua để tính đủ bộ. Vật phẩm vĩnh viễn từ cửa hàng thường và sang trọng đều được tính. Nếu Firebase từ chối cấp thưởng, giáo viên cần cập nhật Rules mới; không mua lại vật phẩm."
+            ]
+        },
+        {
+            "id": "list-performance-new",
+            "icon": "⚡",
+            "title": "Tải tài liệu và danh sách nhẹ hơn",
+            "tabId": "tab-settings",
+            "selector": "#webPerformanceOptimizerSettingsRow",
+            "access": "Cài đặt → Tối ưu hiệu năng.",
+            "description": "Bật Tối ưu hiệu năng khi danh sách dài hoặc máy chậm. Các mục Bài tập cần làm, Kết quả học tập, Tài liệu học tập và hai cửa hàng được giảm tải hiển thị ngoài vùng xem.",
+            "details": [
+                "Bật Tối ưu hiệu năng khi danh sách dài hoặc máy chậm. Các mục Bài tập cần làm, Kết quả học tập, Tài liệu học tập và hai cửa hàng được giảm tải hiển thị ngoài vùng xem.",
+                "Ảnh/video tải khi gần vùng xem; âm thanh chờ bấm phát. Tệp tài liệu vẫn mở bằng nút xem/tải hiện có. Bấm lặp khi DOCX đang tải dùng chung một lượt xử lý.",
+                "Tùy chọn này không thay điểm, hạn nộp, bộ đếm bài thi, tiền hoặc phần thưởng. Không làm giảm dung lượng của chính tệp tài liệu.",
+                "Ảnh đã tải trước khi bật không bị tải lại. Có thể tắt tối ưu trong Cài đặt nếu muốn trở về cách hiển thị cũ."
+            ]
+        }
+    ]
+};
+    recentFeatureGuides.student.push({
+        id: 'display-controls-new', icon: '🪟', title: 'Menu và lớp kính mờ', tabId: 'tab-settings',
+        selector: '#toggleStudentContentGlassButton', access: 'Nút đầu menu để đóng/mở; Cài đặt → lớp kính mờ nội dung.',
+        description: 'Thu gọn menu để tăng vùng đọc. Lớp kính mờ có thể bật/tắt riêng trong Cài đặt.',
+        details: ['Bấm nút đầu menu để đóng/mở tên các mục; trên điện thoại, đóng menu sau khi chọn mục để đọc nội dung.',
+            'Bật lớp kính mờ nội dung giúp đọc chữ trên nền đặc biệt. Chỉ có một lớp kính bao ngoài; tắt để nhìn rõ ảnh nền. Tùy chọn không tháo nền hoặc thay đổi vật phẩm.']
+    });
+    recentFeatureGuides.teacher.push({
+        id: 'video-condition-new', icon: '🎬', title: 'Link YouTube và điều kiện xem', tabId: 'tab-create',
+        selector: '#videoLink', access: 'Giao bài / Sửa bài → Đính kèm Video.',
+        description: 'Dán link YouTube và chờ đọc thời lượng trước khi đặt điều kiện xem.',
+        details: ['Dán link YouTube, chờ thời lượng theo ngày / giờ / phút / giây. Không làm tròn lên giây lẻ. Video trực tiếp chưa có thời lượng cố định.',
+            'Điều kiện xem không được vượt thời lượng video. Khi sửa bài, điều kiện cũ được giữ trong giới hạn video; thay link thì tính lại.',
+            'Nếu không đọc được video, kiểm tra mạng, quyền nhúng rồi dán lại link. Chưa đọc được thời lượng thì chưa thể lưu bài có video.']
+    });
+    recentFeatureGuides.teacher.push({
+        id: 'student-deletion-new', icon: '🗑️', title: 'Xóa học sinh và dữ liệu cloud', tabId: 'tab-manage-students',
+        selector: '#studentsListContainer', access: 'Quản lý học sinh → Xóa; tác vụ chưa xong → Kiểm tra / tiếp tục xóa.',
+        description: 'Xóa dữ liệu riêng và tệp cloud theo từng giai đoạn, có lưu tiến độ để tiếp tục khi mất mạng.',
+        details: ['Kiểm tra đúng học sinh rồi bấm Xóa, xác nhận và xác thực lại giáo viên. Xóa thật không hoàn tác; các nút trong hướng dẫn này chỉ là mô phỏng.',
+            'Máy chủ khóa học sinh, dọn dữ liệu riêng, tệp cloud thuộc học sinh và tài khoản đăng nhập. Tài liệu lớp, tệp dùng chung và dữ liệu học sinh khác được giữ.',
+            'Mất mạng hoặc đóng trang không có nghĩa là đã xóa xong. Dùng Kiểm tra / tiếp tục xóa để xem cùng tác vụ; không tạo tài khoản lại khi đang dọn.',
+            'Chỉ coi là hoàn tất khi máy chủ xác nhận. Nếu báo thiếu cấu hình Worker, quyền Firebase hoặc Rules, cần cấu hình theo tài liệu triển khai trước khi thử lại.']
+    });
+    for (const role of ['teacher','student']) roleData[role].features.push(...recentFeatureGuides[role]);
+    const recentGuideTargets = {
+        student: {
+            'mc-workspace-new': ['Làm trắc nghiệm','Danh sách câu hỏi · Câu 2 chưa làm','Nộp trắc nghiệm → đóng → Nộp bài cho giáo viên','Hạn nộp toàn bài / thời gian bài thi','Đã lưu nháp · Chờ kết nối','Bài đang mở trên thiết bị khác','Xem đáp án · Điểm TN: 3/4'],
+            'appeals-new': ['Kháng cáo · Nhập lý do','Đã gửi → Đang tiếp nhận → Đã hoàn tất','Thư: Kết quả kháng cáo','Đồng ý · Đang chờ đối soát','Cho làm lại ≠ Tha lỗi','Đọc lại trạng thái khi có mạng','Đã hoàn tất quá 7 ngày'],
+            'collection-rewards-new': ['Phần thưởng · Nền chưa mở','Tiến độ sưu tầm: 2/3','Chọn một phần thưởng','Sử dụng nền','Đang xác minh lần nhận trước','Món mua cũ chưa có biên nhận'],
+            'list-performance-new': ['Tối ưu hiệu năng','Mở / tải tài liệu','Hạn nộp và dữ liệu giữ nguyên','Tắt tối ưu hiệu năng']
+        },
+        teacher: {
+            'mc-review-new': ['Xem đáp án · Điểm TN: 3/4','Tự luận và tệp đính kèm','Hai bước nộp bài','Cho làm lại ≠ Tha lỗi'],
+            'appeals-new': ['Kháng cáo · 1','Lý do và chứng cứ','Đồng ý / Từ chối','Căn cứ: Phạt nhầm / Vi phạm nhẹ','Đối soát quyền lợi','Đọc biên nhận trước khi thử lại','Dọn kháng cáo sau 7 ngày'],
+            'collection-rewards-new': ['Quản lý Phần thưởng','Đồng bộ danh mục nền','Chọn vật phẩm và nền thưởng','Công bố bộ thưởng','Bộ đã công bố giữ cố định','Kiểm tra biên nhận mua','Xác minh kết quả nhận thưởng'],
+            'list-performance-new': ['Tối ưu hiệu năng','Danh sách và lộ trình','Dữ liệu giữ nguyên']
+        }
+    };
+    function removeRecentGuideDemo() {
+        document.getElementById('nug-recent-demo')?.remove();
+        document.querySelectorAll('[data-nug-recent-target]').forEach(n=>n.removeAttribute('data-nug-recent-target'));
+    }
+    // All practice state lives in this detached tour panel, never in Firebase or the inventory.
+    function appendRecentPractice(sample, featureId, index, role) {
+        const area = document.createElement('div');
+        area.className = 'nug-recent-practice';
+        area.style.cssText = 'margin-top:12px;padding:12px;background:white;border:1px dashed #6975be;border-radius:10px;white-space:normal';
+        const status = document.createElement('p');
+        status.setAttribute('role','status'); status.setAttribute('aria-live','polite');
+        status.textContent = 'Bạn có thể thử các nút bên dưới. Dữ liệu mẫu tự đặt lại khi đổi bước.';
+        area.append(status);
+        const say = text => { status.textContent = text; };
+        const button = (text, action) => {
+            const node = document.createElement('button'); node.type = 'button'; node.textContent = text;
+            node.style.cssText = 'margin:5px;padding:9px 12px;border:0;border-radius:8px;background:#4d46bd;color:white;font:600 14px system-ui;cursor:pointer';
+            node.onclick = () => action(node); area.append(node); return node;
+        };
+        const choices = (label, values) => {
+            const wrap = document.createElement('label'); wrap.textContent = label + ' ';
+            const select = document.createElement('select'); select.setAttribute('aria-label',label);
+            values.forEach(text => { const opt = document.createElement('option'); opt.textContent = text; select.append(opt); });
+            wrap.append(select); area.append(wrap); return select;
+        };
+        if (featureId === 'collection-rewards-new' && role === 'student') {
+            if (index === 0 || index === 1) {
+                let owned = false, pending = false, offline = false, balance = 6000;
+                say('Mẫu: Đã nhận nền A miễn phí. Nền B chưa mở. Số dư mẫu: 6.000 Coin.');
+                button('Mua nền B · 5.000 Coin', node => {
+                    if (owned) return say('Đã sở hữu nền B. Không trừ Coin lần nữa.');
+                    if (!pending) { pending = true; return say('Xác nhận mua nền B giá 5.000 Coin bằng nút Xác nhận bên dưới.'); }
+                    say('Đang chờ xác nhận cùng giao dịch mẫu.');
+                });
+                button('Xác nhận / Kiểm tra mua', () => {
+                    if (owned) return say('Đã mua nền B. Số dư mẫu: 1.000 Coin. Không trừ lần hai.');
+                    if (!pending) return say('Hãy bấm Mua nền B trước.');
+                    if (offline) return say('Mất mạng (mẫu): chưa xác nhận mua. Bật mạng rồi Kiểm tra mua.');
+                    if (balance < 5000) return say('Không đủ Coin: chưa trừ tiền, chưa mở nền.');
+                    balance -= 5000; owned = true; say('Nền B đã mở · Số dư mẫu: ' + balance.toLocaleString('vi-VN') + ' Coin.');
+                });
+                button('Thử không đủ Coin', () => { if (!owned) { balance = 1000; say('Số dư mẫu: 1.000 Coin. Hãy thử mua.'); } });
+                button('Tắt / bật mạng mẫu', () => { offline = !offline; say(offline ? 'Mạng mẫu đã tắt.' : 'Mạng mẫu đã bật. Bấm Kiểm tra mua để thử lại.'); });
+            } else if (index === 2 || index === 7) {
+                const details = document.createElement('details'); details.open = true;
+                const summary = document.createElement('summary'); summary.textContent = 'Xem vật phẩm cần thu thập (danh sách mẫu)';
+                const list = document.createElement('ul'); list.tabIndex = 0; list.setAttribute('aria-label','Vật phẩm mẫu cần thu thập');
+                list.style.cssText = 'max-height:140px;overflow:auto;overscroll-behavior:contain';
+                for (let i=1;i<=12;i++) { const li=document.createElement('li'); li.textContent = i===12 ? '○ Món 12: dùng thử, chưa được tính' : '✓ Món '+i+': sở hữu vĩnh viễn ở cửa hàng / quà tặng'; list.append(li); }
+                details.append(summary,list); area.append(details);
+                button('Thu thập món còn thiếu (mẫu)', node => {list.lastChild.textContent='✓ Món 12: đã sở hữu vĩnh viễn';node.disabled=true;say('Đủ 12/12 món. Lúc này mới có thể nhận thưởng.');});
+            } else if (index === 3 || index === 6) {
+                let claimed = false, pending = false;
+                const select = choices('Chọn nền mẫu', ['Nền A', 'Nền B']);
+                button('Nhận phần thưởng', () => { if (claimed) return say('Bộ này đã nhận. Không nhận lần hai.'); pending=true; select.disabled=true; say('Xác nhận nhận '+select.value+' miễn phí. Chưa mở nền trước khi xác nhận.'); });
+                button('Xác nhận / Kiểm tra lại', () => {if (!pending) return say('Chọn nền rồi bấm Nhận phần thưởng.');claimed=true;say('Đã nhận '+select.value+'. Nền còn lại có thể mua với giá 5.000 Coin. Kiểm tra lại không cấp thêm.');});
+            } else {
+                let equipped=false;
+                button('Sử dụng nền', node => {equipped=!equipped;node.textContent=equipped?'Tháo nền':'Sử dụng nền';say(equipped?'Đang dùng nền đặc biệt (mẫu). Nền thường và vật phẩm sang trọng bị chặn.':'Đã tháo nền đặc biệt. Có thể mặc vật phẩm cửa hàng.');});
+                button('Thử mặc vật phẩm sang trọng', () => say(equipped?'Hãy thủ công bấm Tháo nền trước.':'Đã mặc vật phẩm sang trọng (mẫu).'));
+            }
+        } else if (featureId === 'collection-rewards-new') {
+            let published=index>=4, editing=false;
+            const select=choices('Nền thưởng mẫu',['Nền A','Nền B']);
+            const render=()=>{select.hidden=published&&!editing;say(published?'Các bộ đã công bố: Bộ mẫu · 2 món → 1 nền. Nền đã công bố ẩn khi tạo mới.':'Chưa công bố. Tag lấy từ danh mục trong code; chọn vật phẩm và nền để thử.');};
+            button('Công bố / Lưu thay đổi',()=>{if(published&&!editing)return say('Bộ đã công bố, không tạo bộ trùng. Bấm Sửa để thay đổi.');published=true;editing=false;render();});
+            button('Sửa bộ',()=>{if(!published)return say('Hãy công bố bộ mẫu trước.');editing=true;select.hidden=false;say('Đang sửa: nền của bộ hiện lại để chọn. Lưu không cho nhận lần hai.');});
+            button('Xóa bộ (mẫu)',()=>{published=false;editing=false;render();});render();
+        } else if (featureId === 'list-performance-new') {
+            let enabled=false, opened=false;
+            button('Bật tối ưu (mẫu)',node=>{enabled=!enabled;node.textContent=enabled?'Tắt tối ưu (mẫu)':'Bật tối ưu (mẫu)';say(enabled?'Ảnh/video ngoài vùng xem chờ tải; âm thanh chờ bấm phát.':'Đã tắt tối ưu cho mẫu.');});
+            button('Xem tài liệu mẫu',()=>{say(opened?'Tài liệu mẫu đã mở; bấm lại không tạo lượt xử lý mới.':'Đã mở tài liệu mẫu: Bài 1 — Tính 2 + 2. Không cần bài thật để thử.');opened=true;});
+        } else if (featureId === 'display-controls-new') {
+            button('Đóng / mở menu mẫu',node=>{node.dataset.open=node.dataset.open==='true'?'false':'true';say(node.dataset.open==='true'?'📝 Bài tập · 📊 Kết quả · 🗺 Lộ trình · 🎁 Phần thưởng':'📝 · 📊 · 🗺 · 🎁 — Menu thu gọn');});
+            let glass=true; button('Tắt lớp kính mờ mẫu',node=>{glass=!glass;area.style.background=glass?'white':'transparent';node.textContent=glass?'Tắt lớp kính mờ mẫu':'Bật lớp kính mờ mẫu';say(glass?'Lớp kính mờ mẫu đang bật.':'Lớp kính mờ mẫu đã tắt. Cài đặt thật không thay đổi.');});
+        } else if (featureId === 'video-condition-new') {
+            const select=choices('Thời lượng video mẫu',['0 ngày 0 giờ 3 phút 24 giây','1 ngày 2 giờ 3 phút 4 giây']);
+            button('Dán link mẫu',()=>say('Đã đọc: '+select.value+'. Điều kiện tối đa bằng thời lượng này.'));
+            button('Thử lỗi mạng',()=>say('Chưa đọc được thời lượng. Kiểm tra mạng rồi dán lại link; chưa lưu bài.'));
+        } else if (featureId === 'student-deletion-new') {
+            let stage=0,offline=false;
+            button('Xóa học sinh mẫu',()=>{if(stage)return say('Đã có tác vụ mẫu. Dùng Kiểm tra / tiếp tục xóa.');stage=1;say('Đã xác nhận mô phỏng: đang khóa tài khoản và kiểm kê dữ liệu. Không xóa học sinh thật.');});
+            button('Tắt / bật mạng mẫu',()=>{offline=!offline;say(offline?'Mất mạng mẫu: chưa xác nhận hoàn tất.':'Mạng mẫu đã bật. Có thể kiểm tra tiếp cùng tác vụ.');});
+            button('Kiểm tra / tiếp tục xóa',()=>{
+                if(!stage)return say('Chưa có tác vụ mẫu. Bấm Xóa học sinh mẫu để bắt đầu.');
+                if(offline)return say('Chưa đọc được trạng thái. Không báo hoàn tất khi mất mạng.');
+                stage=Math.min(4,stage+1);
+                say(['','','Đang dọn dữ liệu riêng và tệp cloud (mẫu).','Đang xác minh và xóa tài khoản đăng nhập (mẫu).','Đã hoàn tất mô phỏng. Bấm lại vẫn cùng kết quả, không tạo tác vụ mới.'][stage]);
+            });
+        } else if (featureId === 'mc-workspace-new' || featureId === 'mc-review-new') {
+            const select=choices('Câu mẫu: 2 + 2 = ?', ['Chưa chọn','A. 3','B. 4']);let confirmed=false;
+            button('Nộp trắc nghiệm (mẫu)',()=>{if(select.selectedIndex===0)return say('Còn câu chưa trả lời.');confirmed=true;say('Đã xác nhận phần trắc nghiệm. Cần Nộp bài bên ngoài để gửi giáo viên.');});
+            button('Nộp bài (mẫu)',()=>say(confirmed?'Đã gửi toàn bài mẫu. Không tạo bài nộp thật.':'Hãy hoàn tất phần trắc nghiệm trước.'));
+            button('Xem đáp án mẫu',()=>say('B. 4 là đáp án đúng. '+(select.selectedIndex===2?'Bạn chọn đúng.':'Lựa chọn hiện tại chưa đúng.')));
+        } else if (featureId === 'appeals-new' && role === 'teacher') {
+            button('Tiếp nhận (mẫu)',()=>say('Đang tiếp nhận: kiểm tra bài làm và thời điểm nộp trước khi quyết định.'));
+            button('Đồng ý (mẫu)',()=>say('Đã hoàn tất (mẫu). Quyền lợi chỉ thay đổi sau khi đối soát khoản còn thiếu.'));
+            button('Từ chối (mẫu)',()=>say('Đã từ chối (mẫu). Khi xử lý thật, cần ghi rõ lý do.'));
+        } else return;
+        sample.append(area);
+    }
+    async function prepareRecentGuide(feature, index, role) {
+        removeRecentGuideDemo();
+        // Highlight a real entry point when it exists. Never click submit/claim/review actions.
+        const entries = {
+            'appeals-new': role === 'teacher' ? '#appeals-notification' : '#gradesList [data-appeal-key]',
+            'collection-rewards-new': role === 'teacher' ? '#teacherCollectionRewardCard button' : '#storeCollectionArrow',
+            'list-performance-new': '#toggleWebPerformanceOptimizer'
+        };
+        let real = index === 0 && entries[feature.id] ? document.querySelector(entries[feature.id]) : null;
+        if (real) {
+            await revealHiddenAccordion(real);
+            real.scrollIntoView({block:'center',behavior:'instant'});
+            await waitForLayout();
+            if (isElementVisible(real)) {real.setAttribute('data-nug-recent-target','true');return;}
+        }
+        const labels = recentGuideTargets[role][feature.id] || [];
+        const box=document.createElement('section');box.id='nug-recent-demo';box.setAttribute('data-nug-simulation','true');
+        box.style.cssText='position:fixed;top:18px;left:4vw;width:min(680px,92vw);max-height:43vh;overflow:auto;box-sizing:border-box;padding:18px;background:#fff;color:#20304e;border:2px solid #94a8e8;border-radius:16px;z-index:2147482998;box-shadow:0 12px 40px #15243c40;font:15px/1.5 system-ui';
+        const badge=document.createElement('strong');badge.textContent='MÔ PHỎNG HƯỚNG DẪN · Không gửi dữ liệu thật';badge.style.cssText='display:block;color:#855300;font-size:12px;margin-bottom:8px';box.append(badge);
+        const heading=document.createElement('h3');heading.textContent=feature.title;heading.style.cssText='margin:0 0 12px;font-size:19px';box.append(heading);
+        const target=document.createElement('div');target.setAttribute('data-nug-recent-target','true');target.style.cssText='padding:14px;border:2px solid #536ed6;border-radius:10px;background:#eef3ff;max-height:28vh;overflow:auto;overscroll-behavior:contain';
+        const label=document.createElement('strong');label.textContent='➜ '+(labels[index]||feature.title);target.append(label);
+        const sample=document.createElement('div');sample.style.cssText='margin-top:10px;white-space:pre-wrap';
+        const samples={
+            'appeals-new': role==='student' ? [
+                'Bài mẫu: Bài tập Toán · Đã chấm: 0 điểm · Vi phạm\nLý do: Em đã nộp trước hạn nhưng hệ thống ghi nhận nộp trễ. Xin thầy/cô kiểm tra.\n[ Gửi kháng cáo ]',
+                '● Đã gửi     →     ● Đang tiếp nhận     →     ● Đã hoàn tất\nGiáo viên mở xem: Đang tiếp nhận. Có quyết định: Đã hoàn tất.',
+                'Hộp thư → Kháng cáo bài mẫu đã hoàn tất\nKết quả: Đồng ý · Lý do: Đã xác minh thời điểm nộp.\nThư thông báo, không có hiệu ứng bay.',
+                'Kết quả: Đồng ý\nQuyền lợi: Chờ giáo viên xác minh và đối soát\nKhông tự hiểu là đã nhận Coin/vé.',
+                'Được làm lại: Có\nVi phạm trước đó: Vẫn giữ\nHoàn tiền phạt: Chưa được duyệt',
+                'Mạng gián đoạn → Kết nối lại → Mở đúng kháng cáo\nTrạng thái đã lưu: Đã gửi\nKhông tạo kháng cáo mới.',
+                'Kháng cáo đã xử lý xong: Ẩn/rút gọn khi giáo viên mở web\nCòn chờ đối soát: Giữ lại\nDấu xác nhận chống nhận lặp: Vẫn lưu'
+            ] : [
+                '[ ⚖ Kháng cáo · 1 ] → Chọn bài mẫu\nTrạng thái chuyển từ Đã gửi sang Đang tiếp nhận.',
+                'Lý do học sinh: Xin kiểm tra thời điểm nộp.\n[ Nội dung bài ] [ Bằng chứng trạng thái ]\nĐối chiếu hạn nộp và khoản phạt trước khi quyết định.',
+                'Lý do quyết định: Đã kiểm tra thời điểm và bằng chứng nộp bài.\n[ Đồng ý ]   [ Từ chối ]\nQuyết định và thư được lưu cùng lúc.',
+                '[ Phạt nhầm: hoàn phạt đã xác minh + xét thưởng ]\n[ Vi phạm nhẹ: chỉ xét thưởng ]',
+                'Coin thưởng còn thiếu: 20 · Vé thưởng còn thiếu: 0\nCoin phạt nhầm chưa hoàn: 10 · Vé phạt nhầm: 0\n[ Xác nhận đối soát quyền lợi ]\nSố minh họa, không phải mức thưởng thực tế.',
+                'Phản hồi bị mất → Mở lại → Đọc biên nhận\nĐã đối soát: Không thực hiện lại.',
+                'Quá 7 ngày + đã xử lý quyền lợi → Rút gọn\nChưa đối soát → Giữ lại'
+            ],
+            'mc-workspace-new': ['Bài mẫu: Trắc nghiệm Toán\n[ Làm trắc nghiệm ] → Cửa sổ toàn trang','Câu 1: 2 + 2 = ?\n○ A. 3    ● B. 4\nDanh sách: [1 Đã làm] [2 Chưa làm]\nCảnh báo: Còn câu chưa trả lời.','Bên trong: [ Nộp trắc nghiệm ]\n↓ Đóng cửa sổ, kiểm tra tự luận/tệp\nBên ngoài: [ Nộp bài ] → Gửi giáo viên','Bài thường: Hạn nộp toàn bài\nBài thi bật giới hạn: 00:20:00 đến khi thu toàn bài','Trạng thái: Đã lưu nháp\nMất mạng: Chờ kết nối, chưa xác nhận đã nộp','Thiết bị 1: Đang làm\nThiết bị 2: Khóa bài, quay lại phiên đang làm','[ Xem đáp án ]   Điểm TN: 3/4\n🟩 B. 4 — Đáp án đúng\n🟥 A. 3 — Đã chọn sai'],
+            'mc-review-new': ['[ Xem đáp án ]   Điểm TN: 3/4\n🟩 Đáp án đúng · 🟥 Đáp án học sinh chọn sai','[ Tự luận ] [ Tệp đính kèm ]\nChi tiết trắc nghiệm xem trong Xem đáp án.','Nộp trắc nghiệm trong cửa sổ → Nộp bài bên ngoài\nChỉ bước sau mới gửi toàn bài cho giáo viên.','Giới hạn thời gian: Thu toàn bài\nCho làm lại: Không tự tha lỗi hoặc hoàn tiền phạt.'],
+            'list-performance-new': ['Cài đặt → Tối ưu hiệu năng\n[ Bật ] Giảm tải hiển thị danh sách','[ Mở tài liệu ] [ Tải tài liệu ]\nẢnh/video tải gần vùng xem; không bấm liên tục khi đang tải.','Dữ liệu, điểm và hạn nộp: Giữ nguyên\nKhông làm nhỏ dung lượng gốc của tài liệu.','Cài đặt → Tối ưu hiệu năng\n[ Tắt ] Trở về cách hiển thị cũ']
+        };
+        // Match the current reward workflow, including manual claim and optional extra purchases.
+        if(feature.id==='collection-rewards-new'){
+            const currentLabels=role==='student'?['Nền chưa mở / Mua nền còn lại','Mua nền · 5.000 Coin','Xem vật phẩm cần thu thập','Chọn nền → Nhận phần thưởng','Sử dụng nền / Tháo nền','Nền đặc biệt và vật phẩm sang trọng','Kiểm tra / thử lại','Vật phẩm vĩnh viễn được tính']:['Quản lý Phần thưởng','Danh mục nền','Lọc tag và chọn vật phẩm','Công bố bộ thưởng','Sửa bộ đã công bố','Xóa bộ','Vật phẩm vĩnh viễn','Nền mua thêm · 5.000 Coin','Kiểm tra / thử lưu lại'];
+            label.textContent='➜ '+currentLabels[index];
+            samples[feature.id]=role==='student'?[
+                '████ NỀN CHƯA MỞ ████ · Tag Mùa Xuân\nĐã nhận một nền trong bộ: Nền khác hiện [ Mua nền · 5.000 Coin ]',
+                '[ Mua nền · 5.000 Coin ] → Xác nhận\nMất mạng: [ Kiểm tra mua ]\nKhông đủ Coin: Không trừ, không cấp nền.',
+                '[ Xem vật phẩm cần thu thập ]\n✓ Vật phẩm vĩnh viễn (kể cả quà / sự kiện)\n✗ Dùng thử không tính',
+                '[ Chọn phần thưởng này ] → [ Nhận phần thưởng ] → Xác nhận\nChờ máy chủ xác nhận trước khi mở nền.',
+                '[ Sử dụng nền ] → Đang mặc → [ Tháo nền ]',
+                'Nền đặc biệt đang mặc\nNền thường / vật phẩm sang trọng: Phải tháo nền đặc biệt trước.',
+                'Lựa chọn đang chờ được giữ\nKết nối lại → [ Kiểm tra / thử lại ]\nKhông tự gửi yêu cầu nhận khi mở lại trang.',
+                'Vật phẩm vĩnh viễn ở hai cửa hàng đều được tính\nKhông cần biên nhận mua. Không mua lại chỉ để thử sửa lỗi.'
+            ]:[
+                'Quản lý trò chơi → Dưới Quản lý Cửa hàng Sang trọng\n[ Quản lý Phần thưởng ]',
+                'Mùa Xuân · Có trong danh mục\nĐồng bộ khi công bố bộ; danh sách trống cần bổ sung nền.',
+                '[ Lọc tag ] → [✓ Món A] [✓ Món B]\nChọn 1–24 món và 1–8 nền; lựa chọn giữ khi đổi bộ lọc.',
+                '[ Công bố bộ thưởng ]\nHọc sinh đủ bộ vẫn phải bấm Nhận phần thưởng.',
+                'Các bộ đã công bố → [ Sửa ] → [ Lưu thay đổi ]\nSửa bộ không cấp quyền nhận lần hai.',
+                '[ Xóa ] → Xác nhận\nNgừng nhận mới; nền đã nhận vẫn giữ.',
+                'Kho vĩnh viễn: Cửa hàng / quà tặng / sự kiện đều tính\nĐồ dùng thử: Không tính',
+                'Sau một nền miễn phí: Nền còn lại giá 5.000 Coin\nTrừ Coin và cấp nền cùng lúc.',
+                'Mạng lỗi → [ Kiểm tra / thử lưu lại ]\nBộ đã đổi ở phiên khác: Mở Sửa lại để lấy dữ liệu mới.'
+            ];
+        }
+        if(feature.id==='list-performance-new'&&role==='teacher'){
+            label.textContent='➜ '+['Tối ưu hiệu năng','Ảnh / video / âm thanh','Xem trực tiếp tài liệu','Dữ liệu giữ nguyên'][index];
+            samples[feature.id]=['Cài đặt → [ Tối ưu hiệu năng ]','Ảnh/video: Tải gần vùng xem\nÂm thanh: Chờ bấm phát','[ Xem trực tiếp ] → Đang tải DOCX\nBấm lặp dùng chung một lượt; mất mạng mở lại khi ổn định.','Điểm, quyền truy cập, thời hạn: Không thay đổi'];
+        }
+        const content=samples[feature.id]?.[index]||feature.details[index];
+        content.split('\n').forEach(line=>{const row=document.createElement('div');row.style.cssText='margin:6px 0;padding:8px;background:#fff;border-radius:7px;border:1px solid #d8e2f2';row.textContent=line;sample.append(row);});
+        if(feature.id==='appeals-new' && index===0 && role==='student'){
+            const reason=document.createElement('textarea');reason.readOnly=true;reason.setAttribute('aria-label','Lý do kháng cáo mẫu');reason.value='Em đã nộp trước hạn, xin giáo viên kiểm tra lại thời điểm nộp.';reason.style.cssText='width:100%;box-sizing:border-box;padding:10px;margin-top:8px;border:1px solid #94a8e8;border-radius:8px';sample.append(reason);
+            const send=document.createElement('button');send.type='button';send.textContent='Gửi kháng cáo (mô phỏng)';send.style.cssText='padding:10px 15px;background:#315fc4;color:white;border:0;border-radius:8px;margin-top:8px';send.onclick=()=>{send.textContent='Đã gửi (mô phỏng)';};sample.append(send);
+        }
+        appendRecentPractice(sample, feature.id, index, role);
+        const practice = sample.querySelector('.nug-recent-practice');
+        if (practice) {
+            const notes = document.createElement('details');
+            const summary = document.createElement('summary'); summary.textContent = 'Xem mô tả tình huống mẫu';
+            notes.append(summary);
+            [...sample.children].filter(node => node !== practice).forEach(node => notes.append(node));
+            sample.replaceChildren(practice, notes);
+        }
+        target.append(sample);box.append(target);document.body.append(box);
+    }
+    async function prepareStudentActionGuide(kind, step) {
+        removeRecentGuideDemo();
+        const host = document.getElementById(kind === 'appeals-new' ? 'gradesList' : 'tab-store');
+        if (!host) return;
+        const box=document.createElement('section');box.id='nug-recent-demo';box.className='card ui-theme-immune';box.dataset.nugSimulation='true';
+        box.style.cssText='padding:20px;margin:16px 0;border:2px solid #8196e8;background:#fff;color:#22314d;border-radius:14px';
+        box.innerHTML='<strong>THỰC HÀNH MẪU · Không gửi dữ liệu thật</strong>';
+        const note=document.createElement('p');box.append(note);
+        const mark=node=>{box.querySelectorAll('[data-nug-recent-target]').forEach(e=>e.removeAttribute('data-nug-recent-target'));node.dataset.nugRecentTarget='true';};
+        const button=(label,fn)=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.style.cssText='width:auto;padding:10px 16px;margin:8px 8px 8px 0;background:#5865d8;color:white;border:0;border-radius:8px';b.onclick=()=>fn(b);box.append(b);return b;};
+        if(kind==='appeals-new'){
+            note.textContent='Bài tập mẫu: Truyền nhiệt · Đã chấm: 0 điểm · Vi phạm nộp trễ';
+            const open=button('⚖ Kháng cáo',b=>{b.hidden=true;form.hidden=false;mark(reason);reason.focus();});
+            const form=document.createElement('div');form.hidden=step===0;
+            const reason=document.createElement('textarea');reason.placeholder='Nhập lý do kháng cáo (10–2000 ký tự)';reason.setAttribute('aria-label','Lý do kháng cáo mẫu');reason.maxLength=2000;reason.style.cssText='width:100%;min-height:90px;box-sizing:border-box';
+            if(step===2)reason.value='Em đã nộp trước hạn, xin giáo viên kiểm tra thời điểm nộp.';
+            const status=document.createElement('p');status.setAttribute('role','status');
+            const send=button('Gửi kháng cáo (mẫu)',b=>{if(reason.value.trim().length<10){status.textContent='Hãy nhập ít nhất 10 ký tự để nêu rõ lý do.';mark(reason);return;}status.textContent='Đã gửi → Chờ giáo viên tiếp nhận. Khi có quyết định, đọc kết quả trong Hộp thư.';b.disabled=true;reason.readOnly=true;mark(status);});
+            form.append(reason,send,status);box.append(form);if(step>0)open.hidden=true;mark(step===0?open:step===1?reason:send);
+        }else{
+            note.textContent='Bộ mẫu: Mùa Xuân · Đã sở hữu 2/3 vật phẩm vĩnh viễn';
+            const details=document.createElement('details');const summary=document.createElement('summary');summary.textContent='Xem vật phẩm cần thu thập';details.innerHTML='<ul><li>✓ Bút màu</li><li>✓ Khung tranh</li><li>○ Nền mùa xuân</li></ul>';details.prepend(summary);box.append(details);
+            const collect=button('Thu thập món còn thiếu (mẫu)',b=>{note.textContent='Đã sở hữu 3/3 vật phẩm. Chọn một nền rồi bấm Nhận.';details.querySelector('li:last-child').textContent='✓ Nền mùa xuân';b.disabled=true;select.disabled=false;claim.disabled=false;mark(select);});
+            const select=document.createElement('select');select.setAttribute('aria-label','Chọn nền thưởng mẫu');select.innerHTML='<option>Nền A</option><option>Nền B</option>';box.append(select);
+            const claim=button('Nhận phần thưởng (mẫu)',b=>{note.textContent='Đã nhận '+select.value+' miễn phí. Nền còn lại có thể mua với giá 5.000 Coin.';b.disabled=true;select.disabled=true;equip.hidden=false;mark(equip);});
+            const equip=button('Sử dụng nền (mẫu)',b=>{const worn=b.dataset.worn!=='true';b.dataset.worn=String(worn);b.textContent=worn?'Tháo nền (mẫu)':'Sử dụng nền (mẫu)';note.textContent=worn?'Đang dùng nền mẫu. Khi dùng thật, hãy tháo nền đặc biệt trước khi mặc nền thường hoặc vật phẩm sang trọng.':'Đã tháo nền mẫu.';});equip.hidden=step<2;
+            select.disabled=claim.disabled=step===0;details.open=step===0;if(step>0){collect.hidden=true;note.textContent='Đủ 3/3 vật phẩm vĩnh viễn · Chọn một nền miễn phí.';}if(step===2){claim.hidden=true;select.hidden=true;note.textContent='Đã nhận nền A. Thử bấm Sử dụng rồi Tháo nền.';}
+            mark(step===0?summary:step===1?select:equip);
+        }
+        host.prepend(box);box.scrollIntoView({block:'center',behavior:'instant'});await waitForLayout();
+    }
+    function studentActionSteps(feature){
+        const appeal=feature.id==='appeals-new';
+        const descriptions=appeal?['Mở bài vi phạm đã chấm trong Kết quả học tập. Bấm Kháng cáo trên bài mẫu ngay tại đây.','Nhập lý do ít nhất 10 ký tự. Nêu rõ vấn đề và bằng chứng để giáo viên kiểm tra.','Bấm Gửi kháng cáo. Trạng thái Đã gửi nghĩa là đang chờ xử lý; kết quả sẽ được gửi vào Hộp thư.']:['Mở Xem vật phẩm cần thu thập rồi thử thu thập món còn thiếu. Đồ dùng thử không được tính.','Chọn một nền rồi bấm Nhận phần thưởng. Chỉ được nhận một nền miễn phí trong bộ.','Bấm Sử dụng nền rồi Tháo nền. Các nút mẫu không thay đổi kho, Coin hoặc giao diện thật.'];
+        const entry={featureId:feature.id,tabId:feature.tabId,selector:'[data-nug-recent-target="true"]',title:feature.title+' · Mở chức năng',description:feature.access+' Bấm nút đang được chỉ để mở chức năng; bước tiếp theo có mẫu thực hành an toàn.',access:feature.access,before:async()=>{removeRecentGuideDemo();const node=document.querySelector(appeal?'#gradesList [data-appeal-key]':'#storeCollectionArrow');if(node){await revealHiddenAccordion(node);node.scrollIntoView({block:'center',behavior:'instant'});await waitForLayout();if(isElementVisible(node)){node.dataset.nugRecentTarget='true';return;}}await prepareStudentActionGuide(feature.id,0);},after:removeRecentGuideDemo};
+        return [entry,...descriptions.map((description,i)=>({featureId:feature.id,tabId:feature.tabId,selector:'[data-nug-recent-target="true"]',title:feature.title+' · Bước '+(i+1),description,access:feature.access+' Bài thực hành mẫu được xóa khi kết thúc hướng dẫn.',before:()=>prepareStudentActionGuide(feature.id,i),after:removeRecentGuideDemo}))];
+    }
+    function recentFeatureSteps(role) {
+        return recentFeatureGuides[role].flatMap(feature => role === 'student' && ['appeals-new','collection-rewards-new'].includes(feature.id) ? studentActionSteps(feature) : feature.details.map((description,index) => ({
+            featureId:feature.id,tabId:feature.tabId,selector:'[data-nug-recent-target="true"]',
+            title:feature.title+' · '+(index+1),description,
+            access:'Mũi tên ➜ và khung sáng chỉ đúng vùng đang giải thích. '+feature.access,
+            before:()=>prepareRecentGuide(feature,index,role),after:removeRecentGuideDemo
+        })));
+    }
+
     function readCurrentUser() {
         try {
             return JSON.parse(localStorage.getItem('currentUser')) || {};
@@ -580,6 +999,7 @@
     }
 
     function normalizeRemoteTrainingProgress(value) {
+        if (value?.requiredTrainingVersion !== REQUIRED_STUDENT_TRAINING_VERSION) return 0;
         const progress = Number(
             value?.requiredTrainingCurrentStep ??
             value?.trainingStep ??
@@ -3402,6 +3822,7 @@
             { featureId: 'create-assignment', tabId: 'tab-create', selector: '#enableExamTimeLimit', title: '9. Giới hạn thời gian làm bài', description: 'Bật khi đây là bài kiểm tra có thời lượng. Nhập số phút phù hợp.', access: 'Thời gian làm bài khác với hạn nộp.' },
             { featureId: 'create-assignment', tabId: 'tab-create', selector: 'button[onclick*="createAssignment"]', title: '10. Phát hành bài tập', description: 'Bấm sau khi đã kiểm tra tiêu đề, người nhận, câu hỏi, đáp án, thời gian và tệp.', access: 'Sau khi phát hành, xem lại trong Bài tập đã giao.' },
 
+            { featureId: 'assigned', tabId: 'tab-assigned', selector: '[data-edit-assigned-quiz]', title: 'Sửa trắc nghiệm đã giao', description: 'Mở cửa sổ soạn câu hỏi và chọn lại đáp án đúng bằng nút A–D. Bấm Lưu trắc nghiệm để cập nhật. Phần Sửa bài chỉ chỉnh thông tin chung và tự luận.', access: 'Đóng rồi mở lại nếu có thông báo bộ câu hỏi đã được sửa ở nơi khác.' },
             { featureId: 'assigned', tabId: 'tab-assigned', title: 'Mở mục Bài tập đã giao', description: 'Mục này hiển thị các bài đã phát hành.', access: 'Dùng tìm kiếm và bộ lọc để thu hẹp danh sách.' },
             { featureId: 'assigned', tabId: 'tab-assigned', selector: '#searchAssigned', title: 'Tìm bài đã giao', description: 'Nhập tên bài hoặc loại hình để tìm nhanh.', access: 'Xóa từ khóa để hiện lại toàn bộ.' },
             { featureId: 'assigned', tabId: 'tab-assigned', selector: '#assignedStudentFilterContainer', title: 'Lọc theo học sinh', description: 'Chọn Tất cả hoặc một học sinh để chỉ xem bài liên quan.', access: 'Bộ lọc không sửa dữ liệu bài.' },
@@ -3469,7 +3890,7 @@
             { featureId: 'settings', tabId: 'tab-settings', selector: '#themeSelector', title: 'Cài đặt tài khoản', description: 'Đổi giao diện, tên hiển thị hoặc mật khẩu rồi bấm Lưu thay đổi tài khoản.', access: 'Để trống mật khẩu nếu không muốn đổi.' },
             { featureId: 'settings', tabId: 'tab-settings', selector: '#toggleConversionTable', title: 'Bật bảng quy đổi', description: 'Quyết định học sinh có được mở bảng quy đổi Coin và tiền tích lũy hay không.', access: 'Tắt chức năng sẽ đóng bảng đang mở ở phía học sinh.' },
             { featureId: 'settings', tabId: 'tab-settings', selector: '#teacherCashRequestsSection', title: 'Yêu cầu lấy tiền mặt', description: 'Xem và xử lý các yêu cầu rút tiền do học sinh gửi.', access: 'Kiểm tra số tiền và trạng thái trước khi duyệt.' },
-            { featureId: 'settings', tabId: 'tab-settings', selector: 'button[onclick*="runSystemDiagnostics"]', title: 'System Health Center 2.0', description: 'Quét sức khỏe hệ thống ở chế độ chỉ đọc: Firebase, Service Worker/cache, R2/Cloudinary, module và tải runtime.', access: 'Công cụ không tự sửa dữ liệu; đọc bảng trạng thái để xác định hạng mục đang lỗi.' },
+            { featureId: 'settings', tabId: 'tab-settings', selector: 'button[onclick*="runSystemDiagnostics"]', title: 'System Health Center 2.1', description: 'Quét sức khỏe hệ thống ở chế độ chỉ đọc: Firebase, Service Worker/cache, R2/Cloudinary, module và tải runtime.', access: 'Công cụ không tự sửa dữ liệu; đọc bảng trạng thái để xác định hạng mục đang lỗi.' },
             { featureId: 'settings', tabId: 'tab-settings', selector: '#notificationToggle', title: 'Gửi thông báo toàn trường', description: 'Bật nhóm thông báo, nhập nội dung rồi bấm Gửi thông báo ngay.', access: 'Thông báo nên ngắn, rõ và có thời gian cụ thể.' },
             { featureId: 'settings', tabId: 'tab-settings', selector: '#surveyToggle', title: 'Tạo khảo sát', description: 'Bật khảo sát, nhập tiêu đề, thêm câu trắc nghiệm hoặc câu trả lời chữ rồi phát hành.', access: 'Kiểm tra toàn bộ câu trước khi gửi.' },
             { featureId: 'settings', tabId: 'tab-settings', selector: '#giftToggle', title: 'Gửi thư và quà', description: 'Chọn học sinh, nhập lời nhắn và loại quà. Có thể gửi Coin, vật phẩm hoặc thẻ giảm giá có phạm vi và hạn dùng.', access: 'Khi chọn thẻ giảm giá, kiểm tra phần trăm, vật phẩm áp dụng và ngày hết hạn.' }
@@ -3876,69 +4297,6 @@
             usernameValue.textContent = getStudentProfileUsernameForGuide();
         }
 
-        let avatarHint = document.getElementById('nugAvatarHelpText');
-
-        if (!avatarHint) {
-            avatarHint = createElement('small', {
-                id: 'nugAvatarHelpText',
-                text: 'Chạm ảnh hoặc biểu tượng ✏️ → chọn PNG/JPEG/GIF nhỏ hơn 1 MB → kiểm tra ảnh xem trước → bấm “Lưu ảnh mới”.'
-            });
-            avatarHint.style.cssText = `
-                display:block;
-                margin:-5px auto 15px;
-                padding:9px 12px;
-                max-width:390px;
-                border-radius:9px;
-                background:rgba(22,163,74,.08);
-                color:#166534;
-                font-size:.82rem;
-                font-weight:650;
-                line-height:1.45;
-                text-align:left;
-            `;
-
-            if (avatarSaveButton) {
-                avatarSaveButton.insertAdjacentElement('afterend', avatarHint);
-            } else {
-                const avatarContainer = content.querySelector(
-                    '.avatar-upload-container'
-                );
-                avatarContainer?.insertAdjacentElement('afterend', avatarHint);
-            }
-        }
-
-        let rules = document.getElementById('nugProfileChangeRules');
-
-        if (!rules) {
-            rules = createElement('div', {
-                id: 'nugProfileChangeRules'
-            });
-            rules.style.cssText = `
-                margin-top:15px;
-                padding:14px 15px;
-                border:1px solid rgba(245,158,11,.28);
-                border-radius:12px;
-                background:rgba(255,247,237,.92);
-                color:#44403c;
-                text-align:left;
-                line-height:1.55;
-                font-size:.88rem;
-            `;
-            rules.innerHTML = `
-                <strong style="display:block;color:#b45309;margin-bottom:7px;">
-                    🛡️ Thông tin nào em được tự thay đổi?
-                </strong>
-                <ul style="margin:0;padding-left:19px;">
-                    <li><b>Tự đổi ngay:</b> ảnh đại diện.</li>
-                    <li><b>Tự nhập đúng 1 lần:</b> ngày sinh, chỉ khi hồ sơ chưa có.</li>
-                    <li><b>Gửi yêu cầu trong Cài đặt:</b> tên hiển thị hoặc mật khẩu.</li>
-                    <li><b>Báo giáo viên chỉnh:</b> lớp, ngày sinh đã lưu, sở thích và châm ngôn.</li>
-                    <li><b>Tên tài khoản:</b> không có nút tự đổi; cần liên hệ giáo viên hoặc quản trị viên.</li>
-                </ul>
-            `;
-            content.appendChild(rules);
-        }
-
         return true;
     }
 
@@ -4034,15 +4392,7 @@
         );
     }
 
-    function getGuideCoinVisibilityStorageKey() {
-        const username = String(
-            state.user?.username ||
-            state.user?._fbKey ||
-            'guest'
-        ).trim();
-
-        return `student_coin_widget_visible:${username}`;
-    }
+    
 
     function isCoinWidgetActuallyVisible() {
         const widget = document.getElementById('coinWidget');
@@ -4065,58 +4415,9 @@
         return !isCoinWidgetActuallyVisible();
     }
 
-    function temporarilyRevealCoinWidgetForGuide() {
-        const widget = document.getElementById('coinWidget');
-        if (!widget || isCoinWidgetActuallyVisible()) return true;
+    
 
-        if (state.coinWidgetInitialStoredVisibility === null) {
-            state.coinWidgetInitialStoredVisibility = localStorage.getItem(
-                getGuideCoinVisibilityStorageKey()
-            );
-        }
-
-        if (typeof window.applyCoinBalanceWidgetVisibility === 'function') {
-            window.applyCoinBalanceWidgetVisibility(true, false);
-        } else {
-            widget.style.visibility = 'visible';
-            widget.style.opacity = '1';
-            widget.style.pointerEvents = 'auto';
-            widget.setAttribute('aria-hidden', 'false');
-        }
-
-        state.coinWidgetTemporarilyRevealed = true;
-        return true;
-    }
-
-    function restoreCoinWidgetAfterGuide() {
-        if (!state.coinWidgetTemporarilyRevealed) return;
-
-        const storedNow = localStorage.getItem(
-            getGuideCoinVisibilityStorageKey()
-        );
-
-        /*
-         * Nếu học sinh tự bật công tắc trong lúc được hướng dẫn,
-         * student.js đã lưu "true" nên giữ thanh Coin đang hiện.
-         * Chỉ ẩn lại khi cài đặt vẫn là "false" như trước.
-         */
-        if (storedNow !== 'true') {
-            if (typeof window.applyCoinBalanceWidgetVisibility === 'function') {
-                window.applyCoinBalanceWidgetVisibility(false, false);
-            } else {
-                const widget = document.getElementById('coinWidget');
-                if (widget) {
-                    widget.style.visibility = 'hidden';
-                    widget.style.opacity = '0';
-                    widget.style.pointerEvents = 'none';
-                    widget.setAttribute('aria-hidden', 'true');
-                }
-            }
-        }
-
-        state.coinWidgetTemporarilyRevealed = false;
-        state.coinWidgetInitialStoredVisibility = null;
-    }
+    
 
     function canOpenCoinConversionForGuide() {
         return (
@@ -4139,7 +4440,6 @@
     }
 
     function safeEnsureCoinConversionModalOpen() {
-        temporarilyRevealCoinWidgetForGuide();
 
         const modal = document.getElementById('coinConversionModal');
         if (modal?.classList.contains('active')) return true;
@@ -4893,7 +5193,7 @@
                 skipIfMissing: true,
                 title: 'Xem châm ngôn',
                 description: 'Đây là câu nói yêu thích được lưu trong hồ sơ học sinh.',
-                access: 'Báo giáo viên nếu muốn thay đổi nội dung này.'
+                access: 'Nhập sở thích hoặc châm ngôn rồi bấm Lưu thông tin. Giáo viên vẫn có thể xem và sửa.'
             },
             {
                 featureId: 'profile',
@@ -4946,7 +5246,6 @@
             {
                 featureId: 'coin',
                 selector: '#coinWidget',
-                before: temporarilyRevealCoinWidgetForGuide,
                 skipIfMissing: true,
                 title: '1. Xem thanh số dư Coin',
                 description: 'Thanh nổi hiển thị số Coin dùng trong cửa hàng. Em có thể kéo thanh tới vị trí thuận tiện trên màn hình.',
@@ -4955,7 +5254,6 @@
             {
                 featureId: 'coin',
                 selector: '#coinWidget [onclick*="openCoinConversionModal"]',
-                before: temporarilyRevealCoinWidgetForGuide,
                 skipIfMissing: true,
                 title: '2. Nút mở Bảng quy đổi',
                 description: 'Bấm dấu ! cạnh chữ “Số dư Coin” để mở Bảng quy đổi Tiền và Coin.',
@@ -5061,7 +5359,6 @@
             coinGuideSteps.push({
                 featureId: 'coin',
                 selector: '#coinWidget [onclick*="openCoinConversionModal"]',
-                before: temporarilyRevealCoinWidgetForGuide,
                 skipIfMissing: true,
                 title: 'Bảng quy đổi hiện chưa mở được',
                 description: getCoinConversionUnavailableText(),
@@ -5241,15 +5538,15 @@
             { featureId: 'settings', tabId: 'tab-settings', selector: '#toggleCoinBalanceWidget', title: 'Ẩn hoặc hiện thanh Coin', description: 'Chỉ thay đổi giao diện, không làm mất Coin.', access: 'Có thể bật lại bất cứ lúc nào.' },
             { featureId: 'settings', tabId: 'tab-settings', selector: '#themeSelector', title: 'Chọn giao diện cơ bản', description: 'Chọn màu giao diện tài khoản. Giao diện vật phẩm được trang bị từ cửa hàng hoạt động riêng.', access: 'Thay đổi được áp dụng theo tùy chọn của trang.' },
             { featureId: 'settings', tabId: 'tab-settings', selector: '#settingName', title: 'Gửi yêu cầu đổi thông tin', description: 'Nhập tên mới hoặc mật khẩu mới rồi bấm Gửi yêu cầu thay đổi. Giáo viên sẽ xem và duyệt.', access: 'Để trống phần không muốn đổi.' },
-            { featureId: 'settings', tabId: 'tab-settings', selector: 'button[onclick*="runSystemDiagnostics"]', title: 'System Health Center 2.0', description: 'Dùng bảng chẩn đoán chỉ đọc khi dữ liệu, bài tập hoặc giao diện không hoạt động đúng.', access: 'Health Center không tự sửa dữ liệu; đọc trạng thái rồi báo giáo viên nếu lỗi vẫn còn.' }
+            { featureId: 'settings', tabId: 'tab-settings', selector: 'button[onclick*="runSystemDiagnostics"]', title: 'System Health Center 2.1', description: 'Dùng bảng chẩn đoán chỉ đọc khi dữ liệu, bài tập hoặc giao diện không hoạt động đúng.', access: 'Health Center không tự sửa dữ liệu; đọc trạng thái rồi báo giáo viên nếu lỗi vẫn còn.' }
         ];
     }
 
     function buildTourSteps(featureId = null) {
         const data = roleData[state.role];
         const detailSteps = state.role === 'teacher'
-            ? teacherTourSteps()
-            : studentTourSteps();
+            ? [...teacherTourSteps(), ...recentFeatureSteps('teacher')]
+            : [...studentTourSteps(), ...recentFeatureSteps('student')];
 
         const selectedSteps = featureId
             ? detailSteps.filter(step => step.featureId === featureId)
@@ -5296,7 +5593,7 @@
     }
 
     function buildRequiredTrainingTourSteps() {
-        const detailSteps = studentTourSteps()
+        const detailSteps = [...studentTourSteps(), ...recentFeatureSteps('student')]
             .filter(step =>
                 REQUIRED_STUDENT_TRAINING_FEATURES
                     .includes(step.featureId)
@@ -5305,9 +5602,9 @@
         return [
             {
                 id: 'required-training-welcome',
-                title: 'Hướng dẫn bắt buộc: Nộp bài, cập nhật & hiệu năng',
+                title: 'Hướng dẫn bắt buộc: Các chức năng mới',
                 description:
-                    'Website có một số chức năng quan trọng em cần biết: cách nộp bài và xử lý lỗi, kiểm tra cập nhật, mức hiệu ứng vật phẩm & web và tối ưu hiệu năng. Mỗi học sinh chỉ phải hoàn thành mô-đun này một lần.',
+                    'Em cần xem hướng dẫn trắc nghiệm toàn màn hình, kháng cáo, phần thưởng bộ sưu tập và tối ưu tải tài liệu. Đợt hướng dẫn mới này chỉ cần hoàn thành một lần.',
                 access:
                     'Hướng dẫn có mô phỏng an toàn; không gửi bài giả, không đổi điểm, Coin, vật phẩm hoặc dữ liệu tài khoản.',
                 selector: '.dashboard'
@@ -5317,7 +5614,7 @@
                 id: 'required-training-finish',
                 title: 'Đã hoàn thành hướng dẫn bắt buộc',
                 description:
-                    'Em đã xem xong cách nộp bài, nhận biết các lỗi thường gặp, kiểm tra cập nhật và điều chỉnh hiệu ứng/hiệu năng. Từ lần sau hệ thống không bắt xem lại mô-đun này.',
+                    'Em đã xem xong bốn chức năng mới. Bấm Hoàn tất để lưu; từ lần sau hệ thống không bắt xem lại đợt hướng dẫn này.',
                 access:
                     'Bấm Hoàn tất. Khi cần, em vẫn có thể mở nút dấu hỏi và xem lại từng mục.',
                 selector: '.dashboard'
@@ -5370,6 +5667,7 @@
             markAsSeen();
         }
 
+        removeRecentGuideDemo();
         removeDemoCheckout();
         removeSubmissionGuideDemo();
         closeReviewPracticeDialogsForGuide();
@@ -5377,9 +5675,6 @@
         safeCloseStudentInbox();
         safeCloseStudentProfileForGuide();
         safeCloseCoinConversionModalForGuide();
-        restoreCoinWidgetAfterGuide();
-        state.coinWidgetTemporarilyRevealed = false;
-        state.coinWidgetInitialStoredVisibility = null;
 
         const dashboard = document.querySelector('.dashboard');
         state.previousSidebarCollapsed = dashboard
@@ -5606,7 +5901,7 @@
             }
         }
 
-        if (step.tabId) {
+        if (step.tabId && (useFallback || !selectors.length)) {
             const tabTarget = getNavButton(step.tabId) || document.getElementById(step.tabId);
             if (tabTarget) return tabTarget;
         }
@@ -5648,7 +5943,7 @@
         if (text) {
             const firstMandatoryText =
                 state.mandatoryScope === 'training'
-                    ? 'Đây là mô-đun hướng dẫn cập nhật bắt buộc. Mỗi học sinh chỉ cần xem một lần để nắm cách nộp bài, xử lý lỗi, kiểm tra cập nhật và tối ưu hiệu năng.'
+                    ? 'Đây là hướng dẫn bắt buộc về trắc nghiệm toàn màn hình, kháng cáo, phần thưởng và tối ưu hiệu năng. Mỗi tài khoản chỉ cần hoàn thành một lần; các màn hình có nhãn MÔ PHỎNG không gửi dữ liệu thật.'
                     : 'Đây là hướng dẫn bắt buộc dành cho học sinh mới. Em cần bấm “Tiếp theo” và xem đủ các bước để bắt đầu sử dụng website.';
 
             text.textContent = mandatory && state.currentStep === 0
@@ -5887,7 +6182,6 @@
         safeCloseStudentInbox();
         safeCloseStudentProfileForGuide();
         safeCloseCoinConversionModalForGuide();
-        restoreCoinWidgetAfterGuide();
         safeCloseCollectionPageForGuide();
 
         state.currentStep = -1;
@@ -6014,13 +6308,7 @@
     }
 
     function showToast(message) {
-        const toast = document.getElementById('nug-toast');
-        if (!toast) return;
-
-        toast.textContent = message;
-        toast.classList.add('is-visible');
-        clearTimeout(showToast.timer);
-        showToast.timer = setTimeout(() => toast.classList.remove('is-visible'), 3200);
+        window.AppDialog.toast(message);
     }
 
     function wait(milliseconds) {

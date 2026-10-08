@@ -2,23 +2,23 @@
 <html lang="vi" data-app-role="student">
 
 <head>
+    <link rel="stylesheet" href="css/app-dialog.css?v=20261003.cleanup1">
+    <script src="js/app-dialog.js?v=20261001.design2"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="application-version" content="4.0.3">
+    <meta name="application-version" content="4.2.0">
     <title>Trang Học Sinh</title>
     <!-- Kết nối sớm tới CDN lõi; không tải thêm tài nguyên và không đổi chức năng -->
     <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link rel="icon" type="image/png" href="assets/icon.png">
-    <link rel="stylesheet" href="css/common.css?v=4.0.4-login-layout4">
-    <link rel="stylesheet" href="css/student.css?v=20260917.content-glass-toggle-v2-button">
-    <link rel="stylesheet" href="css/mobile.css?v=4.0.9-floating-actions-v7-responsive-toolbar">
-    <link rel="stylesheet" href="css/web-animations.css?v=1.0">
-    <link rel="stylesheet" href="css/update-manager.css?v=1.0.0">
-    <link id="linkclick-cheng-premium-style" rel="stylesheet" href="css/link-click-cheng-xiaoshi.css?v=20260917.frame-runtime-barrier-v1">
+    <link rel="stylesheet" href="css/common.css?v=20261007.phone1">
+    <link rel="stylesheet" href="css/web-animations.css?v=20261003.cleanup2">
+    <link rel="stylesheet" href="css/update-manager.css?v=20261003.cleanup1">
+    <link id="linkclick-cheng-premium-style" rel="stylesheet" href="css/link-click-cheng-xiaoshi.css?v=20261003.aclp3">
     <!-- Core-first loader: CSS/module đặc biệt chỉ tải khi cần -->
-    <script src="js/student-feature-loader.js?v=20260921.equipped-rehydrate-v2"></script>
+    <script src="js/student-feature-loader.js?v=20261008.pet-size2"></script>
     <script>
         MathJax = {
             tex: {
@@ -234,9 +234,13 @@
             display: block !important;
         }
     </style>
+<link rel="stylesheet" href="css/student.css?v=20261007.phone1">
+<link rel="stylesheet" href="css/mc-workspace.css?v=20261007.phone1">
+<link rel="stylesheet" href="css/assignment-appeals.css?v=20261003.cleanup1">
+<link rel="stylesheet" href="css/dashboard-refresh.css?v=20261007.phone1">
 </head>
 
-<body>
+<body class="campus-modern">
     <div id="appStartupLoader" role="status" aria-live="polite" aria-busy="true">
         <div class="app-startup-loader-card">
             <div class="app-startup-loader-head">
@@ -655,27 +659,31 @@
             });
         })();
     </script>
-    <div class="dashboard">
-        <div class="sidebar">
-            <div class="sidebar-toggle" onclick="toggleSidebar()">
+    <div class="dashboard" id="studentDashboard">
+        <div class="sidebar" id="studentSidebar">
+            <button type="button" class="sidebar-toggle" onclick="toggleSidebar()" aria-label="Đóng hoặc mở menu" title="Đóng hoặc mở menu">
                 <span class="toggle-icon">◀</span>
-            </div>
+            </button>
 
             <div class="sidebar-top">
                 <h3 id="studentName">Học sinh</h3><br>
-                <button class="nav-item active" onclick="switchTab('tab-todo', this)">📝 <span class="nav-text">Bài tập
+                <button class="nav-item active" title="Bài tập cần làm" onclick="switchTab('tab-todo', this)">📝 <span class="nav-text">Bài tập
                         cần làm</span></button>
-                <button class="nav-item" onclick="switchTab('tab-grades', this)">📈 <span class="nav-text">Kết quả học
+                <button class="nav-item" title="Kết quả học tập" onclick="switchTab('tab-grades', this)">📈 <span class="nav-text">Kết quả học
                         tập</span></button>
-                <button class="nav-item" onclick="switchTab('tab-materials', this)">📚 <span class="nav-text">Tài liệu
+                <button class="nav-item" title="Tài liệu học tập" onclick="switchTab('tab-materials', this)">📚 <span class="nav-text">Tài liệu
                         học tập</span></button>
-                <button class="nav-item" onclick="switchTab('tab-roadmap', this)">🗺️ <span class="nav-text">Lộ
+                <button class="nav-item" title="Lộ trình và Lịch" onclick="switchTab('tab-roadmap', this)">🗺️ <span class="nav-text">Lộ
                         trình & Lịch</span></button>
-                <button id="studentGameNav" class="nav-item" onclick="switchTab('tab-game', this)">🎮 <span class="nav-text">Trò
+                <button id="studentGameNav" title="Trò chơi" class="nav-item" onclick="switchTab('tab-game', this)">🎮 <span class="nav-text">Trò
                         chơi</span></button>
-                <button id="studentStoreNav" class="nav-item" onclick="switchTab('tab-store', this)">🛒 <span class="nav-text">Cửa
+                <button id="studentStoreNav" title="Cửa hàng" class="nav-item" onclick="switchTab('tab-store', this)">🛒 <span class="nav-text">Cửa
                         hàng</span></button>
-                <button class="nav-item" id="btnSettingsNav" onclick="switchTab('tab-settings', this)">⚙️ <span
+                <button type="button" id="studentHistoryNav" class="nav-item" title="Lịch sử — Sắp cập nhật" aria-label="Lịch sử — đang khóa, sắp cập nhật" onclick="AppDialog.alert('🔒 Sắp cập nhật')">
+                    <svg class="campus-nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11a8 8 0 1 1 2 6 M3 4v7h7 M12 7v5l3 2" /></svg>
+                    <span class="nav-text">Lịch sử 🔒</span>
+                </button>
+                <button class="nav-item" title="Cài đặt" id="btnSettingsNav" onclick="switchTab('tab-settings', this)">⚙️ <span
                         class="nav-text">Cài đặt</span></button>
             </div>
             <div class="sidebar-bottom">
@@ -725,18 +733,11 @@
             <div id="tab-roadmap" class="tab-content">
                 <h2>Lộ trình & Thời khóa biểu</h2>
 
-                <div class="card"
-                    style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; padding: 15px 20px; border-radius: 16px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 8px 20px rgba(17, 153, 142, 0.15);">
+                <div id="roadmapMoneyCard" class="card">
                     <div>
-                        <h4
-                            style="margin: 0; font-size: 0.85em; text-transform: uppercase; letter-spacing: 1px; opacity: 0.9;">
-                            💰 Tổng tiền tích lũy lộ trình</h4>
-                        <p
-                            style="margin: 5px 0 0 0; font-size: 1.8em; font-weight: 900; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                            <span id="totalRoadmapMoney">0</span> đ
-                        </p>
+                        <h4>💰 Tổng tiền tích lũy lộ trình</h4>
+                        <p class="roadmap-money-value"><span id="totalRoadmapMoney">0</span> <span class="roadmap-money-unit">đ</span></p>
                     </div>
-                    <span style="font-size: 2.3em; opacity: 0.3;">¼</span>
                 </div>
 
                 <div style="display: flex; gap: 10px; margin-bottom: 20px;">
@@ -756,7 +757,7 @@
                                 📄 Tải xuống PDF
                             </button>
                         </div>
-                        <div style="overflow-x: auto;">
+                        <div class="plan-table-scroll" style="overflow-x: auto;" tabindex="0" role="region" aria-label="Bảng thông tin, vuốt ngang để xem đầy đủ">
                             <table style="width:100%; border-collapse: collapse; text-align: left;">
                                 <thead>
                                     <tr
@@ -779,7 +780,7 @@
                 <div id="view-schedule" style="display: none;">
                     <div class="card">
                         <h3 style="margin-bottom: 15px; color: #2c3e50;">Thời khóa biểu lớp học</h3>
-                        <div style="overflow-x: auto;">
+                        <div class="plan-table-scroll" style="overflow-x: auto;" tabindex="0" role="region" aria-label="Bảng thông tin, vuốt ngang để xem đầy đủ">
                             <table style="width:100%; border-collapse: collapse; text-align: left;">
                                 <thead>
                                     <tr
@@ -921,28 +922,16 @@
                                 </label>
                             </div>
 
-                            <div class="student-settings-toggle-row">
-                                <div class="student-settings-toggle-copy">
-                                    <strong>🪙 Hiển thị thanh số dư Coin</strong>
-                                    <p>Chỉ ẩn hoặc hiện thanh Coin trên màn hình, không ảnh hưởng số dư và các chức năng khác.</p>
-                                </div>
-
-                                <label class="switch" title="Ẩn hoặc hiện thanh số dư Coin">
-                                    <input type="checkbox" id="toggleCoinBalanceWidget"
-                                        onchange="toggleCoinBalanceWidget(this.checked)" checked>
-                                    <span class="slider"></span>
-                                </label>
-                            </div>
-
                             <div class="student-settings-field-block">
                                 <label for="themeSelector"><strong>🎨 Giao diện hiển thị:</strong></label>
                                 <select id="themeSelector" onchange="changeTheme(this.value)">
-                                    <option value="default">✨ Mặc định (Tím mộng mơ)</option>
+                                    <option value="default">✨ Mặc định (Xanh chàm)</option>
                                     <option value="blue">🌊 Xanh biển (Tươi mát)</option>
                                     <option value="green">🌿 Xanh lá (Yên bình)</option>
                                     <option value="pink">🌸 Hồng (Ngọt ngào)</option>
                                 </select>
                             </div>
+                            <div data-campus-motion-slot></div>
                         </div>
                     </section>
 
@@ -1000,7 +989,7 @@
 
                         <div class="glass-alert student-settings-health-card">
                             <div class="student-settings-health-copy">
-                                <h3>🩺 System Health Center 2.0</h3>
+                                <h3>🩺 System Health Center 2.1</h3>
                                 <p>Bảng chẩn đoán chỉ đọc: kiểm tra Firebase Auth/RTDB, Service Worker và cache/build,
                                     R2/Cloudinary, module runtime, listener/timer và mật độ hiệu ứng DOM.
                                     Không tự sửa dữ liệu.</p>
@@ -1110,31 +1099,38 @@
                 </div>
             </div>
 
-            <div
-                style="text-align: left; background: rgba(255,255,255,0.5); padding: 15px; border-radius: 12px; margin-bottom: 15px;">
-                <strong style="color: #2c3e50;">🌟 Sở thích:</strong>
-                <p id="infoModalHobbies" style="margin-top: 5px; color: #444;">Chưa cập nhật</p>
-            </div>
-
-            <div style="text-align: left; background: rgba(255,255,255,0.5); padding: 15px; border-radius: 12px;">
-                <strong style="color: #2c3e50;">💬 Chân ngôn:</strong>
-                <p id="infoModalMotto" style="margin-top: 5px; font-style: italic; color: #444;">Chưa cập nhật</p>
+            <div id="studentProfileDetails" class="profile-details">
+                <div class="profile-details-heading">
+                    <span>Đôi nét về em</span>
+                    <button type="button" id="saveStudentProfileDetails" aria-expanded="false" aria-controls="profileDetailsFields" onclick="saveStudentProfileDetails()">Sửa</button>
+                </div>
+                <div id="profileDetailsFields">
+                    <div class="profile-detail-field">
+                        <label for="infoModalHobbies">🌟 Sở thích</label>
+                        <p id="infoModalHobbiesText">Chưa cập nhật</p>
+                        <textarea id="infoModalHobbies" rows="2" maxlength="500" placeholder="Nhập sở thích của em" hidden></textarea>
+                    </div>
+                    <div class="profile-detail-field">
+                        <label for="infoModalMotto">💬 Châm ngôn</label>
+                        <p id="infoModalMottoText">Chưa cập nhật</p>
+                        <textarea id="infoModalMotto" rows="2" maxlength="500" placeholder="Nhập châm ngôn của em" hidden></textarea>
+                    </div>
+                </div>
+                <p id="studentProfileDetailsStatus" role="status" aria-live="polite"></p>
             </div>
         </div>
     </div>
 
     <div id="luckyWheelModal" class="modal-overlay ui-theme-immune" style="background: rgba(0,0,0,0.6);">
-        <div class="modal-content"
-            style="max-width: 480px; text-align: center; position: relative; background: rgba(30, 30, 50, 0.75); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.2); box-shadow: 0 30px 60px rgba(0,0,0,0.5); border-radius: 24px; padding: 35px 20px 45px 20px;">
+        <div class="modal-content ui-theme-immune lucky-wheel-panel">
 
             <button class="close-btn" onclick="closeLuckyWheel()"
                 style="z-index: 10; background: rgba(255,255,255,0.1); border-radius: 50%; color: #fff; top: 15px; right: 15px; border: 1px solid rgba(255,255,255,0.2);">✖</button>
 
-            <h3
-                style="color: #fff; margin-bottom: 35px; font-size: 1.8em; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 4px 10px rgba(0,0,0,0.5); font-weight: 900;">
+            <h3 class="lucky-wheel-title">
                 🎡 Vòng Quay Nhân Phẩm</h3>
 
-            <div style="position: relative; width: 320px; height: 320px; margin: 0 auto 40px auto;">
+            <div class="lucky-wheel-stage">
                 <div
                     style="position: absolute; top: -15px; left: 50%; transform: translateX(-50%); z-index: 10; width: 0; height: 0; border-left: 18px solid transparent; border-right: 18px solid transparent; border-top: 35px solid #ff0844; filter: drop-shadow(0 6px 4px rgba(0,0,0,0.5));">
                 </div>
@@ -1373,7 +1369,7 @@
                 📬 Hộp thư đến
             </h3>
             <p style="font-size: 0.85em; color: #666; font-style: italic; margin-top: -10px; margin-bottom: 15px;">* Thư
-                sẽ tự động bị xóa sau 5 ngày nếu không nhận.</p>
+                có hạn sẽ tự động bị xóa sau 3 ngày nếu không nhận. Thư không có hạn được giữ nguyên.</p>
             <div id="studentInboxBody"
                 style="max-height: 60vh; overflow-y: auto; padding-right: 10px; margin-bottom: 10px;">
             </div>
@@ -1549,8 +1545,8 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
     <!-- 2. Khởi tạo Firebase -->
-    <script src="js/firebase-config.js?v=20260909.singleflight-v1"></script>
-    <script src="js/cloudinary-storage.js?v=3.8"></script>
+    <script src="js/firebase-config.js?v=20260928.read-fix"></script>
+    <script src="js/cloudinary-storage.js?v=20261001.dialog1"></script>
 
     <script>
         window.APP_STORAGE_CONFIG = Object.freeze({
@@ -1558,7 +1554,7 @@
         });
     </script>
 
-    <script src="js/cloudflare-r2-storage.js?v=3.8"></script>
+    <script src="js/cloudflare-r2-storage.js?v=20261001.dialog1"></script>
 
     <!-- 3. Thư viện đọc file DOCX -->
     <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
@@ -1570,30 +1566,43 @@
     <script>
         // Phiên bản thực sự của bộ HTML/JS đang chạy.
         // common.js cũ đọc appVersion từ localStorage, nên đồng bộ trước khi nạp common.js.
-        window.APP_VERSION = '4.0.3';
+        window.APP_VERSION = '4.2.0';
         try {
             localStorage.setItem('appVersion', window.APP_VERSION);
         } catch (_) { }
     </script>
     
-    <script src="js/common.js?v=4.0.4-login-layout4"></script>
+    <script src="js/random-exam-engine.js?v=20261001.1"></script>
+<script src="js/campus-pdf.js?v=20261001.1"></script>
+<script src="js/common.js?v=20261007.reward-time1"></script>
     <script src="js/history-retention.js?v=1.0.0-2month-safe"></script>
-    <script src="js/update-manager.js?v=1.0.4-release-v4.0.3"></script>
-    <script src="js/web-animations.js?v=1.0"></script>
+    <script src="js/update-manager.js?v=1.0.4-release-v4.2.0"></script>
+    <script src="js/web-animations.js?v=20261003.cleanup2"></script>
     <!-- Tối ưu hiệu năng: mặc định tắt; dùng trạng thái đã lưu trong Cài đặt. Phát hiện mobile/thiết bị yếu chỉ áp dụng sau khi tính năng đã được bật. -->
-    <script src="js/web-performance-optimizer.js?v=2.0.0"></script>
-    <script src="js/transaction-history.js?v=4.0.1-retention-2months"></script>
+    <script src="js/web-performance-optimizer.js?v=20260930.media-v2"></script>
+    <script src="js/transaction-history.js?v=20261001.dialog1"></script>
 
     <!-- 4. EffectQualityManager là core; các module tính năng khác do StudentFeatureLoader lazy-load -->
     <!-- Điều chỉnh riêng mức hiệu ứng vật phẩm + Web Animations; không đụng theme/logic -->
-    <script src="js/effect-quality-manager.js?v=20260918.fx-store-v2"></script>
+    <script src="js/effect-quality-manager.js?v=20261001.design2"></script>
 
     <!-- YouTube API không phụ thuộc Firebase -->
     <script src="https://www.youtube.com/iframe_api"></script>
 
     <!-- 5. Logic chính của trang học sinh luôn đặt cuối -->
-    <script src="js/student.js?v=20261003.exam-submit-v2"></script>
+    <script src="js/assignment-appeals.js?v=20261008.grade-net1"></script>
+    <script src="js/mc-workspace.js?v=20261007.phone1"></script>
+<script src="js/student.js?v=20261008.pet-size2"></script>
 
+
+<link rel="stylesheet" href="css/collection-rewards.css?v=20261003.cleanup1">
+<script src="js/collection-reward-catalog.js?v=20260930.poster-pack3"></script>
+<script src="js/collection-rewards.js?v=20261001.dialog1"></script>
+<script src="js/list-media-performance.js?v=20260930.media-v2"></script>
+<link rel="stylesheet" href="css/campus-design.css?v=20261007.phone1">
+<script src="js/campus-design.js?v=20261007.phone1"></script>
+<link rel="stylesheet" href="css/mobile.css?v=20261007.phone6">
+<script src="js/mobile-layout.js?v=20261007.phone4"></script>
 </body>
 
 </html>

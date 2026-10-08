@@ -1,37 +1,41 @@
 {
-  "version": "4.0.3",
-  "build": "2026.09.18.1-security-hotfix",
+  "version": "4.2.0",
+  "build": "2026.10.08.1",
   "channel": "stable",
-  "releasedAt": "2026-09-17T14:38:00+07:00",
-  "title": "Bản cập nhật hệ thống v4.0.3 · Giao diện nổi & trợ năng",
-  "summary": "Hoàn thiện cụm 4 nút hành động nổi của học sinh trên desktop/mobile, tối ưu giao diện khi cửa sổ hẹp và sửa lỗi focus/aria-hidden của Đại Hội Trung Thu. Đồng thời đồng bộ phiên bản ứng dụng với Service Worker để người dùng nhận đúng tài nguyên mới.",
+  "releasedAt": "2026-10-08T00:00:00+07:00",
+  "title": "Bản cập nhật v4.2.0 · Tu Tiên, giao diện điện thoại và thưởng phạt",
+  "summary": "Bổ sung Kim Liên, Hạc Mộng cửa hàng thường và Kim Liên sang trọng; chuẩn hóa kích thước thú cưng, cập nhật giao diện điện thoại và đối soát thưởng/phạt theo điểm, thời điểm nộp bài.",
   "mandatory": false,
   "minSupportedVersion": "3.0.0",
   "changes": [
-    "Cụm BXH – Túi đồ – Hộp thư – Hồ sơ tiếp tục dùng floating dock bám viewport; cuộn trang không làm các nút bị kéo đi.",
-    "Tối ưu kích thước/khoảng cách cụm nút trên cửa sổ hẹp để giảm chồng lấn với nút mở menu và tiêu đề nội dung.",
-    "Sửa modal Đại Hội Trung Thu: quản lý focus đúng thứ tự, dùng inert trước khi aria-hidden để tương thích tốt hơn với công nghệ hỗ trợ.",
-    "Tăng cache-busting cho StudentFeatureLoader và Update Manager để trình duyệt lấy đúng hotfix mới.",
-    "Đồng bộ APP_VERSION/build giữa HTML, version.json và Service Worker; worker mới tự loại cache study-* của bản cũ khi activate."
+    "Bổ sung bộ Kim Liên thường: thú cưng 850 Coin, giao diện 800 Coin, hiệu ứng 900 Coin, khung viền 250 Coin và nền 150 Coin; tag và thẻ riêng, hiệu ứng độc lập với bản sang trọng.",
+    "Bổ sung bộ Hạc Mộng thường gồm 5 loại vật phẩm với giá tương ứng 850 / 800 / 900 / 250 / 150 Coin; hiệu ứng mây, lông vũ và ultimate hạc bay riêng.",
+    "Kim Liên sang trọng giá 15.000 Coin: sửa nút mua/mặc/tháo, cập nhật tag Kim Liên, nâng cấp hào quang, thiên cung, pháp trận và ultimate nhiều lớp.",
+    "Đưa các thẻ Kim Liên xuống cuối từng cửa hàng. Nhân vật sang trọng cao tối đa 300 px, thường 160 px; tự giới hạn theo màn hình và giữ tỉ lệ ảnh.",
+    "Đổi nhóm sưu tầm Cầm Mộng thành Tu Tiên, gồm Cầm Mộng, Hạc Mộng và Kim Liên cửa hàng thường; giữ mã bộ sưu tập để bảo toàn lịch sử nhận thưởng.",
+    "Trang bị sang trọng vẫn cho phép dùng nhạc và khung viền cửa hàng thường; không dùng đồng thời thú cưng, giao diện, hiệu ứng hoặc nền thường.",
+    "Cập nhật bố cục điện thoại cho giáo viên và học sinh, bảng lộ trình cuộn ngang và cơ chế mở thông tin thẻ sang trọng.",
+    "Trắc nghiệm mới nhập hoặc thêm được kiểm tra, chỉnh sửa trong cửa sổ riêng; khi phát hiện thiếu nội dung/đáp án, mở cửa sổ và chuyển đến câu cần xử lý.",
+    "Hồ sơ học sinh có nút sửa/lưu sở thích và châm ngôn; giáo viên vẫn xem và chỉnh được thông tin này.",
+    "Thưởng gốc: 5–dưới 7 điểm nhận 2 vé + 150 Coin; 7–dưới 10 nhận 3 vé + 350 Coin; 10 điểm nhận 4 vé + 700 Coin.",
+    "Thời điểm nộp chỉ giảm Coin thưởng theo các mức 100%, 92,2%, 83,5%, 75,6%; không giảm vé. Bài có hạn chia thời gian thành 4 phần; bài không hạn dùng mốc 1, 3, 7 ngày. Nếu có ngày bắt đầu thì tính từ thời điểm đó.",
+    "Phạt theo điểm: 4–dưới 5 trừ 1 vé + 50 Coin; 2–dưới 4 trừ 2 vé + 150 Coin; trên 0–dưới 2 trừ 3 vé + 300 Coin; đúng 0 trừ 4 vé + 500 Coin.",
+    "Phạt theo lỗi cộng dồn giữa các nhóm: quy chế thi 3 vé + 200 Coin; thiếu tự luận 3 vé + 150 Coin; nhóm nộp trễ/quá hạn/tự thu bài 4 vé + 300 Coin. Cùng một nhóm thời gian không bị tính hai lần.",
+    "Tổng thưởng trừ tổng phạt riêng cho Coin và vé. Còn dư thì cộng, thiếu thì trừ, cân bằng thì không đổi; hộp thư giải thích kết quả. Chấm lại hoặc sửa điểm chỉ điều chỉnh chênh lệch đã đối soát.",
+    "Rút thời hạn xóa thư xuống 3 ngày; bổ sung nút Lịch sử đang khóa với thông báo sắp cập nhật."
   ],
   "resolvedIssues": [
-    "🟠 Giao diện — 4 nút hành động học sinh không còn cuộn mất theo nội dung khi dùng cơ chế floating dock.",
-    "🟠 Responsive — giảm tình trạng cụm hành động chen vào nút ☰/tiêu đề khi cửa sổ desktop bị thu hẹp.",
-    "🟡 Accessibility — loại cảnh báo Chrome “Blocked aria-hidden ... descendant retained focus” khi đóng Đại Hội Trung Thu.",
-    "🟡 Cache — đổi build Service Worker để tách cache v4.0.3 khỏi cache v4.0.2.",
-    "🟡 Cập nhật — đồng bộ application-version và window.APP_VERSION trên các trang chính, trang trạng thái và trang đăng nhập."
+    "Sửa nút mua Kim Liên sang trọng bị thiếu.",
+    "Cô lập hào quang Kim Liên và Hạc Mộng khỏi CSS giao diện khác; dọn hiệu ứng khi tháo hoặc tạm dừng khi thi.",
+    "Thay kích thước nhân vật riêng lẻ bằng quy tắc chung cho thú cưng đang trang bị.",
+    "Đồng bộ thông tin phiên bản và nội dung thưởng/phạt mới trong thông báo cập nhật."
   ],
   "knownIssues": [
-    "🟠 Cao — CSS Tamon: đã phát hiện một khối CSS rất lớn bị lặp; cần xóa phần trùng sau khi đối chiếu chính xác file đang deploy để không đổi giao diện.",
-    "🟠 Cao — CSS thú cưng Hội họa: đã phát hiện một khối CSS/keyframe lặp; cần dọn bản lặp sau khi xác minh file production hiện tại.",
-    "🟡 Trung bình — Modal fallback: trường hợp không tìm thấy nút đóng vẫn có thể force-hide modal và bỏ qua cleanup riêng của module; cần lifecycle/close hook chung.",
-    "🟡 Trung bình — Giờ Vàng: cần tiếp tục kiểm tra cơ chế realtime + polling 15 giây để chỉ bật polling dự phòng khi realtime lỗi/mất kết nối."
+    "Cần triển khai Firebase Rules phù hợp cùng mã web để giao dịch thưởng/phạt và các quyền ghi hoạt động đúng.",
+    "Worker xóa học sinh cần cấu hình quyền quản trị Firebase; kiểm thử cục bộ không thay thế kiểm tra cloud thật.",
+    "Thiết bị ngoại tuyến chỉ nhận lệnh khóa bài của giáo viên sau khi kết nối lại."
   ],
   "plannedImprovements": [
-    "Module Lifecycle Registry: chuẩn hóa init() / pause() / resume() / destroy() để dọn timer, MutationObserver, event listener và audio khi đóng modal hoặc đổi vật phẩm.",
-    "Error Boundary cho module phụ: lỗi Luxury/painting/music/effect không được làm loader chính hoặc Student/Teacher ngừng khởi động; lỗi chỉ được ghi vào Chẩn đoán.",
-    "Build Manifest tự động: một nguồn duy nhất chứa appVersion, build, cache version và version/hash từng JS/CSS để tránh lệch số phiên bản giữa HTML, Update Manager và Service Worker.",
-    "Firebase Read Monitor cho developer/teacher: đếm .once(), realtime listener và thời gian phản hồi theo node để xác định chính xác module tốn read trước khi tối ưu.",
-    "Tiếp tục mở rộng lazy-load: core nạp trước; Store/Studio/sự kiện/module đặc biệt chỉ nạp khi mở hoặc khi phát hiện vật phẩm đang trang bị, đồng thời preload CSS cần thiết trước khi bỏ loader."
+    "Tiếp tục kiểm thử thi, nộp tệp, kháng cáo và đối soát thưởng/phạt trên bản triển khai thực tế."
   ]
 }
