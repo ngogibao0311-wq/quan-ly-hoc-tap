@@ -4988,8 +4988,8 @@ window.toggleAssignmentLock = async function(key) {
             if (!session || session.status === 'submitted') continue;
             const base = 'exam_sessions/' + username + '/' + id + '/';
             if (locked) {
-                const timedEnd = Number(session.startedAt || 0) + Number(current.examTimeLimitMinutes || 0) * 60000;
-                updates[base + 'teacherLockRemainingMs'] = Number(current.examTimeLimitMinutes) > 0 ? Math.max(0, timedEnd - now) : 0;
+                const timedEnd = Number(session.deadlineAt || 0);
+                updates[base + 'teacherLockRemainingMs'] = timedEnd > 0 ? Math.max(0, timedEnd - now) : 0;
                 updates[base + 'deadlineAt'] = 0;
             } else if (session.teacherLockRemainingMs !== undefined) {
                 updates[base + 'deadlineAt'] = Number(current.examTimeLimitMinutes) > 0 ? now + Number(session.teacherLockRemainingMs) : 0;
@@ -17855,10 +17855,11 @@ async function applyTeacherPenaltyBalance(username, type, amount) {
     }
 
     // type === 'money'
-    const [assignments, submissions, offsetSnap] = await Promise.all([
+    // Tiền lộ trình hiển thị = tiền từ kết quả bài tập + student_money_offset.
+    // Phần có thể ghi trực tiếp bằng transaction là student_money_offset.
+    const [assignments, submissions] = await Promise.all([
         getDB('assignments'),
-        getDB('submissions'),
-        db.ref(`student_money_offset/${username}`).once('value')
+        getDB('submissions')
     ]);
 
     const baseMoney = calculateTeacherCashBaseMoney(
@@ -17866,30 +17867,44 @@ async function applyTeacherPenaltyBalance(username, type, amount) {
         submissions,
         username
     );
-    const storageBefore = Number(offsetSnap.val()) || 0;
-    // Án phạt được phép đưa tổng Tiền lộ trình xuống âm.
-    const before = baseMoney + storageBefore;
-
-    const storageAfter = storageBefore - amount;
-    if (storageAfter < -9999999) {
-        throw new Error('Mức trừ vượt giới hạn Tiền lộ trình của hệ thống.');
-    }
 
     const balancePath = `student_money_offset/${username}`;
     const balanceRef = db.ref(balancePath);
-    const tx = await balanceRef.transaction(current => {
-        const normalized = Number(current) || 0;
+    let abortReason = '';
 
-        // Compare-and-swap để không ghi đè một giao dịch tiền vừa phát sinh.
-        if (normalized !== storageBefore) return;
-        return storageAfter;
-    });
+    // Không compare-and-swap với bản once('value') đọc trước: nó có thể
+    // trở nên lỗi thời. Firebase sẽ tự retry callback này với giá trị mới
+    // nếu có giao dịch khác; luôn trừ đúng amount từ số dư THỰC TẾ.
+    // Callback không được gây side-effect vì có thể được gọi nhiều lần.
+    const tx = await balanceRef.transaction(current => {
+        const offset = current == null ? 0 : current;
+        if (typeof offset !== 'number' || !Number.isFinite(offset)) {
+            abortReason = 'Dữ liệu student_money_offset không phải số; không tự ý sửa số dư.';
+            return;
+        }
+
+        const nextOffset = offset - amount;
+        if (!Number.isFinite(nextOffset) ||
+            nextOffset < -9999999 || nextOffset > 9999999) {
+            abortReason = 'Mức trừ vượt giới hạn Tiền lộ trình của hệ thống.';
+            return;
+        }
+
+        abortReason = '';
+        return nextOffset;
+    }, undefined, false);
 
     if (!tx.committed) {
         throw new Error(
-            'Số dư Tiền lộ trình vừa thay đổi ở thao tác khác; không có tiền nào bị trừ.'
+            abortReason ||
+            'Giao dịch Tiền lộ trình bị hủy; không có tiền nào bị trừ. Hãy kiểm tra kết nối và trạng thái tài khoản.'
         );
     }
+
+    // Lấy số dư ĐÃ COMMIT thay vì dùng số dư cache trước transaction.
+    // Nhờ vậy thông báo, audit log và CAS hoàn tác đều tham chiếu đúng số.
+    const storageAfter = tx.snapshot.val();
+    const storageBefore = storageAfter + amount;
 
     return {
         ...meta,
@@ -17897,7 +17912,7 @@ async function applyTeacherPenaltyBalance(username, type, amount) {
         storageBefore,
         storageAfter,
         baseMoney,
-        before,
+        before: baseMoney + storageBefore,
         after: baseMoney + storageAfter
     };
 }
