@@ -79,10 +79,10 @@
         legendary: 'css/legendery.css?v=20260917.frame-runtime-barrier-v1',
         doraemon: 'css/doraemon.css?v=20261003.cleanup1',
         paintingItems: 'css/hoi-hoa.css?v=3.8',
-        sevenSins: 'css/that-dai-toi.css?v=20261004.web-audio1',
+        sevenSins: 'css/that-dai-toi.css?v=20261009.regular-art1',
         birthday: 'css/pet-sinh-nhat.css?v=3.8',
         weather: 'css/thoi-tiet.css?v=3.8',
-        hacmong: 'css/premium-hac-mong.css?v=20261008.regular1',
+        hacmong: 'css/premium-hac-mong.css?v=20261009.regular-art1',
         autumn: 'css/premium-mua-thu.css?v=20261003.cleanup1',
         seasons: 'css/premium-mua-xuan.css?v=20261003.aclp3',
         nationalDay: 'css/quoc-khanh-pet.css?v=20261003.aclp3',
@@ -93,27 +93,33 @@
     });
 
     const SCRIPT = Object.freeze({
-        themeItems: 'js/theme-items.js?v=20261008.kim-lien3',
-        effectItems: 'js/effect-items.js?v=20261003.mienvu2',
-        petItems: 'js/pet-items.js?v=20261008.pet-size2',
-        petInteractions: 'js/pet-interactions.js?v=20261001.dialog1',
-        musicManager: 'js/music-manager.js?v=20261004.web-audio2',
-        storeManager: 'js/store-manager.js?v=20261008.kim-lien3',
+        valentine:'js/valentine.js?v=20261011.economy-startup2',
+        eternalWinter:'js/eternal-winter.js?v=20261011.economy-startup2',
+        tinhMong:'js/tinh-mong.js?v=20261011.economy-startup2',
+        themeItems: 'js/theme-items.js?v=20261011.economy-startup2',
+        effectItems: 'js/effect-items.js?v=20261011.economy-startup2',
+        petItems: 'js/pet-items.js?v=20261011.economy-startup2',
+        petInteractions: 'js/pet-interactions.js?v=20261011.economy-startup2',
+        musicManager: 'js/music-manager.js?v=20261011.economy-startup2',
+        storeManager: 'js/store-manager.js?v=20261011.economy-startup2',
 
-        kimLien: 'js/premium-kim-lien.js?v=20261008.3',
-        hacMongRegular: 'js/hac-mong-regular.js?v=20261008.1',
-        luxuryStore: 'js/luxury-store.js?v=20261008.kim-lien3',
-        collections: 'js/store-collections.js?v=20261008.kim-lien3',
+        regularArt: 'js/regular-store-art.js?v=20261011.economy-startup2',
+        kimLien: 'js/premium-kim-lien.js?v=20261011.economy-startup2',
+        thanhLanh: 'js/thanh-lanh.js?v=20261011.economy-startup2',
+        hacMongRegular: 'js/hac-mong-regular.js?v=20261011.economy-startup2',
+        distinctScenes: 'js/luxury-distinct-scenes.js?v=20261011.economy-startup2',
+        luxuryStore: 'js/luxury-store.js?v=20261011.economy-startup2',
+        collections: 'js/store-collections.js?v=20261011.economy-startup2',
 
-        royalBall: 'js/royal-ball.js?v=20261001.dialog1',
-        leaderboard: 'js/leaderboard.js?v=20261001.dialog1',
-        painting: 'js/painting.js?v=20261001.dialog1',
-        history: 'js/lich-su-hao-hung.js?v=20261001.dialog1',
-        bellum: 'js/bellum-event.js?v=20261001.dialog1',
-        midAutumnFestival: 'js/mid-autumn-festival.js?v=20261001.dialog1',
+        royalBall: 'js/royal-ball.js?v=20261011.economy-startup2',
+        leaderboard: 'js/leaderboard.js?v=20261011.economy-startup2',
+        painting: 'js/painting.js?v=20261011.economy-startup2',
+        history: 'js/lich-su-hao-hung.js?v=20261011.economy-startup2',
+        bellum: 'js/bellum-event.js?v=20261011.economy-startup2',
+        midAutumnFestival: 'js/mid-autumn-festival.js?v=20261011.economy-startup2',
 
-        dailyLogin: 'js/daily-login.js?v=20261001.dialog1',
-        guide: 'js/huong-dan-nguoi-moi.js?v=20261004.profile-practice1'
+        dailyLogin: 'js/daily-login.js?v=20261011.economy-startup2',
+        guide: 'js/huong-dan-nguoi-moi.js?v=20261011.economy-startup2'
     });
 
     /*
@@ -888,10 +894,15 @@ html[data-app-role="student"] body .dashboard > .content > :is(
         async 'theme-runtime'() {
             await loadCss(CSS.storeBase);
             await loadScriptsSequentially([
+                SCRIPT.regularArt,
                 SCRIPT.themeItems,
                 SCRIPT.storeManager,
                 SCRIPT.kimLien,
-                SCRIPT.hacMongRegular
+                SCRIPT.hacMongRegular,
+                SCRIPT.thanhLanh,
+                SCRIPT.tinhMong,
+                SCRIPT.eternalWinter,
+                SCRIPT.valentine
             ]);
         },
 
@@ -901,10 +912,15 @@ html[data-app-role="student"] body .dashboard > .content > :is(
                 loadCss(CSS.effectsBase)
             ]);
             await loadScriptsSequentially([
+                SCRIPT.regularArt,
                 SCRIPT.effectItems,
                 SCRIPT.storeManager,
                 SCRIPT.kimLien,
-                SCRIPT.hacMongRegular
+                SCRIPT.hacMongRegular,
+                SCRIPT.thanhLanh,
+                SCRIPT.tinhMong,
+                SCRIPT.eternalWinter,
+                SCRIPT.valentine
             ]);
         },
 
@@ -914,11 +930,16 @@ html[data-app-role="student"] body .dashboard > .content > :is(
                 loadCss(CSS.effectsBase)
             ]);
             await loadScriptsSequentially([
+                SCRIPT.regularArt,
                 SCRIPT.petItems,
                 SCRIPT.petInteractions,
                 SCRIPT.storeManager,
                 SCRIPT.kimLien,
-                SCRIPT.hacMongRegular
+                SCRIPT.hacMongRegular,
+                SCRIPT.thanhLanh,
+                SCRIPT.tinhMong,
+                SCRIPT.eternalWinter,
+                SCRIPT.valentine
             ]);
         },
 
@@ -932,6 +953,7 @@ html[data-app-role="student"] body .dashboard > .content > :is(
             await ensure('pet-runtime');
             await loadCss(CSS.luxury);
             await loadScript(SCRIPT.kimLien);
+            await loadScript(SCRIPT.distinctScenes);
             await loadScript(SCRIPT.luxuryStore);
         },
 
@@ -968,6 +990,7 @@ html[data-app-role="student"] body .dashboard > .content > :is(
             await loadScriptsSequentially([
                 SCRIPT.collections,
                 SCRIPT.kimLien,
+                SCRIPT.distinctScenes,
                 SCRIPT.luxuryStore
             ]);
         },
@@ -1103,6 +1126,8 @@ html[data-app-role="student"] body .dashboard > .content > :is(
     }
 
     const LUXURY_ITEM_IDS = new Set([
+        'pet_valentine_cupid_1',
+        'pet_eternal_winter_4',
         'pet_luxury_mua_xuan',
         'pet_luxury_mua_ha',
     'pet_luxury_mua_thu',
@@ -1260,9 +1285,10 @@ html[data-app-role="student"] body .dashboard > .content > :is(
 
         if (!needs.size) return false;
 
-        await Promise.all(
-            [...needs].map(ensure)
-        );
+        for (const feature of needs) {
+            await ensure(feature);
+            await new Promise(resolve => setTimeout(resolve, 0));
+        }
 
         /*
          * Luxury runtime vừa đăng ký thêm item vào StoreConfig. Preload lại CSS
@@ -1348,7 +1374,7 @@ html[data-app-role="student"] body .dashboard > .content > :is(
 
         window.__studentPostCoreLazyScheduled = true;
 
-        const run = () => {
+        const run = async () => {
             /*
              * Các tính năng hậu khởi động:
              * - BXH phải có nút truy cập ở mọi tab.
@@ -1356,21 +1382,23 @@ html[data-app-role="student"] body .dashboard > .content > :is(
              * - Hướng dẫn người mới có thể tự kiểm tra trạng thái.
              * Chúng tải sau khi giao diện đã mở nên không chặn startup.
              */
-            ensure('leaderboard').catch(error => {
+            await ensure('leaderboard').catch(error => {
                 console.warn(
                     '[StudentFeatureLoader] Leaderboard lazy-load lỗi:',
                     error
                 );
             });
 
-            ensure('daily-login').catch(error => {
+            await new Promise(resolve=>setTimeout(resolve,100));
+            await ensure('daily-login').catch(error => {
                 console.warn(
                     '[StudentFeatureLoader] Daily Login lazy-load lỗi:',
                     error
                 );
             });
 
-            ensure('guide').catch(error => {
+            await new Promise(resolve=>setTimeout(resolve,100));
+            await ensure('guide').catch(error => {
                 console.warn(
                     '[StudentFeatureLoader] Guide lazy-load lỗi:',
                     error

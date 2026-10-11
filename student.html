@@ -3,10 +3,10 @@
 
 <head>
     <link rel="stylesheet" href="css/app-dialog.css?v=20261003.cleanup1">
-    <script src="js/app-dialog.js?v=20261001.design2"></script>
+    <script src="js/app-dialog.js?v=20261011.economy-startup2"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="application-version" content="4.2.0">
+    <meta name="application-version" content="4.3.2">
     <title>Trang Học Sinh</title>
     <!-- Kết nối sớm tới CDN lõi; không tải thêm tài nguyên và không đổi chức năng -->
     <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
@@ -18,7 +18,7 @@
     <link rel="stylesheet" href="css/update-manager.css?v=20261003.cleanup1">
     <link id="linkclick-cheng-premium-style" rel="stylesheet" href="css/link-click-cheng-xiaoshi.css?v=20261003.aclp3">
     <!-- Core-first loader: CSS/module đặc biệt chỉ tải khi cần -->
-    <script src="js/student-feature-loader.js?v=20261008.pet-size2"></script>
+    <script src="js/student-feature-loader.js?v=20261011.economy-startup2"></script>
     <script>
         MathJax = {
             tex: {
@@ -396,7 +396,7 @@
                     if (state.blocked && state.errorKind === 'timeout' && getMissing().length === 0) {
                         clearError();
                         api.setStatus('Kết nối đã phục hồi. Hoàn tất khởi động...');
-                        setTimeout(() => api.hide(), 250);
+                        // Resume the startup continuation before opening the page.
                     }
                 },
 
@@ -470,7 +470,7 @@
 
                 async waitForCloudConnection(options) {
                     const timeoutMs = Math.max(3000, Number(options && options.timeoutMs) || 18000);
-                    api.setStatus('Đang kết nối Firebase Realtime Database...');
+                    api.setStatus('Đang kết nối cơ sở dữ liệu đám mây...');
 
                     if (!navigator.onLine) {
                         showError('Thiết bị đang ngoại tuyến.', 'Cần Internet để lấy dữ liệu mới nhất từ đám mây.', 'network');
@@ -480,7 +480,7 @@
                     const database = (typeof db !== 'undefined' ? db : window.db);
 
                     if (!database || typeof database.ref !== 'function') {
-                        showError('Firebase Database chưa được khởi tạo.', 'Không tìm thấy đối tượng db.ref().', 'runtime');
+                        showError('cơ sở dữ liệu đám mây chưa được khởi tạo.', 'Không tìm thấy đối tượng db.ref().', 'runtime');
                         return false;
                     }
 
@@ -495,7 +495,7 @@
                             try { ref.off('value', handler); } catch (_) { }
                             if (!ok) {
                                 showError(
-                                    'Không kết nối được máy chủ Firebase.',
+                                    'Không kết nối được máy chủ đám mây.',
                                     `Đã chờ ${Math.round(timeoutMs / 1000)} giây nhưng máy chủ chưa phản hồi. Dữ liệu đám mây chưa đủ nên giao diện chưa được mở.`,
                                     'network'
                                 );
@@ -509,7 +509,7 @@
 
                         const timer = setTimeout(() => finish(false), timeoutMs);
                         ref.on('value', handler, error => {
-                            showError('Firebase trả về lỗi kết nối.', error && error.message ? error.message : error, 'network');
+                            showError('đám mây trả về lỗi kết nối.', error && error.message ? error.message : error, 'network');
                             finish(false);
                         });
                     });
@@ -531,17 +531,18 @@
                 async waitForExpected(options) {
                     const timeoutMs = Math.max(5000, Number(options && options.timeoutMs) || 30000);
                     const started = Date.now();
-                    api.setStatus('Đang chờ các dữ liệu bắt buộc từ đám mây...');
+                    let slowReported = false;
+                    api.setStatus('Đang chuẩn bị dữ liệu cần thiết...');
 
                     while (getMissing().length) {
-                        if (Date.now() - started >= timeoutMs) {
+                        if (!slowReported && Date.now() - started >= timeoutMs) {
                             const missing = getMissing();
                             showError(
                                 'Một số dữ liệu bắt buộc chưa phản hồi.',
                                 'Còn thiếu: ' + missing.map(key => state.labels.get(key) || key).join(', '),
                                 'timeout'
                             );
-                            return false;
+                            slowReported = true;
                         }
                         await sleep(120);
                     }
@@ -609,6 +610,8 @@
 
                 diagnostics() {
                     return {
+                        hidden: state.hidden,
+                        blocked: state.blocked,
                         online: navigator.onLine,
                         expected: [...state.expected],
                         ready: [...state.ready],
@@ -679,9 +682,9 @@
                         chơi</span></button>
                 <button id="studentStoreNav" title="Cửa hàng" class="nav-item" onclick="switchTab('tab-store', this)">🛒 <span class="nav-text">Cửa
                         hàng</span></button>
-                <button type="button" id="studentHistoryNav" class="nav-item" title="Lịch sử — Sắp cập nhật" aria-label="Lịch sử — đang khóa, sắp cập nhật" onclick="AppDialog.alert('🔒 Sắp cập nhật')">
+                <button type="button" id="studentHistoryNav" class="nav-item" title="Lịch sử giao dịch" aria-label="Lịch sử giao dịch" onclick="switchTab('tab-history', this)">
                     <svg class="campus-nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11a8 8 0 1 1 2 6 M3 4v7h7 M12 7v5l3 2" /></svg>
-                    <span class="nav-text">Lịch sử 🔒</span>
+                    <span class="nav-text">Lịch sử</span>
                 </button>
                 <button class="nav-item" title="Cài đặt" id="btnSettingsNav" onclick="switchTab('tab-settings', this)">⚙️ <span
                         class="nav-text">Cài đặt</span></button>
@@ -990,7 +993,7 @@
                         <div class="glass-alert student-settings-health-card">
                             <div class="student-settings-health-copy">
                                 <h3>🩺 System Health Center 2.1</h3>
-                                <p>Bảng chẩn đoán chỉ đọc: kiểm tra Firebase Auth/RTDB, Service Worker và cache/build,
+                                <p>Bảng chẩn đoán chỉ đọc: kiểm tra đăng nhập và dữ liệu đám mây, Service Worker và cache/build,
                                     R2/Cloudinary, module runtime, listener/timer và mật độ hiệu ứng DOM.
                                     Không tự sửa dữ liệu.</p>
                             </div>
@@ -1009,6 +1012,7 @@
                     </section>
                 </div>
             </div>
+            <div id="tab-history" class="tab-content"><h2>Lịch sử giao dịch</h2><div id="studentAssetHistoryHost" class="ui-theme-immune"></div></div>
             <div id="tab-store" class="tab-content">
                 <h2>Cửa hàng Vật phẩm</h2>
                 <div id="storeLockedView" style="display: none;">
@@ -1545,8 +1549,9 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
     <!-- 2. Khởi tạo Firebase -->
-    <script src="js/firebase-config.js?v=20260928.read-fix"></script>
-    <script src="js/cloudinary-storage.js?v=20261001.dialog1"></script>
+    <script src="js/firebase-config.js?v=20261011.economy-startup2"></script>
+    <script src="js/asset-history.js?v=20261011.economy-startup2"></script>
+    <script src="js/cloudinary-storage.js?v=20261011.economy-startup2"></script>
 
     <script>
         window.APP_STORAGE_CONFIG = Object.freeze({
@@ -1554,7 +1559,7 @@
         });
     </script>
 
-    <script src="js/cloudflare-r2-storage.js?v=20261001.dialog1"></script>
+    <script src="js/cloudflare-r2-storage.js?v=20261011.economy-startup2"></script>
 
     <!-- 3. Thư viện đọc file DOCX -->
     <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
@@ -1566,43 +1571,51 @@
     <script>
         // Phiên bản thực sự của bộ HTML/JS đang chạy.
         // common.js cũ đọc appVersion từ localStorage, nên đồng bộ trước khi nạp common.js.
-        window.APP_VERSION = '4.2.0';
+        window.APP_VERSION = '4.3.2';
         try {
             localStorage.setItem('appVersion', window.APP_VERSION);
         } catch (_) { }
     </script>
     
-    <script src="js/random-exam-engine.js?v=20261001.1"></script>
-<script src="js/campus-pdf.js?v=20261001.1"></script>
-<script src="js/common.js?v=20261007.reward-time1"></script>
-    <script src="js/history-retention.js?v=1.0.0-2month-safe"></script>
-    <script src="js/update-manager.js?v=1.0.4-release-v4.2.0"></script>
-    <script src="js/web-animations.js?v=20261003.cleanup2"></script>
+    <script src="js/random-exam-engine.js?v=20261011.economy-startup2"></script>
+<script src="js/campus-pdf.js?v=20261011.economy-startup2"></script>
+<script src="js/common.js?v=20261011.economy-startup2"></script>
+<script src="js/startup-data-coordinator.js?v=20261011.economy-startup2"></script>
+<script src="js/economy-client.js?v=20261011.authority3"></script>
+    <script src="js/history-retention.js?v=20261011.economy-startup2"></script>
+    <script src="js/update-manager.js?v=20261011.economy-startup2"></script>
+    <script src="js/web-animations.js?v=20261011.economy-startup2"></script>
     <!-- Tối ưu hiệu năng: mặc định tắt; dùng trạng thái đã lưu trong Cài đặt. Phát hiện mobile/thiết bị yếu chỉ áp dụng sau khi tính năng đã được bật. -->
-    <script src="js/web-performance-optimizer.js?v=20260930.media-v2"></script>
-    <script src="js/transaction-history.js?v=20261001.dialog1"></script>
+    <script src="js/web-performance-optimizer.js?v=20261011.economy-startup2"></script>
+    <script src="js/transaction-history.js?v=20261011.authority3"></script>
 
     <!-- 4. EffectQualityManager là core; các module tính năng khác do StudentFeatureLoader lazy-load -->
     <!-- Điều chỉnh riêng mức hiệu ứng vật phẩm + Web Animations; không đụng theme/logic -->
-    <script src="js/effect-quality-manager.js?v=20261001.design2"></script>
+    <script src="js/effect-quality-manager.js?v=20261011.economy-startup2"></script>
 
     <!-- YouTube API không phụ thuộc Firebase -->
     <script src="https://www.youtube.com/iframe_api"></script>
 
     <!-- 5. Logic chính của trang học sinh luôn đặt cuối -->
-    <script src="js/assignment-appeals.js?v=20261008.grade-net1"></script>
-    <script src="js/mc-workspace.js?v=20261007.phone1"></script>
-<script src="js/student.js?v=20261008.exam-redo-expiry1"></script>
+    <script src="js/assignment-appeals.js?v=20261011.authority3"></script>
+    <script src="js/mc-workspace.js?v=20261011.economy-startup2"></script>
+<script src="js/student-asset-history.js?v=20261011.economy-startup2"></script>
+<script src="js/study-reliability.js?v=20261011.economy-startup2"></script>
+<script src="js/pending-mechanism-reconciliation.js?v=20261011.economy-startup2"></script>
+<script src="js/cash-ledger.js?v=20261011.economy-startup2"></script>
+<script src="js/inbox-ledger.js?v=20261011.economy-startup2"></script>
+<script src="js/student.js?v=20261011.authority3"></script>
 
 
 <link rel="stylesheet" href="css/collection-rewards.css?v=20261003.cleanup1">
-<script src="js/collection-reward-catalog.js?v=20260930.poster-pack3"></script>
-<script src="js/collection-rewards.js?v=20261001.dialog1"></script>
-<script src="js/list-media-performance.js?v=20260930.media-v2"></script>
+<script src="js/collection-reward-catalog.js?v=20261011.economy-startup2"></script>
+<script src="js/collection-rewards.js?v=20261011.economy-startup2"></script>
+<script src="js/list-media-performance.js?v=20261011.economy-startup2"></script>
 <link rel="stylesheet" href="css/campus-design.css?v=20261007.phone1">
-<script src="js/campus-design.js?v=20261007.phone1"></script>
+<script src="js/campus-design.js?v=20261011.economy-startup2"></script>
 <link rel="stylesheet" href="css/mobile.css?v=20261007.phone6">
-<script src="js/mobile-layout.js?v=20261007.phone4"></script>
+<script src="js/mobile-layout.js?v=20261011.economy-startup2"></script>
+<script src="js/release-history.js?v=20261011.economy-startup2"></script>
 </body>
 
 </html>

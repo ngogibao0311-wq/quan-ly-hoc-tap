@@ -93,7 +93,7 @@ function ensureStarryNightChibiPetStylesheet() {
     const link = document.createElement('link');
     link.id = 'starry-night-premium-style';
     link.rel = 'stylesheet';
-    link.href = 'css/dem-day-sao.css?v=20260921.starry-night-merged-v4';
+    link.href = 'css/dem-day-sao.css?v=20261009.shared-starry-tag1';
     link.dataset.starryNight = 'true';
     document.head.appendChild(link);
     return link;
@@ -4029,75 +4029,7 @@ class PetManager {
             localRealm.className = 'acch1-local-realm';
             localRealm.setAttribute('aria-hidden', 'true');
 
-            localRealm.innerHTML = `
-                <span class="acch1-dream-haze haze-a"></span>
-                <span class="acch1-dream-haze haze-b"></span>
-
-                <span class="acch1-local-sigil">
-                    <i class="acch1-sigil-ring ring-a"></i>
-                    <i class="acch1-sigil-ring ring-b"></i>
-                    <i class="acch1-sigil-ring ring-c"></i>
-                    <b>Ⅶ</b>
-                </span>
-
-                <span class="acch1-moon-crown">☾</span>
-                <span class="acch1-sleep-cloud cloud-a"></span>
-                <span class="acch1-sleep-cloud cloud-b"></span>
-                <span class="acch1-orbit-field"></span>
-            `;
-
-            const orbitField = localRealm.querySelector(
-                '.acch1-orbit-field'
-            );
-
-            for (let index = 0; index < 7; index++) {
-                const rune = document.createElement('i');
-                const angle = index * (360 / 7);
-
-                rune.className = 'acch1-orbit-rune';
-                rune.textContent = index === 6 ? 'Ⅶ' : '✦';
-                rune.style.setProperty(
-                    '--acch1-angle',
-                    `${angle}deg`
-                );
-                rune.style.setProperty(
-                    '--acch1-angle-back',
-                    `${-angle}deg`
-                );
-                rune.style.setProperty(
-                    '--acch1-delay',
-                    `${-index * 0.36}s`
-                );
-
-                orbitField?.appendChild(rune);
-            }
-
-            for (let index = 0; index < 10; index++) {
-                const mote = document.createElement('span');
-
-                mote.className = 'acch1-dream-mote';
-                mote.textContent = index % 3 === 0 ? 'z' : '✧';
-                mote.setAttribute('aria-hidden', 'true');
-                mote.style.setProperty(
-                    '--acch1-x',
-                    `${10 + ((index * 23) % 80)}%`
-                );
-                mote.style.setProperty(
-                    '--acch1-delay',
-                    `${-index * 0.43}s`
-                );
-                mote.style.setProperty(
-                    '--acch1-duration',
-                    `${4.2 + (index % 4) * 0.55}s`
-                );
-                mote.style.setProperty(
-                    '--acch1-size',
-                    `${9 + (index % 4) * 2}px`
-                );
-
-                localRealm.appendChild(mote);
-            }
-
+            localRealm.innerHTML = window.RegularStoreArt.acedia.aura();
             this.container.appendChild(localRealm);
 
             requestAnimationFrame(() => {
@@ -5456,7 +5388,7 @@ class PetManager {
 
         // =========================================================
         // ACEDIA · CHIBI — CLICK ULTIMATE TOÀN MÀN HÌNH
-        // "THẤT TRỌNG MIÊN GIỚI"
+        // "MÂY NHỎ RU GIẤC"
         // Namespace acch1-* độc lập hoàn toàn với seven-sins-sloth-magic/Luxury.
         // =========================================================
         if (
@@ -5468,7 +5400,7 @@ class PetManager {
             petElement.addEventListener(
                 'click',
                 event => {
-                    if (acch1SkillLocked) return;
+                    if (acch1SkillLocked || document.hidden || window.isExamVisualItemsSuspended || window.currentActiveExamId || document.body.classList.contains('wfx-low-power') || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
                     if (
                         typeof PetInteractionManager !== 'undefined' &&
@@ -5525,62 +5457,7 @@ class PetManager {
                     const ultimate = document.createElement('div');
                     ultimate.className = 'acch1-screen-ultimate';
                     ultimate.setAttribute('aria-hidden', 'true');
-                    ultimate.innerHTML = `
-                        <div class="acch1-screen-veil"></div>
-                        <div class="acch1-screen-mist mist-a"></div>
-                        <div class="acch1-screen-mist mist-b"></div>
-                        <div class="acch1-screen-eclipse">
-                            <span class="acch1-eclipse-core">Ⅶ</span>
-                            <span class="acch1-eclipse-ring ring-a"></span>
-                            <span class="acch1-eclipse-ring ring-b"></span>
-                            <span class="acch1-eclipse-ring ring-c"></span>
-                        </div>
-                        <div class="acch1-screen-gate">
-                            <span class="acch1-gate-wing wing-left"></span>
-                            <span class="acch1-gate-wing wing-right"></span>
-                            <span class="acch1-gate-seal">☾</span>
-                        </div>
-                        <div class="acch1-seven-field"></div>
-                        <div class="acch1-screen-title">
-                            <small>ACEDIA · SOMNIA VII</small>
-                            <strong>THẤT TRỌNG MIÊN GIỚI</strong>
-                        </div>
-                    `;
-
-                    const sevenField = ultimate.querySelector(
-                        '.acch1-seven-field'
-                    );
-
-                    for (let index = 0; index < 21; index++) {
-                        const rune = document.createElement('span');
-                        rune.textContent =
-                            index % 7 === 6
-                                ? 'Ⅶ'
-                                : index % 3 === 0
-                                    ? '☾'
-                                    : '✦';
-                        const screenAngle =
-                            index * (360 / 21);
-
-                        rune.style.setProperty(
-                            '--acch1-screen-angle',
-                            `${screenAngle}deg`
-                        );
-                        rune.style.setProperty(
-                            '--acch1-screen-angle-back',
-                            `${-screenAngle}deg`
-                        );
-                        rune.style.setProperty(
-                            '--acch1-screen-radius',
-                            `${18 + (index % 7) * 7}vmin`
-                        );
-                        rune.style.setProperty(
-                            '--acch1-screen-delay',
-                            `${(index % 7) * 0.045}s`
-                        );
-                        sevenField?.appendChild(rune);
-                    }
-
+                    ultimate.innerHTML = window.RegularStoreArt.acedia.ultimate();
                     document.body.appendChild(ultimate);
                     document.documentElement.classList.add(
                         'acch1-screen-active'

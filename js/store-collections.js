@@ -148,7 +148,7 @@
             id: 'cam-mong',
             label: 'Tu Tiên',
             icon: '🪷',
-            tags: ['Cầm Mộng', 'Hạc Mộng', 'Hắc Mộng', 'Kim Liên'],
+            tags: ['Cầm Mộng', 'Hạc Mộng', 'Hắc Mộng', 'Kim Liên', 'Thanh Lãnh'],
             excludeLuxury: true
         },
         {
@@ -351,6 +351,11 @@
         collection,
         milestone
     ) {
+        if (window.ECONOMY_SERVER_ENABLED === true) {
+            const result = await window.EconomyClient.execute('collection_milestone', {collectionId:collection.id,count:String(milestone.count)}, {slot:`collection:${collection.id}:${milestone.count}`});
+            setLocalRewardClaim(collection.id, milestone.count, {status:'sent'});
+            return result;
+        }
         const rewardCoins =
             getCollectionRewardCoins(
                 collection,
@@ -520,7 +525,7 @@
                     ) {
                         rewardErrorNotified = true;
                         window.showToast(
-                            'Chưa thể cộng thưởng Sưu tầm. Hãy kiểm tra Firebase Rules rồi tải lại trang.',
+                            'Chưa thể cộng thưởng Sưu tầm. Hãy kiểm tra quy tắc bảo mật đám mây rồi tải lại trang.',
                             'warning'
                         );
                     }

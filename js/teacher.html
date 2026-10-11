@@ -769,7 +769,7 @@
 
                 async waitForCloudConnection(options) {
                     const timeoutMs = Math.max(3000, Number(options && options.timeoutMs) || 18000);
-                    api.setStatus('Đang kết nối Firebase Realtime Database...');
+                    api.setStatus('Đang kết nối cơ sở dữ liệu đám mây...');
 
                     if (!navigator.onLine) {
                         showError('Thiết bị đang ngoại tuyến.', 'Cần Internet để lấy dữ liệu mới nhất từ đám mây.', 'network');
@@ -779,7 +779,7 @@
                     const database = (typeof db !== 'undefined' ? db : window.db);
 
                     if (!database || typeof database.ref !== 'function') {
-                        showError('Firebase Database chưa được khởi tạo.', 'Không tìm thấy đối tượng db.ref().', 'runtime');
+                        showError('cơ sở dữ liệu đám mây chưa được khởi tạo.', 'Không tìm thấy đối tượng db.ref().', 'runtime');
                         return false;
                     }
 
@@ -794,7 +794,7 @@
                             try { ref.off('value', handler); } catch (_) {}
                             if (!ok) {
                                 showError(
-                                    'Không kết nối được máy chủ Firebase.',
+                                    'Không kết nối được máy chủ đám mây.',
                                     `Đã chờ ${Math.round(timeoutMs / 1000)} giây nhưng máy chủ chưa phản hồi. Dữ liệu đám mây chưa đủ nên giao diện chưa được mở.`,
                                     'network'
                                 );
@@ -808,7 +808,7 @@
 
                         const timer = setTimeout(() => finish(false), timeoutMs);
                         ref.on('value', handler, error => {
-                            showError('Firebase trả về lỗi kết nối.', error && error.message ? error.message : error, 'network');
+                            showError('đám mây trả về lỗi kết nối.', error && error.message ? error.message : error, 'network');
                             finish(false);
                         });
                     });
@@ -2887,7 +2887,7 @@
                  </h3>
                  <p>
                   Tùy chọn này chỉ thay đổi cách trình bày trang đăng nhập.
-                                        Tài khoản, mật khẩu, Firebase và các chức năng khác
+                                        Tài khoản, mật khẩu, đám mây và các chức năng khác
                                         không bị thay đổi.
                  </p>
                 </div>
@@ -3006,7 +3006,7 @@
                  🩺 System Health Center 2.1
                 </h3>
                 <p style="font-size: 0.9em; color: #555; margin-bottom: 15px;">
-                 Bảng chẩn đoán chỉ đọc: kiểm tra Firebase Auth/RTDB, Service Worker và cache/build, R2/Cloudinary, module runtime, listener/timer và mật độ hiệu ứng DOM. Không tự sửa dữ liệu.
+                 Bảng chẩn đoán chỉ đọc: kiểm tra đăng nhập và dữ liệu đám mây, Service Worker và cache/build, R2/Cloudinary, module runtime, listener/timer và mật độ hiệu ứng DOM. Không tự sửa dữ liệu.
                 </p>
                 <button onclick="runSystemDiagnostics()" style="width: 100%; padding: 12px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);">
                  🩺
@@ -3595,7 +3595,7 @@
                                 </select>
                             </div>
                             <p style="margin: 5px 0 15px 0; font-size: 0.85em; color: #d35400;">💡
-                                <strong>Mẹo:</strong> Giữ phím <strong>Ctrl</strong> để chọn nhiều.
+                                <strong>Riêng tư với từng học sinh:</strong> Bỏ chọn em muốn ẩn bài, giữ chọn các em còn lại rồi lưu. Nếu không chọn ai, bài chỉ còn bên giáo viên. Bài nộp và Coin/vé cũ được giữ; tiền lộ trình từ bài này không còn tính cho em bị bỏ chọn.
                             </p>
                         </div>
 
@@ -3817,7 +3817,7 @@
         });
     </script>
 
-    <script src="js/cloudflare-r2-storage.js?v=20261001.dialog1"></script>
+    <script src="js/cloudflare-r2-storage.js?v=20261010.cloud-labels"></script>
 
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.4.7/dist/purify.min.js">
     </script>
@@ -3834,7 +3834,7 @@
     </script>
     <script src="js/random-exam-engine.js?v=20261001.1"></script>
 <script src="js/campus-pdf.js?v=20261001.1"></script>
-<script src="js/common.js?v=20261007.reward-time1"></script>
+<script src="js/common.js?v=20261010.cloud-labels"></script>
     <script src="js/history-retention.js?v=1.0.0-2month-safe"></script>
     <script src="js/update-manager.js?v=1.0.4-release-v4.1.0"></script>
     <script src="js/web-animations.js?v=20261003.cleanup2"></script>
@@ -3850,32 +3850,33 @@
     <script src="js/security.js?v=4.2.0-devtools-guard"></script>
 
     <!-- 4. Các module tính năng -->
-    <script src="js/daily-login.js?v=20261001.dialog1"></script>
+    <script src="js/daily-login.js?v=20261010.cloud-labels"></script>
     <script src="js/theme-items.js?v=20261003.mienvu1"></script>
     <script src="js/effect-items.js?v=20261003.mienvu2"></script>
     <script src="js/pet-items.js?v=20260919.partial-fix1"></script>
     <!-- Điều chỉnh riêng mức hiệu ứng vật phẩm + Web Animations; không đụng theme/logic -->
     <script src="js/effect-quality-manager.js?v=20261001.design2"></script>
-    <script src="js/royal-ball.js?v=20261001.dialog1"></script>
+    <script src="js/royal-ball.js?v=20261010.cloud-labels"></script>
     <script src="js/music-manager.js?v=20261001.dialog1"></script>
     <script src="js/store-manager.js?v=20261003.mienvu1"></script>
-    <script src="js/painting.js?v=20261001.dialog1"></script>
+    <script src="js/painting.js?v=20261010.cloud-labels"></script>
     <script src="js/luxury-store.js?v=20261007.phone5"></script>
 
     <!-- 5. Logic chính của trang giáo viên luôn đặt cuối -->
     <!-- Hotfix: xác nhận cài đặt lộ trình trước khi teacher.js chờ loader -->
-    <script src="js/roadmap-startup-fix.js?v=1.0"></script>
+    <script src="js/roadmap-startup-fix.js?v=20261010.cloud-labels"></script>
 
     <script src="js/assignment-appeals.js?v=20261008.grade-net1"></script>
-    <script src="js/mc-workspace.js?v=20261007.phone1"></script>
+    <script src="js/mc-workspace.js?v=20261010.cloud-labels"></script>
 <script src="js/video-duration.js?v=20261001.1"></script>
-<script src="js/student-deletion-client.js?v=20261001.dialog1"></script>
-<script src="js/teacher.js?v=20261008.grade-net1"></script>
-    <script src="js/huong-dan-nguoi-moi.js?v=20261004.profile-practice1"></script>
+<script src="js/student-deletion-client.js?v=20261010.recipients"></script>
+<script src="js/cash-ledger.js?v=20261010.audit1"></script>
+<script src="js/teacher.js?v=20261010.roadmap-grade-fix"></script>
+    <script src="js/huong-dan-nguoi-moi.js?v=20261010.cloud-labels"></script>
 
 <link rel="stylesheet" href="css/collection-rewards.css?v=20261003.cleanup1">
 <script src="js/collection-reward-catalog.js?v=20260930.poster-pack3"></script>
-<script src="js/collection-rewards.js?v=20261001.dialog1"></script>
+<script src="js/collection-rewards.js?v=20261010.cloud-labels"></script>
 <script src="js/list-media-performance.js?v=20260930.media-v2"></script>
 <link rel="stylesheet" href="css/campus-design.css?v=20261007.phone1">
 <script src="js/campus-design.js?v=20261007.phone1"></script>

@@ -1321,7 +1321,7 @@
     if (window.location?.protocol === 'file:') {
         console.warn(
             '[MC Workspace] Website đang chạy bằng file://. Chrome cô lập mỗi file thành unique origin; ' +
-            'Firebase/iframe có thể phát sinh lỗi origin. Hãy chạy project qua http://localhost.'
+            'đám mây/iframe có thể phát sinh lỗi origin. Hãy chạy project qua http://localhost.'
         );
     }
 

@@ -1,7 +1,7 @@
 /* Hạc Mộng regular: ink-wash clouds, feather trails and a migrating crane. */
 (() => {
     'use strict';
-    const css = 'css/premium-hac-mong.css?v=20261008.regular1';
+    const css = 'css/premium-hac-mong.css?v=20261009.regular-art1';
     if (!document.getElementById('hac-mong-regular-css')) {
         const link = document.createElement('link');
         link.id = 'hac-mong-regular-css'; link.rel = 'stylesheet'; link.href = css;
@@ -33,16 +33,8 @@
             this.shadow.innerHTML = `<link rel="stylesheet" href="${css}">`;
             if (items.effect) {
                 const clouds = document.createElement('div'); clouds.className = 'hmr-weather';
-                clouds.innerHTML = '<div class="hmr-cloud hmr-cloud-a"></div><div class="hmr-cloud hmr-cloud-b"></div>' +
-                    Array.from({length:9},(_,i)=>`<i class="hmr-feather" style="--x:${i*12}%;--delay:${-i*2.3}s"></i>`).join('');
+                clouds.innerHTML = window.RegularStoreArt.hac.world();
                 this.shadow.appendChild(clouds);
-                document.addEventListener('pointerdown', e => {
-                    if (this.quiet() || performance.now() < (this.nextTap || 0)) return;
-                    this.nextTap = performance.now()+220;
-                    const brush=document.createElement('div');brush.className='hmr-brush';
-                    brush.style.cssText=`left:${e.clientX}px;top:${e.clientY}px`;
-                    brush.innerHTML='<i></i><i></i><i></i>';this.shadow.appendChild(brush);this.later(()=>brush.remove(),1000);
-                },options);
             }
             document.body.appendChild(this.host);
             if (items.pet) {
@@ -59,7 +51,7 @@
                 }
             }
             const update=()=>{const quiet=this.quiet();this.host.hidden=quiet;if(this.aura)this.aura.hidden=quiet;
-                if(quiet)this.shadow.querySelectorAll('.hmr-flight,.hmr-brush').forEach(n=>n.remove());};
+                if(quiet)this.shadow.querySelectorAll('.hmr-flight').forEach(n=>n.remove());};
             this.observer=new MutationObserver(update);this.observer.observe(document.body,{attributes:true,attributeFilter:['class']});
             document.addEventListener('visibilitychange',update,options);
             matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change',update,options);update();

@@ -726,7 +726,7 @@ const StoreConfig = {
             isIcon: false,
             petEffect: 'starry-night-chibi-wanderer-magic',
             disableClickEffect: true,
-            runtimeCss: 'css/dem-day-sao.css?v=20260921.starry-night-distinct-v2'
+            runtimeCss: 'css/dem-day-sao.css?v=20261009.shared-starry-tag1'
         },
         {
             id: 'theme_dem_day_sao_hoa_gioi',
@@ -737,7 +737,7 @@ const StoreConfig = {
             tag: 'Đêm đầy sao',
             value: 'theme-starry-night-painted-gallery',
             customIcon: '🌌',
-            runtimeCss: 'css/dem-day-sao.css?v=20260921.starry-night-distinct-v2'
+            runtimeCss: 'css/dem-day-sao.css?v=20261009.shared-starry-tag1'
         },
         {
             id: 'effect_dem_day_sao_tinh_hoa_luu_van',
@@ -748,7 +748,7 @@ const StoreConfig = {
             tag: 'Đêm đầy sao',
             value: 'effect_dem_day_sao_tinh_hoa_luu_van',
             customIcon: '✦',
-            runtimeCss: 'css/dem-day-sao.css?v=20260921.starry-night-distinct-v2'
+            runtimeCss: 'css/dem-day-sao.css?v=20261009.shared-starry-tag1'
         },
         {
             id: 'frame_dem_day_sao_tinh_da_chi_hoan',
@@ -761,7 +761,7 @@ const StoreConfig = {
             value: 'assets/Premium/đêm đầy sao/nam_khung1.png',
             isIcon: false,
             frameEffect: 'sndf1-starry-night-painted-frame',
-            runtimeCss: 'css/dem-day-sao.css?v=20260921.starry-night-frame-v1'
+            runtimeCss: 'css/dem-day-sao.css?v=20261009.shared-starry-tag1'
         },
         {
             id: 'background_dem_day_sao_mong_canh_1',
@@ -787,7 +787,7 @@ const StoreConfig = {
             backgroundPosition: 'center center',
             backgroundRepeat: 'no-repeat',
             backgroundAttachment: 'fixed',
-            runtimeCss: 'css/dem-day-sao.css?v=20260921.starry-night-background-v2'
+            runtimeCss: 'css/dem-day-sao.css?v=20261009.shared-starry-tag1'
         },
         {
             id: 'pet_thatdaitoi_luoibieng_1',
@@ -2984,16 +2984,31 @@ const StoreConfig = {
             premiumCard:
                 'linkclick-chibi-memory-card-v1'
         },
-        {"id": "pet_kim_lien_regular_3", "name": "Kim Liên · Tiểu Liên Đồng", "type": "pet", "price": 850, "isNonCoin": false, "tag": "Kim Liên", "tags": ["Kim Liên"], "runtimeCss": "css/premium-kim-lien.css?v=20261008.3", "value": "assets/Premium/Tu tiên/kim_lien_chipi3.png", "asset": "assets/Premium/Tu tiên/kim_lien_chipi3.png", "isIcon": false, "disableClickEffect": true, "petEffect": "kim-lien-regular-dewdrop"},
-        {"id": "theme_kim_lien_regular_3", "name": "Kim Liên · Ngọc Diệp Hiên", "type": "theme", "price": 800, "isNonCoin": false, "tag": "Kim Liên", "tags": ["Kim Liên"], "runtimeCss": "css/premium-kim-lien.css?v=20261008.3", "customIcon": "❖", "value": "theme_kim_lien_regular_3"},
-        {"id": "effect_kim_lien_regular_3", "name": "Kim Liên · Kim Vũ Phù Quang", "type": "effect", "price": 900, "isNonCoin": false, "tag": "Kim Liên", "tags": ["Kim Liên"], "runtimeCss": "css/premium-kim-lien.css?v=20261008.3", "customIcon": "✧", "value": "effect_kim_lien_regular_3"},
-        {"id": "frame_kim_lien_regular_3", "name": "Kim Liên · Liên Hoa Bảo Hoàn", "type": "frame", "price": 250, "isNonCoin": false, "tag": "Kim Liên", "tags": ["Kim Liên"], "runtimeCss": "css/premium-kim-lien.css?v=20261008.3", "value": "assets/Premium/Tu tiên/kim_lien_khung3.png", "asset": "assets/Premium/Tu tiên/kim_lien_khung3.png", "isIcon": false},
-        {"id": "background_kim_lien_regular_3", "name": "Kim Liên · Bích Đàm Kim Liên", "type": "background", "price": 150, "isNonCoin": false, "tag": "Kim Liên", "tags": ["Kim Liên"], "runtimeCss": "css/premium-kim-lien.css?v=20261008.3", "value": "assets/Premium/Tu tiên/kim_lien_nen3.png", "asset": "assets/Premium/Tu tiên/kim_lien_nen3.png", "isIcon": false, "backgroundFit": "cover", "backgroundPosition": "center center", "backgroundRepeat": "no-repeat", "backgroundAttachment": "fixed"},
-        {"id": "pet_hac_mong_regular_2", "name": "Hạc Mộng · Tiểu Vân Hạc", "type": "pet", "price": 850, "isNonCoin": false, "tag": "Hạc Mộng", "tags": ["Hạc Mộng"], "runtimeCss": "css/premium-hac-mong.css?v=20261008.regular1", "value": "assets/Premium/Tu tiên/hac_mong_chipi2.png", "asset": "assets/Premium/Tu tiên/hac_mong_chipi2.png", "isIcon": false, "disableClickEffect": true, "petEffect": "hac-mong-regular-cloud"},
-        {"id": "theme_hac_mong_regular_2", "name": "Hạc Mộng · Thanh Vân Các", "type": "theme", "price": 800, "isNonCoin": false, "tag": "Hạc Mộng", "tags": ["Hạc Mộng"], "runtimeCss": "css/premium-hac-mong.css?v=20261008.regular1", "customIcon": "☁", "value": "theme_hac_mong_regular_2"},
-        {"id": "effect_hac_mong_regular_2", "name": "Hạc Mộng · Vũ Thư Phiêu Vân", "type": "effect", "price": 900, "isNonCoin": false, "tag": "Hạc Mộng", "tags": ["Hạc Mộng"], "runtimeCss": "css/premium-hac-mong.css?v=20261008.regular1", "customIcon": "〰", "value": "effect_hac_mong_regular_2"},
-        {"id": "frame_hac_mong_regular_2", "name": "Hạc Mộng · Vân Vũ Ngọc Hoàn", "type": "frame", "price": 250, "isNonCoin": false, "tag": "Hạc Mộng", "tags": ["Hạc Mộng"], "runtimeCss": "css/premium-hac-mong.css?v=20261008.regular1", "value": "assets/Premium/Tu tiên/hac_mong_khung2.png", "asset": "assets/Premium/Tu tiên/hac_mong_khung2.png", "isIcon": false},
-        {"id": "background_hac_mong_regular_2", "name": "Hạc Mộng · Vân Hải Tĩnh Cảnh", "type": "background", "price": 150, "isNonCoin": false, "tag": "Hạc Mộng", "tags": ["Hạc Mộng"], "runtimeCss": "css/premium-hac-mong.css?v=20261008.regular1", "value": "assets/Premium/Tu tiên/hac_mong_nen2.png", "asset": "assets/Premium/Tu tiên/hac_mong_nen2.png", "isIcon": false, "backgroundFit": "cover", "backgroundPosition": "center center", "backgroundRepeat": "no-repeat", "backgroundAttachment": "fixed"},
+        {"id": "pet_kim_lien_regular_3", "name": "Kim Liên · Tiểu Liên Đồng", "type": "pet", "price": 850, "isNonCoin": false, "tag": "Kim Liên", "tags": ["Kim Liên"], "runtimeCss": "css/premium-kim-lien.css?v=20261009.regular-art1", "value": "assets/Premium/Tu tiên/kim_lien_chipi3.png", "asset": "assets/Premium/Tu tiên/kim_lien_chipi3.png", "isIcon": false, "disableClickEffect": true, "petEffect": "kim-lien-regular-dewdrop"},
+        {"id": "theme_kim_lien_regular_3", "name": "Kim Liên · Ngọc Diệp Hiên", "type": "theme", "price": 800, "isNonCoin": false, "tag": "Kim Liên", "tags": ["Kim Liên"], "runtimeCss": "css/premium-kim-lien.css?v=20261009.regular-art1", "customIcon": "❖", "value": "theme_kim_lien_regular_3"},
+        {"id": "effect_kim_lien_regular_3", "name": "Kim Liên · Kim Vũ Phù Quang", "type": "effect", "price": 900, "isNonCoin": false, "tag": "Kim Liên", "tags": ["Kim Liên"], "runtimeCss": "css/premium-kim-lien.css?v=20261009.regular-art1", "customIcon": "✧", "value": "effect_kim_lien_regular_3"},
+        {"id": "frame_kim_lien_regular_3", "name": "Kim Liên · Liên Hoa Bảo Hoàn", "type": "frame", "price": 250, "isNonCoin": false, "tag": "Kim Liên", "tags": ["Kim Liên"], "runtimeCss": "css/premium-kim-lien.css?v=20261009.regular-art1", "value": "assets/Premium/Tu tiên/kim_lien_khung3.png", "asset": "assets/Premium/Tu tiên/kim_lien_khung3.png", "isIcon": false},
+        {"id": "background_kim_lien_regular_3", "name": "Kim Liên · Bích Đàm Kim Liên", "type": "background", "price": 150, "isNonCoin": false, "tag": "Kim Liên", "tags": ["Kim Liên"], "runtimeCss": "css/premium-kim-lien.css?v=20261009.regular-art1", "value": "assets/Premium/Tu tiên/kim_lien_nen3.png", "asset": "assets/Premium/Tu tiên/kim_lien_nen3.png", "isIcon": false, "backgroundFit": "cover", "backgroundPosition": "center center", "backgroundRepeat": "no-repeat", "backgroundAttachment": "fixed"},
+        {"id":"pet_eternal_winter_regular_4","name":"Đông Thần · Tiểu Sứ Giả Tuyết","type":"pet","price":850,"isNonCoin":false,"tag":"Mùa đông","tags":["Mùa đông"],"runtimeCss":"css/eternal-winter.css?v=20261010.winter-aura1","value":"assets/Premium/Bốn mùa/dong_chibi4.png","asset":"assets/Premium/Bốn mùa/dong_chibi4.png","isIcon":false,"disableClickEffect":true,"petEffect":"winter-post-globe"},
+        {"id":"theme_eternal_winter_regular_4","name":"Đông Thần · Bưu Trạm Tuyết","type":"theme","price":800,"isNonCoin":false,"tag":"Mùa đông","tags":["Mùa đông"],"runtimeCss":"css/eternal-winter.css?v=20261010.winter-aura1","value":"theme_eternal_winter_regular_4","customIcon":"▱"},
+        {"id":"effect_eternal_winter_regular_4","name":"Đông Thần · Thư Tuyết Lữ Hành","type":"effect","price":900,"isNonCoin":false,"tag":"Mùa đông","tags":["Mùa đông"],"runtimeCss":"css/eternal-winter.css?v=20261010.winter-aura1","value":"effect_eternal_winter_regular_4","customIcon":"◇"},
+        {"id":"frame_eternal_winter_regular_4","name":"Đông Thần · Băng Hoa Bảo Hoàn","type":"frame","price":250,"isNonCoin":false,"tag":"Mùa đông","tags":["Mùa đông"],"runtimeCss":"css/eternal-winter.css?v=20261010.winter-aura1","value":"assets/Premium/Bốn mùa/dong_vien4.png","asset":"assets/Premium/Bốn mùa/dong_vien4.png","isIcon":false},
+        {"id":"background_eternal_winter_regular_4","name":"Đông Thần · Tuyết Quốc Tĩnh Cảnh","type":"background","price":150,"isNonCoin":false,"tag":"Mùa đông","tags":["Mùa đông"],"runtimeCss":"css/eternal-winter.css?v=20261010.winter-aura1","value":"assets/Premium/Bốn mùa/dong_nen4.png","asset":"assets/Premium/Bốn mùa/dong_nen4.png","isIcon":false,"backgroundFit":"cover","backgroundPosition":"center center","backgroundRepeat":"no-repeat","backgroundAttachment":"fixed"},
+        {"id":"pet_tinh_mong_regular_2","name":"Tinh Mộng · Tiểu Thư Sao Giấy","type":"pet","price":850,"isNonCoin":false,"tag":"Đêm đầy sao","tags":["Đêm đầy sao"],"runtimeCss":"css/dem-day-sao.css?v=20261009.shared-starry-tag1","value":"assets/Premium/đêm đầy sao/nu_chibi2.png","asset":"assets/Premium/đêm đầy sao/nu_chibi2.png","isIcon":false,"disableClickEffect":true,"petEffect":"tinh-mong-paper-book"},
+        {"id":"theme_tinh_mong_regular_2","name":"Tinh Mộng · Tinh Thư Các","type":"theme","price":800,"isNonCoin":false,"tag":"Đêm đầy sao","tags":["Đêm đầy sao"],"runtimeCss":"css/dem-day-sao.css?v=20261009.shared-starry-tag1","value":"theme_tinh_mong_regular_2","customIcon":"▤"},
+        {"id":"effect_tinh_mong_regular_2","name":"Tinh Mộng · Sao Giấy Phiêu Du","type":"effect","price":900,"isNonCoin":false,"tag":"Đêm đầy sao","tags":["Đêm đầy sao"],"runtimeCss":"css/dem-day-sao.css?v=20261009.shared-starry-tag1","value":"effect_tinh_mong_regular_2","customIcon":"✧"},
+        {"id":"frame_tinh_mong_regular_2","name":"Tinh Mộng · Ngân Tú Bảo Hoàn","type":"frame","price":250,"isNonCoin":false,"tag":"Đêm đầy sao","tags":["Đêm đầy sao"],"runtimeCss":"css/dem-day-sao.css?v=20261009.shared-starry-tag1","value":"assets/Premium/đêm đầy sao/nu_khung2.png","asset":"assets/Premium/đêm đầy sao/nu_khung2.png","isIcon":false},
+        {"id":"background_tinh_mong_regular_2","name":"Tinh Mộng · Dạ Thư Tinh Hải","type":"background","price":150,"isNonCoin":false,"tag":"Đêm đầy sao","tags":["Đêm đầy sao"],"runtimeCss":"css/dem-day-sao.css?v=20261009.shared-starry-tag1","value":"assets/Premium/đêm đầy sao/nu_nen2.png","asset":"assets/Premium/đêm đầy sao/nu_nen2.png","isIcon":false,"backgroundFit":"cover","backgroundPosition":"center center","backgroundRepeat":"no-repeat","backgroundAttachment":"fixed"},
+        {"id":"pet_thanh_lanh_regular_4","name":"Thanh Lãnh · Tiểu Tuyết Linh","type":"pet","price":850,"isNonCoin":false,"tag":"Thanh Lãnh","tags":["Thanh Lãnh"],"runtimeCss":"css/premium-hac-mong.css?v=20261009.regular-art1","asset":"assets/Premium/Tu tiên/thanh_lanh_chipi4.png","value":"assets/Premium/Tu tiên/thanh_lanh_chipi4.png","isIcon":false,"disableClickEffect":true,"petEffect":"thanh-lanh-snow-fan"},
+        {"id":"theme_thanh_lanh_regular_4","name":"Thanh Lãnh · Sương Lam Hiên","type":"theme","price":800,"isNonCoin":false,"tag":"Thanh Lãnh","tags":["Thanh Lãnh"],"runtimeCss":"css/premium-hac-mong.css?v=20261009.regular-art1","value":"theme_thanh_lanh_regular_4","customIcon":"◇"},
+        {"id":"effect_thanh_lanh_regular_4","name":"Thanh Lãnh · Ngân Linh Tĩnh Tuyết","type":"effect","price":900,"isNonCoin":false,"tag":"Thanh Lãnh","tags":["Thanh Lãnh"],"runtimeCss":"css/premium-hac-mong.css?v=20261009.regular-art1","value":"effect_thanh_lanh_regular_4","customIcon":"♧"},
+        {"id":"frame_thanh_lanh_regular_4","name":"Thanh Lãnh · Băng Ngọc Bảo Hoàn","type":"frame","price":250,"isNonCoin":false,"tag":"Thanh Lãnh","tags":["Thanh Lãnh"],"runtimeCss":"css/premium-hac-mong.css?v=20261009.regular-art1","asset":"assets/Premium/Tu tiên/thanh_lanh_khung4.png","value":"assets/Premium/Tu tiên/thanh_lanh_khung4.png","isIcon":false},
+        {"id":"background_thanh_lanh_regular_4","name":"Thanh Lãnh · Hàn Sơn Vân Ảnh","type":"background","price":150,"isNonCoin":false,"tag":"Thanh Lãnh","tags":["Thanh Lãnh"],"runtimeCss":"css/premium-hac-mong.css?v=20261009.regular-art1","asset":"assets/Premium/Tu tiên/thanh_lanh_nen4.png","value":"assets/Premium/Tu tiên/thanh_lanh_nen4.png","isIcon":false,"backgroundFit":"cover","backgroundPosition":"center center","backgroundRepeat":"no-repeat","backgroundAttachment":"fixed"},
+        {"id": "pet_hac_mong_regular_2", "name": "Hạc Mộng · Tiểu Vân Hạc", "type": "pet", "price": 850, "isNonCoin": false, "tag": "Hạc Mộng", "tags": ["Hạc Mộng"], "runtimeCss": "css/premium-hac-mong.css?v=20261009.regular-art1", "value": "assets/Premium/Tu tiên/hac_mong_chipi2.png", "asset": "assets/Premium/Tu tiên/hac_mong_chipi2.png", "isIcon": false, "disableClickEffect": true, "petEffect": "hac-mong-regular-cloud"},
+        {"id": "theme_hac_mong_regular_2", "name": "Hạc Mộng · Thanh Vân Các", "type": "theme", "price": 800, "isNonCoin": false, "tag": "Hạc Mộng", "tags": ["Hạc Mộng"], "runtimeCss": "css/premium-hac-mong.css?v=20261009.regular-art1", "customIcon": "☁", "value": "theme_hac_mong_regular_2"},
+        {"id": "effect_hac_mong_regular_2", "name": "Hạc Mộng · Vũ Thư Phiêu Vân", "type": "effect", "price": 900, "isNonCoin": false, "tag": "Hạc Mộng", "tags": ["Hạc Mộng"], "runtimeCss": "css/premium-hac-mong.css?v=20261009.regular-art1", "customIcon": "〰", "value": "effect_hac_mong_regular_2"},
+        {"id": "frame_hac_mong_regular_2", "name": "Hạc Mộng · Vân Vũ Ngọc Hoàn", "type": "frame", "price": 250, "isNonCoin": false, "tag": "Hạc Mộng", "tags": ["Hạc Mộng"], "runtimeCss": "css/premium-hac-mong.css?v=20261009.regular-art1", "value": "assets/Premium/Tu tiên/hac_mong_khung2.png", "asset": "assets/Premium/Tu tiên/hac_mong_khung2.png", "isIcon": false},
+        {"id": "background_hac_mong_regular_2", "name": "Hạc Mộng · Vân Hải Tĩnh Cảnh", "type": "background", "price": 150, "isNonCoin": false, "tag": "Hạc Mộng", "tags": ["Hạc Mộng"], "runtimeCss": "css/premium-hac-mong.css?v=20261009.regular-art1", "value": "assets/Premium/Tu tiên/hac_mong_nen2.png", "asset": "assets/Premium/Tu tiên/hac_mong_nen2.png", "isIcon": false, "backgroundFit": "cover", "backgroundPosition": "center center", "backgroundRepeat": "no-repeat", "backgroundAttachment": "fixed"},
     ]
 };
 
@@ -3115,7 +3130,7 @@ function ensureStarryNightChibiStylesheet() {
 
     if (existing) {
         existing.id = existing.id || 'starry-night-premium-style';
-        const targetHref = 'css/dem-day-sao.css?v=20260921.starry-night-distinct-v2';
+        const targetHref = 'css/dem-day-sao.css?v=20261009.shared-starry-tag1';
         if (!String(existing.getAttribute('href') || '').includes('20260921.starry-night-distinct-v2')) {
             existing.setAttribute('href', targetHref);
         }
@@ -3128,7 +3143,7 @@ function ensureStarryNightChibiStylesheet() {
     const link = document.createElement('link');
     link.id = 'starry-night-premium-style';
     link.rel = 'stylesheet';
-    link.href = 'css/dem-day-sao.css?v=20260921.starry-night-distinct-v2';
+    link.href = 'css/dem-day-sao.css?v=20261009.shared-starry-tag1';
     link.dataset.starryNight = 'true';
 
     link.addEventListener('error', () => {
@@ -3144,7 +3159,7 @@ function ensureStarryNightChibiStylesheet() {
 class StoreManager {
     static getItemsByType(type) {
         return StoreConfig.items.filter(item => type === 'all' || item.type === type)
-            .sort((a, b) => Number(a.id.endsWith('_kim_lien_regular_3')) - Number(b.id.endsWith('_kim_lien_regular_3')));
+            .sort((a, b) => (a.id.endsWith('_eternal_winter_regular_4') ? 4 : a.id.endsWith('_tinh_mong_regular_2') ? 3 : a.id.endsWith('_thanh_lanh_regular_4') ? 2 : Number(a.id.endsWith('_kim_lien_regular_3'))) - (b.id.endsWith('_eternal_winter_regular_4') ? 4 : b.id.endsWith('_tinh_mong_regular_2') ? 3 : b.id.endsWith('_thanh_lanh_regular_4') ? 2 : Number(b.id.endsWith('_kim_lien_regular_3'))));
     }
 
     static getItemById(id) {
@@ -3518,10 +3533,12 @@ class StoreManager {
             'Sinh nhật 2026': 'tag-sinh-nhat-2026',
             'Cơn mưa': 'tag-con-mua',
             'Mùa xuân': 'tag-mua-xuan',
+            'Mùa đông': 'tag-eternal-winter',
             'Mùa thu': 'tag-mua-thu-regular',
             'Mùa Hạ': 'tag-mua-ha-limited',
             '2/9': 'tag-quoc-khanh-2-9',
             'Cầm Mộng': 'tag-cam-mong-chibi',
+            'Thanh Lãnh': 'tag-thanh-lanh-regular',
             'Kim Liên': 'tag-kim-lien-regular',
             'Hạc Mộng': 'tag-hac-mong-regular',
             'Trung thu': 'tag-trung-thu-chibi',
@@ -4175,6 +4192,20 @@ class StoreManager {
         if (item.id.endsWith('_hac_mong_regular_2')) {
             cardClasses.push('hmr-card', 'store-theme-locked', 'ui-theme-immune');
             specialCardGroup = 'hac-mong-regular'; isThemeImmune = true;
+        }
+        if (item.id.endsWith('_eternal_winter_regular_4')) {
+            cardClasses.push('ewr-card','store-theme-locked','ui-theme-immune');
+            specialCardGroup='winter-regular'; isThemeImmune=true;
+            if(!document.getElementById('eternal-winter-css')){const l=document.createElement('link');l.id='eternal-winter-css';l.rel='stylesheet';l.href='css/eternal-winter.css?v=20261010.winter-aura1';document.head.append(l);}
+        }
+        if (item.id.endsWith('_tinh_mong_regular_2')) {
+            ensureStarryNightChibiStylesheet();
+            cardClasses.push('tmr-card','store-theme-locked','ui-theme-immune');
+            specialCardGroup='tinh-mong-regular'; isThemeImmune=true;
+        }
+        if (item.id.endsWith('_thanh_lanh_regular_4')) {
+            cardClasses.push('tlr-card','store-theme-locked','ui-theme-immune');
+            specialCardGroup='thanh-lanh-regular'; isThemeImmune=true;
         }
         if (item.id.endsWith('_kim_lien_regular_3')) {
             cardClasses.push('klr-card', 'store-theme-locked', 'ui-theme-immune');

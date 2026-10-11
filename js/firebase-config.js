@@ -1,13 +1,13 @@
 // 1. DÁN ĐOẠN CODE BẠN LẤY ĐƯỢC TỪ FIREBASE VÀO ĐÂY
 const firebaseConfig = {
-    apiKey: "AIzaSyAnxiZEjEFUNoXnPFZR2GJh9mJ9KKYsPqI",
-    authDomain: "quan-ly-bai-tap-online.firebaseapp.com",
-    databaseURL: "https://quan-ly-bai-tap-online-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "quan-ly-bai-tap-online",
-    storageBucket: "quan-ly-bai-tap-online.firebasestorage.app",
-    messagingSenderId: "1045476145868",
-    appId: "1:1045476145868:web:2019476c328a8b52e1e069",
-    measurementId: "G-8MJZ8D9EK1"
+  apiKey: "AIzaSyAnxiZEjEFUNoXnPFZR2GJh9mJ9KKYsPqI",
+  authDomain: "quan-ly-bai-tap-online.firebaseapp.com",
+  databaseURL: "https://quan-ly-bai-tap-online-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "quan-ly-bai-tap-online",
+  storageBucket: "quan-ly-bai-tap-online.firebasestorage.app",
+  messagingSenderId: "1045476145868",
+  appId: "1:1045476145868:web:3c14a594998101b8e1e069",
+  measurementId: "G-7RGKF00TV0"
 };
 // ---- DỰ ÁN NHÁP
 //const firebaseConfig = {

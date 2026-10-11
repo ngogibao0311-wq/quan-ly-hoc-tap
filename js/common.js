@@ -1227,7 +1227,7 @@ window.getInboxMessageExpiry = function (message) {
             'appNetwork404Message'
         ).textContent =
             options.message ||
-            'Kết nối mạng hoặc máy chủ Firebase bị gián đoạn.';
+            'Kết nối mạng hoặc máy chủ đám mây bị gián đoạn.';
 
         document.getElementById(
             'appNetwork404Status'
@@ -1615,7 +1615,7 @@ window.getInboxMessageExpiry = function (message) {
                                             navigator
                                                 .onLine ===
                                                 false
-                                                ? 'Thiết bị đang ngoại tuyến nên Firebase chưa thể đồng bộ dữ liệu.'
+                                                ? 'Thiết bị đang ngoại tuyến nên đám mây chưa thể đồng bộ dữ liệu.'
                                                 : 'Internet vẫn có tín hiệu nhưng máy chủ dữ liệu chưa phản hồi.',
 
                                         status:
@@ -1623,7 +1623,7 @@ window.getInboxMessageExpiry = function (message) {
                                                 .onLine ===
                                                 false
                                                 ? 'Hãy kiểm tra Wi-Fi hoặc 4G/5G.'
-                                                : 'Đang thử kết nối lại Firebase...'
+                                                : 'Đang thử kết nối lại đám mây...'
                                     });
 
                                 },
@@ -1634,7 +1634,7 @@ window.getInboxMessageExpiry = function (message) {
         }
     } catch (error) {
         console.warn(
-            'Không thể theo dõi Firebase:',
+            'Không thể theo dõi đám mây:',
             error
         );
     }
@@ -2232,7 +2232,7 @@ if (loginForm) {
             }
 
             console.error(
-                'Firebase Auth đăng nhập thất bại:',
+                'xác thực đám mây đăng nhập thất bại:',
                 {
                     code: errorCode,
                     originalCode: error?.code,
@@ -2273,7 +2273,7 @@ if (loginForm) {
                     'Tên đăng nhập hoặc mật khẩu không chính xác.',
 
                 'auth/user-not-found':
-                    'Tài khoản chưa tồn tại trong Firebase Authentication.',
+                    'Tài khoản chưa tồn tại trong xác thực đám mây.',
 
                 'auth/wrong-password':
                     'Mật khẩu không chính xác.',
@@ -2285,19 +2285,19 @@ if (loginForm) {
                     'Tài khoản đã bị vô hiệu hóa.',
 
                 'auth/operation-not-allowed':
-                    'Firebase chưa bật đăng nhập Email/Password.',
+                    'đám mây chưa bật đăng nhập Email/Password.',
 
                 'auth/network-request-failed':
-                    'Không thể kết nối Firebase Authentication.',
+                    'Không thể kết nối xác thực đám mây.',
 
                 'auth/too-many-requests':
-                    'Firebase tạm chặn vì đăng nhập sai quá nhiều lần.',
+                    'đám mây tạm chặn vì đăng nhập sai quá nhiều lần.',
 
                 'auth/invalid-api-key':
-                    'Firebase API key không hợp lệ hoặc sai dự án.',
+                    'đám mây API key không hợp lệ hoặc sai dự án.',
 
                 'auth/app-not-authorized':
-                    'Tên miền hiện tại chưa được Firebase cho phép.'
+                    'Tên miền hiện tại chưa được đám mây cho phép.'
             };
 
             const displayMessage =
@@ -2431,12 +2431,12 @@ window.cleanupFirebaseListeners = function () {
         try {
             item.ref.off(item.eventType, item.callback, item.context);
         } catch (err) {
-            console.warn('⚠️ Không thể gỡ Firebase listener:', err);
+            console.warn('⚠️ Không thể gỡ đám mây listener:', err);
         }
     });
 
     window.firebaseListenerRegistry = [];
-    console.log('✅ Đã gỡ toàn bộ Firebase listeners:', list.length);
+    console.log('✅ Đã gỡ toàn bộ đám mây listeners:', list.length);
 };
 
 // Khi rời trang / F5 / đóng tab cũng tự gỡ listener
@@ -2471,7 +2471,7 @@ window.logout = async function () {
         }
     } catch (error) {
         console.error(
-            'Không thể đăng xuất Firebase Authentication:',
+            'Không thể đăng xuất xác thực đám mây:',
             error
         );
     } finally {
@@ -3117,9 +3117,9 @@ window.filterItems = function (containerId, keyword) {
         ) {
             return row(
                 'firebase-auth',
-                'Firebase Auth',
+                'xác thực đám mây',
                 'error',
-                'Firebase Authentication SDK chưa sẵn sàng.'
+                'bộ kết nối xác thực đám mây chưa sẵn sàng.'
             );
         }
 
@@ -3133,17 +3133,17 @@ window.filterItems = function (containerId, keyword) {
         if (!user?.uid) {
             return row(
                 'firebase-auth',
-                'Firebase Auth',
+                'xác thực đám mây',
                 'error',
-                'Không có phiên Firebase Auth đang đăng nhập.'
+                'Không có phiên xác thực đám mây đang đăng nhập.'
             );
         }
 
         return row(
             'firebase-auth',
-            'Firebase Auth',
+            'xác thực đám mây',
             'pass',
-            'Phiên đăng nhập Firebase đang hoạt động.',
+            'Phiên đăng nhập đám mây đang hoạt động.',
             [
                 `UID: ${user.uid}`,
                 user.email ? `Email: ${user.email}` : ''
@@ -3159,7 +3159,7 @@ window.filterItems = function (containerId, keyword) {
         if (!database) {
             return row(
                 'firebase-rtdb',
-                'Firebase RTDB',
+                'cơ sở dữ liệu đám mây',
                 'error',
                 'Không tìm thấy kết nối Realtime Database.'
             );
@@ -3203,7 +3203,7 @@ window.filterItems = function (containerId, keyword) {
                     if (!userSnapshot.exists()) {
                         return row(
                             'firebase-rtdb',
-                            'Firebase RTDB',
+                            'cơ sở dữ liệu đám mây',
                             'error',
                             'RTDB đọc được nhưng hồ sơ users/<uid> không tồn tại.',
                             details,
@@ -3216,7 +3216,7 @@ window.filterItems = function (containerId, keyword) {
                     );
                     return row(
                         'firebase-rtdb',
-                        'Firebase RTDB',
+                        'cơ sở dữ liệu đám mây',
                         'warn',
                         'RTDB lõi phản hồi nhưng không xác minh được hồ sơ người dùng.',
                         details,
@@ -3227,7 +3227,7 @@ window.filterItems = function (containerId, keyword) {
 
             return row(
                 'firebase-rtdb',
-                'Firebase RTDB',
+                'cơ sở dữ liệu đám mây',
                 connected ? 'pass' : 'warn',
                 connected
                     ? 'Realtime Database đang kết nối.'
@@ -3238,7 +3238,7 @@ window.filterItems = function (containerId, keyword) {
         } catch (error) {
             return row(
                 'firebase-rtdb',
-                'Firebase RTDB',
+                'cơ sở dữ liệu đám mây',
                 'error',
                 'Không thể đọc Realtime Database.',
                 [error?.message || String(error)]
@@ -4147,7 +4147,7 @@ window.filterItems = function (containerId, keyword) {
         const note = document.createElement('p');
         note.className = 'shc-note';
         note.textContent =
-            '🔒 Chế độ chỉ đọc: lần quét này không set/update/remove Firebase, không sửa localStorage, không upload/xóa R2/Cloudinary và không tự dừng listener/timer/effect.';
+            '🔒 Chế độ chỉ đọc: lần quét này không set/update/remove đám mây, không sửa localStorage, không upload/xóa R2/Cloudinary và không tự dừng listener/timer/effect.';
 
         const wrap = document.createElement('div');
         wrap.className = 'shc-table-wrap';
@@ -4247,7 +4247,7 @@ window.filterItems = function (containerId, keyword) {
 
         if (paragraph) {
             paragraph.textContent =
-                'Bảng chẩn đoán chỉ đọc: kiểm tra Firebase, Service Worker/cache, R2/Cloudinary, module runtime, listener/timer và mật độ hiệu ứng DOM. Không tự sửa dữ liệu.';
+                'Bảng chẩn đoán chỉ đọc: kiểm tra đám mây, Service Worker/cache, R2/Cloudinary, module runtime, listener/timer và mật độ hiệu ứng DOM. Không tự sửa dữ liệu.';
         }
 
         button.textContent = '🩺 Quét sức khỏe hệ thống';
@@ -4310,8 +4310,8 @@ window.filterItems = function (containerId, keyword) {
                 swResult,
                 r2Row
             ] = await Promise.all([
-                checkAuth().catch(error=>row('auth','Firebase Auth','error',error.message)),
-                checkRTDB().catch(error=>row('rtdb','Firebase Database','error',error.message)),
+                checkAuth().catch(error=>row('auth','xác thực đám mây','error',error.message)),
+                checkRTDB().catch(error=>row('rtdb','cơ sở dữ liệu đám mây','error',error.message)),
                 checkServiceWorker().catch(error=>({healthRow:row('sw','Service Worker','warn',error.message),pong:null})),
                 checkR2().catch(error=>row('r2','Cloudflare R2','error',error.message))
             ]);
