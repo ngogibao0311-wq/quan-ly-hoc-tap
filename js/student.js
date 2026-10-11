@@ -14264,7 +14264,6 @@ window.switchTab = async function (tabId, btnElement) {
 
     // 2. Kích hoạt tab mới
     nextTab.classList.add('active');
-    if (tabId === 'tab-history') void window.StudentAssetHistory?.open();
     btnElement?.classList.add('active');
 
     // 3. Xóa vị trí cuộn cũ, cuộn mượt mà lên vị trí cao nhất
