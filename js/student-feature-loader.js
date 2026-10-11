@@ -1301,6 +1301,13 @@ html[data-app-role="student"] body .dashboard > .content > :is(
                     .filter(Boolean);
 
             if (resolvedAfterLuxuryLoad.length) {
+                // A late catalog registration can resolve to a regular effect
+                // or theme, whose manager is not part of the luxury pet bundle.
+                for (const itemDef of resolvedAfterLuxuryLoad) {
+                    if (itemDef.luxuryOnly !== true) {
+                        await ensure(inferNormalRuntimeGroup(itemDef.id, itemDef));
+                    }
+                }
                 await preloadEquippedCss(resolvedAfterLuxuryLoad);
                 releaseUnusedSpecialCss(resolvedAfterLuxuryLoad);
             }

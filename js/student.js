@@ -20319,7 +20319,9 @@ window.restoreExamVisualItems = function () {
 
     // Đọc lại vật phẩm đang trang bị từ myInventory
     if (typeof window.applyEquippedItems === 'function') {
-        window.applyEquippedItems();
+        window.applyEquippedItems().catch(error => {
+            console.error('[Student equipment] Không khôi phục được trang bị:', error);
+        });
     }
 };
 
@@ -20336,13 +20338,30 @@ function getStudentRenderableEquippedInventory(inventory, now = Date.now()) {
     });
 }
 
-window.applyEquippedItems = function () {
+window.applyEquippedItems = async function () {
     installStudentEquipmentAccessGuards();
     if (!window.isStudentStoreGameAccessEnabled()) {
         window.clearStudentStoreEquipmentRuntime();
         return false;
     }
     if (!isStudentStoreRuntimeReady()) {
+        return false;
+    }
+
+    // Store catalog and inventory arrive independently. Every caller must wait
+    // for the equipped types, including catalog refreshes during startup.
+    if (window.StudentFeatureLoader) {
+        let inventorySnapshot;
+        do {
+            inventorySnapshot = myInventory;
+            await window.StudentFeatureLoader.ensureForEquippedItems(
+                getStudentRenderableEquippedInventory(inventorySnapshot)
+            );
+        } while (inventorySnapshot !== myInventory);
+    }
+    // Access can change while scripts are loading.
+    if (!window.isStudentStoreGameAccessEnabled()) {
+        window.clearStudentStoreEquipmentRuntime();
         return false;
     }
 
