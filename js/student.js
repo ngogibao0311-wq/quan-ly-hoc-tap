@@ -581,58 +581,69 @@ window.syncStudentLazyStoreRuntime =
 
         window.__studentLazyRuntimeSyncPromise =
             (async () => {
-                if (
-                    !applyStudentCachedStoreSettingsToRuntime()
-                ) {
-                    return false;
-                }
+                let settingsSnapshot, inventorySnapshot;
+                do {
+                    settingsSnapshot = window.__studentLazyStoreSettings;
+                    inventorySnapshot = typeof myInventory !== 'undefined' ? myInventory : null;
+                    if (
+                        !applyStudentCachedStoreSettingsToRuntime()
+                    ) {
+                        return false;
+                    }
 
-                /*
-                 * StoreManager được lazy-load. Các override dành riêng cho
-                 * trang Học sinh chỉ được gắn SAU KHI runtime đã sẵn sàng.
-                 * Tránh ReferenceError làm dừng toàn bộ student.js ở startup.
-                 */
-                installStudentStoreManagerOverrides();
+                    /*
+                     * StoreManager được lazy-load. Các override dành riêng cho
+                     * trang Học sinh chỉ được gắn SAU KHI runtime đã sẵn sàng.
+                     * Tránh ReferenceError làm dừng toàn bộ student.js ở startup.
+                     */
+                    installStudentStoreManagerOverrides();
 
-                if (
-                    typeof loadStoreItems ===
-                    'function'
-                ) {
-                    await loadStoreItems();
-                }
-
-                if (
-                    typeof applyEquippedItems ===
-                    'function'
-                ) {
-                    await Promise.resolve(
-                        applyEquippedItems()
-                    );
-                }
-
-                if (
-                    window.StoreCollectionPage &&
-                    typeof window
-                        .StoreCollectionPage
-                        .refresh ===
+                    if (
+                        typeof loadStoreItems ===
                         'function'
-                ) {
-                    window
-                        .StoreCollectionPage
-                        .refresh();
-                }
+                    ) {
+                        await loadStoreItems();
+                    }
 
-                if (
-                    window.LuxuryStore &&
-                    typeof window.LuxuryStore
-                        .refresh ===
+                    if (
+                        typeof applyEquippedItems ===
                         'function'
-                ) {
-                    window.LuxuryStore
-                        .refresh();
-                }
+                    ) {
+                        await Promise.resolve(
+                            applyEquippedItems()
+                        );
+                    }
 
-                await runStudentDeferredDiscountMigration();
+                    if (
+                        window.StoreCollectionPage &&
+                        typeof window
+                            .StoreCollectionPage
+                            .refresh ===
+                            'function'
+                    ) {
+                        window
+                            .StoreCollectionPage
+                            .refresh();
+                    }
+
+                    if (
+                        window.LuxuryStore &&
+                        typeof window.LuxuryStore
+                            .refresh ===
+                            'function'
+                    ) {
+                        window.LuxuryStore
+                            .refresh();
+                    }
+
+                    await runStudentDeferredDiscountMigration();
+
+                    // A different Firebase listener can replace settings or inventory
+                    // while the lazy runtime is loading. Finish with the latest data.
+                } while (
+                    settingsSnapshot !== window.__studentLazyStoreSettings ||
+                    inventorySnapshot !== (typeof myInventory !== 'undefined' ? myInventory : null)
+                );
 
                 window.__studentLazyStoreItemsDirty =
                     false;
@@ -993,6 +1004,8 @@ function installStudentEquipmentAccessGuards() {
 }
 
 window.clearStudentStoreEquipmentRuntime = function () {
+    window.AudreyHallRuntime?.clearPet();
+    window.AudreyHallRuntime?.clearEffect();
     window.KimLienRegularRuntime?.clear();
     window.HacMongRegularRuntime?.clear();
     window.ThanhLanhRegularRuntime?.clear();
@@ -14264,6 +14277,7 @@ window.switchTab = async function (tabId, btnElement) {
 
     // 2. Kích hoạt tab mới
     nextTab.classList.add('active');
+    if (tabId === 'tab-history') void window.StudentAssetHistory?.open();
     btnElement?.classList.add('active');
 
     // 3. Xóa vị trí cuộn cũ, cuộn mượt mà lên vị trí cao nhất
@@ -18313,11 +18327,11 @@ window.loadStoreItems = async function () {
                     );
 
                     if (itemDef) {
-                        if (itemDef.type === 'theme') {
+                        if (itemDef.type === 'theme' && typeof ThemeManager !== 'undefined') {
                             ThemeManager.applyTheme('default');
                         }
 
-                        if (itemDef.type === 'effect') {
+                        if (itemDef.type === 'effect' && typeof EffectManager !== 'undefined') {
                             EffectManager.clearEffects();
                         }
 
@@ -20226,6 +20240,7 @@ window.isExamVisualItemsSuspended = false;
 
 // Tạm tắt pet và hiệu ứng khi bắt đầu thi
 window.suspendExamVisualItems = function () {
+    window.AudreyHallRuntime?.clearPet();
     window.isExamVisualItemsSuspended = true;
 
     // Dừng toàn bộ hiệu ứng và các interval tạo hiệu ứng
