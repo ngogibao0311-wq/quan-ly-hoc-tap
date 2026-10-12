@@ -3,7 +3,7 @@
 
 <head>
     <link rel="stylesheet" href="css/app-dialog.css?v=20261003.cleanup1">
-    <script src="js/app-dialog.js?v=20261011.economy-startup2"></script>
+    <script src="js/app-dialog.js?v=20261012.audrey1"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="application-version" content="4.3.2">
@@ -18,7 +18,7 @@
     <link rel="stylesheet" href="css/update-manager.css?v=20261003.cleanup1">
     <link id="linkclick-cheng-premium-style" rel="stylesheet" href="css/link-click-cheng-xiaoshi.css?v=20261003.aclp3">
     <!-- Core-first loader: CSS/module đặc biệt chỉ tải khi cần -->
-    <script src="js/student-feature-loader.js?v=20261011.equipment-ready1"></script>
+    <script src="js/student-feature-loader.js?v=20261012.audrey1"></script>
     <script>
         MathJax = {
             tex: {
@@ -682,7 +682,7 @@
                         chơi</span></button>
                 <button id="studentStoreNav" title="Cửa hàng" class="nav-item" onclick="switchTab('tab-store', this)">🛒 <span class="nav-text">Cửa
                         hàng</span></button>
-                <button type="button" id="studentHistoryNav" class="nav-item" title="Lịch sử — Sắp cập nhật" aria-label="Lịch sử — Sắp cập nhật" onclick="switchTab('tab-history', this)">
+                <button type="button" id="studentHistoryNav" class="nav-item" title="Lịch sử giao dịch" aria-label="Lịch sử giao dịch" onclick="switchTab('tab-history', this)">
                     <svg class="campus-nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11a8 8 0 1 1 2 6 M3 4v7h7 M12 7v5l3 2" /></svg>
                     <span class="nav-text">Lịch sử</span>
                 </button>
@@ -1012,14 +1012,7 @@
                     </section>
                 </div>
             </div>
-            <div id="tab-history" class="tab-content">
-                <h2>Lịch sử</h2>
-                <section role="status" style="text-align:center;padding:48px 20px;border-radius:18px;background:#fff;color:#334155;border:1px solid #e2e8f0;">
-                    <div aria-hidden="true" style="font-size:36px;margin-bottom:12px;">🔒</div>
-                    <h3 style="margin:0 0 10px;color:#334155;">Sắp cập nhật</h3>
-                    <p style="margin:0;">Mục Lịch sử đang tạm khóa và sẽ được mở lại trong bản cập nhật tới.</p>
-                </section>
-            </div>
+            <div id="tab-history" class="tab-content"><h2>Lịch sử giao dịch</h2><div id="studentAssetHistoryHost" class="ui-theme-immune"></div></div>
             <div id="tab-store" class="tab-content">
                 <h2>Cửa hàng Vật phẩm</h2>
                 <div id="storeLockedView" style="display: none;">
@@ -1606,12 +1599,12 @@
     <!-- 5. Logic chính của trang học sinh luôn đặt cuối -->
     <script src="js/assignment-appeals.js?v=20261011.authority3"></script>
     <script src="js/mc-workspace.js?v=20261011.economy-startup2"></script>
-<!-- Student history is temporarily unavailable; do not load its data viewer. -->
+<script src="js/student-asset-history.js?v=20261012.history-open1"></script>
 <script src="js/study-reliability.js?v=20261011.economy-startup2"></script>
 <script src="js/pending-mechanism-reconciliation.js?v=20261011.economy-startup2"></script>
 <script src="js/cash-ledger.js?v=20261011.economy-startup2"></script>
 <script src="js/inbox-ledger.js?v=20261011.economy-startup2"></script>
-<script src="js/student.js?v=20261011.history-paused1"></script>
+<script src="js/student.js?v=20261012.legacy-audit1"></script>
 
 
 <link rel="stylesheet" href="css/collection-rewards.css?v=20261003.cleanup1">
