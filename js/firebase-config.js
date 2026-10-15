@@ -1,24 +1,24 @@
 // 1. DÁN ĐOẠN CODE BẠN LẤY ĐƯỢC TỪ FIREBASE VÀO ĐÂY
-const firebaseConfig = {
-  apiKey: "AIzaSyAnxiZEjEFUNoXnPFZR2GJh9mJ9KKYsPqI",
-  authDomain: "quan-ly-bai-tap-online.firebaseapp.com",
-  databaseURL: "https://quan-ly-bai-tap-online-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "quan-ly-bai-tap-online",
-  storageBucket: "quan-ly-bai-tap-online.firebasestorage.app",
-  messagingSenderId: "1045476145868",
-  appId: "1:1045476145868:web:3c14a594998101b8e1e069",
-  measurementId: "G-7RGKF00TV0"
-};
-// ---- DỰ ÁN NHÁP
 //const firebaseConfig = {
-//  apiKey: "AIzaSyDb4pnn0E16MY-aJ1UXD8p59X5vXkcRT_w",
-//  authDomain: "web-chan-doan-test.firebaseapp.com",
-//  databaseURL: "https://web-chan-doan-test-default-rtdb.asia-southeast1.firebasedatabase.app",
-//  projectId: "web-chan-doan-test",
-//  storageBucket: "web-chan-doan-test.firebasestorage.app",
-//  messagingSenderId: "623035254774",
-//  appId: "1:623035254774:web:70ee10a059363d8cb429d7"
+//  apiKey: "AIzaSyAnxiZEjEFUNoXnPFZR2GJh9mJ9KKYsPqI",
+//  authDomain: "quan-ly-bai-tap-online.firebaseapp.com",
+//  databaseURL: "https://quan-ly-bai-tap-online-default-rtdb.asia-southeast1.firebasedatabase.app",
+//  projectId: "quan-ly-bai-tap-online",
+//  storageBucket: "quan-ly-bai-tap-online.firebasestorage.app",
+//  messagingSenderId: "1045476145868",
+//  appId: "1:1045476145868:web:3c14a594998101b8e1e069",
+//  measurementId: "G-7RGKF00TV0"
 //};
+// ---- DỰ ÁN NHÁP
+const firebaseConfig = {
+  apiKey: "AIzaSyDb4pnn0E16MY-aJ1UXD8p59X5vXkcRT_w",
+  authDomain: "web-chan-doan-test.firebaseapp.com",
+  databaseURL: "https://web-chan-doan-test-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "web-chan-doan-test",
+  storageBucket: "web-chan-doan-test.firebasestorage.app",
+  messagingSenderId: "623035254774",
+  appId: "1:623035254774:web:70ee10a059363d8cb429d7"
+};
 
 // 2. Khởi tạo kết nối
 firebase.initializeApp(firebaseConfig);
@@ -298,7 +298,10 @@ async function getPaginatedDB(path, limit, lastKey = null) {
     try {
         let query = db.ref(path).orderByKey();
         if (cursor !== null) query = query.endAt(cursor);
-        const snapshot = await query.limitToLast(limit + 1).once('value');
+        // Cần thêm 1 bản ghi để biết còn trang sau hay không; khi có cursor thì cursor
+        // cũng chiếm 1 suất nên phải lấy dư 2 (cursor + limit + 1 bản ghi dò).
+        const fetchSize = cursor === null ? limit + 1 : limit + 2;
+        const snapshot = await query.limitToLast(fetchSize).once('value');
         const rows = [];
         // forEach preserves Firebase key order, including integer-like keys.
         snapshot.forEach(child => {
@@ -309,7 +312,8 @@ async function getPaginatedDB(path, limit, lastKey = null) {
                 : { value: item, _fbKey: child.key });
         });
         const items = rows.slice(-limit);
-        return { items, nextKey: items.length === limit ? items[0]._fbKey : null };
+        // Còn trang sau chỉ khi số bản ghi (đã loại cursor) nhiều hơn hẳn một trang.
+        return { items, nextKey: rows.length > limit ? items[0]._fbKey : null };
     } catch (error) {
         console.error('[getPaginatedDB]', path, error);
         throw error;

@@ -2126,6 +2126,7 @@ async function clearAllLockouts() {
 if (loginForm) {
     loginForm.addEventListener('submit', async function (e) {
         e.preventDefault();
+        if (loginForm.dataset.submitting === 'true') return;
         const usernameInput = document.getElementById('username');
         const passwordInput = document.getElementById('password');
         const errorMsg = document.getElementById('errorMsg');
@@ -2135,8 +2136,13 @@ if (loginForm) {
             return;
         }
 
-        const userVal = usernameInput.value.trim();
-        const passVal = passwordInput.value;
+        const submitBtn = loginForm.querySelector('button[type="submit"], input[type="submit"]');
+        loginForm.dataset.submitting = 'true';
+        if (submitBtn) submitBtn.disabled = true;
+
+        try {
+            const userVal = usernameInput.value.trim();
+            const passVal = passwordInput.value;
 
         // Dùng \s để chặn cả dấu cách, tab và xuống dòng.
         if (/\s/.test(userVal)) {
@@ -2365,6 +2371,10 @@ if (loginForm) {
                 `<b>${5 - currentFails}</b> lần thử.`;
 
             errorMsg.style.color = 'red';
+        }
+        } finally {
+            loginForm.dataset.submitting = 'false';
+            if (submitBtn) submitBtn.disabled = false;
         }
     });
 }

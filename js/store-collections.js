@@ -36,6 +36,7 @@
      *   ví dụ "Sinh nhật 2026", "Sinh nhật 2027"...
      */
     const CATEGORY_COLLECTIONS = Object.freeze([
+        {id:'horror',label:'Kinh dị',icon:'🏮',tags:['Kinh dị']},
         {
             id: 'daily-life',
             label: 'Đời thường',
@@ -96,10 +97,17 @@
             tags: ['Hội họa', 'Đêm đầy sao']
         },
         {
+            // Keep existing claimed milestones when merging the love collection.
+            id: 'that-tich',
+            label: 'Tình yêu',
+            icon: '💞',
+            tags: ['Thất Tịch', 'Valentine']
+        },
+        {
             id: 'link-click',
             label: 'Link Click',
             icon: '📸',
-            tags: ['Link Click']
+            tags: ['Link Click', 'lick click']
         },
         {
             id: 'doraemon',
@@ -203,7 +211,10 @@
     let rewardClaims = {};
     let rewardClaimListenerInstalled = false;
     let rewardClaimListenerRetryTimer = null;
-    let rewardScanPromise = Promise.resolve();
+    let rewardScanPromise = null;
+    let rewardScanRequested = false;
+    let renderedCollectionId = null;
+    const renderedCollectionGrids = new WeakMap();
     let rewardErrorNotified = false;
     let acquisitionModalReturnFocus = null;
     let acquisitionModalCollectionId = 'all';
@@ -322,6 +333,9 @@
     }
 
     function getRewardClaim(collectionId, milestoneCount) {
+        if (collectionId === 'link-click' && rewardClaims?.['lick-click']?.[String(milestoneCount)]?.status === 'sent') {
+            return rewardClaims['lick-click'][String(milestoneCount)];
+        }
         return rewardClaims?.[collectionId]?.[String(milestoneCount)] || null;
     }
 
@@ -351,6 +365,13 @@
         collection,
         milestone
     ) {
+        // A module can load before startup has established the economy mode.
+        // Unknown mode must never silently start a legacy Firebase transaction.
+        if (typeof window.ECONOMY_SERVER_ENABLED !== 'boolean') {
+            if (!window.EconomyClient?.initialize) throw new Error('Chưa xác nhận được chế độ giao dịch. Vui lòng đăng nhập lại.');
+            await window.EconomyClient.initialize();
+            if (typeof window.ECONOMY_SERVER_ENABLED !== 'boolean') throw new Error('Chưa xác nhận được chế độ giao dịch.');
+        }
         if (window.ECONOMY_SERVER_ENABLED === true) {
             const result = await window.EconomyClient.execute('collection_milestone', {collectionId:collection.id,count:String(milestone.count)}, {slot:`collection:${collection.id}:${milestone.count}`});
             setLocalRewardClaim(collection.id, milestone.count, {status:'sent'});
@@ -525,7 +546,9 @@
                     ) {
                         rewardErrorNotified = true;
                         window.showToast(
-                            'Chưa thể cộng thưởng Sưu tầm. Hãy kiểm tra quy tắc bảo mật đám mây rồi tải lại trang.',
+                            window.ECONOMY_SERVER_ENABLED === false
+                                ? 'Chưa nhận được thưởng Sưu tầm. Bản nháp cần cập nhật Rules cho bộ sưu tập mới rồi mở lại trang; mốc chưa nhận sẽ được thử lại.'
+                                : 'Chưa xác nhận thưởng Sưu tầm từ máy chủ. Hãy thử lại khi kết nối ổn định; hệ thống sẽ không cộng trùng.',
                             'warning'
                         );
                     }
@@ -559,12 +582,21 @@
     }
 
     function queueCollectionRewardScan() {
-        rewardScanPromise = rewardScanPromise
-            .then(() => checkCollectionMilestoneRewards())
-            .catch(error => {
-                console.warn('[Sưu tầm] Lỗi quét phần thưởng:', error);
-            });
-
+        rewardScanRequested = true;
+        if (rewardScanPromise) return rewardScanPromise;
+        rewardScanPromise = Promise.resolve().then(async () => {
+            try {
+                while (rewardScanRequested) {
+                    rewardScanRequested = false;
+                    try { await checkCollectionMilestoneRewards(); }
+                    catch (error) { console.warn('[Sưu tầm] Lỗi quét phần thưởng:', error); }
+                    // Notifications during a scan require only one fresh pass.
+                    if (rewardScanRequested) await new Promise(resolve => window.setTimeout(resolve, 0));
+                }
+            } finally {
+                rewardScanPromise = null;
+            }
+        });
         return rewardScanPromise;
     }
 
@@ -633,10 +665,14 @@
             .on(
                 'value',
                 snapshot => {
-                    collectedItemIds = normalizeInventorySnapshotValue(
+                    const nextIds = normalizeInventorySnapshotValue(
                         snapshot.val() || {}
                     );
-
+                    // Equipping, expiry metadata, and quantity updates do not
+                    // change permanent collection ownership.
+                    if (nextIds.size === collectedItemIds.size &&
+                        [...nextIds].every(id => collectedItemIds.has(id))) return;
+                    collectedItemIds = nextIds;
                     renderCollection(activeCollectionId);
                     queueCollectionRewardScan();
                 },
@@ -1419,7 +1455,9 @@
             theme: { label: 'Giao diện', icon: '🎨' },
             effect: { label: 'Hiệu ứng', icon: '✨' },
             pet: { label: 'Thú cưng', icon: '🐾' },
-            music: { label: 'Nhạc nền', icon: '🎵' }
+            music: { label: 'Nhạc nền', icon: '🎵' },
+            frame: { label: 'Khung viền', icon: '🖼️' },
+            background: { label: 'Nền', icon: '🌄' }
         };
 
         return typeMap[type] || { label: 'Vật phẩm', icon: '📦' };
@@ -1642,8 +1680,17 @@
     }
 
     function renderCollection(collectionId = activeCollectionId) {
+        activeCollectionId = getCollection(collectionId).id;
+        if (window.StudentViewPerformance) {
+            window.StudentViewPerformance.schedule('collections', () => renderCollectionNow(activeCollectionId));
+            return;
+        }
+        renderCollectionNow(activeCollectionId);
+    }
+
+    function renderCollectionNow(collectionId) {
         const collection = getCollection(collectionId);
-        const categoryChanged = collection.id !== activeCollectionId;
+        const categoryChanged = renderedCollectionId !== null && collection.id !== renderedCollectionId;
         activeCollectionId = collection.id;
 
         const tabs = document.getElementById(IDS.tabs);
@@ -1652,6 +1699,7 @@
         const grid = document.getElementById(IDS.grid);
 
         if (!tabs || !summary || !rewards || !grid) return;
+        renderedCollectionId = collection.id;
 
         let activeButton = null;
         tabs.querySelectorAll('[data-collection-id]').forEach(button => {
@@ -1749,7 +1797,7 @@
             `;
         }
 
-        grid.innerHTML = items.length
+        const gridHTML = items.length
             ? items.map(createItemCardHTML).join('')
             : `
                 <div class="store-collection-empty">
@@ -1757,6 +1805,11 @@
                     <strong>Chưa có vật phẩm trong danh sách này.</strong>
                 </div>
             `;
+        // Reward receipts affect the progress strip, not the item cards.
+        if (renderedCollectionGrids.get(grid) !== gridHTML) {
+            grid.innerHTML = gridHTML;
+            renderedCollectionGrids.set(grid, gridHTML);
+        }
     }
 
     function getStoreHeading(storeTab = document.getElementById('tab-store')) {
