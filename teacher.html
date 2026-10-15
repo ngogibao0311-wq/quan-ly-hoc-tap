@@ -3,7 +3,8 @@
 
 <head>
     <link rel="stylesheet" href="css/app-dialog.css?v=20261003.cleanup1">
-    <script src="js/app-dialog.js?v=20261011.economy-startup2"></script>
+    <script src="js/grade-presentation.js?v=20261013.layout1"></script>
+    <script src="js/app-dialog.js?v=20261013.layout1"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="application-version" content="4.3.2">
@@ -1560,6 +1561,7 @@
                                 Quy đổi Coin/Tiền
                             </option>
 
+                            <option value="teacher_ticket_adjust">Cộng/trừ vé</option>
                             <option value="teacher_penalty">
                                 Trừng phạt học sinh
                             </option>
@@ -3811,8 +3813,8 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
     <!-- 2. Khởi tạo Firebase -->
-    <script src="js/firebase-config.js?v=20261011.economy-startup2"></script>
-    <script src="js/asset-history.js?v=20261011.economy-startup2"></script>
+    <script src="js/firebase-config.js?v=20261015.audit-fix1"></script>
+    <script src="js/asset-history.js?v=20261015.love3"></script>
     <script src="js/cloudinary-storage.js?v=20261011.economy-startup2"></script>
 
     <script>
@@ -3836,61 +3838,66 @@
             localStorage.setItem('appVersion', window.APP_VERSION);
         } catch (_) {}
     </script>
-    <script src="js/random-exam-engine.js?v=20261011.economy-startup2"></script>
+    <script src="js/random-exam-engine.js?v=20261015.audit-fix1"></script>
 <script src="js/campus-pdf.js?v=20261011.economy-startup2"></script>
-<script src="js/common.js?v=20261011.economy-startup2"></script>
+<script src="js/common.js?v=20261015.audit-fix1"></script>
 <script src="js/startup-data-coordinator.js?v=20261011.economy-startup2"></script>
-<script src="js/economy-client.js?v=20261011.authority3"></script>
+<script src="js/economy-client.js?v=20261015.network1"></script>
 <script src="js/economy-source-bridge.js?v=20261011.authority3"></script>
     <script src="js/history-retention.js?v=20261011.economy-startup2"></script>
     <script src="js/update-manager.js?v=20261011.economy-startup2"></script>
     <script src="js/web-animations.js?v=20261011.economy-startup2"></script>
     <!-- Tối ưu hiệu năng: mặc định tắt; dùng trạng thái đã lưu trong Cài đặt. Phát hiện mobile/thiết bị yếu chỉ áp dụng sau khi tính năng đã được bật. -->
     <script src="js/web-performance-optimizer.js?v=20261011.economy-startup2"></script>
-    <script src="js/transaction-history.js?v=20261011.authority3"></script>
+    <script src="js/transaction-history.js?v=20261015.audit-fix1"></script>
     <script>
         // security.js nạp trước teacher.js: đánh dấu rõ đây là trang Giáo viên đang chờ xác thực.
         window.__APP_PAGE_ROLE__ = 'teacher';
         window.__teacherSecurityVerificationState =
             window.__teacherSecurityVerificationState || 'pending';
     </script>
-    <script src="js/security.js?v=20261011.economy-startup2"></script>
+    <script src="js/security.js?v=20261015.audit-fix1"></script>
 
     <!-- 4. Các module tính năng -->
     <script src="js/daily-login.js?v=20261011.economy-startup2"></script>
-    <script src="js/theme-items.js?v=20261011.economy-startup2"></script>
+    <script src="js/theme-items.js?v=20261015.regular-fix1"></script>
     <script src="js/regular-store-art.js?v=20261011.economy-startup2"></script>
-    <script src="js/effect-items.js?v=20261011.economy-startup2"></script>
-    <script src="js/pet-items.js?v=20261011.economy-startup2"></script>
+    <script src="js/effect-items.js?v=20261015.love3"></script>
+    <script src="js/that-tich.js?v=20261012.thattich3"></script>
+    <link rel="stylesheet" href="css/that-tich.css?v=20261012.thattich3">
+    <script src="js/audrey-hall.js?v=20261012.audrey1"></script>
+    <link rel="stylesheet" href="css/audrey-hall.css?v=20261012.audrey1">
+    <script src="js/pet-items.js?v=20261015.regular-fix1"></script>
     <!-- Điều chỉnh riêng mức hiệu ứng vật phẩm + Web Animations; không đụng theme/logic -->
     <script src="js/effect-quality-manager.js?v=20261011.economy-startup2"></script>
     <script src="js/royal-ball.js?v=20261011.economy-startup2"></script>
     <script src="js/music-manager.js?v=20261011.economy-startup2"></script>
-    <script src="js/store-manager.js?v=20261011.economy-startup2"></script>
+    <script src="js/store-manager.js?v=20261015.regular-fix1"></script>
     <script src="js/painting.js?v=20261011.economy-startup2"></script>
     <script src="js/luxury-distinct-scenes.js?v=20261011.economy-startup2"></script>
     <script src="js/tinh-mong.js?v=20261011.economy-startup2"></script>
-    <script src="js/valentine.js?v=20261011.economy-startup2"></script>
+    <script src="js/valentine.js?v=20261015.regular-fix1"></script>
     <script src="js/eternal-winter.js?v=20261011.economy-startup2"></script>
-    <script src="js/luxury-store.js?v=20261011.economy-startup2"></script>
+    <script src="js/luxury-store.js?v=20261015.regular-fix1"></script>
 
     <!-- 5. Logic chính của trang giáo viên luôn đặt cuối -->
     <!-- Hotfix: xác nhận cài đặt lộ trình trước khi teacher.js chờ loader -->
     <script src="js/roadmap-startup-fix.js?v=20261011.economy-startup2"></script>
 
     <script src="js/assignment-appeals.js?v=20261011.authority3"></script>
-    <script src="js/mc-workspace.js?v=20261011.economy-startup2"></script>
+    <script src="js/mc-workspace.js?v=20261015.audit-fix1"></script>
 <script src="js/video-duration.js?v=20261011.economy-startup2"></script>
 <script src="js/student-deletion-client.js?v=20261011.economy-startup2"></script>
 <script src="js/cash-request-pages.js?v=20261011.economy-startup2"></script>
-<script src="js/teacher-ledger.js?v=20261011.economy-startup2"></script>
+<script src="js/teacher-ledger.js?v=20261015.audit-fix1"></script>
 <script src="js/cash-ledger.js?v=20261011.economy-startup2"></script>
-<script src="js/teacher.js?v=20261011.authority3"></script>
+<script src="js/page-work-coordinator.js?v=20261013.performance2"></script>
+<script src="js/teacher.js?v=20261015.audit-fix1"></script>
     <script src="js/huong-dan-nguoi-moi.js?v=20261011.economy-startup2"></script>
 
 <link rel="stylesheet" href="css/collection-rewards.css?v=20261003.cleanup1">
-<script src="js/collection-reward-catalog.js?v=20261011.economy-startup2"></script>
-<script src="js/collection-rewards.js?v=20261011.economy-startup2"></script>
+<script src="js/collection-reward-catalog.js?v=20261012.thattich3"></script>
+<script src="js/collection-rewards.js?v=20261015.tags3"></script>
 <script src="js/list-media-performance.js?v=20261011.economy-startup2"></script>
 <link rel="stylesheet" href="css/campus-design.css?v=20261007.phone1">
 <script src="js/campus-design.js?v=20261011.economy-startup2"></script>
