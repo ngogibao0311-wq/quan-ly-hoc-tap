@@ -23,6 +23,15 @@ window.PageAuthReady = (() => {
     try { expected = JSON.parse(localStorage.getItem('currentUser')); } catch (_) {}
     let identity = null, blocked = false, epoch = 0, settle;
     const ready = new Promise(resolve => { settle = resolve; });
+    // Cơ chế "một phiên thao tác" chỉ được phép cưỡng chế khi đã bật
+    // account_access_config/enabled — đúng điều kiện mà luồng đăng nhập dùng
+    // (common.js) và Rules dùng. Khi node này chưa có/chưa bật thì luồng đăng nhập
+    // KHÔNG cấp claim deviceSession; nếu trang vẫn bắt buộc claim đó thì mọi học
+    // sinh bị đá về index.html?reason=session_changed và không thể vào học.
+    const accessEnabledReady = db.ref('account_access_config/enabled')
+        .once('value')
+        .then(snapshot => snapshot.val() === true)
+        .catch(() => false);
     const block = () => {
         if (blocked) return;
         blocked = true; window.pageAuthBlocked = true; window.isVerifiedTeacher = false;
@@ -46,9 +55,11 @@ window.PageAuthReady = (() => {
             if (!identity) {
                 const profile = (await db.ref('users/' + user.uid).once('value')).val();
                 if (version !== epoch || blocked) return;
+                const accessEnabled = await accessEnabledReady;
+                if (version !== epoch || blocked) return;
                 if (!profile || profile.role !== role || profile.username !== expected.username ||
                     profile.isLocked === true || profile.deletionPending === true ||
-                    (role === 'student' && !token.claims.deviceSession)) return block();
+                    (role === 'student' && accessEnabled && !token.claims.deviceSession)) return block();
                 identity = next;
             }
             settle(true);
