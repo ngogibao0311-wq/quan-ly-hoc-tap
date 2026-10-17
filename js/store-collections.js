@@ -500,6 +500,7 @@
         const username = getCurrentUsername();
 
         if (!database || !username) return;
+        if (window.StudentAccountAccess && typeof window.StudentAccountAccess.canWrite === 'function' && !window.StudentAccountAccess.canWrite()) return;
 
         let creditedCoins = 0;
         let creditedMilestones = 0;
@@ -533,6 +534,7 @@
                         creditedMilestones += 1;
                     }
                 } catch (error) {
+                    if (error?.code === 'READ_ONLY_SESSION' || /Phiên này chỉ được xem/i.test(error?.message || '')) return;
                     console.warn(
                         '[Sưu tầm] Không thể cộng thưởng mốc:',
                         collection.id,

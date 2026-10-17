@@ -5815,18 +5815,31 @@ window.securityHotfix = Object.freeze({
     const TAB_ID = crypto.randomUUID();
     let tabSequence = 0, activityRevision = 0, acknowledgedActivity = 0;
     let lastActivity = -Infinity, unloadToken = null, pageClosed = false, forcedLoggingOut = false;
+    const MAX_IDLE_MS = 20 * 60 * 1000;
+    const MAX_BACKGROUND_MS = 20 * 60 * 1000;
+    const MAX_CLOSED_MS = 60 * 1000;
+    let lastUserInteraction = Date.now();
+    let backgroundStartedAt = document.visibilityState === 'hidden' ? Date.now() : null;
     function tabPresence(active = false) {
         return {id: TAB_ID, seq: ++tabSequence, visible: document.visibilityState === 'visible', active};
     }
     function handleTabUnload() {
         if (pageClosed || forcedLoggingOut || window.pageAuthBlocked || !unloadToken) return;
         pageClosed = true;
+        try { localStorage.setItem('student_tab_closed_at', String(Date.now())); } catch (_) {}
         // No asynchronous token lookup during unload. Missing delivery is covered by the server lease.
         const body = JSON.stringify({action: 'session_unload', projectId: project(), tab: tabPresence(false)});
         void fetch(endpoint(), {method: 'POST', headers: {'Content-Type': 'application/json', Authorization: 'Bearer ' + unloadToken},
             body, keepalive: true, credentials: 'omit', referrerPolicy: 'no-referrer'}).catch(() => {});
     }
     function markUserActivity(event) {
+        lastUserInteraction = Date.now();
+        if (document.visibilityState === 'visible' && backgroundStartedAt) {
+            if (Date.now() - backgroundStartedAt >= MAX_BACKGROUND_MS) {
+                return void triggerForcedLogout('background_timeout');
+            }
+            backgroundStartedAt = null;
+        }
         if (!event.isTrusted || document.visibilityState !== 'visible' || pageClosed || forcedLoggingOut) return;
         if (performance.now() - lastActivity < 5000) return;
         lastActivity = performance.now(); activityRevision++;
@@ -5976,8 +5989,17 @@ window.securityHotfix = Object.freeze({
         const scheduleCheck = () => {
             clearInterval(sessionTimer);
             sessionTimer = setInterval(() => {
-                if (!pageClosed && !forcedLoggingOut) void refreshSession().catch(() => {});
-            }, 20000);
+                if (pageClosed || forcedLoggingOut) return;
+                const now = Date.now();
+                if (document.visibilityState === 'visible') {
+                    if (now - lastUserInteraction >= MAX_IDLE_MS) {
+                        return void triggerForcedLogout('idle_timeout');
+                    }
+                } else if (backgroundStartedAt && (now - backgroundStartedAt >= MAX_BACKGROUND_MS)) {
+                    return void triggerForcedLogout('background_timeout');
+                }
+                void refreshSession().catch(() => {});
+            }, 10000);
         };
         scheduleCheck();
 
@@ -5993,7 +6015,21 @@ window.securityHotfix = Object.freeze({
             }
         });
         document.addEventListener('visibilitychange', () => {
-            if (!pageClosed && !forcedLoggingOut) void refreshSession().catch(() => {});
+            if (pageClosed || forcedLoggingOut) return;
+            const now = Date.now();
+            if (document.visibilityState === 'hidden') {
+                backgroundStartedAt = now;
+                try { localStorage.setItem('student_tab_backgrounded_at', String(now)); } catch (_) {}
+            } else {
+                const bgAt = Number(localStorage.getItem('student_tab_backgrounded_at') || backgroundStartedAt || 0);
+                try { localStorage.removeItem('student_tab_backgrounded_at'); } catch (_) {}
+                if (bgAt && (now - bgAt >= MAX_BACKGROUND_MS)) {
+                    return void triggerForcedLogout('background_timeout');
+                }
+                backgroundStartedAt = null;
+                lastUserInteraction = now;
+                void refreshSession().catch(() => {});
+            }
         });
         window.addEventListener('pagehide', () => {
             handleTabUnload();
@@ -6008,6 +6044,14 @@ window.securityHotfix = Object.freeze({
     }
     async function ensure() {
         if (await window.PageAuthReady === false || window.pageAuthBlocked) return false;
+        try {
+            const closedAt = Number(localStorage.getItem('student_tab_closed_at') || 0);
+            localStorage.removeItem('student_tab_closed_at');
+            if (closedAt && (Date.now() - closedAt >= MAX_CLOSED_MS)) {
+                await triggerForcedLogout('closed_timeout');
+                return false;
+            }
+        } catch (_) {}
         // Cơ chế phiên chưa bật: không có gì để bảo đảm. Trả true để trang khởi động bình thường
         // (đồng bộ với luồng đăng nhập common.js ~5782 và với PageAuthReady ở firebase-config.js).
         if (!(await enabled())) { accessEnforced = false; return true; }
