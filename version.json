@@ -20,7 +20,8 @@
     "Ultimate Valentine: chữ Hồng Tuyến Vĩnh Kết rõ nét, viền ren trái tim, sáu nụ hồng, chỉ quỹ đạo và ánh vàng chuyển động.",
     "Lịch sử học sinh chỉ giữ 30 giao dịch mới nhất; Worker dọn bản ghi cũ sau khi ghi giao dịch hoặc mở lịch sử, không thay đổi số dư và dữ liệu đối soát. Cần triển khai Worker đi kèm.",
     "Đổi tên dịch vụ hiển thị thành đám mây trong thông báo, hướng dẫn và bảng chẩn đoán; giữ nguyên kết nối, quyền và cơ chế dữ liệu.",
-    "Sửa bài: bỏ chọn từng học sinh, giữ các em còn lại. Khi xóa học sinh, xóa bài tập/lịch chỉ giao cho em đó; giữ mục dùng chung và loại em khỏi danh sách cụ thể. Cần cập nhật Worker."
+    "Sửa bài: bỏ chọn từng học sinh, giữ các em còn lại. Khi xóa học sinh, xóa bài tập/lịch chỉ giao cho em đó; giữ mục dùng chung và loại em khỏi danh sách cụ thể. Cần cập nhật Worker.",
+    "Thêm Ngày hội mua sắm trong Trò chơi: chỉ mở ngày 3/11 hằng năm (giờ Việt Nam), mỗi học sinh quay miễn phí một lần/năm để giảm 10–70% cho vật phẩm Coin ở cả cửa hàng thường và sang trọng; không áp dụng vật phẩm hoặc xu sự kiện. Lưu kết quả quay và giá thanh toán vào lịch sử; cần triển khai Worker đi kèm."
   ],
   "resolvedIssues": [
     "Các vật phẩm Mùa Đông đi qua cơ chế mua, trang bị và lịch sử tài sản hiện có; kiểm thử nhận và tiêu hao vật phẩm mới.",
