@@ -5807,6 +5807,10 @@ window.securityHotfix = Object.freeze({
         }catch(e){error.textContent=message(e);}finally{trigger.disabled=false;}
     }
     let sessionMode = 'checking', sessionRank = null, sessionDeadline = 0;
+    // Cơ chế "một phiên thao tác" có đang bật hay không.
+    // null = chưa xác định (giữ chặt như trước), false = chưa bật trên hệ thống
+    // (account_access_config/enabled không phải true) => không cưỡng chế.
+    let accessEnforced = null;
     let sessionTimer = null, sessionCheck = null, sessionStarted = false;
     const TAB_ID = crypto.randomUUID();
     let tabSequence = 0, activityRevision = 0, acknowledgedActivity = 0;
@@ -5843,7 +5847,10 @@ window.securityHotfix = Object.freeze({
     }
     const readOnlyText = 'Phiên này chỉ được xem. Hãy đăng xuất rồi đăng nhập lại sau khi phiên số 1 đã đăng xuất hoặc hết hạn để được xét quyền thao tác.';
     function canWrite() {
-        return !window.pageAuthBlocked && sessionMode === 'primary' && performance.now() < sessionDeadline;
+        if (window.pageAuthBlocked) return false;
+        // Cơ chế phiên chưa bật: không có "phiên chính/phụ" để xét, cho thao tác như trước 17/10.
+        if (accessEnforced === false) return true;
+        return sessionMode === 'primary' && performance.now() < sessionDeadline;
     }
     function notifyReadOnly() {
         if (window.showToast) window.showToast(readOnlyText, 'warning');
@@ -6001,7 +6008,10 @@ window.securityHotfix = Object.freeze({
     }
     async function ensure() {
         if (await window.PageAuthReady === false || window.pageAuthBlocked) return false;
-        if (!(await enabled())) throw Error('ACCESS_NOT_ENABLED');
+        // Cơ chế phiên chưa bật: không có gì để bảo đảm. Trả true để trang khởi động bình thường
+        // (đồng bộ với luồng đăng nhập common.js ~5782 và với PageAuthReady ở firebase-config.js).
+        if (!(await enabled())) { accessEnforced = false; return true; }
+        accessEnforced = true;
         let result;
         try { result = await refreshSession(); }
         catch (error) {
