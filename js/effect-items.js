@@ -1,4 +1,4 @@
-// js/effect-items.js
+// js/effect-items.js?v=20261017.production.split1
 const IS_MOBILE_EFFECT = window.matchMedia(
     '(max-width: 768px), (pointer: coarse)'
 ).matches;

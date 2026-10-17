@@ -917,7 +917,7 @@
         const names = await caches.keys();
 
         const results = await Promise.allSettled(
-            names.map(name => caches.delete(name))
+            names.filter(name => name.startsWith('qlbt-production-')).map(name => caches.delete(name))
         );
 
         return results.filter(

@@ -1,4 +1,4 @@
-// js/pet-interactions.js
+// js/pet-interactions.js?v=20261017.production.split1
 
 class PetInteractionManager {
     static isEnabled = localStorage.getItem('petInteractionsEnabled') !== 'false';

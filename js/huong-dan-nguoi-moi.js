@@ -3,7 +3,7 @@
  * Phiên bản: 2.17.1 — đào tạo bắt buộc 1 lần về nộp bài, cập nhật và hiệu năng
  *
  * Cách nạp khuyến nghị (đặt cuối <body>, sau teacher.js hoặc student.js):
- * <script src="js/huong-dan-nguoi-moi.js?v=20261010.cloud-labels"></script>
+ * <script src="js/huong-dan-nguoi-moi.js?v=20261017.production.split1"></script>
  *
  * API có thể gọi từ nơi khác:
  *   NewUserGuide.open();          // Mở trung tâm hướng dẫn

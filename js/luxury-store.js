@@ -8605,15 +8605,16 @@ if (isNationalDay) {
         window.removeEventListener('storage', window.__luxuryInventoryStorageHandler);
     }
     window.__luxuryInventoryStorageHandler = event => {
-        if (event.key === 'currentUser' || event.key === null) installLuxuryInventoryListener();
+        if (event.key === 'currentUser' || event.key === null) void installLuxuryInventoryListener();
     };
     window.addEventListener('storage', window.__luxuryInventoryStorageHandler);
 
-    function installLuxuryInventoryListener() {
-
+    async function installLuxuryInventoryListener() {
+        if (await window.PageAuthReady === false || window.pageAuthBlocked) return;
         let user;
         try { user = JSON.parse(localStorage.getItem('currentUser') || 'null'); }
         catch (_) { user = null; }
+        if (user?._fbKey && user._fbKey !== firebase.auth().currentUser?.uid) return;
         const previous = window.__luxuryInventorySubscription;
         if (previous && previous.username !== String(user?.username || '')) {
             previous.ref.off('value', previous.callback);
@@ -8903,6 +8904,7 @@ if (isNationalDay) {
                         .__luxuryInventoryListeningUser;
                 }
 
+                if (window.pageAuthBlocked || /permission_denied/i.test(String(error.code || error.message))) return;
                 window.setTimeout(
                     installLuxuryInventoryListener,
                     700

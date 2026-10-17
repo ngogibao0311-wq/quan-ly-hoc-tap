@@ -54,26 +54,9 @@
         } catch (_) { /* Keep the original rejection when diagnostics cannot be read. */ }
         return undefined;
     }
-    function isFirebaseDraft() {
-        const options = firebase.app?.().options;
-        return options?.projectId === 'web-chan-doan-test' &&
-            String(options.databaseURL || '').replace(/\/$/, '') ===
-                'https://web-chan-doan-test-default-rtdb.asia-southeast1.firebasedatabase.app';
-    }
     async function initialize() {
         const user=firebase.auth().currentUser;
         if(!user)throw Error('Cần đăng nhập lại.');
-        if (isFirebaseDraft()) {
-            // The isolated draft has no economy Worker. Never fall back here
-            // because of a network/CORS failure on the production project.
-            // Legacy draft Rules need not expose economy_config. This mode
-            // grants no database permissions; Rules still enforce every write.
-            const role = (await db.ref('users/'+user.uid).once('value')).val()?.role;
-            if (firebase.auth().currentUser?.uid !== user.uid) throw Error('Tài khoản vừa thay đổi.');
-            window.__economyRole = role;
-            window.ECONOMY_SERVER_ENABLED = false;
-            return {ok:true, protocol:3, enabled:false, mode:'firebase-draft'};
-        }
         const endpoint=String(window.R2_CONFIG?.workerUrl||'https://school-r2-files.ngogibao0311.workers.dev').replace(/\/$/,'');
         const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);
         try {
@@ -92,7 +75,7 @@
         }finally{clearTimeout(timer);}
     }
     async function execute(action, args = {}, {slot = action} = {}) {
-        if (isFirebaseDraft()) throw Error('Dự án nháp không dùng Worker giao dịch.');
+
         const user = firebase.auth().currentUser;
         if (!user) throw Error('Cần đăng nhập lại.');
         const storageKey = `economy_pending_v1:${user.uid}:${slot}`;

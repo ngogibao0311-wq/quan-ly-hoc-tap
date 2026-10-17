@@ -5256,6 +5256,7 @@ window.onload = async function () {
     }
 
     // === FIX LỖI BẢO MẬT: Chờ và xác thực qua Firebase Auth ===
+    if (await window.PageAuthReady === false) return;
     let authUser;
     try {
         authUser = await new Promise((resolve, reject) => {
@@ -5296,6 +5297,7 @@ window.onload = async function () {
     }
 
     try {
+        if(!(await window.StudentAccountAccess.ensure()))return;
         startupLoader?.expect(['economy-ready'],{'economy-ready':'Kết nối giao dịch an toàn'});
         await window.EconomyClient.initialize();
         startupLoader?.markReady('economy-ready');
@@ -12218,6 +12220,7 @@ window.closePracticeRedo = function () {
 // Coalesce repeated manual clicks before upload. Auto-submit keeps its independent exam path.
 const studentSubmissionInFlight = new Map();
 function submitAssignment(assignId, isAuto = false, isCheat = false) {
+    if (!window.StudentAccountAccess.requireWrite()) return Promise.resolve(false);
     if (isAuto || isCheat) return submitAssignmentCore(assignId, isAuto, isCheat);
     const key = String(assignId);
     if (studentSubmissionInFlight.has(key)) return studentSubmissionInFlight.get(key);
@@ -18740,16 +18743,13 @@ async function runStudentPendingInventoryTransaction(ref, updater) {
 }
 
 async function reconcileStudentPendingMechanisms() {
+    if (!window.StudentAccountAccess.canWrite()) return;
     const username = String(currentUser.username);
     const uid = firebase.auth().currentUser?.uid;
     const isCurrent = () => !!uid && firebase.auth().currentUser?.uid === uid && String(currentUser?.username || '') === username;
     try {
         const report = await window.PendingMechanismReconciliation.run({ db, username, uid, isCurrent,
-            cancelUnpaid: async (kind,itemId,operation) => {
-                const options=firebase.app?.().options;
-                if(kind!=='purchase'||options?.projectId!=='web-chan-doan-test'||String(options.databaseURL||'').replace(/\/$/,'')!=='https://web-chan-doan-test-default-rtdb.asia-southeast1.firebasedatabase.app')return false;
-                return cancelStudentUnpaidPurchase(username,itemId,operation.operationId,isCurrent);
-            },
+            cancelUnpaid: async () => false,
             recover: (kind, itemId) => kind === 'trial'
                 ? recoverStudentPaidTrial(itemId, username, true, isCurrent)
                 : recoverStudentPaidPurchase(itemId, username, true, isCurrent)
@@ -24606,6 +24606,7 @@ window.getLiveStudentExamSubmission =
 // Keep the exact record subscribed until the transaction finishes. A one-shot
 // read can release its cache before a subsequent transaction's first callback.
 async function transactStudentExamRecord(ref, update, onComplete, applyLocally = false) {
+    if (!window.StudentAccountAccess.canWrite()) throw Object.assign(Error('Phiên chỉ xem không được sửa bài thi.'), {code: 'READ_ONLY_SESSION'});
     const keepRecord = () => {};
     ref.on('value', keepRecord, () => {});
     try {
@@ -26265,6 +26266,7 @@ window.addEventListener('online', () => {
 // KHÔI PHỤC BÀI THI SAU KHI TẢI LẠI TRANG / SẬP MÁY
 // =============================================================
 window.restoreInterruptedExam = async function () {
+    if (!window.StudentAccountAccess.canWrite()) return;
     const manager = window.examRecoveryManager;
 
     if (
@@ -27111,6 +27113,7 @@ window.showExamWarning = function (
     assignId,
     isResume = false
 ) {
+    if (!window.StudentAccountAccess.requireWrite()) return;
     if (window.isAssignmentTeacherLocked(assignId)) return;
     window.pendingExamId = String(assignId);
     window.pendingExamIsResume = !!isResume;
@@ -27446,6 +27449,8 @@ window.closeExamWarning = function (
 
 let studentExamStartInFlight = false;
 window.startExamFullscreen = async function (isResume = false) {
+    await window.StudentAccountAccess.refreshSession();
+    if (!window.StudentAccountAccess.requireWrite()) return;
     if (studentExamStartInFlight) return;
     studentExamStartInFlight = true;
     try { return await startExamFullscreenCore(isResume); }
@@ -29279,6 +29284,7 @@ async function addSpecialBirthdayItemToInventory(
 window
     .recoverSpecialBirthdayRedeemedItems =
     async function (grants = null) {
+        if (window.StudentAccountAccess && !window.StudentAccountAccess.canWrite()) return;
         if (
             window
                 .__specialBirthdayRedeemProcessing ||
@@ -29315,6 +29321,10 @@ window
                 );
 
             if (!hasRedeemedItem) {
+                return;
+            }
+
+            if (window.StudentAccountAccess && !window.StudentAccountAccess.canWrite()) {
                 return;
             }
 
@@ -29899,6 +29909,7 @@ async function addBirthdayItemToInventory(
 
 window.recoverBirthdayRedeemedItems =
     async function (wallets = null) {
+        if (window.StudentAccountAccess && !window.StudentAccountAccess.canWrite()) return;
         if (
             window
                 .__birthdayRecoveryRunning
@@ -29933,6 +29944,10 @@ window.recoverBirthdayRedeemedItems =
                 );
 
             if (!hasRedeemedItem) {
+                return;
+            }
+
+            if (window.StudentAccountAccess && !window.StudentAccountAccess.canWrite()) {
                 return;
             }
 
@@ -36459,94 +36474,9 @@ window.ShoppingDay = (() => {
     const uid=()=>firebase.auth().currentUser?.uid||'';
     const now=()=>state?state.serverNow+(performance.now()-state.receivedAt):Date.now();
     const expired=()=>!state||now()>=state.endsAt;
-    function isDraft(){
-        const options=firebase.app?.().options;
-        return options?.projectId==='web-chan-doan-test'&&String(options.databaseURL||'').replace(/\/$/,'')==='https://web-chan-doan-test-default-rtdb.asia-southeast1.firebasedatabase.app';
-    }
-    function draftEligible(item){
-        return item&&Object.hasOwn(types,item.type)&&!item.isNonCoin&&(!item.currency||item.currency==='coin')&&!item.rewardSource&&!item.birthdayYear&&!item.specialBirthdayCoinEligible&&!item.midAutumnCoinCost&&Number.isSafeInteger(Number(item.price))&&Number(item.price)>=0;
-    }
-    async function draftContext(){
-        if(!isDraft()||!uid()||uid()!==owner)throw Error('Tài khoản vừa thay đổi.');
-        const account=(await db.ref('users/'+owner).once('value')).val();
-        if(account?.role!=='student'||account.isLocked||account.deletionPending)throw Error('Tài khoản học sinh không khả dụng.');
-        if(['false','0','off','closed','locked','disabled'].includes(String(account.storeGameAccessEnabled??'').toLowerCase()))throw Error('STORE_GAME_ACCESS_DISABLED');
-        const [settings,game,custom,offset]=await Promise.all(['store_settings','game_settings/isOpen','store_items','.info/serverTimeOffset'].map(path=>db.ref(path).once('value').then(s=>s.val())));
-        if(settings?.isOpen===false)throw Error('STORE_CLOSED');if(game===false)throw Error('GAME_CLOSED');
-        const serverNow=Date.now()+Number(offset||0),year=new Date(serverNow+25200000).getUTCFullYear();
-        // getItemsByType is filtered by luxury-store.js to serve the regular
-        // shop only. Include the separate luxury catalog before deduplicating.
-        const catalog=new Map([
-            ...StoreManager.getItemsByType('all'),
-            ...(window.LuxuryStore?.getItems?.()||[])
-        ].map(i=>[i.id,i]));
-        for(const item of Object.values(custom||{}))if(item?.id)catalog.set(item.id,item);
-        const offers=[...catalog.values()].filter(draftEligible).map(i=>({...i,...Object.fromEntries(['price','startDate','endDate','isLocked'].filter(k=>settings?.[i.id]?.[k]!==undefined).map(k=>[k,settings[i.id][k]]))})).filter(i=>draftEligible(i)&&![true,'true',1].includes(i.isLocked)).map(i=>({id:i.id,name:i.name||i.id,type:i.type,price:Number(i.price),luxury:!!i.luxuryOnly||!!window.LuxuryStore?.isLuxuryItem(i.id)}));
-        if(uid()!==owner||!isDraft())throw Error('Tài khoản vừa thay đổi.');
-        return {username:account.username,year,serverNow,endsAt:Date.UTC(year+1,0,1)-25200000,offers};
-    }
-    async function recordDraftSpin(context,draw){
-        const id='shopping_draw_'+context.year;
-        await db.ref(`student_asset_history/${context.username}/${id}`).transaction(old=>old?undefined:{id,token:id,version:1,username:context.username,actorUid:owner,actorRole:'student',createdAt:firebase.database.ServerValue.TIMESTAMP,occurredAt:draw.spunAt,source:'shopping_spin',summary:`Ngày hội mua sắm · Quay giảm ${draw.percent}% (bản test)`,operationId:id,originalId:'',changes:[{kind:'discount',asset:id,label:`Ưu đãi Ngày hội mua sắm ${draw.percent}%`,delta:1}]},undefined,false);
-        window.dispatchEvent(new CustomEvent('asset-history-committed'));
-    }
     async function execute(action,args={},options={}){
-        if(!isDraft()){
-            if(!window.EconomyClient||window.ECONOMY_SERVER_ENABLED!==true)throw Error('Ngày hội đang chờ kết nối máy chủ giao dịch.');
-            return window.EconomyClient.execute(action,args,options);
-        }
-        await window.StudentFeatureLoader.ensure('store-ui');
-        const context=await draftContext();
-        // Reuse an existing writable per-student record on the isolated draft.
-        // It is already consumed and targets no store item: never a usable coupon.
-        const drawRef=db.ref(`student_discounts/${context.username}/shopping_draw_${context.year}`);
-        let draw=(await drawRef.once('value')).val();
-        if(action==='shopping_spin'){
-            const pick=crypto.getRandomValues(new Uint32Array(1))[0]/4294967296;
-            const percent=([30,54,72,84,92,97,100].findIndex(t=>pick*100<t)+1)*10;
-            const result=await drawRef.transaction(old=>old||{percent,source:'shopping_day_draft',isUsed:true,targetItem:['shopping_day_only'],spunAt:context.serverNow,year:context.year},undefined,false);
-            draw=result.snapshot.val();
-        }
-        if(draw){
-            if(draw.source!=='shopping_day_draft'||![10,20,30,40,50,60,70].includes(draw.percent))throw Error('Kết quả quay thử không hợp lệ.');
-            await recordDraftSpin(context,draw);
-        }
-        if(action!=='shopping_buy')return {...context,percent:draw?.percent||0,draft:true};
-        if(!draw)throw Error('SHOPPING_SPIN_REQUIRED');
-        const item=context.offers.find(i=>i.id===args.itemId);if(!item)throw Error('ITEM_NOT_FOR_SALE');
-        const username=context.username,inventoryRef=db.ref(`student_inventory/${username}/${item.id}`);
-        if(await recoverStudentPaidPurchase(item.id,username,true,()=>isDraft()&&uid()===owner)){
-            const saved=(await inventoryRef.once('value')).val();return {amount:saved.purchasePrice};
-        }
-        const previous=(await inventoryRef.once('value')).val();
-        if(previous&&previous.isTrial!==true)throw Error('ITEM_ALREADY_OWNED');
-        const amount=Math.floor(item.price*(100-draw.percent)/100);
-        if(amount>Number(args.maxAmount))throw Error('STORE_PRICE_CHANGED');
-        if(Number((await db.ref('student_coins/'+username).once('value')).val()||0)<amount)throw Error('INSUFFICIENT_BALANCE');
-        if(uid()!==owner||!isDraft())throw Error('Tài khoản vừa thay đổi.');
-        const operation=await reserveStudentStorePurchase(item.id,previous?.isTrial===true,{username});
-        let chargeAttempted=false;
-        try{
-            await updateStudentStoreOperation(operation,{status:'debit_pending',basePrice:item.price,finalPrice:amount,updatedAt:Date.now()});
-            // inventoryGrant has a strict existing Rules allowlist. Event
-            // metadata belongs on the purchase operation, outside that grant.
-            const grant={id:item.id,purchaseTime:previous?.purchaseTime||Date.now(),source:'store_purchase',purchaseCurrency:'coin',purchaseBasePrice:item.price,purchasePrice:amount,purchaseOperationId:operation.operationId,isTrial:null,trialExpiry:null,isEquipped:false,...(previous?.isTrial===true?{upgradedFromTrial:true,upgradedAt:Date.now()}:{})};
-            const paid={status:'paid',operationId:operation.operationId,atomicCharge:true,inventoryGrant:grant,shoppingDraft:true,shoppingPercent:draw.percent,shoppingYear:context.year,isUpgrade:previous?.isTrial===true,upgradeTrialOperationId:previous?.trialOperationId||'',coinDebited:amount>0,paidAt:Date.now(),updatedAt:Date.now()};
-            if(uid()!==owner||!isDraft())throw Error('Tài khoản vừa thay đổi.');
-            chargeAttempted=true;
-            await window.StoreConcurrency.charge(username,item.id,operation,'purchase',amount,paid);
-            await grantStudentPaidPurchase(username,item.id,paid);
-            await updateStudentStoreOperation(operation,{status:'completed',itemGranted:true,completedAt:Date.now(),updatedAt:Date.now()});
-            await window.AssetHistory?.flush?.();
-            window.dispatchEvent(new CustomEvent('asset-history-committed'));
-            return {amount};
-        }catch(error){
-            if(!chargeAttempted||/permission[_ -]?denied/i.test(String(error.code||error.message))){
-                const released=await cancelStudentUnpaidPurchase(username,item.id,operation.operationId,()=>isDraft()&&uid()===owner,true).catch(()=>false);
-                if(released)throw Error('Thanh toán bị từ chối. Đã xác nhận chưa trừ Coin và giải phóng lượt mua. Nếu vẫn lỗi sau khi tải lại, cần kiểm tra Rules của bản test.');
-            }
-            throw error;
-        }
+        if(!window.EconomyClient||window.ECONOMY_SERVER_ENABLED!==true)throw Error('Ngày hội đang chờ kết nối máy chủ giao dịch.');
+        return window.EconomyClient.execute(action,args,options);
     }
     function el(tag,content,className){const node=document.createElement(tag);if(content!==undefined)node.textContent=content;if(className)node.className=className;return node;}
     function message(value){dialog.querySelector('[data-shopping-status]').textContent=value;}
@@ -36617,7 +36547,7 @@ window.ShoppingDay = (() => {
             const result=await execute('shopping_open',{}, {slot:'shopping:open'});
             if(uid()!==owner)return;
             state={...result,receivedAt:performance.now()};
-            message(state.draft?`Bản test · Mở thử ngoài ngày 3/11. ${state.percent?'Mức giảm đã lưu: '+state.percent+'%.':'Quay miễn phí để thử mua với giá giảm.'} Giao dịch chỉ dùng dữ liệu của bản test.`:state.percent?`Ưu đãi ${state.percent}% được giữ đến hết ngày 3/11/${state.year} (giờ Việt Nam).`:'Quay một lần để mở mức giá ưu đãi cho toàn bộ danh sách bên dưới.');
+            message(state.percent?`Ưu đãi ${state.percent}% được giữ đến hết ngày 3/11/${state.year} (giờ Việt Nam).`:'Quay một lần để mở mức giá ưu đãi cho toàn bộ danh sách bên dưới.');
             if(dialog.open)timer=setInterval(()=>{if(expired()||uid()!==owner){state=null;clearInterval(timer);dialog.dispatchEvent(new Event('shopping-expired'));render();message('Ngày hội đã kết thúc hoặc tài khoản đã thay đổi. Hãy đóng cửa sổ.');}},1000);
         }catch(error){report(error);}finally{busy=false;render();}
     }

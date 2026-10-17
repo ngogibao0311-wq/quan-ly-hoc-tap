@@ -1,4 +1,4 @@
-// js/store-manager.js
+// js/store-manager.js?v=20261017.production.split1
 
 // STORE GUARD companion build (logic bảo vệ giao dịch nằm ở student.js + Firebase Rules)
 window.__STORE_MANAGER_GUARD_BUILD = '20260918.v2-K2-K3-ownership';
@@ -3224,32 +3224,6 @@ function ensureStarryNightChibiStylesheet() {
 }
 
 class StoreManager {
-    // Teacher console utility, restricted to the isolated Firebase test project.
-    static async grantTestCatalog(username) {
-        const options = firebase.app().options;
-        if (options.projectId !== 'web-chan-doan-test' || String(options.databaseURL || '').replace(/\/$/, '') !== 'https://web-chan-doan-test-default-rtdb.asia-southeast1.firebasedatabase.app') throw Error('Lệnh này chỉ dùng trên web-chan-doan-test.');
-        const authUser = firebase.auth().currentUser;
-        if (!authUser) throw Error('Hãy đăng nhập giáo viên bản test.');
-        const profile = (await db.ref('users/' + authUser.uid).once('value')).val();
-        if (profile?.role !== 'teacher' || profile.isLocked || profile.deletionPending) throw Error('Hãy chạy lệnh từ tài khoản giáo viên bản test.');
-        username = String(username || '').trim();
-        if (!username || /[.#$\[\]\/]/.test(username)) throw Error('Nhập đúng tên đăng nhập học sinh cần cấp vật phẩm.');
-        const matches = (await db.ref('users').orderByChild('username').equalTo(username).once('value')).val() || {};
-        if (!Object.values(matches).some(p => p.role === 'student' && !p.isLocked && !p.deletionPending)) throw Error('Không tìm thấy học sinh đang hoạt động với tên đăng nhập này.');
-        const items = [...new Map(StoreConfig.items.filter(i => i.id && !i.id.startsWith('reward_bg_')).map(i => [i.id, i])).values()];
-        if (!items.some(i => i.id === 'pet_valentine_juliet_2')) throw Error('Hãy mở mục quản lý Cửa hàng Sang trọng rồi chạy lại để nạp đủ danh mục.');
-        let granted = 0;
-        for (const item of items) {
-            if (firebase.auth().currentUser?.uid !== authUser.uid) throw Error('Tài khoản đã thay đổi; dừng cấp vật phẩm.');
-            const result = await db.ref('student_inventory/' + username + '/' + item.id).transaction(old => {
-                if (old && old.isTrial !== true) return;
-                return {id:item.id,source:'test_catalog',purchaseTime:firebase.database.ServerValue.TIMESTAMP,isEquipped:false};
-            }, undefined, false);
-            if (result.committed) granted++;
-        }
-        console.info('Đã cấp ' + granted + ' vật phẩm cho ' + username + '. Tổng danh mục: ' + items.length + '. Vật phẩm vĩnh viễn đã có được giữ nguyên.');
-        return {username,granted,total:items.length};
-    }
     static normalizeEventCurrency(item) {
         item = StoreTags.normalizeItem(item ? {...item} : item);
         // Preserve item IDs; Love is primary and Thất Tịch items also accept the original event wallet.

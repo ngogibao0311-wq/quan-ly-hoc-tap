@@ -1,28 +1,65 @@
-// 1. DÁN ĐOẠN CODE BẠN LẤY ĐƯỢC TỪ FIREBASE VÀO ĐÂY
 const firebaseConfig = {
-  apiKey: "AIzaSyAnxiZEjEFUNoXnPFZR2GJh9mJ9KKYsPqI",
-  authDomain: "quan-ly-bai-tap-online.firebaseapp.com",
-  databaseURL: "https://quan-ly-bai-tap-online-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "quan-ly-bai-tap-online",
-  storageBucket: "quan-ly-bai-tap-online.firebasestorage.app",
-  messagingSenderId: "1045476145868",
-  appId: "1:1045476145868:web:3c14a594998101b8e1e069",
-  measurementId: "G-7RGKF00TV0"
+ apiKey: "AIzaSyAnxiZEjEFUNoXnPFZR2GJh9mJ9KKYsPqI",
+ authDomain: "quan-ly-bai-tap-online.firebaseapp.com",
+ databaseURL: "https://quan-ly-bai-tap-online-default-rtdb.asia-southeast1.firebasedatabase.app",
+ projectId: "quan-ly-bai-tap-online",
+ storageBucket: "quan-ly-bai-tap-online.firebasestorage.app",
+ messagingSenderId: "1045476145868",
+ appId: "1:1045476145868:web:3c14a594998101b8e1e069",
+ measurementId: "G-7RGKF00TV0"
 };
-// ---- DỰ ÁN NHÁP
-//const firebaseConfig = {
-//  apiKey: "AIzaSyDb4pnn0E16MY-aJ1UXD8p59X5vXkcRT_w",
-//  authDomain: "web-chan-doan-test.firebaseapp.com",
-//  databaseURL: "https://web-chan-doan-test-default-rtdb.asia-southeast1.firebasedatabase.app",
-//  projectId: "web-chan-doan-test",
-//  storageBucket: "web-chan-doan-test.firebasestorage.app",
-//  messagingSenderId: "623035254774",
-//  appId: "1:623035254774:web:70ee10a059363d8cb429d7"
-//};
 
 // 2. Khởi tạo kết nối
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
+
+// Firebase LOCAL persistence is shared by tabs on one origin. Never keep rendering
+// a teacher/student page with a different account or a different device session.
+window.PageAuthReady = (() => {
+    const role = /(?:^|\/)teacher\.html$/.test(location.pathname) ? 'teacher'
+        : /(?:^|\/)student\.html$/.test(location.pathname) ? 'student' : null;
+    if (!role) return Promise.resolve(true);
+    let expected;
+    try { expected = JSON.parse(localStorage.getItem('currentUser')); } catch (_) {}
+    let identity = null, blocked = false, epoch = 0, settle;
+    const ready = new Promise(resolve => { settle = resolve; });
+    const block = () => {
+        if (blocked) return;
+        blocked = true; window.pageAuthBlocked = true; window.isVerifiedTeacher = false;
+        window.cleanupFirebaseListeners?.(); db.goOffline(); settle(false);
+        // Do not sign out or erase the account another tab has just signed into.
+        location.replace('index.html?reason=session_changed');
+    };
+    firebase.auth().onIdTokenChanged(async user => {
+        const version = ++epoch;
+        if (blocked) return;
+        if (!user || !expected || (expected._fbKey && expected._fbKey !== user.uid)) return block();
+        try {
+            const token = await user.getIdTokenResult();
+            const next = user.uid + ':' + String(token.claims.deviceSession || 'password');
+            if (version !== epoch || blocked) return;
+            if (identity && identity !== next) {
+                if (window.deviceRotationUid === user.uid) {
+                    window.deviceRotationUid = null; identity = next;
+                } else return block();
+            }
+            if (!identity) {
+                const profile = (await db.ref('users/' + user.uid).once('value')).val();
+                if (version !== epoch || blocked) return;
+                if (!profile || profile.role !== role || profile.username !== expected.username ||
+                    profile.isLocked === true || profile.deletionPending === true ||
+                    (role === 'student' && !token.claims.deviceSession)) return block();
+                identity = next;
+            }
+            settle(true);
+        } catch (error) {
+            if (version !== epoch) return;
+            console.error('[Page authentication]', error.code || error.message);
+            block();
+        }
+    });
+    return ready;
+})();
 
 // =============================================================================
 // REQUEST SINGLE-FLIGHT v1.0.0

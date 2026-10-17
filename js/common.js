@@ -2124,6 +2124,29 @@ async function clearAllLockouts() {
 }
 
 if (loginForm) {
+    try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const reason = urlParams.get('reason');
+        if (reason) {
+            const errorMsg = document.getElementById('errorMsg');
+            if (errorMsg) {
+                if (reason === 'closed_timeout') {
+                    errorMsg.textContent = '⏱️ Phiên đăng nhập đã hết hạn do đóng trang web quá 1 phút. Vui lòng đăng nhập lại.';
+                    errorMsg.style.color = '#d97706';
+                } else if (reason === 'background_timeout') {
+                    errorMsg.textContent = '⏱️ Bạn đã rời khỏi trang quá 20 phút. Hệ thống tự động đăng xuất để bảo mật.';
+                    errorMsg.style.color = '#d97706';
+                } else if (reason === 'idle_timeout') {
+                    errorMsg.textContent = '⏱️ Phiên đăng nhập đã hết hạn do không có thao tác trong 20 phút. Vui lòng đăng nhập lại.';
+                    errorMsg.style.color = '#d97706';
+                } else if (reason === 'session_expired') {
+                    errorMsg.textContent = 'Phiên đã hết hạn hoặc bị thu hồi. Đóng web quá 1 phút hoặc không hoạt động 20 phút sẽ cần đăng nhập lại.';
+                } else if (reason === 'session_changed') {
+                    errorMsg.textContent = 'Tài khoản hoặc phiên đăng nhập đã thay đổi ở tab khác. Hãy đăng nhập lại đúng tài khoản. Dùng hai hồ sơ trình duyệt riêng để mở giáo viên và học sinh cùng lúc.';
+                }
+            }
+        }
+    } catch (_) {}
     loginForm.addEventListener('submit', async function (e) {
         e.preventDefault();
         if (loginForm.dataset.submitting === 'true') return;
@@ -2207,6 +2230,14 @@ if (loginForm) {
             // Đăng nhập thành công -> Gỡ bỏ hoàn toàn mọi án phạt
             await clearAllLockouts();
 
+            if (user.role === 'student') {
+                const sessionReady = await window.StudentAccountAccess.login(userCredential.user, user);
+                if (!sessionReady) {
+                    // Password authentication must remain valid while the code form is open.
+                    return;
+                }
+            }
+
             user._fbKey = uid;
             localStorage.setItem('currentUser', JSON.stringify(Object.fromEntries(Object.entries(user).filter(([key]) => !['password', 'newPass', 'oldPass'].includes(key)))));
 
@@ -2217,6 +2248,7 @@ if (loginForm) {
             }
 
         } catch (error) {
+            try { await firebase.auth().signOut(); } catch (_) {}
             let errorCode =
                 error && error.code
                     ? String(error.code)
@@ -2308,6 +2340,7 @@ if (loginForm) {
 
             const displayMessage =
                 messages[errorCode] ||
+                window.StudentAccountAccess?.message(error) ||
                 `Đăng nhập thất bại: ${errorCode}`;
 
             const credentialErrors = new Set([
@@ -2462,6 +2495,13 @@ window.logout = async function () {
     ));
 
     if (!accepted) return;
+    if (/student\.html$/.test(window.location.pathname)) {
+        try { await window.StudentAccountAccess?.releaseSession(); }
+        catch (_) {
+            await AppDialog.alert('Chưa báo đăng xuất được với máy chủ. Kiểm tra kết nối rồi bấm đăng xuất lại để giải phóng phiên.');
+            return;
+        }
+    }
 
     try {
         // Gỡ các listener Realtime Database.
@@ -5597,3 +5637,826 @@ window.securityHotfix = Object.freeze({
     try { const url = new URL(String(value)); return ['https:', 'http:'].includes(url.protocol) && !url.username && !url.password ? url.href : ''; } catch { return ''; }
   }
 });
+
+// ACCOUNT ACCESS — password first; server grants access only after a saved code or teacher-approved replacement.
+(() => {
+    'use strict';
+    let enabledPending=null,loginEpoch=0,screenUser=null,screenProfile=null,requestTimer=null,sessionLoginNonce=null;
+    const project=()=>firebase.app().options.projectId;
+    const uid=()=>firebase.auth().currentUser?.uid;
+    const messages={ACCESS_UNAVAILABLE:'Chưa kết nối được máy chủ tài khoản. Hãy thử lại sau.',ACCESS_NOT_ENABLED:'Chức năng chưa được bật trên máy chủ.',ACCESS_PROJECT_MISMATCH:'Máy chủ tài khoản chưa đúng dự án Firebase.',RECOVERY_INVALID:'Mã khôi phục không đúng. Kiểm tra mã rồi thử lại.',PASSWORD_LOGIN_REQUIRED:'Hãy nhập lại tài khoản và mật khẩu để tiếp tục.',DEVICE_VERIFICATION_REQUIRED:'Cần xác nhận mã thiết bị trước khi vào website.',APPROVAL_REQUIRED:'Yêu cầu chưa được giáo viên đồng ý hoặc đã hết hạn.',REQUEST_EXPIRED:'Yêu cầu đã hết hạn. Hãy gửi lại yêu cầu.',REQUEST_ALREADY_PENDING:'Đã có yêu cầu đang chờ. Hãy báo giáo viên kèm tên tài khoản của bạn.',REQUEST_ALREADY_REVIEWED:'Yêu cầu đã được xử lý ở phiên khác. Hãy cập nhật lại danh sách.',REQUEST_USED:'Yêu cầu này đã được dùng với thông tin khác.',ACCESS_CHANGED:'Thông tin xác thực đã thay đổi. Hãy đăng nhập lại.',ACCESS_RATE_LIMIT:'Đã thử quá nhiều lần. Vui lòng đợi rồi thử lại.',WEAK_PASSWORD:'Mật khẩu cần 8–128 ký tự, có chữ và số, khác tên đăng nhập.',ACCOUNT_NOT_ALLOWED:'Tài khoản không còn hoạt động hoặc đang bị khóa.'};
+    messages.READ_ONLY_SESSION='Phiên này chỉ được xem. Đăng xuất rồi đăng nhập lại sau khi phiên số 1 kết thúc để được xét quyền thao tác.';
+    messages.ACCESS_SESSION_LIMIT='Đã có 20 phiên còn hiệu lực. Hãy đăng xuất bớt phiên trước khi đăng nhập tiếp.';
+    messages.ACCESS_BUSY='Yêu cầu đang được xử lý. Chờ khoảng một phút rồi thử lại với cùng thông tin.';
+    Object.assign(messages,{
+        ACCESS_SECRET_MISSING:'Worker chưa có khóa FIREBASE_SERVICE_ACCOUNT. Cần thêm khóa của đúng dự án Firebase.',
+        ACCESS_SECRET_INVALID:'Khóa Firebase trên Worker không phải JSON hợp lệ hoặc thiếu thông tin. Cần nhập lại toàn bộ file khóa.',
+        ACCESS_SECRET_PROJECT:'Khóa trên Worker phải thuộc dự án quan-ly-bai-tap-online.',
+        ACCESS_SECRET_KEY:'Khóa riêng Firebase trên Worker bị thiếu hoặc hỏng. Cần nhập lại file khóa đầy đủ.',
+        ACCESS_GOOGLE_CONNECTION:'Worker chưa kết nối được máy chủ xác thực Google. Hãy thử lại sau.',
+        ACCESS_GOOGLE_AUTH:'Google từ chối khóa Firebase của Worker. Cần kiểm tra khóa còn hiệu lực và đúng dự án.',
+        ACCESS_DATABASE_CONNECTION:'Worker chưa kết nối được Firebase Database. Cần kiểm tra địa chỉ Database và kết nối.',
+        ACCESS_DATABASE_PERMISSION:'Firebase từ chối quyền của Worker. Cần kiểm tra service account và Database đúng dự án.',
+        ACCESS_DATABASE_RESPONSE:'Firebase Database trả lỗi cho Worker. Cần kiểm tra cấu hình và nhật ký Worker.'
+    });
+    const message=error=>messages[error?.message] || 'Chưa xác nhận được thao tác. Kiểm tra kết nối và thử lại.';
+    function enabled() {
+        if(!enabledPending)enabledPending=firebase.database().ref('account_access_config/enabled').once('value').then(s=>s.val()===true).catch(error=>{enabledPending=null;throw error;});
+        return enabledPending;
+    }
+    function endpoint() {
+        const configured=window.ACCOUNT_ACCESS_WORKERS?.[project()];
+        const known={ 'quan-ly-bai-tap-online':'https://school-r2-files.ngogibao0311.workers.dev'};
+        const url=new URL(configured || known[project()] || 'https://invalid.local');
+        if(url.protocol!=='https:' || (url.hostname==='invalid.local' || url.hostname.endsWith('.invalid')))throw Error('ACCESS_PROJECT_MISMATCH');
+        return url.href.replace(/\/$/,'')+'/account-access';
+    }
+    async function call(action,input={},anonymous=false) {
+        if (window.pageAuthBlocked) throw Error('ACCESS_CHANGED');
+        if (['verify','enroll','reset_device'].includes(action)) {
+            sessionLoginNonce ||= secret();
+            input = {...input, loginNonce: sessionLoginNonce};
+        }
+        const current=firebase.auth().currentUser;
+        const headers={'Content-Type':'application/json'};
+        if(!anonymous && current) {
+            const token = await current.getIdToken();
+            headers.Authorization='Bearer '+token;
+            if (action === 'state' && input.tab) unloadToken = token;
+        }
+        const response=await fetch(endpoint(),{method:'POST',headers,body:JSON.stringify({action,projectId:project(),...input}),cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer',signal:AbortSignal.timeout(20000)});
+        let value;try{value=await response.json();}catch(_){throw Error('ACCESS_UNAVAILABLE');}
+        if(!response.ok || !value.ok)throw Error(value.error || 'ACCESS_UNAVAILABLE');
+        if(window.pageAuthBlocked || (!anonymous && uid()!==current?.uid))throw Error('ACCESS_CHANGED');
+        return value;
+    }
+    function secret() {return Array.from(crypto.getRandomValues(new Uint8Array(32)),n=>n.toString(16).padStart(2,'0')).join('');}
+    function code() {return 'REC-'+crypto.randomUUID().replace(/-/g,'').toUpperCase();}
+    function ticketKey(kind,username) {return `accountRecovery:v1:${project()}:${kind}:${username}`;}
+    function savedTicket(kind,username) {
+        const key=ticketKey(kind,username);let token;
+        try{token=sessionStorage.getItem(key);}catch(_){}
+        if(!/^[0-9a-f]{64}$/.test(token||'')){token=secret();try{sessionStorage.setItem(key,token);}catch(_){}}
+        return token;
+    }
+    function panel(title,description) {
+        clearTimeout(requestTimer);requestTimer=null;
+        const root=document.querySelector('.login-container');if(!root)throw Error('LOGIN_PAGE_REQUIRED');
+        root.querySelector('.login-heading').hidden=true;document.getElementById('loginForm').hidden=true;
+        document.getElementById('forgotPasswordButton').hidden=true;document.getElementById('errorMsg').textContent='';
+        let box=document.getElementById('studentAccessStep');if(!box){box=document.createElement('section');box.id='studentAccessStep';root.insertBefore(box,root.querySelector('.login-help-note'));}
+        box.replaceChildren();box.hidden=false;
+        const eyebrow=document.createElement('p');eyebrow.className='access-eyebrow';eyebrow.textContent='BẢO VỆ TÀI KHOẢN';
+        const h=document.createElement('h2');h.textContent=title;h.tabIndex=-1;
+        const p=document.createElement('p');p.textContent=description;
+        const body=document.createElement('div');body.className='access-step-body';
+        const status=document.createElement('p');status.className='access-status';status.setAttribute('role','status');status.setAttribute('aria-live','polite');
+        const back=document.createElement('button');back.type='button';back.className='access-link';back.textContent='← Quay lại đăng nhập';
+        back.addEventListener('click',()=>{void resetLogin();});box.append(eyebrow,h,p,body,status,back);h.focus();return {body,status};
+    }
+    function button(text,handler,secondary=false) {
+        const el=document.createElement('button');el.type='button';el.textContent=text;el.className=secondary?'access-secondary':'access-primary';el.addEventListener('click',handler);return el;
+    }
+    async function resetLogin() {
+        loginEpoch++;clearTimeout(requestTimer);requestTimer=null;screenUser=null;screenProfile=null;
+        await firebase.auth().signOut();
+        const box=document.getElementById('studentAccessStep');if(box)box.hidden=true;
+        document.querySelector('.login-heading').hidden=false;document.getElementById('loginForm').hidden=false;document.getElementById('forgotPasswordButton').hidden=false;
+        document.getElementById('password').value='';document.getElementById('username').focus();
+    }
+    async function accept(result,epoch) {
+        if(epoch!==loginEpoch || uid()!==screenUser?.uid)return;
+        if(!result.customToken || !result.deviceId)throw Error('ACCESS_UNAVAILABLE');
+        const expected=screenUser.uid;
+        const credential=await firebase.auth().signInWithCustomToken(result.customToken);
+        if(epoch!==loginEpoch || credential.user.uid!==expected){await firebase.auth().signOut();return;}
+        await window.StudentConnectionInfo.linkDevice(result.deviceId);
+        localStorage.setItem('currentUser',JSON.stringify(Object.fromEntries(Object.entries({...screenProfile,_fbKey:expected}).filter(([k])=>!['password','newPass','oldPass'].includes(k)))));
+        window.location.href='student.html';
+    }
+    async function showCreate(action,ticket) {
+        const epoch=loginEpoch;
+        const {body,status}=panel(action==='reset_device'?'Tạo mã khôi phục mới':'Lưu mã khôi phục của bạn',action==='reset_device'?'Giáo viên đã đồng ý. Mã cũ đã bị vô hiệu hóa. Hoàn tất bước này để vào website.':'Đây là mã dùng sau khi đăng nhập bằng tài khoản và mật khẩu. Hãy cất mã ở nơi riêng.');
+        const fresh=code(),device=(await window.StudentConnectionInfo.ensureDevice()).id;if(epoch!==loginEpoch)return;
+        const output=document.createElement('code');output.textContent=fresh;
+        const copy=button('Sao chép mã',async()=>{try{await navigator.clipboard.writeText(fresh);status.textContent='Đã sao chép. Hãy cất mã trước khi tiếp tục.';}catch(_){status.textContent='Hãy chọn mã và nhấn Ctrl+C hoặc nhấn giữ để sao chép.';}},true);
+        const label=document.createElement('label');label.className='access-confirm';const check=document.createElement('input');check.type='checkbox';label.append(check,document.createTextNode('Tôi đã cất mã khôi phục'));
+        const next=button('Lưu mã và vào website',async()=>{
+            next.disabled=true;status.textContent='Đang lưu mã…';
+            try{await accept(await call(action,{code:fresh,deviceId:device,secret:ticket}),epoch);}catch(error){if(epoch===loginEpoch){status.textContent=message(error);next.disabled=!check.checked;}}
+        });next.disabled=true;check.addEventListener('change',()=>next.disabled=!check.checked);
+        body.append(output,copy,label,next);
+    }
+    async function waitRequest(kind,username,token) {
+        const epoch=loginEpoch,{body,status}=panel(kind==='device'?'Chờ giáo viên duyệt':'Đã báo quên mật khẩu',kind==='device'?'Giáo viên cần đồng ý trước khi bạn tạo lại mã. Giữ trang này để nhận kết quả.':'Yêu cầu này chỉ báo cho giáo viên. Giáo viên sẽ đổi mật khẩu và gửi lại cho bạn qua kênh liên hệ đang dùng.');
+        const reference=document.createElement('p');reference.className='access-reference';body.append(reference);
+        let busy=false;
+        const check=button('Kiểm tra kết quả',()=>{void poll();},true);body.append(check);
+        async function poll(){
+            if(busy || epoch!==loginEpoch)return;busy=true;check.disabled=true;clearTimeout(requestTimer);
+            try{
+                const result=await call('request_status',{kind,username,secret:token},true);if(epoch!==loginEpoch)return;
+                reference.textContent=result.id?'Mã yêu cầu: '+result.id:'';
+                if(result.status==='approved' && kind==='device'){await showCreate('reset_device',token);return;}
+                if(['rejected','unavailable','consumed','resolved'].includes(result.status)){
+                    const terminalMessages = {
+                        resolved: 'Bạn đã đăng nhập bằng mã khôi phục. Yêu cầu hỗ trợ đã tự kết thúc.',
+                        rejected: 'Giáo viên đã từ chối yêu cầu. Bạn chưa được cấp quyền vào website.',
+                        consumed: kind === 'password'
+                            ? 'Giáo viên đã xử lý. Hãy nhận mật khẩu mới từ giáo viên rồi đăng nhập lại.'
+                            : 'Yêu cầu đã được dùng để tạo mã mới. Quay lại đăng nhập bằng mã đã lưu.',
+                        unavailable: 'Yêu cầu không còn hiệu lực. Quay lại đăng nhập và gửi yêu cầu mới nếu cần.'
+                    };
+                    status.textContent = terminalMessages[result.status];
+                    try{sessionStorage.removeItem(ticketKey(kind,username));}catch(_){}
+                    return;
+                }
+                status.textContent='Đang chờ giáo viên xử lý…';
+                requestTimer=setTimeout(()=>{if(document.visibilityState==='visible')void poll();else requestTimer=setTimeout(()=>void poll(),12000);},12000);
+            }catch(error){if(epoch===loginEpoch)status.textContent=message(error);}
+            finally{busy=false;check.disabled=false;}
+        }
+        await poll();
+    }
+    async function login(authUser,profile) {
+        if(!(await enabled()))return true;
+        screenUser=authUser;screenProfile=profile;sessionLoginNonce=secret();const epoch=++loginEpoch;
+        const state=await call('state');if(epoch!==loginEpoch)return false;
+        if(state.status==='enroll'){await showCreate('enroll');return false;}
+        const {body,status}=panel('Khôi phục thiết bị đã lưu','Tài khoản và mật khẩu đã đúng. Nhập mã khôi phục để tiếp tục vào website.');
+        const form=document.createElement('form'),label=document.createElement('label'),input=document.createElement('input');
+        label.htmlFor='loginRecoveryCode';label.textContent='Mã khôi phục';input.id='loginRecoveryCode';input.type='password';input.autocomplete='off';input.spellcheck=false;input.placeholder='REC-…';input.maxLength=64;input.required=true;
+        const next=button('Xác nhận và đăng nhập',()=>{});next.type='submit';
+        form.append(label,input,next);form.addEventListener('submit',async event=>{
+            event.preventDefault();if(next.disabled)return;next.disabled=true;status.textContent='Đang xác nhận mã…';
+            try{await accept(await call('verify',{code:input.value}),epoch);}catch(error){if(epoch===loginEpoch)status.textContent=message(error);}finally{next.disabled=false;}
+        });
+        const forgot=button('Quên mã khôi phục',async()=>{
+            forgot.disabled=true;const token=savedTicket('device',profile.username);
+            try{await call('request_device',{secret:token});if(epoch===loginEpoch)await waitRequest('device',profile.username,token);}catch(error){if(epoch===loginEpoch)status.textContent=message(error);}finally{forgot.disabled=false;}
+        },true);body.append(form,forgot);input.focus();return false;
+    }
+    async function forgotPassword() {
+        const username=document.getElementById('username').value.trim(),error=document.getElementById('errorMsg');
+        if(!username){error.textContent='Nhập tên tài khoản để báo giáo viên.';return;}
+        const trigger=document.getElementById('forgotPasswordButton');trigger.disabled=true;
+        try{
+            if(!(await enabled())){error.textContent='Hãy liên hệ giáo viên để được đổi mật khẩu.';return;}
+            const token=savedTicket('password',username);await call('request_password',{username,secret:token},true);
+            loginEpoch++;await waitRequest('password',username,token);
+        }catch(e){error.textContent=message(e);}finally{trigger.disabled=false;}
+    }
+    let sessionMode = 'checking', sessionRank = null, sessionDeadline = 0;
+    let sessionTimer = null, sessionCheck = null, sessionStarted = false;
+    const TAB_ID = crypto.randomUUID();
+    let tabSequence = 0, activityRevision = 0, acknowledgedActivity = 0;
+    let lastActivity = -Infinity, unloadToken = null, pageClosed = false, forcedLoggingOut = false;
+    function tabPresence(active = false) {
+        return {id: TAB_ID, seq: ++tabSequence, visible: document.visibilityState === 'visible', active};
+    }
+    function handleTabUnload() {
+        if (pageClosed || forcedLoggingOut || window.pageAuthBlocked || !unloadToken) return;
+        pageClosed = true;
+        // No asynchronous token lookup during unload. Missing delivery is covered by the server lease.
+        const body = JSON.stringify({action: 'session_unload', projectId: project(), tab: tabPresence(false)});
+        void fetch(endpoint(), {method: 'POST', headers: {'Content-Type': 'application/json', Authorization: 'Bearer ' + unloadToken},
+            body, keepalive: true, credentials: 'omit', referrerPolicy: 'no-referrer'}).catch(() => {});
+    }
+    function markUserActivity(event) {
+        if (!event.isTrusted || document.visibilityState !== 'visible' || pageClosed || forcedLoggingOut) return;
+        if (performance.now() - lastActivity < 5000) return;
+        lastActivity = performance.now(); activityRevision++;
+        void refreshSession().catch(() => {});
+    }
+    async function triggerForcedLogout(reason) {
+        if (window.pageAuthBlocked) return;
+        if (forcedLoggingOut) return;
+        forcedLoggingOut = true;
+        sessionMode = 'checking'; sessionDeadline = 0; clearInterval(sessionTimer);
+        window.cleanupFirebaseListeners?.();
+        // The server already rejected this session. Do not wait on another network operation.
+        if (reason !== 'session_changed') {
+            localStorage.removeItem('currentUser');
+            try { await firebase.auth().signOut(); } catch (_) {}
+        }
+        window.location.replace('index.html?reason=' + encodeURIComponent(reason));
+    }
+    const readOnlyText = 'Phiên này chỉ được xem. Hãy đăng xuất rồi đăng nhập lại sau khi phiên số 1 đã đăng xuất hoặc hết hạn để được xét quyền thao tác.';
+    function canWrite() {
+        return !window.pageAuthBlocked && sessionMode === 'primary' && performance.now() < sessionDeadline;
+    }
+    function notifyReadOnly() {
+        if (window.showToast) window.showToast(readOnlyText, 'warning');
+        else void window.AppDialog?.alert(readOnlyText);
+    }
+    function requireWrite() {
+        if (canWrite()) return true;
+        notifyReadOnly();
+        return false;
+    }
+    function renderSession() {
+        if (!sessionStarted) return;
+        document.body.classList.toggle('student-view-session', !canWrite());
+        let banner = document.getElementById('studentSessionBanner');
+        if (!banner) {
+            const content = document.querySelector('#studentDashboard > .content');
+            if (!content) return;
+            banner = document.createElement('aside');
+            banner.id = 'studentSessionBanner';
+            banner.className = 'ui-theme-immune';
+            banner.setAttribute('role', 'status');
+            const text = document.createElement('span'); text.dataset.sessionNotice = '';
+            const exit = document.createElement('button'); exit.type = 'button'; exit.textContent = 'Đăng xuất';
+            exit.addEventListener('click', () => void window.logout());
+            banner.append(text, exit);
+            // Keep the notice inside the dashboard's natural height. Body padding
+            // would create an extra scroll area beyond the sticky sidebar's parent.
+            content.insertBefore(banner, content.querySelector('.tab-content'));
+        }
+        banner.hidden = canWrite();
+        banner.querySelector('[data-session-notice]').textContent = sessionMode === 'checking'
+            ? 'Đang kiểm tra quyền thao tác. Bạn có thể xem nội dung.'
+            : `Lần đăng nhập ${sessionRank || 'phụ'} · Chỉ xem. Để được xét quyền thao tác, hãy đăng xuất rồi đăng nhập lại sau khi phiên số 1 kết thúc.`;
+        window.dispatchEvent(new CustomEvent('student-session-mode', {detail: {mode: sessionMode, rank: sessionRank}}));
+    }
+    function applySession(result) {
+        sessionMode = result.accessMode === 'primary' ? 'primary' : 'view';
+        sessionRank = result.loginRank;
+        sessionDeadline = performance.now() + Math.max(0, Number(result.sessionExpiresAt) - Number(result.serverNow));
+        renderSession();
+    }
+    async function refreshSession() {
+        if (sessionCheck) return sessionCheck;
+        sessionCheck = (async () => {
+            try {
+                const revision = activityRevision;
+                const result = await call('state', {tab: tabPresence(revision > acknowledgedActivity)});
+                if (result.status !== 'verified') throw Error('DEVICE_VERIFICATION_REQUIRED');
+                acknowledgedActivity = revision;
+                applySession(result);
+                return result;
+            } catch (error) {
+                sessionMode = 'checking'; sessionDeadline = 0; renderSession();
+                if (sessionStarted && /^(DEVICE_VERIFICATION_REQUIRED|PASSWORD_LOGIN_REQUIRED|ACCOUNT_NOT_ALLOWED|ACCESS_CHANGED)$/.test(error.message)) {
+                    void triggerForcedLogout(error.message === 'ACCESS_CHANGED' ? 'session_changed' : 'session_expired');
+                }
+                throw error;
+            } finally { sessionCheck = null; }
+        })();
+        return sessionCheck;
+    }
+    function installSessionControls() {
+        if (sessionStarted) return;
+        sessionStarted = true;
+        // Stop local optimistic writes too; Firebase Rules remain the security boundary.
+        const proto = Object.getPrototypeOf(firebase.database().ref());
+        for (const name of ['set', 'update', 'remove', 'transaction', 'setWithPriority', 'setPriority']) {
+            const original = proto[name];
+            if (typeof original !== 'function') continue;
+            proto[name] = function (...args) {
+                if (sessionStarted && !canWrite()) {
+                    const error = Object.assign(Error(readOnlyText), {code: 'READ_ONLY_SESSION'});
+                    const callback = args[name === 'transaction' ? 1 : name === 'remove' ? 0 : name === 'setWithPriority' ? 2 : 1];
+                    if (typeof callback === 'function') queueMicrotask(() => callback(error));
+                    const denied = Promise.reject(error); denied.catch(() => {}); return denied;
+                }
+                return original.apply(this, args);
+            };
+        }
+        // Navigation, search, previews and closing dialogs stay available.
+        const actionPattern = /(?:buy|purchase|redeem|claim|equip|unequip|spin|submit|sendGift|convert|exchange|startExam|showExamWarning|openChest|useItem|saveProfile)/i;
+        const labelPattern = /^(?:mua|đổi|nhận|mặc|tháo|quay|nộp|gửi|lưu|bắt đầu|tiếp tục thi|dùng thử|sử dụng)(?:\s|$|:)/iu;
+        const isWriteControl = button => {
+            if (!button || button.closest('#studentSessionBanner') || button.matches('.nav-item, .btn-logout')) return false;
+            const label = button.textContent.trim().replace(/^[^\p{L}]+/u, '');
+            return actionPattern.test(button.getAttribute('onclick') || '') || labelPattern.test(label);
+        };
+        const marked = new Map();
+        const markControls = () => {
+            for (const [button, before] of marked) {
+                if (button.isConnected && !canWrite() && isWriteControl(button)) continue;
+                button.classList.remove('student-session-locked');
+                if (before.aria === null) button.removeAttribute('aria-disabled'); else button.setAttribute('aria-disabled', before.aria);
+                if (before.title === null) button.removeAttribute('title'); else button.setAttribute('title', before.title);
+                marked.delete(button);
+            }
+            if (canWrite()) return;
+            for (const button of document.querySelectorAll('button, [role="button"], [onclick]')) {
+                if (!isWriteControl(button) || marked.has(button)) continue;
+                marked.set(button, {aria: button.getAttribute('aria-disabled'), title: button.getAttribute('title')});
+                button.classList.add('student-session-locked');
+                button.setAttribute('aria-disabled', 'true'); button.setAttribute('title', readOnlyText);
+            }
+        };
+        let markFrame = null;
+        new MutationObserver(() => {
+            if (markFrame === null) markFrame = requestAnimationFrame(() => { markFrame = null; markControls(); });
+        }).observe(document.body, {childList: true, subtree: true});
+        window.addEventListener('student-session-mode', markControls);
+        markControls();
+        document.addEventListener('click', event => {
+            if (canWrite()) return;
+            const button = event.target.closest('button, [role="button"], [onclick]');
+            if (isWriteControl(button)) {
+                event.preventDefault(); event.stopImmediatePropagation(); notifyReadOnly();
+            }
+        }, true);
+        document.addEventListener('submit', event => {
+            if (!canWrite() && event.target.getAttribute('role') !== 'search') {
+                event.preventDefault(); event.stopImmediatePropagation(); notifyReadOnly();
+            }
+        }, true);
+        const scheduleCheck = () => {
+            clearInterval(sessionTimer);
+            sessionTimer = setInterval(() => {
+                if (!pageClosed && !forcedLoggingOut) void refreshSession().catch(() => {});
+            }, 20000);
+        };
+        scheduleCheck();
+
+        ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'].forEach(evt => {
+            window.addEventListener(evt, markUserActivity, { passive: true, capture: true });
+        });
+
+        window.addEventListener('pageshow', event => {
+            if (event.persisted) {
+                pageClosed = false;
+                scheduleCheck();
+                void refreshSession().catch(() => {});
+            }
+        });
+        document.addEventListener('visibilitychange', () => {
+            if (!pageClosed && !forcedLoggingOut) void refreshSession().catch(() => {});
+        });
+        window.addEventListener('pagehide', () => {
+            handleTabUnload();
+            clearInterval(sessionTimer);
+        });
+    }
+    async function releaseSession() {
+        if (await enabled()) await call('release_session');
+        sessionMode = 'view'; sessionDeadline = 0;
+        clearInterval(sessionTimer);
+        unloadToken = null;
+    }
+    async function ensure() {
+        if (await window.PageAuthReady === false || window.pageAuthBlocked) return false;
+        if (!(await enabled())) throw Error('ACCESS_NOT_ENABLED');
+        let result;
+        try { result = await refreshSession(); }
+        catch (error) {
+            if (/^(DEVICE_VERIFICATION_REQUIRED|PASSWORD_LOGIN_REQUIRED|ACCOUNT_NOT_ALLOWED|ACCESS_CHANGED)$/.test(error.message)) {
+                await triggerForcedLogout(error.message === 'ACCESS_CHANGED' ? 'session_changed' : 'session_expired');
+                return false;
+            }
+            throw error;
+        }
+        await window.StudentConnectionInfo.linkDevice(result.deviceId);
+        installSessionControls(); renderSession();
+        return true;
+    }
+    async function rotate(deviceId,fresh) {
+        const result=await call('rotate',{deviceId,code:fresh});
+        window.deviceRotationUid = uid();
+        try { await firebase.auth().signInWithCustomToken(result.customToken); }
+        catch (error) { window.deviceRotationUid = null; throw error; }
+        await refreshSession();
+        await window.StudentConnectionInfo.linkDevice(result.deviceId);
+        return result;
+    }
+    window.StudentAccountAccess=Object.freeze({enabled,call,login,ensure,rotate,message,canWrite,requireWrite,refreshSession,releaseSession});
+    function initTeacherRequests() {
+        const root=document.getElementById('accountRecoveryRequests');if(!root)return;
+        const list=root.querySelector('[data-access-requests]'),status=root.querySelector('[data-access-teacher-status]'),more=root.querySelector('[data-access-more]');
+        let cursor=null,busy=false,timer=null;
+        async function load(append=false) {
+            if(busy || !uid())return;busy=true;
+            try {
+                if (await window.PageAuthReady === false || window.pageAuthBlocked) return;
+                if(!(await enabled())){list.replaceChildren();more.hidden=true;cursor=null;root.classList.add('access-empty');status.textContent='Chức năng hỗ trợ đăng nhập chưa được bật.';return;}
+                const result=await call('teacher_list',{cursor:append?cursor:null});
+                if(!append)list.replaceChildren();cursor=result.nextCursor;more.hidden=!cursor;
+                root.classList.toggle('access-empty', !result.rows.length && !list.children.length && !cursor);
+                for(const row of result.rows) {
+                    const card=document.createElement('article');card.className='access-request';
+                    const title=document.createElement('strong');title.textContent=row.name+' ('+row.username+')';
+                    const info=document.createElement('p');info.textContent=(row.kind==='device'?'Quên mã khôi phục':'Báo quên mật khẩu')+' · '+new Date(row.createdAt).toLocaleString('vi-VN');
+                    const ref=document.createElement('p');ref.textContent='Mã yêu cầu: '+row.id+' · '+({pending:'Chờ xử lý',approved:'Đã duyệt, chờ tạo mã',processing:'Đang đổi mật khẩu'}[row.status]||row.status);
+                    const note=document.createElement('p');note.className='access-request-note';note.textContent=row.kind==='device'?'Xác nhận đúng học sinh trước khi duyệt. Đồng ý sẽ vô hiệu hóa mã cũ và cho phép tạo mã mới trong 15 phút.':'Yêu cầu này có thể gửi khi chưa đăng nhập. Xác nhận học sinh qua kênh liên hệ đã biết trước khi đổi và gửi mật khẩu mới.';
+                    const actions=document.createElement('div');actions.className='access-request-actions';
+                    const approve=button(row.kind==='device'?'Đồng ý tạo mã mới':'Đổi mật khẩu',()=>void decide(true));
+                    const reject=button('Từ chối',()=>void decide(false),true);
+                    approve.disabled=row.status==='approved';reject.disabled=row.status!=='pending';actions.append(approve,reject);
+                    card.append(title,info,ref,note,actions);list.appendChild(card);
+                    async function decide(yes) {
+                        let password;
+                        if(yes && row.kind==='password') {
+                            password=await window.AppDialog.prompt((row.status==='processing'?'Nhập lại đúng mật khẩu đã gửi ở lần trước để tiếp tục xử lý. ':'')+'Nhập mật khẩu mới (8–128 ký tự, có chữ và số). Sau khi đổi, gửi riêng cho đúng học sinh.','',{password:true,title:'Đổi mật khẩu cho '+row.username,inputLabel:'Mật khẩu mới'});
+                            if(password===null || password===undefined)return;
+                        } else if(yes && !(await window.AppDialog.confirm('Đồng ý cho '+row.username+' tạo mã mới? Mã khôi phục cũ sẽ hết hiệu lực.')))return;
+                        approve.disabled=true;reject.disabled=true;
+                        try {
+                            const result=await call('teacher_decide',{uid:row.uid,kind:row.kind,id:row.id,approve:yes,...(password?{password}:{})});
+                            status.textContent=result.status==='password_changed'?'Đã đổi mật khẩu. Hãy gửi mật khẩu mới cho học sinh qua kênh liên hệ đã xác nhận.':yes?'Đã duyệt. Học sinh có 15 phút để tạo mã mới.':'Đã từ chối yêu cầu.';
+                            card.remove();
+                        } catch (error) {
+                            status.textContent = message(error);
+                            approve.disabled = false;
+                            reject.disabled = row.status !== 'pending';
+                            if (/REQUEST_ALREADY_REVIEWED|REQUEST_EXPIRED/.test(String(error?.code || error?.message || ''))) {
+                                void load();
+                            }
+                        }
+                        password=null;
+                    }
+                }
+                status.textContent=list.children.length?'Có '+list.children.length+' yêu cầu trong các trang đã tải.':'Không có yêu cầu chờ xử lý trong trang này.';
+            }catch(error){status.textContent=message(error);}finally{busy=false;}
+        }
+        root.querySelector('[data-access-refresh]').addEventListener('click',()=>void load());more.addEventListener('click',()=>void load(true));
+        try{firebase.auth().onAuthStateChanged(user=>{if(user)void load();else list.replaceChildren();});}catch(_){}
+        timer=setInterval(()=>{if(document.visibilityState==='visible' && root.closest('.tab-content')?.classList.contains('active') && !cursor)void load();},30000);
+        window.addEventListener('pagehide',()=>clearInterval(timer),{once:true});
+    }
+    const init=()=>{document.getElementById('forgotPasswordButton')?.addEventListener('click',()=>{void forgotPassword();});initTeacherRequests();};
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
+    window.addEventListener('pagehide',()=>{loginEpoch++;clearTimeout(requestTimer);});
+})();
+
+// CONNECTION INFO — account-scoped device profiles and observed public IPs; not hardware authentication.
+(() => {
+    'use strict';
+    if (window.StudentConnectionInfo) return;
+    const ROW_ID = 'studentConnectionInfo';
+    const DEVICE_KEY = 'studyBrowserDeviceId:v1';
+    const DEVICE_ID_RE = /^DEV-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    let started = false, pending = null, controller = null, generation = 0;
+    let cached = null, cachedAt = 0;
+    let device = {id: null, persistent: false}, devicePending = null;
+    let authEpoch = 0, cloudProfile = null, recoveryBusy = false, recoveryCode = '', pendingRecovery = null;
+    const MAX_NETWORKS = 10;
+
+    function authUser() { try { return window.firebase?.auth?.().currentUser || null; } catch (_) { return null; } }
+    function projectId() { try { return window.firebase?.app?.().options.projectId || 'default'; } catch (_) { return 'default'; } }
+    function linkKey() { return `${DEVICE_KEY}:link:${projectId()}:${authUser()?.uid || ''}`; }
+    function cloudContext() { return {uid: authUser()?.uid, id: device.id, epoch: authEpoch, generation}; }
+    function isCurrent(ctx) { return ctx.uid && ctx.uid === authUser()?.uid && ctx.id === device.id && ctx.epoch === authEpoch && ctx.generation === generation; }
+    function profilesRef(uid) { return window.firebase.database().ref(`student_device_profiles/${uid}`); }
+    function cloudStatus(message) { const el = document.querySelector(`#${ROW_ID} [data-device-cloud-status]`); if (el) el.textContent = message; }
+    function errorMessage(error) {
+        const code = String(error?.code || error?.message || '');
+        if (/permission|denied/i.test(code)) return 'Chưa có quyền lưu thiết bị. Kiểm tra Rules và trạng thái đăng nhập của tài khoản.';
+        if (/OFFLINE/.test(code)) return 'Đang ngoại tuyến. Kết nối lại để lưu hoặc khôi phục thiết bị.';
+        if (/AUTH/.test(code)) return 'Đăng nhập để lưu và khôi phục thiết bị của tài khoản này.';
+        if (/RECOVERY_NOT_FOUND/.test(code)) return 'Mã không đúng hoặc không thuộc tài khoản đang đăng nhập.';
+        if (/RECOVERY_INVALID/.test(code)) return 'Mã khôi phục cần có dạng REC- và 32 ký tự phía sau.';
+        return 'Chưa xác nhận được thao tác. Kiểm tra kết nối rồi thử lại.';
+    }
+
+    function renderProfile(profile, network = cached) {
+        const list = document.querySelector(`#${ROW_ID} [data-device-networks]`);
+        const status = document.querySelector(`#${ROW_ID} [data-network-match]`);
+        if (!list || !status) return;
+        list.replaceChildren();
+        const rows = Object.values(profile?.networks || {}).filter(value=>value && typeof value.ip==='string').sort((a,b) => b.lastSeenAt - a.lastSeenAt);
+        for (const entry of rows) {
+            const item = document.createElement('li');
+            const time = new Date(entry.lastSeenAt).toLocaleString('vi-VN');
+            const address=document.createElement('strong'),detail=document.createElement('span');
+            address.textContent=entry.ip;
+            detail.textContent=`${[entry.city, entry.region, entry.country].filter(Boolean).join(', ') || 'Chưa rõ khu vực'} · ${time}`;
+            item.append(address,detail);
+            list.appendChild(item);
+        }
+        if (!rows.length) { const item=document.createElement('li');item.textContent='Chưa có IP đã lưu cho thiết bị này.';list.appendChild(item); }
+        const count=document.querySelector(`#${ROW_ID} [data-network-count]`);if(count)count.textContent=String(rows.length);
+        status.textContent = network?.ip
+            ? rows.some(entry => entry.ip === network.ip) ? 'IP hiện tại đã có trong danh sách đã ghi nhận.' : 'IP hiện tại chưa có trong danh sách đã ghi nhận.'
+            : 'Chưa xác định IP hiện tại; danh sách dưới đây chỉ là thông tin đã lưu.';
+    }
+
+    async function syncDeviceProfile() {
+        if (window.StudentAccountAccess && !window.StudentAccountAccess.canWrite()) return;
+        await ensureDevice();
+        const ctx = cloudContext(), network = cached;
+        if (!ctx.uid || !ctx.id) { cloudStatus('Đăng nhập để lưu thiết bị và các IP đã ghi nhận.'); return null; }
+        if (navigator.onLine === false) { cloudStatus(errorMessage(Error('OFFLINE')));return null; }
+        try {
+            const timestamp = window.firebase.database.ServerValue.TIMESTAMP;
+            const result = await profilesRef(ctx.uid).child(ctx.id).transaction(current => {
+                if (!isCurrent(ctx)) return;
+                // Observations are self-reported, never used as proof of identity or to award/penalize.
+                const record = current || {id: ctx.id, createdAt: timestamp};
+                const rows = Object.entries(record.networks || {}).filter(([,value])=>value && typeof value.ip==='string');
+                const known = network?.ip && rows.find(([,value]) => value.ip === network.ip);
+                if (current && (!network?.ip || (known && record.latestIp === network.ip && Date.now() - Number(record.updatedAt) < 600000))) return;
+                const next = {...record, updatedAt: timestamp};
+                if (network?.ip) {
+                    let slot = known?.[0];
+                    if (slot == null) slot = Array.from({length:MAX_NETWORKS},(_,i)=>String(i)).find(key=>!record.networks?.[key]);
+                    if (slot == null) slot = rows.sort((a,b)=>a[1].lastSeenAt-b[1].lastSeenAt)[0][0];
+                    const clean = value => typeof value === 'string' ? value.slice(0,120) : '';
+                    next.networks = {...record.networks, [slot]: {
+                        ip: clean(network.ip), city: clean(network.city), region: clean(network.region), country: clean(network.country),
+                        firstSeenAt: known?.[1]?.firstSeenAt || timestamp, lastSeenAt: timestamp
+                    }};
+                    next.latestIp = network.ip;
+                }
+                return next;
+            }, undefined, false);
+            if (!isCurrent(ctx)) return null;
+            cloudProfile = result.snapshot.val();
+            renderProfile(cloudProfile, network);
+            cloudStatus(cloudProfile ? 'Đã lưu thiết bị trên Firebase của tài khoản này.' : 'Chưa xác nhận được bản ghi thiết bị.');
+            return cloudProfile;
+        } catch (error) { if (isCurrent(ctx)) cloudStatus(errorMessage(error)); return null; }
+    }
+
+    async function recoveryHash(code, uid) {
+        const normalized = String(code || '').toUpperCase().replace(/\s/g,'');
+        if (!/^REC-[0-9A-F]{32}$/.test(normalized)) throw Error('RECOVERY_INVALID');
+        const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`study-device:v1|${projectId()}|${uid}|${normalized}`));
+        return Array.from(new Uint8Array(bytes),byte=>byte.toString(16).padStart(2,'0')).join('');
+    }
+
+    function setRecoveryBusy(value) {
+        recoveryBusy = value;
+        document.querySelectorAll(`#${ROW_ID} [data-device-generate]`).forEach(button=>{button.disabled=value;});
+    }
+
+    async function generateRecoveryCode() {
+        if (recoveryBusy) return;
+        setRecoveryBusy(true);
+        let ctx;
+        try {
+            await ensureDevice();ctx=cloudContext();
+            if (!ctx.uid || !ctx.id) throw Error('AUTH_REQUIRED');
+            if (navigator.onLine === false) throw Error('OFFLINE');
+            const random = newDeviceId();
+            if (!random) throw Error('NO_SECURE_RANDOM');
+            const code = pendingRecovery?.uid===ctx.uid && pendingRecovery.id===ctx.id ? pendingRecovery.code : 'REC-' + random.slice(4).replace(/-/g,'').toUpperCase();
+            if(window.StudentAccountAccess && await window.StudentAccountAccess.enabled()) {
+                pendingRecovery={uid:ctx.uid,id:ctx.id,code};
+                await window.StudentAccountAccess.rotate(ctx.id,code);
+                if(ctx.uid!==authUser()?.uid)return;
+                const output=document.querySelector(`#${ROW_ID} [data-device-recovery-code]`);
+                output.hidden=false;output.textContent=code;
+                pendingRecovery=null;
+                cloudStatus('Đã tạo mã mới. Hãy cất mã để dùng ở lần đăng nhập sau; mã cũ đã hết hiệu lực.');
+                return;
+            }
+            const hash = await recoveryHash(code,ctx.uid);
+            if (!isCurrent(ctx)) return;
+            const timestamp=window.firebase.database.ServerValue.TIMESTAMP;
+            const result=await profilesRef(ctx.uid).child(ctx.id).transaction(current=>{
+                if (!isCurrent(ctx)) return;
+                return {...(current || {id:ctx.id,createdAt:timestamp}),updatedAt:timestamp,recoveryHash:hash};
+            },undefined,false);
+            if (!isCurrent(ctx) || !result.committed) return;
+            recoveryCode=code;
+            const output=document.querySelector(`#${ROW_ID} [data-device-recovery-code]`);
+            output.hidden=false;output.textContent=code;
+            cloudProfile=result.snapshot.val();renderProfile(cloudProfile);
+            cloudStatus('Đã tạo mã mới. Hãy chép và cất riêng; mã trước đó đã hết hiệu lực. Mã này chỉ hiện trong phiên này.');
+        } catch(error) { if (!ctx || ctx.uid===authUser()?.uid) cloudStatus(window.StudentAccountAccess?.message(error) || errorMessage(error)); }
+        finally { setRecoveryBusy(false); }
+    }
+
+    let restoredSession = null;
+
+    function isStudentPage() {
+        return Boolean(document.getElementById('studentName')) && !document.getElementById('tab-manage-students');
+    }
+
+    function newDeviceId() {
+        try {
+            const id = `DEV-${window.crypto.randomUUID()}`;
+            if (DEVICE_ID_RE.test(id)) return id;
+        } catch (_) {}
+        try {
+            const bytes = window.crypto.getRandomValues(new Uint8Array(16));
+            bytes[6] = (bytes[6] & 15) | 64;
+            bytes[8] = (bytes[8] & 63) | 128;
+            const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+            return `DEV-${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+        } catch (_) { return null; }
+    }
+
+    function readOrCreateDevice() {
+        try {
+            const saved = localStorage.getItem(DEVICE_KEY);
+            if (DEVICE_ID_RE.test(saved || '')) return {id: saved, persistent: true};
+        } catch (_) {}
+        // No hardware fingerprint, account name or IP participates in this ID.
+        const id = !device.persistent && device.id ? device.id : newDeviceId();
+        if (!id) return {id: null, persistent: false};
+        try {
+            localStorage.setItem(DEVICE_KEY, id);
+            const saved = localStorage.getItem(DEVICE_KEY);
+            if (DEVICE_ID_RE.test(saved || '')) return {id: saved, persistent: true};
+        } catch (_) {}
+        return {id, persistent: false};
+    }
+
+    function renderDevice() {
+        const row = document.getElementById(ROW_ID);
+        if (!row) return;
+        row.querySelector('[data-device-id]').textContent = device.id || 'Chưa tạo được mã';
+        row.querySelector('[data-device-status]').textContent = !device.id
+            ? 'Trình duyệt này chưa hỗ trợ tạo mã an toàn.'
+            : device.persistent ? 'Đã lưu mã trên trình duyệt này.'
+            : 'Mã tạm thời: trình duyệt không cho lưu dữ liệu, mã có thể đổi khi tải lại trang.';
+        row.querySelector('[data-device-copy]').disabled = !device.id;
+    }
+
+    function ensureDevice() {
+        if (devicePending) return devicePending;
+        devicePending = Promise.resolve().then(async () => {
+            try {
+                // Serialize first creation across tabs. The callback has no network or other waits.
+                device = navigator.locks?.request
+                    ? await navigator.locks.request(DEVICE_KEY, readOrCreateDevice)
+                    : readOrCreateDevice();
+            } catch (_) { device = readOrCreateDevice(); }
+            const uid=authUser()?.uid;
+            try {
+                const linked=uid && localStorage.getItem(linkKey());
+                if (DEVICE_ID_RE.test(linked || '')) device={id:linked,persistent:true};
+                else if (restoredSession?.uid===uid) device={id:restoredSession.id,persistent:false};
+            } catch (_) { if (uid && restoredSession?.uid===uid) device={id:restoredSession.id,persistent:false}; }
+            renderDevice();
+            return {...device};
+        }).finally(() => { devicePending = null; });
+        return devicePending;
+    }
+
+    async function copyDeviceId() {
+        const row = document.getElementById(ROW_ID);
+        if (!row || !device.id) return;
+        const status = row.querySelector('[data-device-status]');
+        try {
+            await navigator.clipboard.writeText(device.id);
+            status.textContent = 'Đã sao chép mã nhận dạng.';
+        } catch (_) {
+            const range = document.createRange();
+            range.selectNodeContents(row.querySelector('[data-device-id]'));
+            const selection = window.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+            status.textContent = 'Hãy nhấn Ctrl+C hoặc nhấn giữ mã để sao chép.';
+        }
+    }
+
+    function render(data, message = '') {
+        const row = document.getElementById(ROW_ID);
+        if (!row) return;
+        const text = value => typeof value === 'string' ? value.slice(0, 120) : '';
+        row.querySelector('[data-network-ip]').textContent = text(data?.ip) || 'Chưa xác định';
+        let country = text(data?.country);
+        try {
+            if (/^[A-Z]{2}$/.test(country)) country = new Intl.DisplayNames(['vi'], {type: 'region'}).of(country);
+        } catch (_) {}
+        const region = [...new Set([text(data?.city), text(data?.region), country].filter(Boolean))];
+        row.querySelector('[data-network-region]').textContent = region.join(', ') || 'Chưa xác định';
+        row.querySelector('[data-network-status]').textContent = message || 'Đã tự phát hiện kết nối hiện tại.';
+    }
+
+    function clearConnection() {
+        generation += 1;
+        controller?.abort();
+        controller = null;
+        pending = null;
+        cached = null;
+        cachedAt = 0;
+        renderProfile(cloudProfile, null);
+    }
+
+    function refresh() {
+        if (!started || !isStudentPage()) return Promise.resolve(null);
+        if (pending) return pending;
+        if (cached && Date.now() - cachedAt < 60000) { void syncDeviceProfile(); return Promise.resolve(cached); }
+        if (navigator.onLine === false) {
+            render(null, 'Đang ngoại tuyến. Kết nối lại để tự phát hiện IP.');
+            return Promise.resolve(null);
+        }
+        const id = ++generation;
+        const abort = new AbortController();
+        controller = abort;
+        const button = document.querySelector(`#${ROW_ID} [data-network-refresh]`);
+        if (button) button.disabled = true;
+        render(null, 'Đang tự phát hiện IP và khu vực kết nối…');
+        const timer = setTimeout(() => abort.abort(), 8000);
+        const run = async () => {
+            try {
+                if (id !== generation || abort.signal.aborted) return null;
+                const base = String(window.CloudflareR2Storage?.config?.workerUrl || window.R2_WORKER_URL ||
+                    window.APP_STORAGE_CONFIG?.r2WorkerUrl || 'https://school-r2-files.ngogibao0311.workers.dev');
+                const url = new URL(base.replace(/\/+$/, '') + '/network-info');
+                if (url.hostname.endsWith('.invalid') || (url.protocol !== 'https:' && !(url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)))) {
+                    throw new Error('INVALID_NETWORK_ENDPOINT');
+                }
+                const response = await fetch(url.href, {
+                    method: 'GET', cache: 'no-store', credentials: 'omit',
+                    referrerPolicy: 'no-referrer', signal: abort.signal
+                });
+                if (!response.ok) throw new Error('NETWORK_INFO_UNAVAILABLE');
+                const data = await response.json();
+                if (data?.ok !== true || data?.source !== 'cloudflare') throw new Error('INVALID_NETWORK_INFO');
+                if (id !== generation) return null;
+                cached = data;
+                cachedAt = Date.now();
+                render(data, data.ip ? '' : 'Kết nối này chưa cung cấp thông tin IP.');
+                void syncDeviceProfile();
+                return data;
+            } catch (_) {
+                if (id === generation) render(null, navigator.onLine === false
+                    ? 'Đang ngoại tuyến. Kết nối lại để tự phát hiện IP.'
+                    : 'Chưa lấy được thông tin kết nối. Bạn có thể thử lại sau.');
+                return null;
+            } finally {
+                clearTimeout(timer);
+                if (id === generation) {
+                    pending = null;
+                    controller = null;
+                    if (button) button.disabled = false;
+                }
+            }
+        };
+        pending = Promise.resolve().then(run);
+        return pending;
+    }
+
+    function init() {
+        if (started || !isStudentPage()) return;
+        const container = document.querySelector('#tab-settings .student-settings-section-account');
+        if (!container) return;
+        started = true;
+        const row = document.createElement('section');
+        row.id = ROW_ID;
+        row.className = 'student-connection-info';
+        row.setAttribute('aria-label', 'Thông tin kết nối và mã nhận dạng của bạn');
+        row.innerHTML = `<header class="connection-heading"><span class="connection-symbol" aria-hidden="true">◎</span>
+            <div><h4>Kết nối của bạn</h4><p>Thiết bị &amp; mạng đang sử dụng</p></div><span class="connection-private">Cá nhân</span></header>
+            <div class="connection-body"><div class="connection-network"><div class="connection-section-title"><strong>Kết nối hiện tại</strong>
+            <button type="button" data-network-refresh>Cập nhật lại</button></div>
+            <dl><div><dt>IP công khai</dt><dd data-network-ip>Đang phát hiện…</dd></div>
+            <div><dt>Khu vực gần đúng</dt><dd data-network-region>Đang phát hiện…</dd></div></dl>
+            <p class="connection-status" data-network-status role="status" aria-live="polite"></p></div>
+            <div class="student-device-info"><strong>Mã thiết bị của bạn</strong>
+            <code data-device-id>Đang tạo mã…</code>
+            <div class="student-connection-actions"><span data-device-status role="status" aria-live="polite"></span>
+            <button type="button" data-device-copy disabled>Sao chép</button></div>
+            <p class="connection-status" data-device-cloud-status role="status">Đăng nhập để lưu và khôi phục thiết bị.</p>
+            <div class="connection-recovery"><strong>Giữ lại thiết bị khi đổi trình duyệt</strong>
+            <p>Cất mã khôi phục ở nơi riêng để liên kết lại hồ sơ. Tạo mã mới sẽ vô hiệu hóa mã khôi phục cũ.</p>
+            <button type="button" data-device-generate>Tạo mã khôi phục mới</button>
+            <code data-device-recovery-code hidden></code>
+            <p>Nhập mã khôi phục ở bước sau đăng nhập, kể cả khi đổi trình duyệt hoặc xóa dữ liệu.</p></div></div>
+            <details class="connection-history"><summary>IP đã ghi nhận <span data-network-count>0</span></summary>
+            <p data-network-match></p><ul data-device-networks></ul></details>
+            <p class="connection-footnote">Lưu tối đa 10 IP gần đây trong tài khoản. IP và khu vực chỉ là thông tin gần đúng; cùng IP không có nghĩa là cùng máy.</p></div>`;
+        container.insertBefore(row,container.querySelector('#toggleStudentContentGlassButton'));
+        row.querySelector('[data-network-refresh]').addEventListener('click', () => { void refresh(); });
+        row.querySelector('[data-device-copy]').addEventListener('click', () => { void copyDeviceId(); });
+        row.querySelector('[data-device-generate]').addEventListener('click', () => { void generateRecoveryCode(); });
+        void ensureDevice();
+        window.addEventListener('storage', event => {
+            if (event.key === DEVICE_KEY || event.key === linkKey() || (event.key === null && event.storageArea === window.localStorage)) {
+                restoredSession=null;authEpoch+=1;cloudProfile=null;renderProfile(null);
+                void ensureDevice().then(()=>syncDeviceProfile());
+            }
+        });
+        const changed = () => {
+            clearConnection();
+            const button = row.querySelector('[data-network-refresh]');
+            if (button) button.disabled = false;
+            void refresh();
+        };
+        window.addEventListener('online', changed);
+        window.addEventListener('offline', changed);
+        navigator.connection?.addEventListener?.('change', changed);
+        window.addEventListener('pagehide', clearConnection);
+        window.addEventListener('pageshow', event => {
+            if (event.persisted) { void ensureDevice(); changed(); }
+        });
+        try {
+            window.firebase?.auth?.().onAuthStateChanged(() => {
+                authEpoch+=1;cloudProfile=null;restoredSession=null;recoveryCode='';
+                row.querySelector('[data-device-recovery-code]').hidden=true;
+                row.querySelector('[data-device-recovery-code]').textContent='';
+                renderProfile(null);void syncDeviceProfile();
+            });
+        } catch (_) {}
+        void refresh();
+    }
+
+    async function linkDevice(id) {
+        if(!DEVICE_ID_RE.test(id || '') || !authUser()?.uid)throw Error('INVALID_DEVICE');
+        const uid=authUser().uid;
+        let persistent=false;try{localStorage.setItem(linkKey(),id);persistent=localStorage.getItem(linkKey())===id;}catch(_){}
+        authEpoch++;restoredSession={uid,id};device={id,persistent};cloudProfile=null;renderDevice();renderProfile(null);
+    }
+    window.StudentConnectionInfo = Object.freeze({refresh,ensureDevice,linkDevice,getDeviceInfo: () => ({...device})});
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, {once: true});
+    else init();
+})();

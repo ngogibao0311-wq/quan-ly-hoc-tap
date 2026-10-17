@@ -1,4 +1,4 @@
-// js/daily-login.js
+// js/daily-login.js?v=20261017.production.split1
 
 class DailyLoginManager {
     static daysOfWeek = [

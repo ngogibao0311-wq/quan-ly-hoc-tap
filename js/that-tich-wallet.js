@@ -40,7 +40,7 @@
  async function redeem(itemId,currency='love_coin'){
   if(busy.has(itemId))return;busy.add(itemId);let committed=false;
   try{
-   if(window.ECONOMY_SERVER_ENABLED!==true)throw Error('Đổi xu cần máy chủ giao dịch; bản test chưa hỗ trợ đổi xu.');
+   if(window.ECONOMY_SERVER_ENABLED!==true)throw Error('Đổi xu cần máy chủ giao dịch.');
    const item=StoreManager.getItemById(itemId);if(!item||!['love_coin','that_tich_coin'].includes(item.currency))throw Error('Không tìm thấy vật phẩm Tình yêu.');
    const isThatTich=window.StoreTags?.has(item,'Thất Tịch')??[item.tag,...(Array.isArray(item.tags)?item.tags:[])].some(tag=>String(tag).normalize('NFC').trim().replace(/\s+/g,' ').toLocaleLowerCase('vi')==='thất tịch');
    if(!['love_coin','that_tich_coin'].includes(currency)||(currency==='that_tich_coin'&&!isThatTich))throw Error('INVALID_EVENT_CURRENCY');

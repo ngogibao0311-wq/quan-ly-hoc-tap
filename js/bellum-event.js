@@ -1177,23 +1177,15 @@
         } catch (_) {}
     }
 
-    async function claimCompletionReward({ test = false } = {}) {
-        if (test) {
-            const options = window.firebase?.app?.().options;
-            if (options?.projectId !== 'web-chan-doan-test' ||
-                String(options.databaseURL || '').replace(/\/$/, '') !== 'https://web-chan-doan-test-default-rtdb.asia-southeast1.firebasedatabase.app') {
-                throw new Error('Lệnh thử Bellum chỉ dùng trên web-chan-doan-test.');
-            }
-            if (!window.firebase.auth().currentUser) throw new Error('Hãy đăng nhập tài khoản học sinh bản test.');
-        }
+    async function claimCompletionReward() {
         const actualStatus =
             getEventStatus();
         // Override only this claim's eligibility, never Date.now(), Firebase
         // timestamps or the student's saved story progress.
-        const status = test ? { ...actualStatus, isOpen: true } : actualStatus;
+        const status = actualStatus;
         const actualSave =
             readSave();
-        const save = test ? { ...actualSave, completed: true } : actualSave;
+        const save = actualSave;
 
         if (!status.isOpen) {
             notifySchedule(
@@ -2667,7 +2659,7 @@
         next: nextFrame,
         getProgress: readSave,
         claimCompletionReward,
-        testClaimCompletionReward: () => claimCompletionReward({ test: true }),
+
         syncCompletionReward:
             syncCompletionRewardFromFirebase,
         getRegularRewardItems() {

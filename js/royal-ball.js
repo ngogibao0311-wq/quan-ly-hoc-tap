@@ -1,4 +1,4 @@
-// js/royal-ball.js
+// js/royal-ball.js?v=20261017.production.split1
 
 const RoyalBallEvent = {
     isDancing: false,
@@ -1180,6 +1180,8 @@ const RoyalBallEvent = {
                 typeof StoreConfig !== 'undefined' &&
                     Array.isArray(StoreConfig.items)
                     ? StoreConfig.items.filter(item =>
+                        !item.luxuryOnly &&
+                        !window.LuxuryStore?.isLuxuryItem?.(item.id) &&
                         item.tag &&
                         item.tag
                             .toLowerCase()
