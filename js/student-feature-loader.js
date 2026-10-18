@@ -1528,3 +1528,6 @@ html[data-app-role="student"] body .dashboard > .content > :is(
 
     preloadFromLocalStorage();
 })();
+
+// Written only after this module has executed successfully.
+(window.SessionPolicyModules ||= {}).loader = '20261018.session4';

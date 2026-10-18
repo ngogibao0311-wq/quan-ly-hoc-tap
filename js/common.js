@@ -2124,6 +2124,10 @@ async function clearAllLockouts() {
 }
 
 if (loginForm) {
+    if (new URLSearchParams(window.location.search).get('reason') === 'update_required') {
+        const notice = document.getElementById('errorMsg');
+        if (notice) notice.textContent = 'Website đã cập nhật cơ chế bảo vệ. Nhấn Ctrl+F5 rồi đăng nhập lại bằng tài khoản, mật khẩu và mã đã lưu.';
+    }
     try {
         const urlParams = new URLSearchParams(window.location.search);
         const reason = urlParams.get('reason');
@@ -5641,13 +5645,14 @@ window.securityHotfix = Object.freeze({
 // ACCOUNT ACCESS — password first; server grants access only after a saved code or teacher-approved replacement.
 (() => {
     'use strict';
-    let enabledPending=null,loginEpoch=0,screenUser=null,screenProfile=null,requestTimer=null,sessionLoginNonce=null;
+    let loginEpoch=0,screenUser=null,screenProfile=null,requestTimer=null,sessionLoginNonce=null;
     const project=()=>firebase.app().options.projectId;
     const uid=()=>firebase.auth().currentUser?.uid;
     const messages={ACCESS_UNAVAILABLE:'Chưa kết nối được máy chủ tài khoản. Hãy thử lại sau.',ACCESS_NOT_ENABLED:'Chức năng chưa được bật trên máy chủ.',ACCESS_PROJECT_MISMATCH:'Máy chủ tài khoản chưa đúng dự án Firebase.',RECOVERY_INVALID:'Mã khôi phục không đúng. Kiểm tra mã rồi thử lại.',PASSWORD_LOGIN_REQUIRED:'Hãy nhập lại tài khoản và mật khẩu để tiếp tục.',DEVICE_VERIFICATION_REQUIRED:'Cần xác nhận mã thiết bị trước khi vào website.',APPROVAL_REQUIRED:'Yêu cầu chưa được giáo viên đồng ý hoặc đã hết hạn.',REQUEST_EXPIRED:'Yêu cầu đã hết hạn. Hãy gửi lại yêu cầu.',REQUEST_ALREADY_PENDING:'Đã có yêu cầu đang chờ. Hãy báo giáo viên kèm tên tài khoản của bạn.',REQUEST_ALREADY_REVIEWED:'Yêu cầu đã được xử lý ở phiên khác. Hãy cập nhật lại danh sách.',REQUEST_USED:'Yêu cầu này đã được dùng với thông tin khác.',ACCESS_CHANGED:'Thông tin xác thực đã thay đổi. Hãy đăng nhập lại.',ACCESS_RATE_LIMIT:'Đã thử quá nhiều lần. Vui lòng đợi rồi thử lại.',WEAK_PASSWORD:'Mật khẩu cần 8–128 ký tự, có chữ và số, khác tên đăng nhập.',ACCOUNT_NOT_ALLOWED:'Tài khoản không còn hoạt động hoặc đang bị khóa.'};
     messages.READ_ONLY_SESSION='Phiên này chỉ được xem. Đăng xuất rồi đăng nhập lại sau khi phiên số 1 kết thúc để được xét quyền thao tác.';
     messages.ACCESS_SESSION_LIMIT='Đã có 20 phiên còn hiệu lực. Hãy đăng xuất bớt phiên trước khi đăng nhập tiếp.';
     messages.ACCESS_BUSY='Yêu cầu đang được xử lý. Chờ khoảng một phút rồi thử lại với cùng thông tin.';
+    messages.CLIENT_UPDATE_REQUIRED='Tài khoản đã dùng cơ chế bảo vệ mới. Hãy tải lại website bằng Ctrl+F5 rồi đăng nhập lại; không thể tiếp tục bằng bản cũ.';
     Object.assign(messages,{
         ACCESS_SECRET_MISSING:'Worker chưa có khóa FIREBASE_SERVICE_ACCOUNT. Cần thêm khóa của đúng dự án Firebase.',
         ACCESS_SECRET_INVALID:'Khóa Firebase trên Worker không phải JSON hợp lệ hoặc thiếu thông tin. Cần nhập lại toàn bộ file khóa.',
@@ -5661,8 +5666,11 @@ window.securityHotfix = Object.freeze({
     });
     const message=error=>messages[error?.message] || 'Chưa xác nhận được thao tác. Kiểm tra kết nối và thử lại.';
     function enabled() {
-        if(!enabledPending)enabledPending=firebase.database().ref('account_access_config/enabled').once('value').then(s=>s.val()===true).catch(error=>{enabledPending=null;throw error;});
-        return enabledPending;
+        // The per-account latch is authoritative even if the global switch is off.
+        return Promise.all([
+            firebase.database().ref('account_access_config/enabled').once('value'),
+            uid() ? firebase.database().ref('account_access_accounts/'+uid()+'/requiredClientVersion').once('value') : null
+        ]).then(([config, required]) => config.val() === true || Number(required?.val()) >= 2);
     }
     function endpoint() {
         const configured=window.ACCOUNT_ACCESS_WORKERS?.[project()];
@@ -5684,7 +5692,7 @@ window.securityHotfix = Object.freeze({
             headers.Authorization='Bearer '+token;
             if (action === 'state' && input.tab) unloadToken = token;
         }
-        const response=await fetch(endpoint(),{method:'POST',headers,body:JSON.stringify({action,projectId:project(),...input}),cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer',signal:AbortSignal.timeout(20000)});
+        const response=await fetch(endpoint(),{method:'POST',headers,body:JSON.stringify({action,projectId:project(),clientVersion:2,...input}),cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer',signal:AbortSignal.timeout(20000)});
         let value;try{value=await response.json();}catch(_){throw Error('ACCESS_UNAVAILABLE');}
         if(!response.ok || !value.ok)throw Error(value.error || 'ACCESS_UNAVAILABLE');
         if(window.pageAuthBlocked || (!anonymous && uid()!==current?.uid))throw Error('ACCESS_CHANGED');
@@ -5807,39 +5815,28 @@ window.securityHotfix = Object.freeze({
         }catch(e){error.textContent=message(e);}finally{trigger.disabled=false;}
     }
     let sessionMode = 'checking', sessionRank = null, sessionDeadline = 0;
-    // Cơ chế "một phiên thao tác" có đang bật hay không.
-    // null = chưa xác định (giữ chặt như trước), false = chưa bật trên hệ thống
-    // (account_access_config/enabled không phải true) => không cưỡng chế.
+    // null: chưa xác nhận. false: tài khoản chưa kích hoạt và đang dùng luồng cũ.
+    // Một tài khoản đã kích hoạt trên máy chủ không được quay về false.
     let accessEnforced = null;
     let sessionTimer = null, sessionCheck = null, sessionStarted = false;
     const TAB_ID = crypto.randomUUID();
     let tabSequence = 0, activityRevision = 0, acknowledgedActivity = 0;
     let lastActivity = -Infinity, unloadToken = null, pageClosed = false, forcedLoggingOut = false;
-    const MAX_IDLE_MS = 20 * 60 * 1000;
-    const MAX_BACKGROUND_MS = 20 * 60 * 1000;
-    const MAX_CLOSED_MS = 60 * 1000;
-    let lastUserInteraction = Date.now();
-    let backgroundStartedAt = document.visibilityState === 'hidden' ? Date.now() : null;
+    const POLICY_BUILD = '20261018.session4';
+    const policyCodeReady = () => ['html','auth','common','student','loader','economy'].every(
+        key => window.SessionPolicyModules?.[key] === POLICY_BUILD);
     function tabPresence(active = false) {
         return {id: TAB_ID, seq: ++tabSequence, visible: document.visibilityState === 'visible', active};
     }
     function handleTabUnload() {
         if (pageClosed || forcedLoggingOut || window.pageAuthBlocked || !unloadToken) return;
         pageClosed = true;
-        try { localStorage.setItem('student_tab_closed_at', String(Date.now())); } catch (_) {}
         // No asynchronous token lookup during unload. Missing delivery is covered by the server lease.
-        const body = JSON.stringify({action: 'session_unload', projectId: project(), tab: tabPresence(false)});
+        const body = JSON.stringify({action: 'session_unload', projectId: project(), clientVersion:2, tab: tabPresence(false)});
         void fetch(endpoint(), {method: 'POST', headers: {'Content-Type': 'application/json', Authorization: 'Bearer ' + unloadToken},
             body, keepalive: true, credentials: 'omit', referrerPolicy: 'no-referrer'}).catch(() => {});
     }
     function markUserActivity(event) {
-        lastUserInteraction = Date.now();
-        if (document.visibilityState === 'visible' && backgroundStartedAt) {
-            if (Date.now() - backgroundStartedAt >= MAX_BACKGROUND_MS) {
-                return void triggerForcedLogout('background_timeout');
-            }
-            backgroundStartedAt = null;
-        }
         if (!event.isTrusted || document.visibilityState !== 'visible' || pageClosed || forcedLoggingOut) return;
         if (performance.now() - lastActivity < 5000) return;
         lastActivity = performance.now(); activityRevision++;
@@ -5906,6 +5903,7 @@ window.securityHotfix = Object.freeze({
         renderSession();
     }
     async function refreshSession() {
+        if (accessEnforced === false) return {status:'legacy'};
         if (sessionCheck) return sessionCheck;
         sessionCheck = (async () => {
             try {
@@ -5917,8 +5915,8 @@ window.securityHotfix = Object.freeze({
                 return result;
             } catch (error) {
                 sessionMode = 'checking'; sessionDeadline = 0; renderSession();
-                if (sessionStarted && /^(DEVICE_VERIFICATION_REQUIRED|PASSWORD_LOGIN_REQUIRED|ACCOUNT_NOT_ALLOWED|ACCESS_CHANGED)$/.test(error.message)) {
-                    void triggerForcedLogout(error.message === 'ACCESS_CHANGED' ? 'session_changed' : 'session_expired');
+                if (sessionStarted && /^(DEVICE_VERIFICATION_REQUIRED|PASSWORD_LOGIN_REQUIRED|ACCOUNT_NOT_ALLOWED|ACCESS_CHANGED|CLIENT_UPDATE_REQUIRED)$/.test(error.message)) {
+                    void triggerForcedLogout(error.message === 'CLIENT_UPDATE_REQUIRED' ? 'update_required' : error.message === 'ACCESS_CHANGED' ? 'session_changed' : 'session_expired');
                 }
                 throw error;
             } finally { sessionCheck = null; }
@@ -5990,14 +5988,8 @@ window.securityHotfix = Object.freeze({
             clearInterval(sessionTimer);
             sessionTimer = setInterval(() => {
                 if (pageClosed || forcedLoggingOut) return;
-                const now = Date.now();
-                if (document.visibilityState === 'visible') {
-                    if (now - lastUserInteraction >= MAX_IDLE_MS) {
-                        return void triggerForcedLogout('idle_timeout');
-                    }
-                } else if (backgroundStartedAt && (now - backgroundStartedAt >= MAX_BACKGROUND_MS)) {
-                    return void triggerForcedLogout('background_timeout');
-                }
+                // Server deadlines aggregate all tabs. A hidden tab cannot revoke
+                // another active tab, and a heartbeat never revives an expired session.
                 void refreshSession().catch(() => {});
             }, 10000);
         };
@@ -6016,20 +6008,7 @@ window.securityHotfix = Object.freeze({
         });
         document.addEventListener('visibilitychange', () => {
             if (pageClosed || forcedLoggingOut) return;
-            const now = Date.now();
-            if (document.visibilityState === 'hidden') {
-                backgroundStartedAt = now;
-                try { localStorage.setItem('student_tab_backgrounded_at', String(now)); } catch (_) {}
-            } else {
-                const bgAt = Number(localStorage.getItem('student_tab_backgrounded_at') || backgroundStartedAt || 0);
-                try { localStorage.removeItem('student_tab_backgrounded_at'); } catch (_) {}
-                if (bgAt && (now - bgAt >= MAX_BACKGROUND_MS)) {
-                    return void triggerForcedLogout('background_timeout');
-                }
-                backgroundStartedAt = null;
-                lastUserInteraction = now;
-                void refreshSession().catch(() => {});
-            }
+            void refreshSession().catch(() => {});
         });
         window.addEventListener('pagehide', () => {
             handleTabUnload();
@@ -6044,23 +6023,24 @@ window.securityHotfix = Object.freeze({
     }
     async function ensure() {
         if (await window.PageAuthReady === false || window.pageAuthBlocked) return false;
-        try {
-            const closedAt = Number(localStorage.getItem('student_tab_closed_at') || 0);
-            localStorage.removeItem('student_tab_closed_at');
-            if (closedAt && (Date.now() - closedAt >= MAX_CLOSED_MS)) {
-                await triggerForcedLogout('closed_timeout');
-                return false;
-            }
-        } catch (_) {}
-        // Cơ chế phiên chưa bật: không có gì để bảo đảm. Trả true để trang khởi động bình thường
-        // (đồng bộ với luồng đăng nhập common.js ~5782 và với PageAuthReady ở firebase-config.js).
+        const required = Number((await firebase.database().ref('account_access_accounts/'+uid()+'/requiredClientVersion').once('value')).val()) || 0;
+        if (!policyCodeReady()) {
+            if (required >= 2) throw Error(messages.CLIENT_UPDATE_REQUIRED);
+            accessEnforced = false;
+            return true; // A partial deployment must not activate an untouched account.
+        }
         if (!(await enabled())) { accessEnforced = false; return true; }
         accessEnforced = true;
         let result;
-        try { result = await refreshSession(); }
+        try {
+            // Install guards before the one-way server activation.
+            installSessionControls();
+            await call('activate_policy');
+            result = await refreshSession();
+        }
         catch (error) {
-            if (/^(DEVICE_VERIFICATION_REQUIRED|PASSWORD_LOGIN_REQUIRED|ACCOUNT_NOT_ALLOWED|ACCESS_CHANGED)$/.test(error.message)) {
-                await triggerForcedLogout(error.message === 'ACCESS_CHANGED' ? 'session_changed' : 'session_expired');
+            if (/^(DEVICE_VERIFICATION_REQUIRED|PASSWORD_LOGIN_REQUIRED|ACCOUNT_NOT_ALLOWED|ACCESS_CHANGED|CLIENT_UPDATE_REQUIRED)$/.test(error.message)) {
+                await triggerForcedLogout(error.message === 'CLIENT_UPDATE_REQUIRED' ? 'update_required' : error.message === 'ACCESS_CHANGED' ? 'session_changed' : 'session_expired');
                 return false;
             }
             throw error;
@@ -6514,3 +6494,6 @@ window.securityHotfix = Object.freeze({
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, {once: true});
     else init();
 })();
+
+// Written only after this module has executed successfully.
+(window.SessionPolicyModules ||= {}).common = '20261018.session4';

@@ -23,21 +23,12 @@ window.PageAuthReady = (() => {
     try { expected = JSON.parse(localStorage.getItem('currentUser')); } catch (_) {}
     let identity = null, blocked = false, epoch = 0, settle;
     const ready = new Promise(resolve => { settle = resolve; });
-    // Cơ chế "một phiên thao tác" chỉ được phép cưỡng chế khi đã bật
-    // account_access_config/enabled — đúng điều kiện mà luồng đăng nhập dùng
-    // (common.js) và Rules dùng. Khi node này chưa có/chưa bật thì luồng đăng nhập
-    // KHÔNG cấp claim deviceSession; nếu trang vẫn bắt buộc claim đó thì mọi học
-    // sinh bị đá về index.html?reason=session_changed và không thể vào học.
-    const accessEnabledReady = db.ref('account_access_config/enabled')
-        .once('value')
-        .then(snapshot => snapshot.val() === true)
-        .catch(() => false);
-    const block = () => {
+    const block = (reason = 'session_changed') => {
         if (blocked) return;
         blocked = true; window.pageAuthBlocked = true; window.isVerifiedTeacher = false;
         window.cleanupFirebaseListeners?.(); db.goOffline(); settle(false);
         // Do not sign out or erase the account another tab has just signed into.
-        location.replace('index.html?reason=session_changed');
+        location.replace('index.html?reason=' + reason);
     };
     firebase.auth().onIdTokenChanged(async user => {
         const version = ++epoch;
@@ -55,11 +46,13 @@ window.PageAuthReady = (() => {
             if (!identity) {
                 const profile = (await db.ref('users/' + user.uid).once('value')).val();
                 if (version !== epoch || blocked) return;
-                const accessEnabled = await accessEnabledReady;
+                const requiredVersion = role === 'student'
+                    ? Number((await db.ref('account_access_accounts/' + user.uid + '/requiredClientVersion').once('value')).val()) || 0 : 0;
                 if (version !== epoch || blocked) return;
                 if (!profile || profile.role !== role || profile.username !== expected.username ||
-                    profile.isLocked === true || profile.deletionPending === true ||
-                    (role === 'student' && accessEnabled && !token.claims.deviceSession)) return block();
+                    profile.isLocked === true || profile.deletionPending === true) return block();
+                if (role === 'student' && requiredVersion >= 2 &&
+                    (!token.claims.deviceSession || !(token.claims.sessionProtocol >= requiredVersion))) return block('update_required');
                 identity = next;
             }
             settle(true);
@@ -367,3 +360,6 @@ async function getPaginatedDB(path, limit, lastKey = null) {
         throw error;
     }
 }
+
+// Written only after this module has executed successfully.
+(window.SessionPolicyModules ||= {}).auth = '20261018.session4';

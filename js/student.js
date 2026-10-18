@@ -36591,3 +36591,6 @@ window.ShoppingDay = (() => {
     }
     return Object.freeze({open});
 })();
+
+// Written only after this module has executed successfully.
+(window.SessionPolicyModules ||= {}).student = '20261018.session4';

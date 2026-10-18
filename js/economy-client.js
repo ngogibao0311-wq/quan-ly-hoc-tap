@@ -179,3 +179,6 @@
     }
     window.EconomyClient = Object.freeze({execute,initialize,resume,batch,explainError});
 })();
+
+// Written only after this module has executed successfully.
+(window.SessionPolicyModules ||= {}).economy = '20261018.session4';
