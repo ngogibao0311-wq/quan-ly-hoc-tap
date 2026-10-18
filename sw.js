@@ -1,5 +1,5 @@
 const APP_VERSION = '4.3.2';
-const APP_BUILD = '2026.10.17.production-session1';
+const APP_BUILD = '2026.10.18.session4';
 const CACHE_VERSION = `qlbt-production-shell-v${APP_VERSION}-${APP_BUILD}`;
 const OFFLINE_CACHE = `${CACHE_VERSION}-offline`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
