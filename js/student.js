@@ -433,6 +433,7 @@ function applyStudentCachedStoreSettingsToRuntime() {
 }
 
 async function runStudentDeferredDiscountMigration() {
+    if (window.StudentAccountAccess && !window.StudentAccountAccess.canWrite()) return false;
     if (
         window.__studentDiscountMigrationDone ||
         !isStudentStoreRuntimeReady()
@@ -636,7 +637,7 @@ window.syncStudentLazyStoreRuntime =
                             .refresh();
                     }
 
-                    await runStudentDeferredDiscountMigration();
+                    if (!window.StudentAccountAccess || window.StudentAccountAccess.canWrite()) await runStudentDeferredDiscountMigration();
 
                     // A different Firebase listener can replace settings or inventory
                     // while the lazy runtime is loading. Finish with the latest data.
@@ -7479,7 +7480,7 @@ window.onload = async function () {
                 isStudentStoreRuntimeReady()
             ) {
                 try {
-                    await runStudentDeferredDiscountMigration();
+                    if (!window.StudentAccountAccess || window.StudentAccountAccess.canWrite()) await runStudentDeferredDiscountMigration();
                 } catch (error) {
                     console.warn(
                         '[Student Lazy Runtime] Chưa migration được thẻ giảm giá cũ:',
@@ -22129,6 +22130,9 @@ async function releaseStudentConversionMutationLease(lease) {
 }
 
 async function runWithStudentMoneyMutationLock(task) {
+    // Server transactions already guard balances/reservations atomically. The old
+    // browser lease can be denied by current Rules and must not block this path.
+    if (window.ECONOMY_SERVER_ENABLED === true) return task();
     const runWithFirebaseLease =
         async () => {
             let lease = null;
@@ -31462,6 +31466,7 @@ window.initCashWithdrawInterface = async function () {
 };
 
 async function handleRequestCashSubmitCore() {
+    if (window.StudentAccountAccess && !window.StudentAccountAccess.requireWrite()) return;
     const inputEl = document.getElementById('inputWithdrawAmount');
     if (!inputEl) return;
 
@@ -31969,6 +31974,7 @@ function saveLocalVideoProgress(assignId, seconds) {
 }
 
 function saveVideoProgressToFirebase(assignId, seconds) {
+    if (window.StudentAccountAccess && !window.StudentAccountAccess.canWrite()) return Promise.resolve(normalizeVideoProgressSeconds(lastSavedTime[assignId]));
     if(window.ECONOMY_SERVER_ENABLED===true) {
         return commitVerifiedVideoProgress(assignId,seconds).then(result=>result.snapshot.val()).catch(error=>{
             if(window.EconomyClient?.reportError)window.EconomyClient.reportError('Chưa xác nhận tiến độ xem video:',error);
@@ -32025,6 +32031,7 @@ function saveVideoProgressToFirebase(assignId, seconds) {
 }
 
 async function commitVerifiedVideoProgress(assignId,seconds) {
+    if (window.StudentAccountAccess && !window.StudentAccountAccess.canWrite()) return {committed:false,snapshot:{val:()=>normalizeVideoProgressSeconds(lastSavedTime[assignId])}};
     if(window.ECONOMY_SERVER_ENABLED!==true)return db.ref(`video_tracking/${assignId}/${currentUser.username}`).transaction(old=>Math.max(Number(old)||0,Number(seconds)||0));
     const result=await window.EconomyClient.execute('video_tick',{assignmentId:String(assignId)},{slot:'video-progress:'+assignId});
     const saved=normalizeVideoProgressSeconds(result.seconds);
@@ -33626,7 +33633,7 @@ window.onPlayerStateChange = function (event, assignId) {
                         const savedTime = Number(lastSavedTime[assignId]) || 0;
 
                         // Không dùng currentTime % 5 vì bộ đếm có thể nhảy qua đúng mốc.
-                        if (currentTime - savedTime >= 5) {
+                        if (currentTime - savedTime >= 5 && (!window.StudentAccountAccess || window.StudentAccountAccess.canWrite())) {
                             commitVerifiedVideoProgress(assignId,currentTime).then(result => {
                                 if (result.committed) {
                                     lastSavedTime[assignId] =
@@ -33651,6 +33658,7 @@ window.onPlayerStateChange = function (event, assignId) {
 
                         if (
                             currentAssign &&
+                            (!window.StudentAccountAccess || window.StudentAccountAccess.canWrite()) &&
                             Number(currentAssign.watchCondition) > 0 &&
                             currentTime >= Number(currentAssign.watchCondition)
                         ) {

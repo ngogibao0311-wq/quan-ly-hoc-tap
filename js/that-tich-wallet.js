@@ -3,11 +3,12 @@
  'use strict';
  let user=null,timer=null,claimBusy=null,ready=false;
  const subscriptions=[],balances={that_tich_coin:null,love_coin:null};
+ window.addEventListener('student-session-mode',()=>{if(window.EconomyClient?.canMutate?.())void claim();});
  const currencyName=currency=>currency==='that_tich_coin'?'Xu Thất Tịch':'Xu tình yêu';
  const busy=new Set();
  const errors={INSUFFICIENT_THAT_TICH_COINS:'Bạn chưa đủ Xu Thất Tịch.',INSUFFICIENT_LOVE_COINS:'Bạn chưa đủ Xu tình yêu.',INVALID_EVENT_CURRENCY:'Loại xu này không dùng được cho vật phẩm đã chọn.',STORE_CLOSED:'Cửa hàng đang đóng.',ITEM_NOT_FOR_SALE:'Vật phẩm đang bị khóa.',ITEM_SALE_CLOSED:'Vật phẩm chưa trong thời gian mở bán.',STORE_GAME_ACCESS_DISABLED:'Giáo viên đã khóa quyền sử dụng cửa hàng.',INVALID_THAT_TICH_ITEM:'Danh mục máy chủ chưa có vật phẩm này. Cần cập nhật Worker.'};
  async function claim(){
-  if(!user||claimBusy===user||window.ECONOMY_SERVER_ENABLED!==true)return;
+  if(!user||claimBusy===user||window.EconomyClient?.canMutate?.()===false||window.ECONOMY_SERVER_ENABLED!==true)return;
   const account=user;claimBusy=account;
   try{
    let result=await window.EconomyClient.execute('that_tich_auto',{}, {slot:'that-tich-annual'});

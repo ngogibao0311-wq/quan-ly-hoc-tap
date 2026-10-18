@@ -55,6 +55,7 @@
             '\nKiểm tra hồ sơ users trong Firebase chính; nếu trạng thái là chuỗi "false", hãy sửa thành giá trị boolean false. Không cần mở quyền ghi trong Rules.';
     }
     function reportError(scope,error) {
+        if (error?.code === 'READ_ONLY_SESSION' || error?.message === 'READ_ONLY_SESSION') return false;
         const uid=firebase.auth().currentUser?.uid || '';
         const key=uid+':'+scope+':'+error?.message+':'+(error?.reason||'');
         if(error?.message==='ECONOMY_UNCONFIRMED_RETRY_SAME_OPERATION') {
@@ -100,7 +101,14 @@
             return status;
         }finally{clearTimeout(timer);}
     }
+    function canMutate() {
+        return window.__economyRole === 'teacher' || !window.StudentAccountAccess || window.StudentAccountAccess.canWrite();
+    }
+    function assertMutationSession() {
+        if (!canMutate()) throw Object.assign(Error('Phiên này chỉ được xem. Đăng xuất và đăng nhập lại sau khi phiên chính kết thúc để thao tác.'), {code:'READ_ONLY_SESSION'});
+    }
     async function execute(action, args = {}, {slot = action} = {}) {
+        assertMutationSession();
 
         const user = firebase.auth().currentUser;
         if (!user) throw Error('Cần đăng nhập lại.');
@@ -116,6 +124,7 @@
         const observedLast = localStorage.getItem(lastKey);
         const task = navigator.locks.request(storageKey, async () => {
             if (firebase.auth().currentUser?.uid !== user.uid) throw Error('Tài khoản vừa thay đổi.');
+            assertMutationSession();
             const latest = localStorage.getItem(lastKey);
             // A tab that waited for the same in-flight action joins its outcome.
             // A new click made after completion observes the new value and can
@@ -168,7 +177,11 @@
                         localStorage.setItem(lastKey,JSON.stringify({operationId:saved.body.operationId,intent,error:data.error}));
                         if (localStorage.getItem(storageKey) === JSON.stringify(saved)) localStorage.removeItem(storageKey);
                     }
+                    if (data.error === 'READ_ONLY_SESSION' || data.error === 'DEVICE_VERIFICATION_REQUIRED') {
+                        await window.StudentAccountAccess?.refreshSession?.().catch(() => {});
+                    }
                     const error = Error(data.error || 'Chưa xác nhận giao dịch. Hãy thử lại với mã cũ.');
+                    error.code = data.error;
                     if (data.error === 'ACCOUNT_NOT_ALLOWED') error.reason = data.reason || await accountErrorReason(user);
                     throw error;
                 }
@@ -205,7 +218,7 @@
             return {ids:saved.ids,finish:()=>navigator.locks.request(key,()=>{if(localStorage.getItem(key)===encoded)localStorage.removeItem(key);})};
         });
     }
-    window.EconomyClient = Object.freeze({execute,initialize,resume,batch,explainError,reportError});
+    window.EconomyClient = Object.freeze({execute,initialize,resume,batch,explainError,reportError,canMutate});
 })();
 
 // Written only after this module has executed successfully.
