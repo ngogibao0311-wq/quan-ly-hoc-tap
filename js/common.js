@@ -5656,7 +5656,7 @@ window.securityHotfix = Object.freeze({
     Object.assign(messages,{
         ACCESS_SECRET_MISSING:'Worker chưa có khóa FIREBASE_SERVICE_ACCOUNT. Cần thêm khóa của đúng dự án Firebase.',
         ACCESS_SECRET_INVALID:'Khóa Firebase trên Worker không phải JSON hợp lệ hoặc thiếu thông tin. Cần nhập lại toàn bộ file khóa.',
-        ACCESS_SECRET_PROJECT:'Khóa trên Worker phải thuộc dự án quan-ly-bai-tap-online.',
+        ACCESS_SECRET_PROJECT:'Khóa trên Worker phải thuộc dự án quan-li-bai-tap.',
         ACCESS_SECRET_KEY:'Khóa riêng Firebase trên Worker bị thiếu hoặc hỏng. Cần nhập lại file khóa đầy đủ.',
         ACCESS_GOOGLE_CONNECTION:'Worker chưa kết nối được máy chủ xác thực Google. Hãy thử lại sau.',
         ACCESS_GOOGLE_AUTH:'Google từ chối khóa Firebase của Worker. Cần kiểm tra khóa còn hiệu lực và đúng dự án.',
@@ -5674,7 +5674,7 @@ window.securityHotfix = Object.freeze({
     }
     function endpoint() {
         const configured=window.ACCOUNT_ACCESS_WORKERS?.[project()];
-        const known={ 'quan-ly-bai-tap-online':'https://school-r2-files.ngogibao0311.workers.dev'};
+        const known={ 'quan-li-bai-tap':'https://school-r2-files.ngogibao0311.workers.dev'};
         const url=new URL(configured || known[project()] || 'https://invalid.local');
         if(url.protocol!=='https:' || (url.hostname==='invalid.local' || url.hostname.endsWith('.invalid')))throw Error('ACCESS_PROJECT_MISMATCH');
         return url.href.replace(/\/$/,'')+'/account-access';

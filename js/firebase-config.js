@@ -1,12 +1,12 @@
 const firebaseConfig = {
- apiKey: "AIzaSyAnxiZEjEFUNoXnPFZR2GJh9mJ9KKYsPqI",
- authDomain: "quan-ly-bai-tap-online.firebaseapp.com",
- databaseURL: "https://quan-ly-bai-tap-online-default-rtdb.asia-southeast1.firebasedatabase.app",
- projectId: "quan-ly-bai-tap-online",
- storageBucket: "quan-ly-bai-tap-online.firebasestorage.app",
- messagingSenderId: "1045476145868",
- appId: "1:1045476145868:web:3c14a594998101b8e1e069",
- measurementId: "G-7RGKF00TV0"
+ apiKey: "AIzaSyDrAgyMoXWslXUSX8xQO0wVdlcSIF5U6YY",
+ authDomain: "quan-li-bai-tap.firebaseapp.com",
+ databaseURL: "https://quan-li-bai-tap-default-rtdb.asia-southeast1.firebasedatabase.app",
+ projectId: "quan-li-bai-tap",
+ storageBucket: "quan-li-bai-tap.firebasestorage.app",
+ messagingSenderId: "110235282888",
+ appId: "1:110235282888:web:cc4650d1099abffa91e4fd",
+ measurementId: "G-Z9FDS420TZ"
 };
 
 // 2. Khởi tạo kết nối
