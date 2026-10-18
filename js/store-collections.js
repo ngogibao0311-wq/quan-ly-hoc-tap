@@ -505,7 +505,7 @@
         let creditedCoins = 0;
         let creditedMilestones = 0;
 
-        for (const collection of CATEGORY_COLLECTIONS) {
+        collectionRewards: for (const collection of CATEGORY_COLLECTIONS) {
             const ownedCount = getCollectionItems(collection.id)
                 .reduce((total, item) => (
                     total + (isItemCollected(item) ? 1 : 0)
@@ -535,6 +535,14 @@
                     }
                 } catch (error) {
                     if (error?.code === 'READ_ONLY_SESSION' || /Phiên này chỉ được xem/i.test(error?.message || '')) return;
+                    if(error?.message==='ECONOMY_UNCONFIRMED_RETRY_SAME_OPERATION' && window.EconomyClient?.reportError) {
+                        window.EconomyClient.reportError('[Sưu tầm] Chưa xác nhận thưởng mốc:',error);
+                        if(!rewardErrorNotified && typeof window.showToast==='function') {
+                            rewardErrorNotified=true;
+                            window.showToast(window.EconomyClient.explainError(error),'warning');
+                        }
+                        break collectionRewards;
+                    }
                     console.warn(
                         '[Sưu tầm] Không thể cộng thưởng mốc:',
                         collection.id,

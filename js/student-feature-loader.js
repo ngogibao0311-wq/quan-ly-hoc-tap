@@ -119,7 +119,7 @@
         hacMongRegular: 'js/hac-mong-regular.js?v=20261017.production.split1',
         distinctScenes: 'js/luxury-distinct-scenes.js?v=20261017.production.split1',
         luxuryStore: 'js/luxury-store.js?v=20261017.production.session1',
-        collections: 'js/store-collections.js?v=20261017.production.session3',
+        collections: 'js/store-collections.js?v=20261018.economy5031',
 
         royalBall: 'js/royal-ball.js?v=20261017.production.split1',
         leaderboard: 'js/leaderboard.js?v=20261017.production.split1',

@@ -31971,7 +31971,8 @@ function saveLocalVideoProgress(assignId, seconds) {
 function saveVideoProgressToFirebase(assignId, seconds) {
     if(window.ECONOMY_SERVER_ENABLED===true) {
         return commitVerifiedVideoProgress(assignId,seconds).then(result=>result.snapshot.val()).catch(error=>{
-            console.error('Chưa xác nhận tiến độ xem video:',error);
+            if(window.EconomyClient?.reportError)window.EconomyClient.reportError('Chưa xác nhận tiến độ xem video:',error);
+            else console.error('Chưa xác nhận tiến độ xem video:',error);
             return normalizeVideoProgressSeconds(lastSavedTime[assignId]);
         });
     }

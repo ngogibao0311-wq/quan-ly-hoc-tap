@@ -19,7 +19,7 @@
    // Recheck at the next Vietnam midnight, using the server clock rather than the device clock.
    const next=Math.floor((result.serverNow+25200000)/86400000)*86400000+86400000-25200000;
    timer=setTimeout(()=>void claim(),Math.max(1000,Math.min(86400000,next-result.serverNow+1000)));
-  }catch(e){if(user===account){console.warn('[Xu Thất Tịch]',e.message);ready=false;clearTimeout(timer);timer=setTimeout(()=>void claim(),60000);}}
+  }catch(e){if(user===account){if(window.EconomyClient?.reportError)window.EconomyClient.reportError('[Xu Thất Tịch]',e);else console.warn('[Xu Thất Tịch]',e.message);ready=false;clearTimeout(timer);timer=setTimeout(()=>void claim(),Math.max(60000,(Number(e.retryAt)||0)-Date.now()));}}
   finally{if(claimBusy===account)claimBusy=null;}
  }
  function stop(){for(const {ref,handler} of subscriptions.splice(0))ref.off('value',handler);clearTimeout(timer);timer=null;user=null;ready=false;balances.that_tich_coin=balances.love_coin=null;}

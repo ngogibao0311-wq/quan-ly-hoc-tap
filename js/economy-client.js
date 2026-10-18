@@ -2,6 +2,7 @@
 (() => {
     'use strict';
     const active = new Map();
+    const reported = new Map();
     // Shared across tabs: an unavailable Worker must not be hammered by every
     // video timer / wallet listener. Pending operation IDs remain untouched.
     function retryKey(uid) { return 'economy_retry_v1:' + uid; }
@@ -9,23 +10,37 @@
         try { return JSON.parse(localStorage.getItem(retryKey(uid)) || 'null'); }
         catch (_) { return null; }
     }
-    function unavailableError(until) {
-        return Object.assign(Error('ECONOMY_UNCONFIRMED_RETRY_SAME_OPERATION'), {retryAt: until});
+    function unavailableError(until, reason) {
+        return Object.assign(Error('ECONOMY_UNCONFIRMED_RETRY_SAME_OPERATION'), {retryAt: until, reason});
     }
-    function deferRetry(uid, response) {
+    function deferRetry(uid, response, reason) {
         const previous = readRetry(uid);
         const failures = Math.min(3, (Number(previous?.failures) || 0) + 1);
         const header = response?.headers?.get('Retry-After');
         const requested = header ? (Number.isFinite(Number(header)) ? Number(header) * 1000 : Date.parse(header) - Date.now()) : 0;
         const delay = Math.min(120000, Math.max(15000 * 2 ** (failures - 1), requested || 0));
         const until = Date.now() + delay;
-        localStorage.setItem(retryKey(uid), JSON.stringify({until, failures}));
+        localStorage.setItem(retryKey(uid), JSON.stringify({until, failures, reason}));
         return until;
     }
     function explainError(error) {
         if (error?.message === 'ECONOMY_UNCONFIRMED_RETRY_SAME_OPERATION') {
             const seconds = Math.max(0, Math.ceil(((error.retryAt || 0) - Date.now()) / 1000));
-            return 'Máy chủ giao dịch tạm thời chưa phản hồi. Giao dịch đang chờ được giữ nguyên để xác nhận lại.' +
+            const reasons={
+                ECONOMY_COMMIT_REJECTED:'Firebase chưa chấp nhận giao dịch. Cần kiểm tra Rules và dữ liệu đang được đối soát.',
+                ACCESS_DATABASE_CONNECTION:'Worker chưa kết nối được Firebase.',
+                ACCESS_DATABASE_PERMISSION:'Firebase từ chối quyền truy cập của Worker.',
+                ACCESS_DATABASE_RESPONSE:'Firebase trả lỗi khi xử lý giao dịch.',
+                ACCESS_SECRET_MISSING:'Worker chưa có khóa Firebase.',
+                ACCESS_SECRET_INVALID:'Khóa Firebase trên Worker không hợp lệ.',
+                ACCESS_SECRET_PROJECT:'Khóa Firebase trên Worker thuộc sai dự án.',
+                ACCESS_SECRET_KEY:'Khóa Firebase trên Worker bị hỏng.',
+                ACCESS_GOOGLE_CONNECTION:'Worker chưa kết nối được máy chủ xác thực Google.',
+                ACCESS_GOOGLE_AUTH:'Google từ chối khóa Firebase của Worker.',
+                ECONOMY_NOT_ENABLED:'Dịch vụ giao dịch trên Worker chưa được bật.',
+                SERVER_MONEY_NOT_READY:'Cấu hình giao dịch trên Firebase chưa sẵn sàng.'
+            };
+            return (reasons[error.reason] || 'Máy chủ giao dịch tạm thời chưa phản hồi.') + ' Giao dịch đang chờ được giữ nguyên để xác nhận lại.' +
                 (seconds ? ` Vui lòng thử lại sau ${seconds} giây.` : ' Vui lòng thử lại sau.');
         }
         if (error?.message !== 'ACCOUNT_NOT_ALLOWED') return error?.message || 'Không xác nhận được giao dịch.';
@@ -38,6 +53,17 @@
         };
         return (reasons[error.reason] || 'Máy chủ từ chối hồ sơ tài khoản đang đăng nhập.') +
             '\nKiểm tra hồ sơ users trong Firebase chính; nếu trạng thái là chuỗi "false", hãy sửa thành giá trị boolean false. Không cần mở quyền ghi trong Rules.';
+    }
+    function reportError(scope,error) {
+        const uid=firebase.auth().currentUser?.uid || '';
+        const key=uid+':'+scope+':'+error?.message+':'+(error?.reason||'');
+        if(error?.message==='ECONOMY_UNCONFIRMED_RETRY_SAME_OPERATION') {
+            if((reported.get(key)||0)>Date.now())return false;
+            if(reported.size>=100)reported.clear();
+            reported.set(key,Math.max(Number(error.retryAt)||0,Date.now()+60000));
+        }
+        console.warn(scope,explainError(error),error?.reason||error?.message||'');
+        return true;
     }
     async function accountErrorReason(user) {
         // Compatibility with an older Worker: read only the signed-in profile.
@@ -106,7 +132,7 @@
             catch (_) { throw Error('Dữ liệu giao dịch đang chờ không đọc được; cần kiểm tra trước khi tiếp tục.'); }
             if (saved && saved.intent !== intent) throw Error('Có giao dịch chưa xác nhận. Hãy thử lại giao dịch trước.');
             const retry = readRetry(user.uid);
-            if (retry?.until > Date.now()) throw unavailableError(retry.until);
+            if (retry?.until > Date.now()) throw unavailableError(retry.until,retry.reason);
             if (!saved) {
                 saved = {intent, body:{...args,action,operationId:crypto.randomUUID()}};
                 localStorage.setItem(storageKey,JSON.stringify(saved));
@@ -132,7 +158,8 @@
                     }
                     if (data.settled !== true && (response.status >= 500 || response.status === 429 ||
                         data.error === 'ECONOMY_UNCONFIRMED_RETRY_SAME_OPERATION')) {
-                        throw unavailableError(deferRetry(user.uid, response));
+                        const reason=data.reason || data.error;
+                        throw unavailableError(deferRetry(user.uid, response, reason),reason);
                     }
                     break;
                 }
@@ -146,6 +173,7 @@
                     throw error;
                 }
                 localStorage.removeItem(retryKey(user.uid));
+                reported.clear();
                 localStorage.setItem(lastKey,JSON.stringify({operationId:saved.body.operationId,intent,result:data.result}));
                 if (localStorage.getItem(storageKey) === JSON.stringify(saved)) localStorage.removeItem(storageKey);
                 if (firebase.auth().currentUser?.uid !== user.uid) throw Error('Tài khoản vừa thay đổi; giao dịch của tài khoản trước đã được lưu.');
@@ -177,7 +205,7 @@
             return {ids:saved.ids,finish:()=>navigator.locks.request(key,()=>{if(localStorage.getItem(key)===encoded)localStorage.removeItem(key);})};
         });
     }
-    window.EconomyClient = Object.freeze({execute,initialize,resume,batch,explainError});
+    window.EconomyClient = Object.freeze({execute,initialize,resume,batch,explainError,reportError});
 })();
 
 // Written only after this module has executed successfully.
