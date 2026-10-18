@@ -1,8 +1,8 @@
 {
   "version": "4.3.2",
-  "build": "2026.10.10.14",
+  "build": "20261018.cash-session1",
   "channel": "stable",
-  "releasedAt": "2026-10-10T00:00:00+07:00",
+  "releasedAt": "2026-10-18T20:00:00+07:00",
   "title": "v4.3.2 · Mùa Đông và Vĩnh Đông Băng Chủ",
   "summary": "Bổ sung bộ Mùa Đông với hệ thống băng giá nhiều lớp và năm vật phẩm thường độc lập.",
   "mandatory": false,
@@ -24,6 +24,7 @@
     "Thêm Ngày hội mua sắm trong Trò chơi: chỉ mở ngày 3/11 hằng năm (giờ Việt Nam), mỗi học sinh quay miễn phí một lần/năm để giảm 10–70% cho vật phẩm Coin ở cả cửa hàng thường và sang trọng; không áp dụng vật phẩm hoặc xu sự kiện. Lưu kết quả quay và giá thanh toán vào lịch sử; cần triển khai Worker đi kèm."
   ],
   "resolvedIssues": [
+    "Phiên chỉ xem không gửi lặp giao dịch video/nhận thưởng; yêu cầu tiền mặt đối soát mã cũ trước kiểm tra số dư.",
     "Các vật phẩm Mùa Đông đi qua cơ chế mua, trang bị và lịch sử tài sản hiện có; kiểm thử nhận và tiêu hao vật phẩm mới.",
     "Lịch sử chờ lượt gửi nhật ký đang chạy trước khi tải và tự làm mới khi có bản ghi mới, tránh bỏ sót lần mua vé tiếp theo trên danh sách.",
     "Chặn trái tim SVG phóng lớn chớp lên khi CSS của lớp hiệu ứng đang tải.",
