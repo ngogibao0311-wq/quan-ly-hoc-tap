@@ -107,7 +107,11 @@
     function assertMutationSession() {
         if (!canMutate()) throw Object.assign(Error('Phiên này chỉ được xem. Đăng xuất và đăng nhập lại sau khi phiên chính kết thúc để thao tác.'), {code:'READ_ONLY_SESSION'});
     }
-    async function execute(action, args = {}, {slot = action} = {}) {
+    async function execute(action, args = {}, options = {}) {
+        const task = () => executeCore(action, args, options);
+        return window.ServerActivity ? window.ServerActivity.economy(action, task, options) : task();
+    }
+    async function executeCore(action, args = {}, {slot = action} = {}) {
         assertMutationSession();
 
         const user = firebase.auth().currentUser;

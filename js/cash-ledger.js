@@ -138,5 +138,10 @@
         clearPending(storageKey, pending.id);
         return { recovered: false, amount: pending.payload.amount };
     }
-    window.CashLedger = { approve, submit, recoverPending };
+    const feedback = (label, task) => window.ServerActivity ? window.ServerActivity.run(label, task) : task();
+    window.CashLedger = {
+        approve: (...args) => feedback('Đang xác nhận duyệt tiền…', () => approve(...args)),
+        submit: (...args) => feedback('Đang gửi yêu cầu đổi tiền…', () => submit(...args)),
+        recoverPending: (...args) => feedback('Đang đối soát yêu cầu trước…', () => recoverPending(...args))
+    };
 })();

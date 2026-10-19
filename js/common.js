@@ -2164,6 +2164,7 @@ if (loginForm) {
         }
 
         const submitBtn = loginForm.querySelector('button[type="submit"], input[type="submit"]');
+        let finishLoginActivity = null;
         loginForm.dataset.submitting = 'true';
         if (submitBtn) submitBtn.disabled = true;
 
@@ -2210,6 +2211,7 @@ if (loginForm) {
 
         errorMsg.innerHTML = 'Đang xác thực...';
         const fakeEmail = userVal + "@hethong.edu.vn";
+        finishLoginActivity = window.ServerActivity?.begin('Đang xác minh đăng nhập…');
 
         try {
             const userCredential = await firebase.auth().signInWithEmailAndPassword(fakeEmail, passVal);
@@ -2410,6 +2412,7 @@ if (loginForm) {
             errorMsg.style.color = 'red';
         }
         } finally {
+            finishLoginActivity?.();
             loginForm.dataset.submitting = 'false';
             if (submitBtn) submitBtn.disabled = false;
         }
@@ -5680,6 +5683,10 @@ window.securityHotfix = Object.freeze({
         return url.href.replace(/\/$/,'')+'/account-access';
     }
     async function call(action,input={},anonymous=false) {
+        const task = () => callCore(action,input,anonymous);
+        return window.ServerActivity ? window.ServerActivity.account(action,task) : task();
+    }
+    async function callCore(action,input={},anonymous=false) {
         if (window.pageAuthBlocked) throw Error('ACCESS_CHANGED');
         if (['verify','enroll','reset_device'].includes(action)) {
             sessionLoginNonce ||= secret();
@@ -5701,11 +5708,36 @@ window.securityHotfix = Object.freeze({
     function secret() {return Array.from(crypto.getRandomValues(new Uint8Array(32)),n=>n.toString(16).padStart(2,'0')).join('');}
     function code() {return 'REC-'+crypto.randomUUID().replace(/-/g,'').toUpperCase();}
     function ticketKey(kind,username) {return `accountRecovery:v1:${project()}:${kind}:${username}`;}
-    function savedTicket(kind,username) {
-        const key=ticketKey(kind,username);let token;
-        try{token=sessionStorage.getItem(key);}catch(_){}
-        if(!/^[0-9a-f]{64}$/.test(token||'')){token=secret();try{sessionStorage.setItem(key,token);}catch(_){}}
+    const requestTickets = new Map();
+    const validTicket = value => /^[0-9a-f]{64}$/.test(value || '');
+    function rememberTicket(kind,username,token) {
+        const key=ticketKey(kind,username);requestTickets.set(key,token);
+        // Keep the request proof across tab closure. It grants nothing without
+        // a password login and a still-valid teacher approval on the server.
+        for(const store of ['localStorage','sessionStorage']) {
+            try{window[store].setItem(key,token);}catch(_){}
+        }
         return token;
+    }
+    function readTicket(kind,username) {
+        const key=ticketKey(kind,username);
+        for(const store of ['localStorage','sessionStorage']) {
+            try {
+                const token=window[store].getItem(key);
+                if(validTicket(token))return rememberTicket(kind,username,token);
+            }catch(_){}
+        }
+        return requestTickets.get(key) || null;
+    }
+    function clearTicket(kind,username,token) {
+        const key=ticketKey(kind,username);
+        if(requestTickets.get(key)===token)requestTickets.delete(key);
+        for(const store of ['localStorage','sessionStorage']) {
+            try{if(window[store].getItem(key)===token)window[store].removeItem(key);}catch(_){}
+        }
+    }
+    function savedTicket(kind,username) {
+        return readTicket(kind,username) || rememberTicket(kind,username,secret());
     }
     function panel(title,description) {
         clearTimeout(requestTimer);requestTimer=null;
@@ -5776,7 +5808,7 @@ window.securityHotfix = Object.freeze({
                         unavailable: 'Yêu cầu không còn hiệu lực. Quay lại đăng nhập và gửi yêu cầu mới nếu cần.'
                     };
                     status.textContent = terminalMessages[result.status];
-                    try{sessionStorage.removeItem(ticketKey(kind,username));}catch(_){}
+                    clearTicket(kind,username,token);
                     return;
                 }
                 status.textContent='Đang chờ giáo viên xử lý…';
@@ -5790,6 +5822,23 @@ window.securityHotfix = Object.freeze({
         if(!(await enabled()))return true;
         screenUser=authUser;screenProfile=profile;sessionLoginNonce=secret();const epoch=++loginEpoch;
         const state=await call('state');if(epoch!==loginEpoch)return false;
+        const ticket=readTicket('device',profile.username);
+        let pendingRequest=false,requestNotice='';
+        if(ticket) {
+            const request=await call('request_status',{kind:'device',username:profile.username,secret:ticket},true);
+            if(epoch!==loginEpoch)return false;
+            if(request.status==='approved') {await showCreate('reset_device',ticket);return false;}
+            pendingRequest=request.status==='pending';
+            if(['rejected','unavailable','consumed','resolved'].includes(request.status)) {
+                clearTicket('device',profile.username,ticket);
+                requestNotice={
+                    rejected:'Giáo viên đã từ chối yêu cầu quên mã. Hãy nhập mã đã lưu hoặc liên hệ giáo viên.',
+                    unavailable:'Yêu cầu trước không còn khả dụng. Hãy kiểm tra ở tab đã gửi yêu cầu hoặc gửi yêu cầu mới nếu đã hết hạn.',
+                    consumed:'Yêu cầu đã được dùng để tạo mã mới. Hãy nhập mã mới bạn đã lưu.',
+                    resolved:'Yêu cầu hỗ trợ đã kết thúc. Hãy nhập mã đã lưu để đăng nhập.'
+                }[request.status];
+            }
+        }
         if(state.status==='enroll'){await showCreate('enroll');return false;}
         const {body,status}=panel('Khôi phục thiết bị đã lưu','Tài khoản và mật khẩu đã đúng. Nhập mã khôi phục để tiếp tục vào website.');
         const form=document.createElement('form'),label=document.createElement('label'),input=document.createElement('input');
@@ -5799,10 +5848,12 @@ window.securityHotfix = Object.freeze({
             event.preventDefault();if(next.disabled)return;next.disabled=true;status.textContent='Đang xác nhận mã…';
             try{await accept(await call('verify',{code:input.value}),epoch);}catch(error){if(epoch===loginEpoch)status.textContent=message(error);}finally{next.disabled=false;}
         });
-        const forgot=button('Quên mã khôi phục',async()=>{
+        const forgot=button(pendingRequest?'Kiểm tra yêu cầu đã gửi':'Quên mã khôi phục',async()=>{
             forgot.disabled=true;const token=savedTicket('device',profile.username);
-            try{await call('request_device',{secret:token});if(epoch===loginEpoch)await waitRequest('device',profile.username,token);}catch(error){if(epoch===loginEpoch)status.textContent=message(error);}finally{forgot.disabled=false;}
-        },true);body.append(form,forgot);input.focus();return false;
+            try{if(!pendingRequest)await call('request_device',{secret:token});if(epoch===loginEpoch)await waitRequest('device',profile.username,token);}catch(error){if(epoch===loginEpoch)status.textContent=message(error);}finally{forgot.disabled=false;}
+        },true);body.append(form,forgot);
+        status.textContent=pendingRequest?'Yêu cầu quên mã đang chờ giáo viên duyệt. Nếu đã nhớ lại mã, bạn vẫn có thể nhập để đăng nhập.':requestNotice;
+        input.focus();return false;
     }
     async function forgotPassword() {
         const username=document.getElementById('username').value.trim(),error=document.getElementById('errorMsg');

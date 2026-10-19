@@ -9,6 +9,7 @@
     function next() {
         if (active || !queue.length || !document.body) return;
         const task = active = queue.shift();
+        const resumeActivity = task.options.transient ? null : window.ServerActivity?.suspend();
         const previous = document.activeElement;
         const host = document.createElement('div');
         host.className = 'app-dialog-host';
@@ -62,6 +63,7 @@
             if (input) input.value = '';
             host.remove();
             active = null;
+            resumeActivity?.();
             if (!options.transient && previous?.isConnected) previous.focus({preventScroll:true});
             task.resolve(value);
             queueMicrotask(next);
