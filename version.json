@@ -1,13 +1,14 @@
 {
-  "version": "4.3.2",
-  "build": "20261019.recovery1",
+  "version": "4.3.3",
+  "build": "20261019.oct20.2",
   "channel": "stable",
   "releasedAt": "2026-10-19T00:00:00+07:00",
-  "title": "v4.3.2 · Mùa Đông và Vĩnh Đông Băng Chủ",
-  "summary": "Bổ sung bộ Mùa Đông với hệ thống băng giá nhiều lớp và năm vật phẩm thường độc lập.",
+  "title": "v4.3.3 · Quà tặng 20/10",
+  "summary": "Thêm thư \"Quà tặng 20/10\" với năm phần quà; máy chủ quyết định số lượng, thư hiển thị kết quả sau khi nhận.",
   "mandatory": false,
   "minSupportedVersion": "3.0.0",
   "changes": [
+    "Quà tặng 20/10 hằng năm: mỗi học sinh nhận một gói gồm Xu tình yêu, vé quay, Coin, tiền lộ trình và mã giảm giá hạn 72 giờ từ lúc nhận. Có hoạt ảnh chờ và kiểm tra nhận lại; cần cập nhật Worker, lịch chạy và Rules đi kèm.",
     "Sửa đăng nhập lại sau khi giáo viên duyệt quên mã: khôi phục yêu cầu đã gửi, mở bước tạo mã mới và giữ yêu cầu khi đóng/mở lại tab trong cùng trình duyệt.",
     "Hoạt ảnh chờ xác minh cho đăng nhập, mã thiết bị, giao dịch và yêu cầu đổi tiền; tự đóng khi có kết quả, có thể thu gọn khi phản hồi lâu.",
     "Đông Thần · Vĩnh Đông Băng Chủ giá 15.000 Coin: thẻ Mùa Đông riêng, giao diện băng lam, hiệu ứng quanh nhân vật, xung băng khi nhấn và ultimate điện băng.",
