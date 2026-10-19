@@ -1,6 +1,6 @@
-const APP_VERSION = '4.3.2';
-const APP_BUILD = '20261018.cash-session1';
-const CACHE_VERSION = `qlbt-production-shell-v${APP_VERSION}-${APP_BUILD}`;
+const APP_VERSION = '4.4.0';
+const APP_BUILD = '20261019.recovery1';
+const CACHE_VERSION = `qlbt-test-shell-v${APP_VERSION}-${APP_BUILD}`;
 const OFFLINE_CACHE = `${CACHE_VERSION}-offline`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const OFFLINE_PAGE = './offline.html';
@@ -19,7 +19,7 @@ self.addEventListener('activate', event => {
         const names = await caches.keys();
         await Promise.all(
             names
-                .filter(name => name.startsWith('qlbt-production-') && ![OFFLINE_CACHE, RUNTIME_CACHE].includes(name))
+                .filter(name => name.startsWith('qlbt-test-') && ![OFFLINE_CACHE, RUNTIME_CACHE].includes(name))
                 .map(name => caches.delete(name))
         );
         await self.clients.claim();
