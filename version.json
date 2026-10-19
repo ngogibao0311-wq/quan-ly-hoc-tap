@@ -1,13 +1,15 @@
 {
   "version": "4.3.2",
-  "build": "20261018.cash-session1",
+  "build": "20261019.recovery1",
   "channel": "stable",
-  "releasedAt": "2026-10-18T20:00:00+07:00",
+  "releasedAt": "2026-10-19T00:00:00+07:00",
   "title": "v4.3.2 · Mùa Đông và Vĩnh Đông Băng Chủ",
   "summary": "Bổ sung bộ Mùa Đông với hệ thống băng giá nhiều lớp và năm vật phẩm thường độc lập.",
   "mandatory": false,
   "minSupportedVersion": "3.0.0",
   "changes": [
+    "Sửa đăng nhập lại sau khi giáo viên duyệt quên mã: khôi phục yêu cầu đã gửi, mở bước tạo mã mới và giữ yêu cầu khi đóng/mở lại tab trong cùng trình duyệt.",
+    "Hoạt ảnh chờ xác minh cho đăng nhập, mã thiết bị, giao dịch và yêu cầu đổi tiền; tự đóng khi có kết quả, có thể thu gọn khi phản hồi lâu.",
     "Đông Thần · Vĩnh Đông Băng Chủ giá 15.000 Coin: thẻ Mùa Đông riêng, giao diện băng lam, hiệu ứng quanh nhân vật, xung băng khi nhấn và ultimate điện băng.",
     "Module eternal_winter có bão tuyết nhiều lớp, tinh thể sinh trưởng và vỡ, sương giá tan theo con trỏ, cực quang, pháp trận và bốn giai đoạn chuyển tiếp.",
     "Thẻ có trạng thái phong ấn, đã sở hữu và đang trang bị từ kho vật phẩm; không có cửa sổ xem trước. Hoạt ảnh không thay đổi quyền sở hữu hoặc phát sinh giao dịch.",
