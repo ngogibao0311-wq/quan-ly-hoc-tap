@@ -22711,8 +22711,10 @@ async function retryStudentInboxGiftClaim(guard, reason) {
 
 window.renderStudentInbox = function () {
     const container = document.getElementById('studentInboxBody');
+    if (!container) return;
+    const extraOct20Letters = window.Oct20Gift?.missingLetters(window.myInboxMessages || []) || '';
     if (!window.myInboxMessages || window.myInboxMessages.length === 0) {
-        container.innerHTML = '<div style="text-align:center; padding: 30px 10px; color: #666;"><span style="font-size:3em; display:block; margin-bottom:10px;">📭</span>Chưa có thư mới nào.</div>';
+        container.innerHTML = extraOct20Letters || '<div style="text-align:center; padding: 30px 10px; color: #666;"><span style="font-size:3em; display:block; margin-bottom:10px;">📭</span>Chưa có thư mới nào.</div>';
         return;
     }
 
@@ -22973,6 +22975,22 @@ window.renderStudentInbox = function () {
                     ? `📦 ${escapeStudentInboxHtml(itemDef.name)} (${escapeStudentInboxHtml(itemDef.type)})`
                     : '📦 Vật phẩm bí ẩn';
             }
+            else if (msg.giftType === 'oct20_bundle') {
+                const oct20Year = escapeStudentInboxHtml(String(msg.eventYear || new Date(Date.now() + 25200000).getUTCFullYear()));
+                const cachedOct20 = window.getOct20CachedClaim(msg.eventYear);
+                if (cachedOct20 && cachedOct20.rewards) {
+                    const cr = cachedOct20.rewards;
+                    const oct20Exp = Number.isFinite(Number(cachedOct20.discountExpiry)) && Number(cachedOct20.discountExpiry) > 0
+                        ? new Date(Number(cachedOct20.discountExpiry)).toLocaleString('vi-VN') : '—';
+                    giftDisplay = `💝 Quà 20/10/${oct20Year} đã nhận:` +
+                        `<br>❤️ ${Number(cr.love).toLocaleString('vi-VN')} Xu tình yêu · 🎫 ${Number(cr.tickets).toLocaleString('vi-VN')} vé · 🪙 ${Number(cr.coins).toLocaleString('vi-VN')} Coin` +
+                        `<br>💵 ${Number(cr.money).toLocaleString('vi-VN')} đ Tiền lộ trình · 🏷️ Giảm ${Number(cr.discount).toLocaleString('vi-VN')}% (HSD: ${oct20Exp})`;
+                } else {
+                    giftDisplay = `💝 Gói quà 20/10/${oct20Year} gồm đủ năm loại:` +
+                        `<br>❤️ Xu tình yêu · 🎫 Vé quay may mắn · 🪙 Coin · 💵 Tiền lộ trình · 🏷️ Mã giảm giá` +
+                        `<br><span style="font-size:0.82em;color:#9a3412;font-weight:600;">Số lượng do máy chủ quyết định khi bấm nhận. Mã giảm giá có hạn 72 giờ kể từ khi nhận.</span>`;
+                }
+            }
 
             giftHTML = msg.giftType === 'grade_penalty'
                 ? `<div style="background:rgba(254,226,226,.72);border:1px dashed #dc2626;padding:10px;border-radius:8px;margin:10px 0;">
@@ -23015,6 +23033,39 @@ window.renderStudentInbox = function () {
                         ⏳ Thư cũ · Chờ giáo viên đối soát
                     </button>
                 `;
+            } else if (msg.giftType === 'oct20_bundle') {
+                const oct20Cached = window.getOct20CachedClaim(msg.eventYear);
+                const oct20Busy = window.Oct20Gift?.isBusy(String(msg.eventYear)) === true;
+                btnHTML = `
+    <button
+        ${oct20Busy ? 'disabled aria-busy="true"' : ''}
+        onclick="
+            claimGift(
+                decodeURIComponent('${encodedMessageKey}')
+            )
+        "
+        style="
+            background:
+                linear-gradient(
+                    135deg,
+                    #e11d48 0%,
+                    #f472b6 100%
+                );
+            width:100%;
+            padding:10px;
+            border-radius:8px;
+            font-weight:bold;
+            border:none;
+            color:white;
+            cursor:pointer;
+            box-shadow:
+                0 4px 10px
+                rgba(225,29,72,0.3);
+        "
+    >
+        ${oct20Busy ? 'Đang kiểm tra quà…' : oct20Cached ? '💝 Đã nhận · Xem lại quà' : '💝 Nhận quà 20/10'}
+    </button>
+`;
             } else {
                 const claimButtonText =
                     msg.giftType === 'grade_reward'
@@ -23078,13 +23129,46 @@ window.renderStudentInbox = function () {
         const isGradeLetter = msg.source === 'grade_settlement_v5' || msg.giftType === 'grade_reward';
         const sentAt = safeTimeString || (Number.isFinite(Number(msg.timestamp)) && Number(msg.timestamp) > 0
             ? escapeStudentInboxHtml(new Date(Number(msg.timestamp)).toLocaleString('vi-VN')) : '');
-        html += `<student-inbox-letter class="ui-theme-immune" subject="${isGradeLetter ? 'Kết quả chấm bài' : isPenaltyNotice ? 'Thông báo điều chỉnh' : 'Thư & phần quà'}" sent-at="${sentAt}">
+        html += `<student-inbox-letter class="ui-theme-immune" subject="${msg.giftType === 'oct20_bundle' ? 'Quà tặng 20/10' : isGradeLetter ? 'Kết quả chấm bài' : isPenaltyNotice ? 'Thông báo điều chỉnh' : 'Thư & phần quà'}" sent-at="${sentAt}">
             ${isGradeLetter ? `<grade-result-summary slot="summary">${safeMessage}</grade-result-summary>` : `<p slot="message">${safeMessage}</p>`}
             <div slot="gift">${giftHTML}</div>
             <div slot="actions">${btnHTML}</div>
         </student-inbox-letter>`;
     });
-    container.innerHTML = html;
+    container.innerHTML = html + extraOct20Letters;
+};
+
+/* ── Quà tặng 20/10 (oct20_bundle) ─────────────────────────────────
+ * Gói quà do máy chủ cấp đúng ngày 20/10 (giờ VN). Kết quả và tỉ lệ
+ * chỉ nằm phía máy chủ; trình duyệt chỉ gửi action + năm, không gửi
+ * số lượng và không tải bảng trọng số. Bấm nhận lại chỉ đối soát cùng
+ * gói, không tạo lượt nhận hoặc kết quả ngẫu nhiên mới.
+ * ──────────────────────────────────────────────────────────────── */
+window.getOct20CachedClaim = function (year) {
+    return window.Oct20Gift?.result(String(year)) || null;
+};
+
+window.showOct20ClaimResult = function (result) {
+    if (!result || !result.rewards) return;
+    const r = result.rewards;
+    const discountExpiry = Number.isFinite(Number(result.discountExpiry)) && Number(result.discountExpiry) > 0
+        ? new Date(Number(result.discountExpiry)).toLocaleString('vi-VN') : '—';
+    const claimedAt = Number.isFinite(Number(result.claimedAt)) && Number(result.claimedAt) > 0
+        ? new Date(Number(result.claimedAt)).toLocaleString('vi-VN') : '';
+    const lines = [
+        `❤️ Xu tình yêu: ${Number(r.love).toLocaleString('vi-VN')} xu`,
+        `🎫 Vé quay may mắn: ${Number(r.tickets).toLocaleString('vi-VN')} vé`,
+        `🪙 Coin: ${Number(r.coins).toLocaleString('vi-VN')} Coin`,
+        `💵 Tiền lộ trình: ${Number(r.money).toLocaleString('vi-VN')} đ`,
+        `🏷️ Mã giảm giá: ${Number(r.discount).toLocaleString('vi-VN')}% — hết hạn ${discountExpiry}`
+    ].join('<br>');
+    const note = 'Mã giảm giá dùng một lần, chỉ cho món mua bằng Coin, không chuyển nhượng và không gia hạn khi nhận lại.';
+    AppDialog.alert(`${result.recovered ? 'ℹ️ Gói quà đã được nhận trước đó:' : '🎉 Đã nhận quà 20/10!'}<br>${lines}<br><span style="font-size:0.85em;color:#666;">${claimedAt ? 'Nhận lúc: ' + claimedAt + ' · ' : ''}${note}</span>`);
+};
+
+window.claimOct20Gift = async function (msgData, msgKey) {
+    if (!window.Oct20Gift) return AppDialog.alert('Hãy cập nhật trang để tải đủ bộ nhận quà.');
+    return window.Oct20Gift.claim(String(msgData?.eventYear || ''));
 };
 
 window.claimGift = async function (msgKey, clientGiftType, clientGiftValue) {
@@ -23120,7 +23204,8 @@ window.claimGift = async function (msgKey, clientGiftType, clientGiftValue) {
             'money',
             'ticket',
             'item',
-            'discount'
+            'discount',
+            'oct20_bundle'
         ]);
 
         if (
@@ -23157,6 +23242,11 @@ window.claimGift = async function (msgKey, clientGiftType, clientGiftValue) {
             (await AppDialog.alert(
                 '⌛ Thư này đã hết hạn và không thể nhận quà.'
             ));
+            return;
+        }
+
+        if (giftType === 'oct20_bundle') {
+            await window.claimOct20Gift(msgData, msgKey);
             return;
         }
 
@@ -30458,7 +30548,7 @@ window.showBagItemPopup = function (item) {
     let actionButtonHtml = '';
 
     // SỬA LẠI: Chỉ hiện nút bán khi thẻ ĐÃ HẾT HẠN (item.isExpired là true)
-    if (item.type === 'discount' && item.firebaseKeys && item.firebaseKeys.length > 0 && item.isExpired) {
+    if (item.type === 'discount' && item.sellable !== false && item.firebaseKeys && item.firebaseKeys.length > 0 && item.isExpired) {
         actionButtonHtml = `
             <button onclick="sellDiscountCardFromPopup('${item.firebaseKeys[0]}', ${item.percent}, ${item.sellPrice})" 
                 style="margin-top: 15px; width: 100%; background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%); border: none; padding: 10px; border-radius: 8px; font-weight: bold; color: white; cursor: pointer; box-shadow: 0 4px 10px rgba(107, 114, 128, 0.4); font-size: 0.95em; transition: 0.2s;">
@@ -30668,6 +30758,7 @@ window.sellDiscountCardFromPopup = async function (discountKey, _percent, _sellP
         const existing = (await receiptRef.once('value')).val();
         if (existing) return (await AppDialog.alert('Thẻ này đã được quy đổi. Không cộng Coin lần nữa.'));
         const coupon = (await db.ref(`student_discounts/${username}/${discountKey}`).once('value')).val();
+        if (coupon?.source === 'oct20' || coupon?.sellable === false) return await AppDialog.alert('Mã giảm giá 20/10 không thanh lý thành Coin.');
         const percent = Number(coupon?.percent);
         if (!coupon || coupon.isUsed === true || !Number.isFinite(percent) || percent < 0 || percent > 100 ||
             !Number.isFinite(Number(coupon.expiry)) || Number(coupon.expiry) <= 0 || Number(coupon.expiry) >= Date.now()) {
@@ -31112,6 +31203,7 @@ async function renderStudentBagNow(renderId, bagUsername) {
                     isExpired: isExpired,
                     sellPrice: sellPrice,
                     firebaseKeys: currentChunkKeys,
+                    sellable: group.source !== 'oct20',
                     description:
                         `🏷️ <b>Mức giảm:</b> ${group.percent}%` +
                         `<br>🕒 <b>Hạn dùng:</b> ${expText}` +
