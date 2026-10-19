@@ -4050,36 +4050,4 @@ html[data-mobile-ui="phone"] body #studentSessionBanner { margin-top: 0; }
 
 body.student-view-session .student-session-locked { opacity: .65; cursor: not-allowed !important; }
 
-/* Recovery steps must hide the credential form in every login layout. */
-html body.login-page .login-container #loginForm[hidden],
-html body.login-page .login-container .login-heading[hidden],
-html body.login-page .login-container #forgotPasswordButton[hidden],
-html body.login-page .login-container #studentAccessStep[hidden] {
-    display: none !important;
-}
-html body.login-page #studentAccessStep > h2 {
-    font-size: clamp(23px, 2.2vw, 28px);
-    line-height: 1.35;
-    margin: 10px 0 16px;
-}
-html body.login-page #studentAccessStep > h2:focus { outline: none; }
-html body.login-page #studentAccessStep .access-eyebrow { margin: 0; }
-html body.login-page #studentAccessStep code {
-    white-space: normal;
-    word-break: break-all;
-    overflow-wrap: anywhere;
-    font-size: 13px;
-    line-height: 1.8;
-}
-html body.login-page #studentAccessStep .access-confirm {
-    align-items: center;
-    margin: 20px 0 14px;
-    line-height: 1.6;
-}
-@media (min-width: 769px) {
-    html body.login-page.login-layout-centered .login-container:has(#studentAccessStep:not([hidden])) {
-        width: min(440px, calc(100% - 48px)) !important;
-        max-width: 440px !important;
-        padding: 32px !important;
-    }
-}
+:root { --asset-common: 20261018.romeo1; }
