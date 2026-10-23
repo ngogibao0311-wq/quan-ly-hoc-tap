@@ -1380,6 +1380,14 @@ input:checked + .slider:before {
     0% { margin-top: 0px; }
     100% { margin-top: -25px; }
 }
+/* Independent translation preserves the pet's left/right transform while
+   avoiding layout on every bounce. Older engines keep the margin fallback. */
+@supports (translate: 0 1px) {
+    @keyframes dogPlayJumpMargin {
+        0% { translate: 0 0; }
+        100% { translate: 0 -25px; }
+    }
+}
 /* =========================================================================
    HIỆU ỨNG MỚI 100%: VỆ THẦN NGÂN HÀ (TRUYỀN THUYẾT 2)
    Hình ảnh đại diện: truyền thuyết 2.jpg

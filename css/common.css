@@ -4083,3 +4083,14 @@ html body.login-page #studentAccessStep .access-confirm {
         padding: 32px !important;
     }
 }
+
+/* Readable Vietnamese UI: item artwork never selects the font of application text.
+   Intentionally exclude authored rich text, code, math and icon glyphs. */
+html:not(#ui-type-opt-out):not(#ui-type-disabled) body,
+html:not(#ui-type-opt-out):not(#ui-type-disabled) body :is(.dashboard,.modal-content,.popup-content,.store-item-card,.luxury-product-card,.luxury-unified-card,.login-container) :is(h1,h2,h3,h4,h5,h6,p,label,button,input,select,textarea,small,summary,.nav-text,.item-name,.item-description,.item-type-label,.luxury-unified-kicker,.luxury-unified-price):not(:where(.ql-editor,.ql-editor *,.ql-toolbar,.ql-toolbar *,pre,pre *,code,code *,.katex,.katex *,.MathJax,.MathJax *,[class*="icon"],[class*="fa-"],.material-icons)),
+html:not(#ui-type-opt-out):not(#ui-type-disabled) body :is(.luxury-unified-info,.item-actions) :is(span,strong):not(:where([class*="icon"],[class*="fa-"],.material-icons)) {
+ font-family:"Segoe UI",Arial,Helvetica,sans-serif!important;
+}
+html:not(#ui-type-opt-out):not(#ui-type-disabled) body :is(.luxury-unified-info h3,.store-item-card .item-name){line-height:1.45!important;letter-spacing:normal!important;overflow-wrap:anywhere;word-break:normal}
+html:not(#ui-type-opt-out):not(#ui-type-disabled) .app-dialog-host::part(panel),
+html:not(#ui-type-opt-out):not(#ui-type-disabled) .app-dialog-host::part(title){font-family:"Segoe UI",Arial,Helvetica,sans-serif!important}

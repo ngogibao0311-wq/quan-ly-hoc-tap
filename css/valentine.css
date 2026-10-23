@@ -286,3 +286,12 @@ html body:is(.theme-cupid-letter,.theme-juliet-tearoom) ::-webkit-scrollbar-thum
 @media(prefers-reduced-motion:reduce){.cpr-stage *{animation:none!important}.cpr-pet-heart{opacity:.3}.cpr-ultimate{display:none!important}}
 
 html body:is(.theme-cupid-letter,.theme-juliet-tearoom) .content h2:not(:where(.ui-theme-immune *,.store-theme-locked *,.store-item-card *,.luxury-product-card *))::after{background:linear-gradient(90deg,var(--vl-accent),var(--vl-line))!important;box-shadow:none!important}
+
+/* Regular Juliet: four veined wings, two antennae, paired wingbeats. */
+.jlr-butterfly{width:var(--size,32px);height:calc(var(--size,32px)*.75);filter:drop-shadow(0 1px 1px #72405426)}
+.jlr-butterfly>svg{display:block;overflow:visible;stroke-width:1;pointer-events:none}
+.jlr-wing-left,.jlr-wing-right{transform-box:view-box;transform-origin:50% 50%;animation:jlr-paired-wing var(--flap,1.25s) ease-in-out infinite;animation-delay:calc(var(--i)*-.23s)}
+.jlr-weather .jlr-butterfly{opacity:.72}
+@keyframes jlr-paired-wing{0%,100%{transform:scaleX(1)}45%{transform:scaleX(.24)}65%{transform:scaleX(.8)}}
+@keyframes jlr-wander{0%,100%{translate:0 0;rotate:-8deg}25%{translate:24px -35px;rotate:12deg}50%{translate:8px -66px;rotate:-6deg}75%{translate:-22px -30px;rotate:-15deg}}
+@media(prefers-reduced-motion:reduce){.jlr-wing-left,.jlr-wing-right{animation:none!important}}
