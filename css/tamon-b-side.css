@@ -5389,7 +5389,7 @@ body.theme-tamon-bside-backstage ::selection {
 body.theme-tamon-bside-backstage :where(
     p, span, small, strong, label, a, li, td, th,
     button, input, select, textarea, table
-):not(.ui-theme-immune):not([data-theme-immune="true"]):not(.ui-theme-immune *):not([data-theme-immune="true"] *) {
+):not(.ui-theme-immune):not([data-theme-immune="true"]):not(.ui-theme-immune *):not([data-theme-immune="true"] *):not(:where(.ql-editor,.ql-editor *,.ql-toolbar,.ql-toolbar *,pre,pre *,code,code *,.katex,.katex *,.MathJax,.MathJax *,[class*="icon"],[class*="icon"] *,[class*="fa-"],[class*="fa-"] *,.material-icons,.material-icons *,svg,svg *)) {
     font-family: var(--tbtheme1-font-body) !important;
 }
 
@@ -5397,7 +5397,7 @@ body.theme-tamon-bside-backstage :where(
     h1, h2, h3, h4, h5, h6,
     .page-title, .section-title, .modal-title,
     .popup-title, .card-title, .accordion-title
-):not(.ui-theme-immune):not([data-theme-immune="true"]):not(.ui-theme-immune *):not([data-theme-immune="true"] *) {
+):not(.ui-theme-immune):not([data-theme-immune="true"]):not(.ui-theme-immune *):not([data-theme-immune="true"] *):not(:where(.ql-editor,.ql-editor *,.ql-toolbar,.ql-toolbar *,pre,pre *,code,code *,.katex,.katex *,.MathJax,.MathJax *,[class*="icon"],[class*="icon"] *,[class*="fa-"],[class*="fa-"] *,.material-icons,.material-icons *,svg,svg *)) {
     color: #f7f9ff !important;
     font-family: var(--tbtheme1-font-title) !important;
     font-weight: 800 !important;

@@ -1945,15 +1945,15 @@
    ========================================================================= */
 
 /* --- 1. PHÔNG CHỮ VIỄN TƯỞNG VÀ TỐI ƯU DỄ ĐỌC (Sci-fi Typography) --- */
-/* Font mặc định cho toàn trang: Rajdhani (Viễn tưởng nhưng sắc nét, nét thanh, cực dễ đọc) */
+/* Keep Vietnamese letters and combining marks in one UI font; preserve authored text and icons. */
 .theme-cosmic-godhood,
 .theme_truyenthuyet_vutru,
-.theme-cosmic-godhood *,
-.theme_truyenthuyet_vutru * {
-    font-family: 'Rajdhani', sans-serif !important;
+.theme-cosmic-godhood *:not(:where(.ql-editor,.ql-editor *,.ql-toolbar,.ql-toolbar *,pre,pre *,code,code *,.katex,.katex *,.MathJax,.MathJax *,[class*="icon"],[class*="icon"] *,[class*="fa-"],[class*="fa-"] *,.material-icons,.material-icons *,svg,svg *)),
+.theme_truyenthuyet_vutru *:not(:where(.ql-editor,.ql-editor *,.ql-toolbar,.ql-toolbar *,pre,pre *,code,code *,.katex,.katex *,.MathJax,.MathJax *,[class*="icon"],[class*="icon"] *,[class*="fa-"],[class*="fa-"] *,.material-icons,.material-icons *,svg,svg *)) {
+    font-family: "Segoe UI", Arial, Helvetica, sans-serif !important;
 }
 
-/* Giữ font Orbitron hầm hố cho các Tiêu đề, Nút bấm và Nhãn dán */
+/* Use the same Vietnamese-capable font for headings, buttons and badges. */
 .theme-cosmic-godhood h1,
 .theme_truyenthuyet_vutru h1,
 .theme-cosmic-godhood h2,
@@ -1972,7 +1972,7 @@
 .theme_truyenthuyet_vutru button:where(:not(.ui-theme-immune):not(.ui-theme-immune *):not([data-theme-immune="true"]):not([data-theme-immune="true"] *):not(.ql-toolbar *)),
 .theme-cosmic-godhood .item-tag,
 .theme_truyenthuyet_vutru .item-tag {
-    font-family: 'Orbitron', sans-serif !important;
+    font-family: "Segoe UI", Arial, Helvetica, sans-serif !important;
     letter-spacing: 0.5px;
 }
 

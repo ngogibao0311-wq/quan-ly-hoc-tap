@@ -4,24 +4,24 @@
 <head>
     <link rel="stylesheet" href="css/app-dialog.css?v=20261003.cleanup1">
     <script src="js/grade-presentation.js?v=20261017.production.split1"></script>
-    <script src="js/app-dialog.js?v=20261019.loading1"></script>
-    <script src="js/server-activity.js?v=20261019.loading1"></script>
+    <script src="js/app-dialog.js?v=20261024.pendingdialog1"></script>
+    <script src="js/server-activity.js?v=20261027.extension1"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="application-version" content="4.3.2">
+    <meta name="application-version" content="4.4.0">
     <title>Trang Học Sinh</title>
     <!-- Kết nối sớm tới CDN lõi; không tải thêm tài nguyên và không đổi chức năng -->
     <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link rel="icon" type="image/png" href="assets/icon.png">
-    <link rel="stylesheet" href="css/common.css?v=20261017.production.session1">
+    <link rel="stylesheet" href="css/common.css?v=20261029.plan3.fonts1">
     <link rel="stylesheet" href="css/web-animations.css?v=20261003.cleanup2">
     <link rel="stylesheet" href="css/update-manager.css?v=20261003.cleanup1">
     <link rel="stylesheet" href="css/avatar-frame-base.css?v=20261014.frame1">
     <link id="linkclick-cheng-premium-style" rel="stylesheet" href="css/link-click-cheng-xiaoshi.css?v=20261003.aclp3">
     <!-- Core-first loader: CSS/module đặc biệt chỉ tải khi cần -->
-    <script src="js/student-feature-loader.js?v=20261018.economy5031"></script>
+    <script src="js/student-feature-loader.js?v=20261029.plan4.2"></script>
     <script>
         MathJax = {
             tex: {
@@ -241,7 +241,7 @@
 <link rel="stylesheet" href="css/mc-workspace.css?v=20261007.phone1">
 <link rel="stylesheet" href="css/assignment-appeals.css?v=20261003.cleanup1">
 <link rel="stylesheet" href="css/dashboard-refresh.css?v=20261007.phone1">
-<script>(window.SessionPolicyModules ||= {}).html = '20261018.session4';</script>
+<script>(window.SessionPolicyModules ||= {}).html = '20261024.session3';</script>
 </head>
 
 <body class="campus-modern">
@@ -360,7 +360,7 @@
             function resolvePath(path) {
                 const normalized = safeText(path).trim();
 
-                // db thường được khai báo bằng const trong firebase-config.js?v=20261017.production.split1,
+                // db thường được khai báo bằng const trong firebase-config.js?v=20261024.session3
                 // nên không nhất thiết nằm trên window.
                 if (normalized === 'db' || normalized.startsWith('db.')) {
                     const database = (typeof db !== 'undefined' ? db : window.db);
@@ -1245,6 +1245,7 @@
 
     <div id="studentNotificationModal" class="modal-overlay" style="z-index: 999999;">
         <div class="modal-content" style="max-width: 450px; text-align: center; border-top: 6px solid #f59e0b;">
+            <button type="button" class="student-session-view-close" onclick="closeReadOnlyStudentModal('studentNotificationModal')">Đóng — chỉ xem, chưa xác nhận</button>
             <h3 style="color: #d35400; margin-bottom: 15px; font-size: 1.6em; text-transform: uppercase;">🔔 Thông Báo
                 Mới</h3>
 
@@ -1280,6 +1281,7 @@
     <div id="studentSurveyModal" class="modal-overlay" style="z-index: 999998;">
         <div class="modal-content"
             style="max-width: 550px; background: rgba(255, 255, 255, 0.95); border-top: 6px solid #e83e8c;">
+            <button type="button" class="student-session-view-close" onclick="closeReadOnlyStudentModal('studentSurveyModal')">Đóng — chỉ xem, chưa xác nhận</button>
             <h3 id="studentSurveyTitle"
                 style="color: #e83e8c; margin-bottom: 15px; font-size: 1.5em; border-bottom: 1px solid rgba(232, 62, 140, 0.2); padding-bottom: 10px;">
                 📝 Bảng Khảo Sát</h3>
@@ -1387,7 +1389,7 @@
             <p style="font-size: 0.85em; color: #666; font-style: italic; margin-top: -10px; margin-bottom: 15px;">* Thư
                 có hạn sẽ tự động bị xóa sau 3 ngày nếu không nhận. Thư không có hạn được giữ nguyên.</p>
             <div id="studentInboxBody"
-                style="max-height: 60vh; overflow-y: auto; padding-right: 10px; margin-bottom: 10px;">
+                style="display:grid;grid-template-columns:minmax(0,1fr);gap:20px;align-content:start;max-height:60vh;overflow-y:auto;padding-right:10px;margin-bottom:10px;">
             </div>
         </div>
     </div>
@@ -1561,7 +1563,8 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
     <!-- 2. Khởi tạo Firebase -->
-    <script src="js/firebase-config.js?v=20261018.firebase-migration1"></script>
+    <script src="js/firebase-config.js?v=20261025.studyread1"></script>
+<script src="js/student-study-data.js?v=20261025.studyread1"></script>
     <script src="js/asset-history.js?v=20261017.production.split1"></script>
     <script src="js/cloudinary-storage.js?v=20261017.production.split1"></script>
 
@@ -1571,7 +1574,8 @@
         });
     </script>
 
-    <script src="js/cloudflare-r2-storage.js?v=20261017.production.split1"></script>
+    <script src="js/cloudflare-r2-storage.js?v=20261025.storageconfig1"></script>
+    <script src="js/private-file-access.js?v=20261028.plan2.files1"></script>
 
     <!-- 3. Thư viện đọc file DOCX -->
     <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
@@ -1582,8 +1586,8 @@
     <!-- 4. Mã nền tảng -->
     <script>
         // Phiên bản thực sự của bộ HTML/JS đang chạy.
-        // common.js?v=20261017.production.split1 cũ đọc appVersion từ localStorage, nên đồng bộ trước khi nạp common.js?v=20261017.production.split1.
-        window.APP_VERSION = '4.3.2';
+        // common.js?v=20261024.session3 cũ đọc appVersion từ localStorage, nên đồng bộ trước khi nạp common.js?v=20261024.session3
+        window.APP_VERSION = '4.4.0';
         // Remove saved progress for the retired garden prototype on this origin.
         try {
             localStorage.setItem('appVersion', window.APP_VERSION);
@@ -1592,15 +1596,16 @@
     
     <script src="js/random-exam-engine.js?v=20261017.production.split1"></script>
 <script src="js/campus-pdf.js?v=20261017.production.split1"></script>
-<script src="js/common.js?v=20261019.recovery1"></script>
+<script src="js/common.js?v=20261028.plan2.files1"></script>
 <script src="js/startup-data-coordinator.js?v=20261017.production.split1"></script>
-<script src="js/economy-client.js?v=20261019.loading1"></script>
-<script src="js/that-tich-wallet.js?v=20261018.cash-session1"></script>
+<script src="js/session-devices.js?v=20261025.transfer1"></script>
+<script src="js/economy-client.js?v=20261028.teacher-seed1"></script>
+<script src="js/that-tich-wallet.js?v=20261024.pendingdialog1"></script>
     <script src="js/history-retention.js?v=20261017.production.split1"></script>
     <script src="js/update-manager.js?v=20261017.production.split1"></script>
-    <script src="js/web-animations.js?v=20261017.production.split1"></script>
+    <script src="js/web-animations.js?v=20261019.motion1"></script>
     <!-- Tối ưu hiệu năng: mặc định tắt; dùng trạng thái đã lưu trong Cài đặt. Phát hiện mobile/thiết bị yếu chỉ áp dụng sau khi tính năng đã được bật. -->
-    <script src="js/web-performance-optimizer.js?v=20261017.production.split1"></script>
+    <script src="js/web-performance-optimizer.js?v=20261021.welcome1"></script>
     <script src="js/transaction-history.js?v=20261017.production.split1"></script>
 
     <!-- 4. EffectQualityManager là core; các module tính năng khác do StudentFeatureLoader lazy-load -->
@@ -1615,24 +1620,28 @@
     <script src="js/mc-workspace.js?v=20261017.production.split1"></script>
 <script src="js/page-work-coordinator.js?v=20261017.production.split1"></script>
 <script src="js/student-asset-history.js?v=20261017.production.split1"></script>
-<script src="js/study-reliability.js?v=20261017.production.split1"></script>
+<script src="js/study-reliability.js?v=20261025.studyread1"></script>
 <script src="js/pending-mechanism-reconciliation.js?v=20261017.production.split1"></script>
 <script src="js/cash-ledger.js?v=20261019.loading1"></script>
 <script src="js/inbox-ledger.js?v=20261017.production.split1"></script>
 <script src="js/student-view-performance.js?v=20261017.production.split1"></script>
-<script src="js/oct20-gift.js?v=20261019.oct20.1"></script>
-<script src="js/student.js?v=20261019.oct20.1"></script>
+<script src="js/oct20-gift.js?v=20261024.mail1"></script>
+<script src="js/christmas-welcome.js?v=20261022.welcome-restored1"></script>
+<script src="js/year-review.js?v=20261022.review6"></script>
+<script src="js/assignment-extensions.js?v=20261028.extension-note4"></script>
+<script src="js/student.js?v=20261029.plan4.2"></script>
 
 
 <link rel="stylesheet" href="css/collection-rewards.css?v=20261003.cleanup1">
-<script src="js/collection-reward-catalog.js?v=20261017.production.split1"></script>
+<script src="js/collection-reward-catalog.js?v=20261029.plan4.2"></script>
 <script src="js/collection-rewards.js?v=20261017.production.split1"></script>
 <script src="js/list-media-performance.js?v=20261017.production.split1"></script>
 <link rel="stylesheet" href="css/campus-design.css?v=20261007.phone1">
 <script src="js/campus-design.js?v=20261017.production.split1"></script>
 <link rel="stylesheet" href="css/mobile.css?v=20261007.phone6">
-<script src="js/mobile-layout.js?v=20261017.production.split1"></script>
-<script src="js/release-history.js?v=20261017.production.split1"></script>
+<script src="js/mobile-layout.js?v=20261024.viewnav1"></script>
+<script src="js/release-history.js?v=20261027.extension1"></script>
+<script defer src="js/xmas-overlay.js?v=20261023.garland1"></script>
 </body>
 
 </html>
