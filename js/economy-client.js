@@ -24,6 +24,8 @@
         return until;
     }
     function explainError(error) {
+        const sessionMessages={VIDEO_PLAYBACK_BUSY:'Một tab khác đang tính thời gian video. Dừng video ở tab đó và đợi 15 giây trước khi xem tiếp.',VIDEO_WATCH_REQUIRED:'Thời lượng xem trên máy chủ chưa đủ để nộp bài.',SESSION_OPERATION_CANCELLED:'Yêu cầu này đã được đối soát và hủy. Bạn có thể bắt đầu thao tác mới.',SESSION_PENDING_OPERATIONS:'Còn giao dịch đang chờ. Mở Thiết bị đang đăng nhập để đối soát.',SESSION_TRANSITION_BUSY:'Đang chuyển quyền thiết bị. Hãy đợi xác nhận từ máy chủ.'};
+        if(sessionMessages[error?.message])return sessionMessages[error.message];
         if (error?.message === 'ECONOMY_UNCONFIRMED_RETRY_SAME_OPERATION') {
             const seconds = Math.max(0, Math.ceil(((error.retryAt || 0) - Date.now()) / 1000));
             const reasons={
@@ -52,7 +54,7 @@
             ACCOUNT_DELETION_PENDING: 'Hồ sơ tài khoản đang đánh dấu chờ xóa (deletionPending).'
         };
         return (reasons[error.reason] || 'Máy chủ từ chối hồ sơ tài khoản đang đăng nhập.') +
-            '\nKiểm tra hồ sơ users trong Firebase chính; nếu trạng thái là chuỗi "false", hãy sửa thành giá trị boolean false. Không cần mở quyền ghi trong Rules.';
+            '\nKiểm tra hồ sơ users trong Firebase chính (quan-li-bai-tap). Không cần mở quyền ghi trong Rules.';
     }
     function reportError(scope,error) {
         if (error?.code === 'READ_ONLY_SESSION' || error?.message === 'READ_ONLY_SESSION') return false;
@@ -110,6 +112,9 @@
     async function execute(action, args = {}, options = {}) {
         const task = () => executeCore(action, args, options);
         return window.ServerActivity ? window.ServerActivity.economy(action, task, options) : task();
+    }
+    async function acknowledgeOperation(id) {
+        if(window.StudentAccountAccess?.protocol?.()>=3)await window.StudentAccountAccess.call('session_ack_operation',{operationId:id});
     }
     async function executeCore(action, args = {}, {slot = action} = {}) {
         assertMutationSession();
@@ -178,6 +183,7 @@
                 }
                 if (!response.ok || !data.ok) {
                     if (data.settled === true) {
+                        await acknowledgeOperation(saved.body.operationId);
                         localStorage.setItem(lastKey,JSON.stringify({operationId:saved.body.operationId,intent,error:data.error}));
                         if (localStorage.getItem(storageKey) === JSON.stringify(saved)) localStorage.removeItem(storageKey);
                     }
@@ -189,6 +195,7 @@
                     if (data.error === 'ACCOUNT_NOT_ALLOWED') error.reason = data.reason || await accountErrorReason(user);
                     throw error;
                 }
+                await acknowledgeOperation(saved.body.operationId);
                 localStorage.removeItem(retryKey(user.uid));
                 reported.clear();
                 localStorage.setItem(lastKey,JSON.stringify({operationId:saved.body.operationId,intent,result:data.result}));
@@ -226,4 +233,4 @@
 })();
 
 // Written only after this module has executed successfully.
-(window.SessionPolicyModules ||= {}).economy = '20261018.session4';
+(window.SessionPolicyModules ||= {}).economy = '20261024.session3';

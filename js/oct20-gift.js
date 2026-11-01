@@ -34,7 +34,7 @@
     function missingLetters(messages) {
         watch();
         const seen=new Set(messages.filter(m=>m?.giftType==='oct20_bundle'&&m.ownerUid===uid).map(m=>String(m.eventYear)));
-        return Object.keys(rows).filter(year=>yearOK(year)&&!seen.has(year)).sort().reverse().map(renderLetter).join('');
+        return Object.keys(rows).filter(year=>yearOK(year)&&rows[year]?.status!=='claimed'&&!seen.has(year)).sort().reverse().map(renderLetter).join('');
     }
     async function claim(year) {
         watch();

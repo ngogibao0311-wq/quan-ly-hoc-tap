@@ -58,8 +58,8 @@
     let storeCardCssPinned = false;
 
     const CSS = Object.freeze({
-        storeBase: 'css/store-items.css?v=20261003.fonts1',
-        effectsBase: 'css/effects-pets.css?v=20260917.frame-runtime-barrier-v1',
+        storeBase: 'css/store-items.css?v=20261029.plan3.fonts1',
+        effectsBase: 'css/effects-pets.css?v=20261019.motion1',
 
         royalBall: 'css/royal-ball.css?v=3.8',
         dailyLogin: 'css/daily-login.css?v=3.8',
@@ -93,20 +93,20 @@
         nationalDay: 'css/quoc-khanh-pet.css?v=20261003.aclp3',
         nyx: 'css/nyx-than-thoai.css?v=20260927.realms10',
         aether: 'css/aether-than-thoai.css?v=20260927.realms10',
-        tamon: 'css/tamon-b-side.css?v=20261003.aclp3',
+        tamon: 'css/tamon-b-side.css?v=20261029.plan3.fonts1',
         linkClickCheng: 'css/link-click-cheng-xiaoshi.css?v=20261003.aclp3'
     });
 
     const SCRIPT = Object.freeze({
-        valentine:'js/valentine.js?v=20261017.production.split1',
+        valentine:'js/valentine.js?v=20261029.plan3.fonts1',
         eternalWinter:'js/eternal-winter.js?v=20261017.production.split1',
         tinhMong:'js/tinh-mong.js?v=20261017.production.split1',
-        themeItems: 'js/theme-items.js?v=20261017.production.split1',
-        effectItems: 'js/effect-items.js?v=20261017.production.split1',
-        petItems: 'js/pet-items.js?v=20261017.production.split1',
+        themeItems: 'js/theme-items.js?v=20261029.plan4.2',
+        effectItems: 'js/effect-items.js?v=20261029.plan4.2',
+        petItems: 'js/pet-items.js?v=20261029.plan4.2',
         petInteractions: 'js/pet-interactions.js?v=20261017.production.split1',
         musicManager: 'js/music-manager.js?v=20261017.production.split1',
-        storeManager: 'js/store-manager.js?v=20261017.production.split1',
+        storeManager: 'js/store-manager.js?v=20261029.plan4.2',
 
         regularArt: 'js/regular-store-art.js?v=20261017.production.split1',
         kimLien: 'js/premium-kim-lien.js?v=20261017.production.split1',
@@ -118,11 +118,11 @@
         audrey: 'js/audrey-hall.js?v=20261017.production.split1',
         hacMongRegular: 'js/hac-mong-regular.js?v=20261017.production.split1',
         distinctScenes: 'js/luxury-distinct-scenes.js?v=20261017.production.split1',
-        luxuryStore: 'js/luxury-store.js?v=20261017.production.session1',
+        luxuryStore: 'js/luxury-store.js?v=20261029.plan4.2',
         collections: 'js/store-collections.js?v=20261018.economy5031',
 
         royalBall: 'js/royal-ball.js?v=20261017.production.split1',
-        leaderboard: 'js/leaderboard.js?v=20261017.production.split1',
+        leaderboard: 'js/leaderboard.js?v=20261025.studyread1',
         painting: 'js/painting.js?v=20261017.production.split1',
         history: 'js/lich-su-hao-hung.js?v=20261017.production.split1',
         bellum: 'js/bellum-event.js?v=20261017.production.split1',
@@ -174,7 +174,7 @@
     const ALL_SPECIAL_STORE_CSS = Object.freeze([
         CSS.autumn,
         CSS.hacmong,
-        'css/valentine.css?v=20261015.regular-fix1',
+        'css/valentine.css?v=20261029.plan3.fonts1',
         CSS.thatTich,
         CSS.huyenMinh,
         CSS.chronos,
@@ -922,6 +922,7 @@ html[data-app-role="student"] body .dashboard > .content > :is(
          * EffectQualityManager chỉ quyết định mật độ/chi phí hiệu ứng sau khi runtime đã nạp.
          */
         async 'theme-runtime'() {
+            await loadScript('js/plan4-items.js?v='+"20261029.plan4.2");
             await loadScript(SCRIPT.thatTich);
             await loadScript(SCRIPT.huyenMinh);
             await loadScript(SCRIPT.chronos);
@@ -942,6 +943,7 @@ html[data-app-role="student"] body .dashboard > .content > :is(
         },
 
         async 'effect-runtime'() {
+            await loadScript('js/plan4-items.js?v=20261029.plan4.2');
             await loadScript(SCRIPT.thatTich);
             await loadScript(SCRIPT.huyenMinh);
             await loadScript(SCRIPT.chronos);
@@ -965,6 +967,7 @@ html[data-app-role="student"] body .dashboard > .content > :is(
         },
 
         async 'pet-runtime'() {
+            await loadScript('js/plan4-items.js?v=20261029.plan4.2');
             await loadScript(SCRIPT.thatTich);
             await loadScript(SCRIPT.huyenMinh);
             await loadScript(SCRIPT.chronos);
@@ -989,6 +992,7 @@ html[data-app-role="student"] body .dashboard > .content > :is(
         },
 
         async 'frame-background-runtime'() {
+            await loadScript('js/plan4-items.js?v=20261029.plan4.2');
             await loadScript(SCRIPT.thatTich);
             await loadScript(SCRIPT.huyenMinh);
             await loadScript(SCRIPT.chronos);
@@ -1176,6 +1180,15 @@ html[data-app-role="student"] body .dashboard > .content > :is(
     }
 
     const LUXURY_ITEM_IDS = new Set([
+        'pet_plan4_alger_premium',
+        'pet_plan4_emlyn_premium',
+        'pet_plan4_liu_xiao_premium',
+        'pet_plan4_qiao_ling_premium',
+        'pet_plan4_hemera_premium',
+        'pet_plan4_greed_premium',
+        'pet_plan4_noctyriel_premium',
+        'pet_plan4_noel_nam_premium',
+        'pet_plan4_noel_nu_premium',
         'pet_nguu_lang_premium_1',
         'pet_chuc_nu_premium_1',
         'pet_huyen_minh_premium_1',
@@ -1184,6 +1197,7 @@ html[data-app-role="student"] body .dashboard > .content > :is(
         'pet_audrey_hall_premium_2',
         'pet_valentine_cupid_1',
         'pet_valentine_juliet_2',
+        'pet_valentine_romeo_2',
         'pet_eternal_winter_4',
         'pet_luxury_mua_xuan',
         'pet_luxury_mua_ha',
@@ -1530,4 +1544,4 @@ html[data-app-role="student"] body .dashboard > .content > :is(
 })();
 
 // Written only after this module has executed successfully.
-(window.SessionPolicyModules ||= {}).loader = '20261018.session4';
+(window.SessionPolicyModules ||= {}).loader = '20261024.session3';

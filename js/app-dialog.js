@@ -72,6 +72,13 @@
             const el = document.createElement('button');
             el.type = 'button'; el.textContent = text;
             if (secondary) el.className = 'secondary';
+            // Read-only sessions may dismiss a notice or cancel a decision,
+            // but must never accept a confirmation or submit a prompt.
+            if (secondary || task.kind === 'alert') el.dataset.sessionViewDismiss = '';
+            // This exception is for signing out only, never for business confirmations.
+            if (!secondary && task.kind === 'confirm' && options.sessionAction === 'logout') {
+                window.StudentAccountAccess?.registerSessionControl?.(el);
+            }
             el.onclick = () => finish(typeof value === 'function' ? value() : value);
             actions.append(el);
             return el;
@@ -92,7 +99,14 @@
         const accept = button(options.acceptText || (task.kind === 'alert' ? 'Đã hiểu' : 'Xác nhận'), () => input ? input.value : true);
         dialog.addEventListener('cancel', event => { event.preventDefault(); finish(cancelled); });
         dialog.addEventListener('close', () => finish(cancelled));
-        document.body.append(host);
+        // Popovers outside a modal's subtree remain inert even in the top layer.
+        // Put transient notices inside the active modal so dismissal can receive
+        // mouse/touch/keyboard events without unlocking the underlying action.
+        let anchor = previous;
+        while (anchor?.shadowRoot?.activeElement) anchor = anchor.shadowRoot.activeElement;
+        let modal = anchor?.closest?.('dialog:modal');
+        if (!modal) modal = Array.from(document.querySelectorAll('dialog:modal')).at(-1);
+        (options.transient && modal ? modal : document.body).append(host);
         task.finish = finish;
         if (options.transient) {
             dialog.setAttribute('role', 'status');
@@ -129,6 +143,9 @@
         notify: (message, options) => { show('alert', message, options); },
         alert: (message, options) => show('alert', message, options),
         confirm: (message, options) => show('confirm', message, options),
+        confirmLogout: () => show('confirm', 'Bạn có chắc chắn muốn đăng xuất?', {
+            title: 'Đăng xuất', acceptText: 'Đăng xuất', sessionAction: 'logout'
+        }),
         prompt: (message, defaultValue = '', options = {}) => show('prompt', message, {...options, defaultValue}),
         toast: (message, type = 'info') => show('alert', message, {type, transient:true, duration:4500})
     };

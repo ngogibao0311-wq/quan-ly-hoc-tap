@@ -1022,6 +1022,8 @@ window.clearStudentStoreEquipmentRuntime = function () {
     window.EternalWinterPremiumRuntime?.clear();
     window.ValentinePremiumRuntime?.clear();
     window.JulietRuntime?.clearPet();
+        window.Plan4Runtime?.clearPet();
+        window.RomeoRuntime?.clearPet();
     window.ValentineRegularRuntime?.clearPet();
     // Một manager lỗi không được ngăn các manager còn lại dọn hiệu ứng.
     const safely = action => {
@@ -3633,6 +3635,8 @@ window.buildAttachmentPreviewHTML = function (
         );
     }
 
+    if(window.PrivateFileAccess?.isPrivate(audioURL))return window.buildFilePreviewHTML(fileData,label,options);
+
     const safeURL =
         studentAttachmentSafeHTML(audioURL);
 
@@ -5454,7 +5458,7 @@ window.onload = async function () {
     );
 
     // 2. GIỮ NGUYÊN ASSIGNMENTS (Bài tập chung toàn trường chỉ do GV sửa nên tần suất rất ít, không gây bão)
-    listenFirebase(db.ref('assignments'), 'value', async (snapshot) => {
+    listenFirebase(window.StudentStudyData.assignmentsRef(), 'value', async (snapshot) => {
         DBReadSingleFlight.invalidate('assignments');
         const val = snapshot.val();
         if (!isDeepEqual(val, cacheAssignmentsSt)) {
@@ -5505,9 +5509,7 @@ window.onload = async function () {
 
     // 3. CHỈ LẮNG NGHE BÀI NỘP/BẢN NHÁP CỦA CHÍNH HỌC SINH NÀY
     listenFirebase(
-        db.ref('submissions')
-            .orderByChild('studentUsername')
-            .equalTo(currentUser.username),
+        window.StudentStudyData.submissionsRef(),
         'value',
         async (snapshot) => {
             const val = snapshot.val();
@@ -5585,7 +5587,7 @@ window.onload = async function () {
     );
 
     listenFirebase(
-        db.ref('materials'),
+        window.StudentStudyData.materialsRef(),
         'value',
         async (snapshot) => {
             const val = snapshot.val();
@@ -5612,7 +5614,7 @@ window.onload = async function () {
     });
 
     listenFirebase(
-        db.ref('schedule'),
+        window.StudentStudyData.ref('schedule'),
         'value',
         async snapshot => {
 
@@ -5697,24 +5699,8 @@ window.onload = async function () {
         if (!username) return [];
         const authUser = firebase.auth().currentUser;
         if (!authUser) throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
-        const token = fresh ? await authUser.getIdToken() : null;
-        // SDK once/get may reuse an active listener's local snapshot. Before
-        // saving, use authenticated scoped REST reads and never fall back to cache.
-        const rows = await Promise.all(
-            ['studentUsername', 'username', 'studentUser', 'studentId'].map(async field => {
-                if (!fresh) {
-                    const snapshot = await db.ref('submissions').orderByChild(field).equalTo(username).once('value');
-                    return snapshot.val();
-                }
-                const url = new URL(db.ref('submissions').toString().replace(/\/$/, '') + '.json');
-                url.searchParams.set('orderBy', JSON.stringify(field));
-                url.searchParams.set('equalTo', JSON.stringify(username));
-                url.searchParams.set('auth', token);
-                const response = await fetch(url.toString(), { cache: 'no-store' });
-                if (!response.ok) throw new Error('Không đọc được bài nộp mới nhất. Vui lòng thử lại trước khi nộp.');
-                return response.json();
-            })
-        );
+        // Always read server data; legacy owner aliases are resolved there.
+        const rows = [(await window.StudentStudyData.read('submissions')).val()];
         if (String(currentUser?.username || '').trim() !== username || firebase.auth().currentUser?.uid !== authUser.uid) {
             throw new Error('Tài khoản đã thay đổi. Vui lòng tải lại trang trước khi tiếp tục.');
         }
@@ -6173,8 +6159,13 @@ window.onload = async function () {
     }, 60000);
 
     // LẮNG NGHE THÔNG BÁO TOÀN TRƯỜNG
-    listenFirebase(db.ref('global_notifications'), 'value', (snapshot) => {
+    let xmasNotificationSequence = 0;
+    listenFirebase(window.StudentStudyData.ref('global_notifications'), 'value', async (snapshot) => {
         if (startupLoader) startupLoader.markReady('student-notifications');
+        // Ready is marked BEFORE waiting, so startup cannot deadlock. Only process the newest snapshot.
+        const welcomeSequence = ++xmasNotificationSequence;
+        await window.ChristmasWelcome?.ready;
+        if (welcomeSequence !== xmasNotificationSequence) return;
         const notifications = [];
         snapshot.forEach(child => {
             if (child.val()) notifications.push({ ...child.val(), _fbKey: child.key });
@@ -6234,6 +6225,7 @@ window.onload = async function () {
 
                     // Hàm tiện ích: Mở khóa Checkbox
                     const unlockCheckbox = () => {
+                        if (!window.StudentAccountAccess?.canWrite()) return;
                         checkbox.disabled = false;
                         labelCheckbox.style.cursor = 'pointer';
                         labelCheckbox.style.color = '#2c3e50';
@@ -6259,11 +6251,13 @@ window.onload = async function () {
 
                     // --- LOGIC 2: TICK VÀO Ô ĐỂ ĐẾM NGƯỢC 5 GIÂY ---
                     checkbox.onchange = function () {
+                        if (!window.StudentAccountAccess?.requireWrite()) { this.checked = false; return; }
                         if (this.checked) {
                             let timeLeft = 5;
                             btn.innerText = `⏳ Vui lòng đợi (${timeLeft}s)...`;
 
                             countdownTimer = setInterval(() => {
+                                if (!window.StudentAccountAccess?.canWrite()) { clearInterval(countdownTimer); return; }
                                 timeLeft--;
                                 if (timeLeft > 0) {
                                     btn.innerText = `⏳ Vui lòng đợi (${timeLeft}s)...`;
@@ -6290,12 +6284,13 @@ window.onload = async function () {
 
                     // --- LOGIC 3: GHI NHẬN KHI BẤM NÚT ---
                     btn.onclick = async function () {
-                        if (btn.disabled) return;
+                        if (!window.StudentAccountAccess?.requireWrite() || btn.disabled) return;
 
                         btn.disabled = true;
                         btn.innerText = "⏳ Đang ghi nhận...";
                         try {
                             await db.ref(`global_notifications/${unreadNoti._fbKey}/receivers/${currentUser.username}`).set(true);
+                            window.StudentStudyData.refresh();
 
                             // Đã xác nhận thành công mới cho phép đóng
                             window.currentMandatoryNotification = null;
@@ -6319,8 +6314,13 @@ window.onload = async function () {
     });
 
     // LẮNG NGHE KHẢO SÁT BẮT BUỘC (ĐÃ FIX LOGIC)
-    listenFirebase(db.ref('global_surveys'), 'value', (snapshot) => {
+    let xmasSurveySequence = 0;
+    listenFirebase(window.StudentStudyData.ref('global_surveys'), 'value', async (snapshot) => {
         if (startupLoader) startupLoader.markReady('student-surveys');
+        // Ready is marked BEFORE waiting, so startup cannot deadlock. Only process the newest snapshot.
+        const welcomeSequence = ++xmasSurveySequence;
+        await window.ChristmasWelcome?.ready;
+        if (welcomeSequence !== xmasSurveySequence) return;
         const surveys = [];
         snapshot.forEach(child => {
             if (child.val()) surveys.push({ ...child.val(), _fbKey: child.key });
@@ -7081,6 +7081,7 @@ window.onload = async function () {
                     await waitInboxGiftFx(150);
                 }
 
+                await window.ChristmasWelcome?.ready;
                 while (state.queue.length) {
                     const nextMessage = state.queue.shift();
                     await playInboxGiftArrivalAnimation(nextMessage);
@@ -7285,6 +7286,7 @@ window.onload = async function () {
 
     // === QUÉT NGẦM VÀ XÓA HỘP THƯ HẾT HẠN (MỖI 5 PHÚT) ===
     setInterval(async () => {
+        if (!window.StudentAccountAccess?.canWrite()) return;
         try {
             const snapshot = await db.ref('inbox_messages/' + currentUser.username).once('value');
             if (!snapshot.exists()) return;
@@ -7522,6 +7524,7 @@ window.onload = async function () {
         }).catch(() => { });
 
         startupLoader.hide();
+        await window.ChristmasWelcome?.start();
         window.__studentStartupCompleted = true;
 
         /*
@@ -7530,6 +7533,7 @@ window.onload = async function () {
          */
         bootstrapStudentDeferredMusic().catch(() => { });
     } else {
+        await window.ChristmasWelcome?.start();
         window.__studentStartupCompleted = true;
     }
 
@@ -9464,6 +9468,11 @@ async function loadAssignmentsCore() {
             existingCard.style.order = assignmentOrder;
             return; // Trả về ngay, bảo vệ con trỏ chuột và text đang gõ của học sinh
         }
+        // A changed personal deadline must not replace the editor or a selected file.
+        if (existingCard && window.AssignmentExtensions?.preserveCard(existingCard, assign, mySub, cardHash)) {
+            existingCard.style.order = assignmentOrder;
+            return;
+        }
 
         // Nếu trạng thái thay đổi -> Xóa Timer cũ chuẩn bị vẽ lại DOM mới
         if (window.assignTimersObj[assign.id]) {
@@ -10640,7 +10649,18 @@ ${window.getSubmissionEssayDisplay(mySub, assign).trim() ? `<div class="ql-edito
                     }
                     const timer = setInterval(() => {
                         const c = typeof getStudentSyncedNow === 'function' ? getStudentSyncedNow() : new Date();
-                        const timeLeft = endTime - c;
+                        const effectiveEnd = window.AssignmentExtensions?.currentDeadline(assign.id, endTime.getTime()) ?? endTime.getTime();
+                        const timeLeft = effectiveEnd - c;
+                        if (timeLeft > 15000) {
+                            const button = document.getElementById(`btn-submit-${assign.id}`);
+                            if (button?.dataset.extensionPreviousLabel) {
+                                button.innerText = button.dataset.extensionPreviousLabel;
+                                delete button.dataset.extensionPreviousLabel;
+                                button.disabled = !window.StudentAccountAccess.canWrite();
+                                const file = document.getElementById(`studentFile-${assign.id}`);
+                                if (file) file.disabled = button.disabled;
+                            }
+                        }
 
                         // TUYỆT ĐỐI BỎ QUA KHÓA 15 GIÂY NẾU ĐANG LÀM LẠI
                         const currentlyRedoing = mySub ? !!mySub.isRedoing : false;
@@ -10648,6 +10668,7 @@ ${window.getSubmissionEssayDisplay(mySub, assign).trim() ? `<div class="ql-edito
                         if (currentlyRedoing === false && timeLeft <= 15000 && timeLeft > 0) {
                             const btnSubmit = document.getElementById(`btn-submit-${assign.id}`);
                             if (btnSubmit && !btnSubmit.disabled) {
+                                btnSubmit.dataset.extensionPreviousLabel = btnSubmit.innerText;
                                 btnSubmit.disabled = true;
                                 btnSubmit.style.background = '#95a5a6';
                                 btnSubmit.style.cursor = 'not-allowed';
@@ -10662,7 +10683,7 @@ ${window.getSubmissionEssayDisplay(mySub, assign).trim() ? `<div class="ql-edito
                             }
                         }
 
-                        if (c > endTime) {
+                        if (c > effectiveEnd) {
                             clearInterval(window.assignTimersObj[assign.id]);
                             delete window.assignTimersObj[assign.id];
                             if (!isRedoing) loadAssignments();
@@ -10683,6 +10704,7 @@ ${window.getSubmissionEssayDisplay(mySub, assign).trim() ? `<div class="ql-edito
         grades
     );
 
+    window.AssignmentExtensions?.mountStudent(assignments, submissions);
     // Khởi tạo editor: lazy khi bật tối ưu, giữ nguyên hành vi cũ khi tắt.
     initStudentQuillEditors(document);
 
@@ -12244,6 +12266,7 @@ async function saveStudentSubmissionAtomic(assignment, previous, payload) {
     window.StudyReliability?.submitted(id, 'Đang gửi; chưa được xác nhận');
     try {
         const key = await saveStudentSubmissionAtomicCore(assignment, previous, payload);
+        window.StudentStudyData.refresh();
         window.StudyReliability?.submitted(id, 'Đã tiếp nhận · mã ' + key);
         return key;
     } catch (error) {
@@ -12252,6 +12275,7 @@ async function saveStudentSubmissionAtomic(assignment, previous, payload) {
     }
 }
 async function saveStudentSubmissionAtomicCore(assignment, previous, payload) {
+    if (window.ECONOMY_SERVER_ENABLED !== true) throw Error('Dịch vụ nộp bài chưa sẵn sàng. Bài đang làm được giữ nguyên; hãy báo giáo viên, không nộp lại bằng trang cũ.');
     const authUser = firebase.auth().currentUser;
 
     if (
@@ -12268,7 +12292,7 @@ async function saveStudentSubmissionAtomicCore(assignment, previous, payload) {
             ''
         );
 
-    const liveAssignment = (await db.ref('assignments/' + assignmentKey).once('value')).val();
+    const liveAssignment = (await window.StudentStudyData.read('assignments/' + assignmentKey)).val();
     if (!liveAssignment || liveAssignment.isLocked === true) throw new Error('ASSIGNMENT_TEACHER_LOCKED');
 
     const stableKey =
@@ -12317,12 +12341,7 @@ async function saveStudentSubmissionAtomicCore(assignment, previous, payload) {
      * 4) nếu trạng thái caller/Firebase lệch nhau => dừng bằng conflict,
      *    không ghi mù.
      */
-    const liveSnapshot =
-        await db
-            .ref('submissions')
-            .orderByChild('studentUsername')
-            .equalTo(currentUser.username)
-            .once('value');
+    const liveSnapshot = await window.StudentStudyData.read('submissions');
 
     const liveRows =
         liveSnapshot.val() || {};
@@ -12332,7 +12351,7 @@ async function saveStudentSubmissionAtomicCore(assignment, previous, payload) {
             .filter(
                 ([, value]) =>
                     String(
-                        value?.assignmentId ||
+                        getStudentCompatSubmissionAssignmentId(value) ||
                         ''
                     ) ===
                     String(
@@ -12423,9 +12442,11 @@ async function saveStudentSubmissionAtomicCore(assignment, previous, payload) {
                 String(
                     livePrevious.submitTime ||
                     ''
-                ).trim() !== '';
+                ).trim() !== '' ||
+                (['number','string'].includes(typeof livePrevious.grade) &&
+                    String(livePrevious.grade).trim() !== '' && Number.isFinite(Number(livePrevious.grade)));
 
-            if (!looksCommitted) {
+            if (!looksCommitted || ['draft','active'].includes(livePrevious.status)) {
                 throw conflict(
                     'Bản ghi bài nộp hiện có chưa hoàn chỉnh. Hệ thống dừng để tránh ghi đè dữ liệu bất thường.'
                 );
@@ -14015,12 +14036,7 @@ async function syncUserData(
 }
 
 function escapeStudentProfileRequestHtml(value) {
-    return String(value ?? '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+    return escapePracticeHTML(value);
 }
 
 async function getStudentOwnProfileRequests() {
@@ -18553,9 +18569,7 @@ async function hasStudentActiveRegradeForStore() {
         return false;
     }
 
-    const snapshot = await db
-        .ref('submissions')
-        .once('value');
+    const snapshot = await window.StudentStudyData.read('submissions');
 
     let blocked = false;
 
@@ -19672,7 +19686,7 @@ async function completeStudentServerStoreAction(action, args, username) {
                 ? 'Giá vật phẩm vừa thay đổi. Chưa trừ Coin; hãy đóng bảng mua và mở lại để xem giá mới.'
                 : error.message === 'STORE_BLOCKED_BY_REGRADE'
                     ? 'Bài của bạn đang được chấm lại. Hãy đợi giáo viên xử lý xong trước khi mua hoặc dùng thử.'
-                    : 'Chưa nhận được xác nhận giao dịch: ' + error.message + '. Hãy thử lại cùng vật phẩm và thẻ giảm giá để đối soát, tránh thanh toán trùng.');
+                    : 'Chưa nhận được xác nhận giao dịch: ' + (window.EconomyClient?.explainError?.(error) || error.message) + '. Hãy thử lại cùng vật phẩm và thẻ giảm giá để đối soát, tránh thanh toán trùng.');
     }
 }
 window.processPayment = async function (
@@ -20385,6 +20399,8 @@ window.suspendExamVisualItems = function () {
     window.EternalWinterPremiumRuntime?.clear();
     window.ValentinePremiumRuntime?.clear();
     window.JulietRuntime?.clearPet();
+        window.Plan4Runtime?.clearPet();
+        window.RomeoRuntime?.clearPet();
     window.ValentineRegularRuntime?.clearPet();
     const effectContainer =
         document.getElementById('global-effect-container');
@@ -20451,6 +20467,8 @@ window.restoreExamVisualItems = function () {
     window.EternalWinterPremiumRuntime?.clear();
     window.ValentinePremiumRuntime?.clear();
     window.JulietRuntime?.clearPet();
+        window.Plan4Runtime?.clearPet();
+        window.RomeoRuntime?.clearPet();
     window.ValentineRegularRuntime?.clearPet();
     const effectContainer =
         document.getElementById('global-effect-container');
@@ -20532,6 +20550,8 @@ window.applyEquippedItems = async function (options = {}) {
     window.EternalWinterPremiumRuntime?.clear();
     window.ValentinePremiumRuntime?.clear();
     window.JulietRuntime?.clearPet();
+        window.Plan4Runtime?.clearPet();
+        window.RomeoRuntime?.clearPet();
     window.ValentineRegularRuntime?.clearPet();
     const effectContainer =
         document.getElementById('global-effect-container');
@@ -20811,6 +20831,7 @@ window.renderStudentSurvey = function (surveyData) {
 
 // Hàm tự động quét xem học sinh đã điền đủ chưa
 window.checkSurveyCompletion = function () {
+    if (!window.StudentAccountAccess?.canWrite()) return;
     if (!window.currentActiveSurvey) return;
 
     let isComplete = true;
@@ -20839,38 +20860,43 @@ window.checkSurveyCompletion = function () {
 };
 
 window.submitSurvey = async function () {
-    if (!window.currentActiveSurvey) return;
-
+    if (!window.StudentAccountAccess?.requireWrite()) return;
+    const survey = window.currentActiveSurvey;
     const btn = document.getElementById('btnSubmitSurvey');
+    if (!survey || !btn || btn.disabled) return;
+    const username = currentUser.username;
+    const responses = {};
+    for (const q of survey.questions || []) {
+        const value = q.type === 'mc'
+            ? document.querySelector(`input[name="ans_${q.id}"]:checked`)?.value
+            : document.getElementById(`ans_${q.id}`)?.value.trim();
+        if (!value) { await AppDialog.alert('Vui lòng trả lời đủ các câu hỏi trước khi gửi.'); return; }
+        responses[q.id] = value;
+    }
     btn.disabled = true;
     btn.innerText = "⏳ Đang gửi dữ liệu cho Giáo viên...";
     btn.style.opacity = '0.7';
-
-    // Thu thập câu trả lời
-    let responses = {};
-    window.currentActiveSurvey.questions.forEach(q => {
-        if (q.type === 'mc') {
-            responses[q.id] = document.querySelector(`input[name="ans_${q.id}"]:checked`).value;
-        } else {
-            responses[q.id] = document.getElementById(`ans_${q.id}`).value.trim();
-        }
-    });
-
-    // Tạo hiệu ứng mất 1 lúc mới đóng (1.5 giây mô phỏng độ trễ truyền tải)
     setTimeout(async () => {
-        // Đẩy lên Firebase
-        await db.ref(`global_surveys/${window.currentActiveSurvey._fbKey}/answers/${currentUser.username}`).set({
-            studentName: currentUser.name,
-            responses: responses,
-            timestamp: new Date().toLocaleString('vi-VN')
-        });
-
-        // Tắt Modal và reset trạng thái nút
-        document.getElementById('studentSurveyModal').classList.remove('active');
-        btn.disabled = false;
-        btn.innerText = "📤 Gửi câu trả lời & Thoát X";
-        btn.style.opacity = '1';
-        window.currentActiveSurvey = null; // Dọn dẹp
+        try {
+            if (!window.StudentAccountAccess?.canWrite() || currentUser.username !== username)
+                throw Error('Phiên đăng nhập không còn quyền gửi.');
+            await db.ref(`global_surveys/${survey._fbKey}/answers/${username}`).set({
+                studentName: currentUser.name, responses,
+                timestamp: new Date().toLocaleString('vi-VN')
+            });
+            if (window.currentActiveSurvey?._fbKey === survey._fbKey) {
+                document.getElementById('studentSurveyModal').classList.remove('active');
+                window.currentActiveSurvey = null;
+            }
+            window.StudentStudyData.refresh();
+        } catch (error) {
+            console.error('[Khảo sát]', error.code || error.message);
+            await AppDialog.alert('Chưa xác nhận được câu trả lời đã lưu. Nội dung của bạn vẫn được giữ; hãy kiểm tra kết nối và thử lại.');
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "📤 Gửi câu trả lời & Thoát X";
+            btn.style.opacity = '1';
+        }
     }, 1500);
 };
 
@@ -21126,8 +21152,7 @@ async function renderStudentRoadmapCore() {
     const [assignments, submissions, offsetSnap] = await Promise.all([
         Array.isArray(window.cachedAssignments) ? window.cachedAssignments : getDB('assignments'),
         Array.isArray(window.cachedSubmissions) ? window.cachedSubmissions
-            : db.ref('submissions').orderByChild('studentUsername').equalTo(roadmapUsername)
-                .once('value').then(mapFirebaseCollectionSnapshot),
+            : window.StudentStudyData.read('submissions').then(mapFirebaseCollectionSnapshot),
         db.ref('student_money_offset/' + currentUser.username).once('value')
     ]);
     if (currentUser.username !== roadmapUsername || studentRoadmapRenderQueued) return;
@@ -23066,6 +23091,9 @@ window.renderStudentInbox = function () {
         ${oct20Busy ? 'Đang kiểm tra quà…' : oct20Cached ? '💝 Đã nhận · Xem lại quà' : '💝 Nhận quà 20/10'}
     </button>
 `;
+                if (oct20Cached && !oct20Busy) {
+                    btnHTML += `<button type="button" onclick="deleteMessage(decodeURIComponent('${encodedMessageKey}'))" style="width:100%;min-height:44px;padding:10px;border-radius:8px;border:1px solid #cbd5e1;background:#fff;color:#344259;font-weight:700;cursor:pointer;">Xóa thư đã nhận</button>`;
+                }
             } else {
                 const claimButtonText =
                     msg.giftType === 'grade_reward'
@@ -23167,11 +23195,13 @@ window.showOct20ClaimResult = function (result) {
 };
 
 window.claimOct20Gift = async function (msgData, msgKey) {
+    if (!window.StudentAccountAccess?.requireWrite()) return;
     if (!window.Oct20Gift) return AppDialog.alert('Hãy cập nhật trang để tải đủ bộ nhận quà.');
     return window.Oct20Gift.claim(String(msgData?.eventYear || ''));
 };
 
 window.claimGift = async function (msgKey, clientGiftType, clientGiftValue) {
+    if (!window.StudentAccountAccess?.requireWrite()) return;
     let inboxClaimGuard = null;
 
     try {
@@ -24196,6 +24226,7 @@ window.claimGift = async function (msgKey, clientGiftType, clientGiftValue) {
 };
 
 window.deleteMessage = async function (msgKey, confirmRewardDeletion = false) {
+    if (!window.StudentAccountAccess?.requireWrite()) return;
     if (confirmRewardDeletion && !(await AppDialog.confirm(
         'Xóa thư thưởng này? Bạn sẽ không thể nhận phần thưởng chưa nhận từ thư này nữa. Thao tác chỉ xóa thư, không thay đổi Coin, vé, điểm hoặc án phạt đã ghi nhận.'
     ))) return;
@@ -24654,11 +24685,7 @@ window.getLiveStudentExamSubmission =
 
         if (!key) return null;
 
-        const snapshot = await db
-            .ref('submissions')
-            .orderByChild('studentUsername')
-            .equalTo(String(currentUser.username))
-            .once('value');
+        const snapshot = await window.StudentStudyData.read('submissions');
 
         const matches = [];
 
@@ -24666,7 +24693,7 @@ window.getLiveStudentExamSubmission =
             const value = child.val() || {};
 
             if (
-                String(value.assignmentId || '') === key
+                getStudentCompatSubmissionAssignmentId(value) === key
             ) {
                 matches.push({
                     ...value,
@@ -31989,6 +32016,25 @@ function showVideoPageExitPauseNotice() {
     }
 }
 
+function canTrackAssignmentVideo() {
+    return window.StudentAccountAccess?.canWrite() === true;
+}
+
+function stopReadOnlyAssignmentVideo(assignId, player) {
+    stopAssignmentVideoWatchTimer(assignId);
+    // Never carry unconfirmed seconds into a later primary session.
+    watchDurations[assignId] = normalizeVideoProgressSeconds(lastSavedTime[assignId]);
+    delete lastPlayerSamples[assignId];
+    delete pendingResumeTimes[assignId];
+    try { player?.pauseVideo?.(); } catch (_) {}
+    updateVideoWatchDisplays(assignId, watchDurations[assignId]);
+}
+
+window.addEventListener('student-session-mode', () => {
+    if (canTrackAssignmentVideo()) return;
+    Object.keys(ytPlayers).forEach(id => stopReadOnlyAssignmentVideo(id, ytPlayers[id]));
+});
+
 function normalizeVideoProgressSeconds(value) {
     return Math.max(0, Math.floor(Number(value) || 0));
 }
@@ -32035,6 +32081,7 @@ function getVideoProgressStorageKey(assignId) {
 }
 
 function getLocalVideoProgress(assignId) {
+    if (!canTrackAssignmentVideo() || window.StudentAccountAccess?.protocol?.()>=3 || window.ECONOMY_SERVER_ENABLED===true) return 0;
     try {
         return normalizeVideoProgressSeconds(
             localStorage.getItem(
@@ -32047,6 +32094,7 @@ function getLocalVideoProgress(assignId) {
 }
 
 function saveLocalVideoProgress(assignId, seconds) {
+    if (!canTrackAssignmentVideo()) return;
     try {
         const nextSeconds =
             normalizeVideoProgressSeconds(seconds);
@@ -32066,8 +32114,8 @@ function saveLocalVideoProgress(assignId, seconds) {
 }
 
 function saveVideoProgressToFirebase(assignId, seconds) {
-    if (window.StudentAccountAccess && !window.StudentAccountAccess.canWrite()) return Promise.resolve(normalizeVideoProgressSeconds(lastSavedTime[assignId]));
-    if(window.ECONOMY_SERVER_ENABLED===true) {
+    if (!canTrackAssignmentVideo()) return Promise.resolve(normalizeVideoProgressSeconds(lastSavedTime[assignId]));
+    if(window.ECONOMY_SERVER_ENABLED===true || window.StudentAccountAccess?.protocol?.()>=3) {
         return commitVerifiedVideoProgress(assignId,seconds).then(result=>result.snapshot.val()).catch(error=>{
             if(window.EconomyClient?.reportError)window.EconomyClient.reportError('Chưa xác nhận tiến độ xem video:',error);
             else console.error('Chưa xác nhận tiến độ xem video:',error);
@@ -32122,10 +32170,13 @@ function saveVideoProgressToFirebase(assignId, seconds) {
     });
 }
 
+const verifiedVideoPlaybackId=crypto.randomUUID();
 async function commitVerifiedVideoProgress(assignId,seconds) {
-    if (window.StudentAccountAccess && !window.StudentAccountAccess.canWrite()) return {committed:false,snapshot:{val:()=>normalizeVideoProgressSeconds(lastSavedTime[assignId])}};
+    if (!canTrackAssignmentVideo()) return {committed:false,snapshot:{val:()=>normalizeVideoProgressSeconds(lastSavedTime[assignId])}};
+    if(window.StudentAccountAccess?.protocol?.()>=3 && window.ECONOMY_SERVER_ENABLED!==true)throw Error('Chưa kết nối máy chủ xác nhận video.');
     if(window.ECONOMY_SERVER_ENABLED!==true)return db.ref(`video_tracking/${assignId}/${currentUser.username}`).transaction(old=>Math.max(Number(old)||0,Number(seconds)||0));
-    const result=await window.EconomyClient.execute('video_tick',{assignmentId:String(assignId)},{slot:'video-progress:'+assignId});
+    const pending=await window.EconomyClient.resume?.('video-progress:'+assignId);
+    const result=pending?.result || await window.EconomyClient.execute('video_tick',{assignmentId:String(assignId),playbackId:verifiedVideoPlaybackId},{slot:'video-progress:'+assignId});
     const saved=normalizeVideoProgressSeconds(result.seconds);
     lastSavedTime[assignId]=saved;watchDurations[assignId]=saved;
     // Untrusted local progress is only a playback hint, never reward proof.
@@ -32134,6 +32185,7 @@ async function commitVerifiedVideoProgress(assignId,seconds) {
 }
 
 function flushAllVideoProgress() {
+    if (!canTrackAssignmentVideo()) return;
     Object.keys(watchDurations).forEach(assignId => {
         const seconds =
             normalizeVideoProgressSeconds(
@@ -32327,18 +32379,7 @@ function seekToSavedVideoProgress(
 
 // Hàm thay thế getEmbedHTML dành riêng cho việc có theo dõi thời gian
 function escapeVideoSummaryHTML(value) {
-    return String(
-        value ?? ''
-    ).replace(
-        /[&<>"']/g,
-        character => ({
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&#039;'
-        })[character]
-    );
+    return escapePracticeHTML(value);
 }
 
 function getTrackedVideoHTML(
@@ -32630,6 +32671,7 @@ function getTrackedVideoHTML(
 
                 ${summaryHTML}
             </div>
+            <p class="student-session-view-note" role="status">🔒 Phiên chỉ xem: không phát video và không tính thời gian mở bài.</p>
 
             <div
                 style="
@@ -33221,6 +33263,7 @@ window.initYouTubeTrackers = function (
             {
                 events: {
                     onReady: event => {
+                        if (!canTrackAssignmentVideo()) stopReadOnlyAssignmentVideo(assignId, event.target);
                         const resumeEnabled =
                             iframeEl.dataset.resumePlayback !==
                             'false';
@@ -33249,7 +33292,7 @@ window.initYouTubeTrackers = function (
                                     );
 
                                 const localSeconds =
-                                    resumeEnabled
+                                    resumeEnabled && canTrackAssignmentVideo() && window.ECONOMY_SERVER_ENABLED !== true
                                         ? getLocalVideoProgress(
                                             assignId
                                         )
@@ -33257,7 +33300,7 @@ window.initYouTubeTrackers = function (
 
                                 watchDurations[
                                     assignId
-                                ] = Math.max(
+                                ] = !canTrackAssignmentVideo() ? firebaseSeconds : Math.max(
                                     firebaseSeconds,
                                     localSeconds,
                                     normalizeVideoProgressSeconds(
@@ -33270,6 +33313,9 @@ window.initYouTubeTrackers = function (
                                 lastSavedTime[
                                     assignId
                                 ] = firebaseSeconds;
+                                if (!canTrackAssignmentVideo() || window.ECONOMY_SERVER_ENABLED === true) {
+                                    try { localStorage.setItem(getVideoProgressStorageKey(assignId), String(firebaseSeconds)); } catch (_) {}
+                                }
 
                                 updateVideoWatchDisplays(
                                     assignId,
@@ -33526,6 +33572,11 @@ window.initYouTubeTrackers = function (
 window.onPlayerStateChange = function (event, assignId) {
     const player = event.target; // Lấy trực tiếp video đang phát
 
+    if (!canTrackAssignmentVideo()) {
+        stopReadOnlyAssignmentVideo(assignId, player);
+        return;
+    }
+
     if (typeof MusicManager !== 'undefined') {
         MusicManager.handleYouTubeVideoState(
             `assignment-video:${assignId}`,
@@ -33589,6 +33640,10 @@ window.onPlayerStateChange = function (event, assignId) {
         }
 
         watchTimers[assignId] = setInterval(() => {
+            if (!canTrackAssignmentVideo()) {
+                stopReadOnlyAssignmentVideo(assignId, player);
+                return;
+            }
             /*
              * Lớp bảo vệ thứ hai: dù trình duyệt bỏ sót blur/
              * visibilitychange, tuyệt đối không cộng thời gian
@@ -33767,6 +33822,7 @@ window.onPlayerStateChange = function (event, assignId) {
 
                                 // Lưu mốc đạt yêu cầu trước rồi mở giao diện.
                                 commitVerifiedVideoProgress(assignId,currentTime).then(result => {
+                                    if (!canTrackAssignmentVideo()) return;
                                     if (!result.committed) {
                                         throw new Error("Không thể ghi tiến độ video");
                                     }
@@ -35244,6 +35300,13 @@ window.openHoiHoaChest = async function (chestKey) {
 // KHÓA THÔNG BÁO VÀ KHẢO SÁT BẮT BUỘC
 // Chặn bấm nền ngoài, nút đóng và phím ESC
 // ======================================================
+// Dismissal in view mode never acknowledges a notice or submits a survey.
+window.closeReadOnlyStudentModal = function (id) {
+    if (window.StudentAccountAccess?.canWrite()) return;
+    if (!['studentNotificationModal', 'studentSurveyModal'].includes(id)) return;
+    document.getElementById(id)?.classList.remove('active');
+};
+
 (function installMandatoryModalGuards() {
     const modalConfigs = [
         {
@@ -35271,6 +35334,7 @@ window.openHoiHoaChest = async function (chestKey) {
     ];
 
     function getLockedModals() {
+        if (!window.StudentAccountAccess?.canWrite()) return [];
         const result = [];
 
         modalConfigs.forEach(function (config) {
@@ -36074,6 +36138,7 @@ window.downloadStudentRoadmapPDF = async function () {
     window.__studentTopActionsFlowInstalled = true;
 
     const BUTTON_SELECTOR = [
+        '.session-devices-open',
         '.leaderboard-trigger-btn',
         '#btnLeaderboard',
         '.bag-trigger-btn',
@@ -36694,4 +36759,4 @@ window.ShoppingDay = (() => {
 })();
 
 // Written only after this module has executed successfully.
-(window.SessionPolicyModules ||= {}).student = '20261018.session4';
+(window.SessionPolicyModules ||= {}).student = '20261024.session3';

@@ -1,7 +1,17 @@
-// js/theme-items.js?v=20261017.production.split1
+// js/theme-items.js?v=20261029.plan4.2
 
 class ThemeManager {
     static themes = {
+        theme_plan4_alger: {primary:'#6ed1d4',secondary:'#d7b976',background:'#f4f6fb',className:'theme-plan4-alger'},
+        theme_plan4_emlyn: {primary:'#e4a3b8',secondary:'#e9d8b5',background:'#f4f6fb',className:'theme-plan4-emlyn'},
+        theme_plan4_liu_xiao: {primary:'#d0a2ff',secondary:'#f0ce8c',background:'#f4f6fb',className:'theme-plan4-liu_xiao'},
+        theme_plan4_qiao_ling: {primary:'#ffbd88',secondary:'#ffe6af',background:'#f4f6fb',className:'theme-plan4-qiao_ling'},
+        theme_plan4_hemera: {primary:'#f4cb6e',secondary:'#fff5c7',background:'#f4f6fb',className:'theme-plan4-hemera'},
+        theme_plan4_greed: {primary:'#85deb7',secondary:'#eac874',background:'#f4f6fb',className:'theme-plan4-greed'},
+        theme_plan4_noctyriel: {primary:'#c5b0f0',secondary:'#ded3b9',background:'#f4f6fb',className:'theme-plan4-noctyriel'},
+        theme_plan4_noel_nam: {primary:'#9de5d6',secondary:'#eacc83',background:'#f4f6fb',className:'theme-plan4-noel_nam'},
+        theme_plan4_noel_nu: {primary:'#ffb4b6',secondary:'#f5d990',background:'#f4f6fb',className:'theme-plan4-noel_nu'},
+        theme_valentine_romeo_regular_2:{primary:'#285f72',secondary:'#d6ae73',background:'#edf6f4',className:'theme-romeo-harbor'},
         theme_valentine_juliet_regular_2:{primary:'#794330',secondary:'#c6a177',background:'#fcf6eb',className:'theme-juliet-tearoom'},
         theme_valentine_cupid_regular_1:{primary:'#b34b6b',secondary:'#e9a5b5',background:'#fff1f5',className:'theme-cupid-letter'},
         theme_huyen_minh_regular_1:{primary:'#855064',secondary:'#caa6b1',background:'#f2e8ea',className:'theme-huyen-minh-lantern'},
@@ -2069,10 +2079,11 @@ class ThemeManager {
     }
 
     static applyTheme(themeId) {
-        if (['theme_valentine_cupid_regular_1','theme_valentine_juliet_regular_2'].includes(themeId)) {
+        if (String(themeId).startsWith('theme_plan4_')) window.Plan4Runtime?.ensureCSS();
+        if (['theme_valentine_cupid_regular_1','theme_valentine_juliet_regular_2','theme_valentine_romeo_regular_2'].includes(themeId)) {
             if (!document.getElementById('valentine-regular-css')) {
                 const link=document.createElement('link');link.id='valentine-regular-css';link.rel='stylesheet';
-                link.href='css/valentine.css?v=20261015.regular-fix1';document.head.append(link);
+                link.href='css/valentine.css?v=20261029.plan3.fonts1';document.head.append(link);
             }
         }
         this.initThemePopupIsolation();

@@ -156,9 +156,12 @@ const DBReadSingleFlight = (() => {
         stats.firebaseOnceRequests++;
 
         // Đây là request Firebase thật duy nhất cho path trong cửa sổ single-flight.
-        const promise = db
-            .ref(normalizedPath)
-            .once('value');
+        const studentRead = /(?:^|\/)student\.html$/.test(location.pathname) &&
+            (normalizedPath === 'submissions' || ['assignments','materials','schedule','global_notifications','global_surveys'].some(table => normalizedPath === table || normalizedPath.startsWith(table + '/')));
+        const promise = studentRead
+            ? (window.StudentStudyData ? window.StudentStudyData.read(normalizedPath)
+                : Promise.reject(Error('Chưa tải đủ phần học tập. Hãy tải lại trang khi đã lưu bài.')))
+            : db.ref(normalizedPath).once('value');
 
         entry.promise = promise;
         entries.set(normalizedPath, entry);
@@ -362,4 +365,4 @@ async function getPaginatedDB(path, limit, lastKey = null) {
 }
 
 // Written only after this module has executed successfully.
-(window.SessionPolicyModules ||= {}).auth = '20261018.session4';
+(window.SessionPolicyModules ||= {}).auth = '20261024.session3';

@@ -1,4 +1,4 @@
-// js/pet-items.js?v=20261017.production.split1
+// js/pet-items.js?v=20261029.plan4.2
 
 
 // =========================================================
@@ -59,7 +59,7 @@ function ensureTamonBsideChibi2Stylesheet() {
     link.id = 'tamon-bside-chibi2-runtime-style';
     link.rel = 'stylesheet';
     link.href =
-        'css/tamon-b-side.css?v=20260920.tbc2-eclipse-v1';
+        'css/tamon-b-side.css?v=20261029.plan3.fonts1';
     link.dataset.tamonBsideChibi2 = 'true';
     document.head.appendChild(link);
     return link;
@@ -1115,7 +1115,9 @@ class PetManager {
     }
 
     static spawnPet(petData) {
+        window.Plan4Runtime?.clearPet();
         window.JulietRuntime?.clearPet();
+        window.RomeoRuntime?.clearPet();
         window.ValentineRegularRuntime?.clearPet();
         window.ThatTichRuntime?.clearPet();
         window.HuyenMinhRuntime?.clearPet();
@@ -5301,7 +5303,9 @@ class PetManager {
         this.container.style.pointerEvents = 'auto';
         this.container.removeAttribute('hidden');
         this.container.setAttribute('aria-hidden', 'false');
+        if (window.Plan4Runtime?.supports(petData.id)) window.Plan4Runtime.mountPet(petData.id);
         if (petData.id === 'pet_valentine_cupid_regular_1') window.ValentineRegularRuntime?.mountPet();
+        if (petData.id === 'pet_valentine_romeo_regular_2') window.RomeoRuntime?.mountRegularPet();
         if (petData.id === 'pet_valentine_juliet_regular_2') window.JulietRuntime?.mountRegularPet();
         if (petData.id === 'pet_nguu_lang_regular_1') window.ThatTichRuntime?.mountRegularPet('nguu_lang');
         if (petData.id === 'pet_chuc_nu_regular_1') window.ThatTichRuntime?.mountRegularPet('chuc_nu');

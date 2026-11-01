@@ -2497,16 +2497,13 @@ window.addEventListener('beforeunload', function () {
 });
 
 window.logout = async function () {
-    const accepted = (await AppDialog.confirm(
-        'Bạn có chắc chắn muốn đăng xuất?'
-    ));
+    const accepted = await (AppDialog.confirmLogout?.() ?? AppDialog.confirm('Bạn có chắc chắn muốn đăng xuất?'));
 
     if (!accepted) return;
     if (/student\.html$/.test(window.location.pathname)) {
         try { await window.StudentAccountAccess?.releaseSession(); }
         catch (_) {
-            await AppDialog.alert('Chưa báo đăng xuất được với máy chủ. Kiểm tra kết nối rồi bấm đăng xuất lại để giải phóng phiên.');
-            return;
+            await AppDialog.alert('Chưa báo đăng xuất được với máy chủ. Bạn vẫn sẽ đăng xuất trên thiết bị này; phiên trên máy chủ sẽ kết thúc khi hết hạn. Các giao dịch đang chờ được giữ lại để kiểm tra sau.');
         }
     }
 
@@ -4726,6 +4723,7 @@ window.clearAutoSave = function (storageKey) {
     let previewCounter = 0;
     let previewGeneration = 0;
     let previewPendingKey = null;
+    let previewObjectURL = null;
     // Only retain in-flight document work. Large/private documents are not cached on disk.
     const docxWork = new Map();
     function loadDocx(item) {
@@ -4823,6 +4821,7 @@ window.clearAutoSave = function (storageKey) {
             : '';
 
         const mime = type || dataMime;
+        if(mime.startsWith('audio/') || ['mp3','wav','m4a','aac','ogg','oga','opus','flac','webm'].includes(ext))return 'audio';
 
         if (
             mime.startsWith('image/') ||
@@ -5276,7 +5275,7 @@ window.clearAutoSave = function (storageKey) {
     window.openFilePreview = async function (
         key
     ) {
-        const item = registry[key];
+        let item = registry[key];
 
         if (!item) {
             (await AppDialog.alert(
@@ -5324,6 +5323,8 @@ window.clearAutoSave = function (storageKey) {
         if (body) {
             body.innerHTML = '';
         }
+        window.PrivateFileAccess?.release(previewObjectURL);
+        previewObjectURL = null;
 
         showNotice('');
         showLoading('Đang chuẩn bị nội dung...');
@@ -5349,7 +5350,16 @@ window.clearAutoSave = function (storageKey) {
         const kind = inferKind(item);
 
         try {
+            if(window.PrivateFileAccess?.isPrivate(item.url)) {
+                const local=await window.PrivateFileAccess.resolve(item.url);
+                if(generation!==previewGeneration){window.PrivateFileAccess.release(local);return;}
+                previewObjectURL=local;item={...item,url:local};
+                if(download){download.href=local;download.style.display=item.allowDownload?'inline-flex':'none';}
+            }
             body.innerHTML = '';
+            if(kind==='audio') {
+                const audio=document.createElement('audio');audio.controls=true;audio.src=item.url;audio.style.width='100%';body.append(audio);return;
+            }
 
             // Xem ảnh
             if (kind === 'image') {
@@ -5527,13 +5537,11 @@ window.clearAutoSave = function (storageKey) {
                 )
             );
         } catch (error) {
-            console.error(
-                'Lỗi xem trực tiếp tài liệu:',
-                error
-            );
+            if(generation!==previewGeneration)return;
+            console.warn('Không mở được tệp.');
 
             showNotice(
-                'Không thể hiển thị tài liệu trong khung xem. Hãy thử mở ở tab mới.'
+                error.message || 'Không thể hiển thị tài liệu trong khung xem. Hãy thử lại.'
             );
 
             body.innerHTML = `
@@ -5563,6 +5571,8 @@ window.clearAutoSave = function (storageKey) {
                 return;
             }
 
+            if(window.PrivateFileAccess?.isPrivate(item.url)){window.PrivateFileAccess.open(item.url,item.name);return;}
+
             const targetUrl =
                 toEmbeddableUrl(item.url);
 
@@ -5588,6 +5598,8 @@ window.clearAutoSave = function (storageKey) {
     // Đóng cửa sổ xem file
     window.closeFilePreview = function () {
         previewGeneration++;
+        window.PrivateFileAccess?.release(previewObjectURL);
+        previewObjectURL=null;
         previewPendingKey = null;
         const modal =
             document.getElementById(
@@ -5653,6 +5665,7 @@ window.securityHotfix = Object.freeze({
     const uid=()=>firebase.auth().currentUser?.uid;
     const messages={ACCESS_UNAVAILABLE:'Chưa kết nối được máy chủ tài khoản. Hãy thử lại sau.',ACCESS_NOT_ENABLED:'Chức năng chưa được bật trên máy chủ.',ACCESS_PROJECT_MISMATCH:'Máy chủ tài khoản chưa đúng dự án Firebase.',RECOVERY_INVALID:'Mã khôi phục không đúng. Kiểm tra mã rồi thử lại.',PASSWORD_LOGIN_REQUIRED:'Hãy nhập lại tài khoản và mật khẩu để tiếp tục.',DEVICE_VERIFICATION_REQUIRED:'Cần xác nhận mã thiết bị trước khi vào website.',APPROVAL_REQUIRED:'Yêu cầu chưa được giáo viên đồng ý hoặc đã hết hạn.',REQUEST_EXPIRED:'Yêu cầu đã hết hạn. Hãy gửi lại yêu cầu.',REQUEST_ALREADY_PENDING:'Đã có yêu cầu đang chờ. Hãy báo giáo viên kèm tên tài khoản của bạn.',REQUEST_ALREADY_REVIEWED:'Yêu cầu đã được xử lý ở phiên khác. Hãy cập nhật lại danh sách.',REQUEST_USED:'Yêu cầu này đã được dùng với thông tin khác.',ACCESS_CHANGED:'Thông tin xác thực đã thay đổi. Hãy đăng nhập lại.',ACCESS_RATE_LIMIT:'Đã thử quá nhiều lần. Vui lòng đợi rồi thử lại.',WEAK_PASSWORD:'Mật khẩu cần 8–128 ký tự, có chữ và số, khác tên đăng nhập.',ACCOUNT_NOT_ALLOWED:'Tài khoản không còn hoạt động hoặc đang bị khóa.'};
     messages.READ_ONLY_SESSION='Phiên này chỉ được xem. Đăng xuất rồi đăng nhập lại sau khi phiên số 1 kết thúc để được xét quyền thao tác.';
+    Object.assign(messages,{SESSION_SERVER_NOT_READY:'Máy chủ chưa xác nhận Rules cho quản lý thiết bị mới. Chưa kích hoạt tài khoản.',SERVER_MONEY_NOT_READY:'Máy chủ giao dịch chưa sẵn sàng để bật quản lý thiết bị mới.',SESSION_EXAM_ACTIVE:'Đang có bài thi chưa kết thúc. Hoàn tất hoặc đối soát bài thi trước khi bật cơ chế mới.',SESSION_PENDING_OPERATIONS:'Còn thao tác đang chờ xác nhận. Hãy đối soát trước khi chuyển quyền.',SESSION_TRANSITION_BUSY:'Đang xác nhận chuyển quyền. Vui lòng kiểm tra lại trạng thái.'});
     messages.ACCESS_SESSION_LIMIT='Đã có 20 phiên còn hiệu lực. Hãy đăng xuất bớt phiên trước khi đăng nhập tiếp.';
     messages.ACCESS_BUSY='Yêu cầu đang được xử lý. Chờ khoảng một phút rồi thử lại với cùng thông tin.';
     messages.CLIENT_UPDATE_REQUIRED='Tài khoản đã dùng cơ chế bảo vệ mới. Hãy tải lại website bằng Ctrl+F5 rồi đăng nhập lại; không thể tiếp tục bằng bản cũ.';
@@ -5699,7 +5712,7 @@ window.securityHotfix = Object.freeze({
             headers.Authorization='Bearer '+token;
             if (action === 'state' && input.tab) unloadToken = token;
         }
-        const response=await fetch(endpoint(),{method:'POST',headers,body:JSON.stringify({action,projectId:project(),clientVersion:2,...input}),cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer',signal:AbortSignal.timeout(20000)});
+        const response=await fetch(endpoint(),{method:'POST',headers,body:JSON.stringify({action,projectId:project(),clientVersion:3,...input}),cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer',signal:AbortSignal.timeout(20000)});
         let value;try{value=await response.json();}catch(_){throw Error('ACCESS_UNAVAILABLE');}
         if(!response.ok || !value.ok)throw Error(value.error || 'ACCESS_UNAVAILABLE');
         if(window.pageAuthBlocked || (!anonymous && uid()!==current?.uid))throw Error('ACCESS_CHANGED');
@@ -5866,15 +5879,18 @@ window.securityHotfix = Object.freeze({
         }catch(e){error.textContent=message(e);}finally{trigger.disabled=false;}
     }
     let sessionMode = 'checking', sessionRank = null, sessionDeadline = 0;
+    let sessionProtocol=0, signalRevision=0, minimumSignalRevision=0;
+    const sessionSafeControls=new WeakSet();
+    function invalidateSession(revision=0){minimumSignalRevision=Math.max(minimumSignalRevision,Number(revision)||0);sessionMode='checking';sessionDeadline=0;renderSession();}
     // null: chưa xác nhận. false: tài khoản chưa kích hoạt và đang dùng luồng cũ.
     // Một tài khoản đã kích hoạt trên máy chủ không được quay về false.
     let accessEnforced = null;
-    let sessionTimer = null, sessionCheck = null, sessionStarted = false;
+    let sessionTimer = null, sessionCheck = null, sessionStarted = false, sessionExpiryTimer = null;
     const TAB_ID = crypto.randomUUID();
     let tabSequence = 0, activityRevision = 0, acknowledgedActivity = 0;
     let lastActivity = -Infinity, unloadToken = null, pageClosed = false, forcedLoggingOut = false;
-    const POLICY_BUILD = '20261018.session4';
-    const policyCodeReady = () => ['html','auth','common','student','loader','economy'].every(
+    const POLICY_BUILD = '20261024.session3';
+    const policyCodeReady = () => ['html','auth','common','student','loader','economy','devices'].every(
         key => window.SessionPolicyModules?.[key] === POLICY_BUILD);
     function tabPresence(active = false) {
         return {id: TAB_ID, seq: ++tabSequence, visible: document.visibilityState === 'visible', active};
@@ -5883,7 +5899,7 @@ window.securityHotfix = Object.freeze({
         if (pageClosed || forcedLoggingOut || window.pageAuthBlocked || !unloadToken) return;
         pageClosed = true;
         // No asynchronous token lookup during unload. Missing delivery is covered by the server lease.
-        const body = JSON.stringify({action: 'session_unload', projectId: project(), clientVersion:2, tab: tabPresence(false)});
+        const body = JSON.stringify({action: 'session_unload', projectId: project(), clientVersion:3, tab: tabPresence(false)});
         void fetch(endpoint(), {method: 'POST', headers: {'Content-Type': 'application/json', Authorization: 'Bearer ' + unloadToken},
             body, keepalive: true, credentials: 'omit', referrerPolicy: 'no-referrer'}).catch(() => {});
     }
@@ -5906,7 +5922,7 @@ window.securityHotfix = Object.freeze({
         }
         window.location.replace('index.html?reason=' + encodeURIComponent(reason));
     }
-    const readOnlyText = 'Phiên này chỉ được xem. Hãy đăng xuất rồi đăng nhập lại sau khi phiên số 1 đã đăng xuất hoặc hết hạn để được xét quyền thao tác.';
+    const readOnlyText = 'Phiên này chỉ xem nội dung và trạng thái. Video, nhận quà và xác nhận đều bị khóa. Quản lý quyền tại mục Thiết bị đang đăng nhập.';
     function canWrite() {
         if (window.pageAuthBlocked) return false;
         // Cơ chế phiên chưa bật: không có "phiên chính/phụ" để xét, cho thao tác như trước 17/10.
@@ -5941,16 +5957,22 @@ window.securityHotfix = Object.freeze({
             // would create an extra scroll area beyond the sticky sidebar's parent.
             content.insertBefore(banner, content.querySelector('.tab-content'));
         }
-        banner.hidden = canWrite();
-        banner.querySelector('[data-session-notice]').textContent = sessionMode === 'checking'
+        banner.hidden = canWrite() && !banner.closest('.session-devices-popup') && !banner.querySelector('.session-devices-open');
+        banner.querySelector('[data-session-notice]').textContent = canWrite()
+            ? 'Thiết bị này đang được thao tác.'
+            : sessionMode === 'checking'
             ? 'Đang kiểm tra quyền thao tác. Bạn có thể xem nội dung.'
-            : `Lần đăng nhập ${sessionRank || 'phụ'} · Chỉ xem. Để được xét quyền thao tác, hãy đăng xuất rồi đăng nhập lại sau khi phiên số 1 kết thúc.`;
+            : `Lần đăng nhập ${sessionRank || 'phụ'} · Chỉ xem: không phát video, nhận quà hoặc xác nhận. Mở Thiết bị đang đăng nhập để xem hoặc xin chuyển quyền.`;
         window.dispatchEvent(new CustomEvent('student-session-mode', {detail: {mode: sessionMode, rank: sessionRank}}));
     }
     function applySession(result) {
+        if(Number(result.signalRevision||0)<minimumSignalRevision)throw Error('SESSION_TRANSITION_BUSY');
+        sessionProtocol=Number(result.protocol)||0;signalRevision=Number(result.signalRevision)||0;
         sessionMode = result.accessMode === 'primary' ? 'primary' : 'view';
         sessionRank = result.loginRank;
         sessionDeadline = performance.now() + Math.max(0, Number(result.sessionExpiresAt) - Number(result.serverNow));
+        clearTimeout(sessionExpiryTimer);
+        sessionExpiryTimer = setTimeout(() => { if (!canWrite()) renderSession(); }, Math.max(0, sessionDeadline - performance.now()));
         renderSession();
     }
     async function refreshSession() {
@@ -5992,48 +6014,115 @@ window.securityHotfix = Object.freeze({
                 return original.apply(this, args);
             };
         }
-        // Navigation, search, previews and closing dialogs stay available.
-        const actionPattern = /(?:buy|purchase|redeem|claim|equip|unequip|spin|submit|sendGift|convert|exchange|startExam|showExamWarning|openChest|useItem|saveProfile)/i;
-        const labelPattern = /^(?:mua|đổi|nhận|mặc|tháo|quay|nộp|gửi|lưu|bắt đầu|tiếp tục thi|dùng thử|sử dụng)(?:\s|$|:)/iu;
-        const isWriteControl = button => {
-            if (!button || button.closest('#studentSessionBanner') || button.matches('.nav-item, .btn-logout')) return false;
-            const label = button.textContent.trim().replace(/^[^\p{L}]+/u, '');
-            return actionPattern.test(button.getAttribute('onclick') || '') || labelPattern.test(label);
-        };
-        const marked = new Map();
-        const markControls = () => {
-            for (const [button, before] of marked) {
-                if (button.isConnected && !canWrite() && isWriteControl(button)) continue;
-                button.classList.remove('student-session-locked');
-                if (before.aria === null) button.removeAttribute('aria-disabled'); else button.setAttribute('aria-disabled', before.aria);
-                if (before.title === null) button.removeAttribute('title'); else button.setAttribute('title', before.title);
-                marked.delete(button);
+        // Deny interactions by default. Only these audited view/navigation
+        // handlers are allowed; labels such as "Confirm" never grant permission.
+        const controlSelector = 'button, a, input, select, textarea, label, summary, iframe, video, audio, object, embed, [role="button"], [onclick], [tabindex], [contenteditable]';
+        const viewHandler = /^\s*(?:window\.)?(?:logout|switchTab|toggleSidebar|toggleAccordion|toggleRoadmapView|openStudentInbox|closeStudentInbox|openStudentBag|closeStudentBag|openStudentInfoModal|closeStudentInfoModal|closeBagItemPopup|closeReadOnlyStudentModal)\([^()]*\)\s*;?\s*$/;
+        const isViewControl = control => !!control && (
+            sessionSafeControls.has(control) || !!control.closest('#studentSessionBanner') ||
+            (control.matches('[data-session-view-dismiss]') && control.getRootNode?.().host?.classList.contains('app-dialog-host')) ||
+            viewHandler.test(control.getAttribute('onclick') || '')
+        );
+        const eventTarget = event => event.composedPath?.()[0] || event.target;
+        const marked = new Map(), suspendedMedia = new Map(), mediaNotes = new Map();
+        function restoreAttribute(element, name, value) {
+            if (value === null) element.removeAttribute(name);
+            else element.setAttribute(name, value);
+        }
+        function syncMedia() {
+            for(const [media,note] of mediaNotes){if(canWrite()||!media.isConnected){note.remove();mediaNotes.delete(media);}}
+            for (const [media, before] of suspendedMedia) {
+                if (media.isConnected && !canWrite()) continue;
+                if (media.isConnected) {
+                    for (const [name, value] of Object.entries(before)) restoreAttribute(media, name, value);
+                }
+                suspendedMedia.delete(media);
             }
             if (canWrite()) return;
-            for (const button of document.querySelectorAll('button, [role="button"], [onclick]')) {
-                if (!isWriteControl(button) || marked.has(button)) continue;
-                marked.set(button, {aria: button.getAttribute('aria-disabled'), title: button.getAttribute('title')});
-                button.classList.add('student-session-locked');
-                button.setAttribute('aria-disabled', 'true'); button.setAttribute('title', readOnlyText);
+            for (const media of document.querySelectorAll('video, audio, iframe, object, embed')) {
+                if(!mediaNotes.has(media)){const note=document.createElement('p');note.className='session-media-locked';note.textContent='Chỉ xem · Video bị khóa trên phiên này, không ghi thời gian hay mở bài.';media.before(note);mediaNotes.set(media,note);}
+                const native = media.matches('video, audio');
+                // Tracked YouTube players retain their API connection; student.js
+                // pauses them and rejects every progress tick when permission is lost.
+                const tracked = media.matches('iframe[id^="yt-player-"]');
+                if (!suspendedMedia.has(media)) {
+                    const attrs = native ? ['autoplay', 'controls', 'inert'] :
+                        tracked ? ['inert'] : ['src', 'srcdoc', 'data', 'inert'];
+                    suspendedMedia.set(media, Object.fromEntries(attrs.map(name => [name, media.getAttribute(name)])));
+                }
+                if (!media.hasAttribute('inert')) media.setAttribute('inert', '');
+                if (native) {
+                    media.pause();
+                    media.removeAttribute('autoplay');
+                    media.removeAttribute('controls');
+                } else if (!tracked) {
+                    if (media.getAttribute('src') && media.getAttribute('src') !== 'about:blank') media.setAttribute('src', 'about:blank');
+                    if (media.hasAttribute('srcdoc')) media.removeAttribute('srcdoc');
+                    if (media.hasAttribute('data') && media.getAttribute('data') !== 'about:blank') media.setAttribute('data', 'about:blank');
+                }
             }
+        }
+        const markControls = () => {
+            for (const [control, before] of marked) {
+                if (control.isConnected && !canWrite() && !isViewControl(control)) continue;
+                control.classList.remove('student-session-locked');
+                restoreAttribute(control, 'aria-disabled', before.aria);
+                restoreAttribute(control, 'title', before.title);
+                restoreAttribute(control, 'tabindex', before.tabindex);
+                marked.delete(control);
+            }
+            if (!canWrite()) {
+                for (const control of document.querySelectorAll(controlSelector)) {
+                    if (isViewControl(control) || marked.has(control)) continue;
+                    marked.set(control, {aria: control.getAttribute('aria-disabled'), title: control.getAttribute('title'), tabindex: control.getAttribute('tabindex')});
+                    control.classList.add('student-session-locked');
+                    control.setAttribute('aria-disabled', 'true');
+                    control.setAttribute('title', readOnlyText);
+                    control.setAttribute('tabindex', '-1');
+                }
+            }
+            syncMedia();
         };
         let markFrame = null;
         new MutationObserver(() => {
             if (markFrame === null) markFrame = requestAnimationFrame(() => { markFrame = null; markControls(); });
-        }).observe(document.body, {childList: true, subtree: true});
+        }).observe(document.body, {childList: true, subtree: true, attributes: true,
+            attributeFilter: ['src', 'srcdoc', 'data', 'autoplay', 'controls', 'onclick']});
         window.addEventListener('student-session-mode', markControls);
         markControls();
-        document.addEventListener('click', event => {
-            if (canWrite()) return;
-            const button = event.target.closest('button, [role="button"], [onclick]');
-            if (isWriteControl(button)) {
-                event.preventDefault(); event.stopImmediatePropagation(); notifyReadOnly();
-            }
+        const stopInteraction = (event, notify = false) => {
+            event.preventDefault(); event.stopImmediatePropagation();
+            if (notify) notifyReadOnly();
+        };
+        for (const type of ['click', 'dblclick', 'auxclick', 'submit', 'beforeinput', 'input', 'change', 'dragstart', 'drop']) {
+            window.addEventListener(type, event => {
+                if (canWrite() || isViewControl(eventTarget(event).closest?.(controlSelector))) return;
+                stopInteraction(event, type === 'click' || type === 'submit');
+            }, true);
+        }
+        for (const type of ['pointerdown', 'mousedown', 'touchstart']) {
+            window.addEventListener(type, event => {
+                if (canWrite() || isViewControl(eventTarget(event).closest?.(controlSelector))) return;
+                // Keep native scrolling/text selection, but stop app/game handlers.
+                event.stopImmediatePropagation();
+                if (eventTarget(event).closest?.('input, select, textarea, label, summary, [contenteditable]')) event.preventDefault();
+            }, {capture: true, passive: false});
+        }
+        for (const type of ['keydown', 'keyup']) {
+            window.addEventListener(type, event => {
+                if (canWrite() || isViewControl(eventTarget(event).closest?.(controlSelector))) return;
+                const editing = eventTarget(event).closest?.('input, select, textarea, [contenteditable]');
+                if (event.key === 'Tab' || event.key === 'Escape' ||
+                    (!editing && /^(ArrowUp|ArrowDown|PageUp|PageDown|Home|End)$/.test(event.key)) ||
+                    (!editing && (event.ctrlKey || event.metaKey) && /^(c|a)$/i.test(event.key))) return;
+                stopInteraction(event, type === 'keydown' && /^(Enter| )$/.test(event.key));
+            }, true);
+        }
+        window.addEventListener('focusin', event => {
+            if (!canWrite() && !isViewControl(eventTarget(event)) && eventTarget(event).matches?.('input, select, textarea, iframe, video, audio, [contenteditable]')) eventTarget(event).blur();
         }, true);
-        document.addEventListener('submit', event => {
-            if (!canWrite() && event.target.getAttribute('role') !== 'search') {
-                event.preventDefault(); event.stopImmediatePropagation(); notifyReadOnly();
-            }
+        document.addEventListener('play', event => {
+            if (!canWrite() && event.target.matches?.('video, audio')) event.target.pause();
         }, true);
         const scheduleCheck = () => {
             clearInterval(sessionTimer);
@@ -6069,6 +6158,7 @@ window.securityHotfix = Object.freeze({
     async function releaseSession() {
         if (await enabled()) await call('release_session');
         sessionMode = 'view'; sessionDeadline = 0;
+        renderSession();
         clearInterval(sessionTimer);
         unloadToken = null;
     }
@@ -6086,6 +6176,18 @@ window.securityHotfix = Object.freeze({
         try {
             // Install guards before the one-way server activation.
             installSessionControls();
+            const economy=await window.EconomyClient.initialize();
+            if(economy?.enabled!==true)throw Error('Máy chủ giao dịch chưa sẵn sàng. Chưa bật cơ chế thiết bị mới.');
+            // An old tab with a pending operation must finish/reconcile before
+            // upgrading; never reload or erase its saved operation IDs.
+            if(required<3 && Array.from({length:localStorage.length},(_,i)=>localStorage.key(i)).some(key=>key.startsWith('economy_pending_v1:'+uid()+':')&&!key.endsWith(':last')))
+                throw Error('Còn giao dịch đang chờ. Hãy xác nhận giao dịch trước khi bật quản lý thiết bị mới.');
+            const claims=(await firebase.auth().currentUser.getIdTokenResult()).claims;
+            if(claims.sessionProtocol!==3){
+                const upgraded=await call('upgrade_session');
+                window.deviceRotationUid=uid();
+                try{await firebase.auth().signInWithCustomToken(upgraded.customToken);}finally{window.deviceRotationUid=null;}
+            }
             await call('activate_policy');
             result = await refreshSession();
         }
@@ -6094,6 +6196,7 @@ window.securityHotfix = Object.freeze({
                 await triggerForcedLogout(error.message === 'CLIENT_UPDATE_REQUIRED' ? 'update_required' : error.message === 'ACCESS_CHANGED' ? 'session_changed' : 'session_expired');
                 return false;
             }
+            if(/^(SESSION_SERVER_NOT_READY|SERVER_MONEY_NOT_READY|SESSION_EXAM_ACTIVE|SESSION_PENDING_OPERATIONS)$/.test(error.message))throw Error(message(error));
             throw error;
         }
         await window.StudentConnectionInfo.linkDevice(result.deviceId);
@@ -6109,7 +6212,7 @@ window.securityHotfix = Object.freeze({
         await window.StudentConnectionInfo.linkDevice(result.deviceId);
         return result;
     }
-    window.StudentAccountAccess=Object.freeze({enabled,call,login,ensure,rotate,message,canWrite,requireWrite,refreshSession,releaseSession});
+    window.StudentAccountAccess=Object.freeze({enabled,call,login,ensure,rotate,message,canWrite,requireWrite,refreshSession,releaseSession,invalidateSession,protocol:()=>sessionProtocol,signalRevision:()=>signalRevision,registerSessionControl:el=>sessionSafeControls.add(el)});
     function initTeacherRequests() {
         const root=document.getElementById('accountRecoveryRequests');if(!root)return;
         const list=root.querySelector('[data-access-requests]'),status=root.querySelector('[data-access-teacher-status]'),more=root.querySelector('[data-access-more]');
@@ -6547,4 +6650,4 @@ window.securityHotfix = Object.freeze({
 })();
 
 // Written only after this module has executed successfully.
-(window.SessionPolicyModules ||= {}).common = '20261018.session4';
+(window.SessionPolicyModules ||= {}).common = '20261024.session3';
