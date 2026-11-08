@@ -1,3 +1,36 @@
+/* PRE-RELEASE ROLLOUT LOCK 2026-11-08.
+ * This is a FRONTEND gate only. Worker + Firebase Rules must independently
+ * reject unreleased operations. Plan 2 security & Plan 3 font fixes remain ON.
+ * NEVER mutate student balances, inventory or assignment due dates here.
+ */
+(function installPreReleasePolicy() {
+    'use strict';
+    const features = Object.freeze({
+        plan1Extension: false,
+        plan2SecurityFixes: true,
+        plan3FontFixes: true,
+        plan4Items: false,
+        plan5Event: false,
+        plan6Caelion: false
+    });
+    const isPlan4Item = id => /^(?:pet|theme|effect|frame|background)_plan4_/i.test(String(id || ''));
+    const isPlan4Poster = id => /^reward_bg_poster_(?:giang_sinh|juliet|romeo|noctyriel|huyen_minh)$/i.test(String(id || ''));
+    const isCaelionItem = id => /caelion/i.test(String(id || ''));
+    const policy = Object.freeze({
+        build: '20261108-prerelease-disabled-v1',
+        features,
+        isPlan4Item,
+        isPlan4Poster,
+        isCaelionItem,
+        isBlockedItem: id => isPlan4Item(id) || isPlan4Poster(id) || isCaelionItem(id)
+    });
+    if (!Object.prototype.hasOwnProperty.call(window, 'PreReleasePolicy')) {
+        Object.defineProperty(window, 'PreReleasePolicy', {
+            value: policy, enumerable: false, writable: false, configurable: false
+        });
+    }
+})();
+
 const loginForm = document.getElementById('loginForm');
 let lockoutInterval = null;
 

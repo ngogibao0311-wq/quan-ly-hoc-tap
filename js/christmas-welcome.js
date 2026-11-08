@@ -1,6 +1,16 @@
 /* Màn chào 31/12. Hình vẽ SVG + canvas, không mạng, không ghi dữ liệu tài khoản. */
 (() => {
   'use strict';
+  // Kế hoạch 5 chưa phát hành; giữ API ready để không treo startup.
+  const PRE_RELEASE_WELCOME_DISABLED = true;
+  if (PRE_RELEASE_WELCOME_DISABLED) {
+    window.ChristmasWelcome = Object.freeze({
+      paused: true, ready: Promise.resolve(), start: async () => false,
+      preview: () => 'Chưa phát hành', isWelcomeDay: () => false,
+      isActive: () => false, close() {}, version: '20261108.prerelease-off'
+    });
+    return;
+  }
   const CONFIG = {
     enabled: true,
     timeZone: 'Asia/Ho_Chi_Minh',

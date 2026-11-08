@@ -19,11 +19,6 @@ window.CollectionRewardCatalog = Object.freeze([
         backgroundAttachment: 'fixed'
     },
     ...[
-        ["giang_sinh", "Giáng Sinh", "Giáng Sinh", "giáng sinh 1.png", ""],
-        ["juliet", "Juliet", "Valentine", "juliet.png", "Valentine/tag1.png"],
-        ["romeo", "Romeo", "Valentine", "romeo.png", "Valentine/tag1.png"],
-        ["noctyriel", "Noctyriel", "Kinh dị", "Noctyriel.png", ""],
-        ["huyen_minh", "Huyền Minh", "Kinh dị", "Tư tế .png", ""],
         ['klain', 'Klain', 'Quỷ Bí', 'Klain.png', 'quỷ bí/tag1.png'],
         ['cheng_xiaoshi', 'Cheng Xiaoshi', 'Link Click', 'Cheng Xiaoshi.png', 'Lock/tag1.png'],
         ['day_sao_nam', 'Đầy Sao · Nam', 'Đêm Đầy Sao', 'day sao nam.png', 'đêm đầy sao/tag.png'],

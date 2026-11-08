@@ -1,6 +1,16 @@
 /* Trang trí độc lập. Xóa dòng nhúng script để gỡ. Không dùng dịch vụ bên ngoài. */
 (() => {
   'use strict';
+  // Trang trí Noel trong đợt chưa công bố: không khởi tạo DOM, không cho ?xmas=1 bật.
+  const PRE_RELEASE_XMAS_DISABLED = true;
+  if (PRE_RELEASE_XMAS_DISABLED) {
+    window['xmas-overlay'] = Object.freeze({
+      paused: true,
+      status: () => ({ blocked: true, reason: 'not_released', message: 'Chưa phát hành' }),
+      preview: () => 'Chưa phát hành', destroy() {}
+    });
+    return;
+  }
   const CONFIG = {
     forceOn: false, // Xem thử bằng true hoặc thêm ?xmas=1 vào URL; không lưu ép bật.
     season: { start: [12, 20], end: [1, 5] }, // [tháng, ngày], gồm cả ngày cuối.

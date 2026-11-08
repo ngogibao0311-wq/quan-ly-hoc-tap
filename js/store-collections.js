@@ -281,7 +281,7 @@
             if (!rawEntry || typeof rawEntry !== 'object') return;
 
             const itemId = String(rawEntry.id || key || '').trim();
-            if (!itemId) return;
+            if (!itemId || window.PreReleasePolicy?.isBlockedItem(itemId) || /_plan4_|caelion/i.test(itemId)) return;
 
             /*
              * Dùng thử không được tính vào Sưu tầm. Mọi vật phẩm sở hữu

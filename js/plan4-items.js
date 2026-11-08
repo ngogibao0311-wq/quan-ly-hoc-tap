@@ -1,6 +1,17 @@
 /* Plan 4: local artwork only. Ownership and purchases stay with StoreManager/Worker. */
 (() => {
     'use strict';
+    // Kế hoạch 4 chưa phát hành; API tương thích nhưng không mount bất kỳ hiệu ứng nào.
+    const PLAN4_NOT_RELEASED = true;
+    if (PLAN4_NOT_RELEASED) {
+        const no = () => false;
+        window.Plan4Runtime = Object.freeze({
+            paused: true, supports: no, ensureCSS: no, mountPet: no,
+            clearPet() {}, mountEffect: no, clearEffect() {},
+            ultimate: no, clickAt: no, cardBackdrop: () => '', cardPresentation: () => null
+        });
+        return;
+    }
     if (window.Plan4Runtime) return;
     const CSS = 'css/plan4-items.css?v=20261029.plan4.2';
     const designs = {

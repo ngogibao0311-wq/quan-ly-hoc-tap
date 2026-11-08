@@ -48,7 +48,7 @@ window.getStudentPasswordPolicyError = getStudentPasswordPolicyError;
 window.studentStoreCanUseItemSync = function (itemId) {
     if (window.isStudentStoreGameAccessEnabled?.() === false) return false;
     const id = String(itemId || '');
-    if (!id) return false;
+    if (!id || /^(?:pet|theme|effect|frame|background)_plan4_|caelion/i.test(id) || window.PreReleasePolicy?.isBlockedItem(id)) return false;
 
     const inventory = Array.isArray(window.myInventory) ? window.myInventory : [];
     const owned = inventory.find(entry => entry && String(entry.id || '') === id);
@@ -9469,7 +9469,7 @@ async function loadAssignmentsCore() {
             return; // Trả về ngay, bảo vệ con trỏ chuột và text đang gõ của học sinh
         }
         // A changed personal deadline must not replace the editor or a selected file.
-        if (existingCard && window.AssignmentExtensions?.preserveCard(existingCard, assign, mySub, cardHash)) {
+        if (false && existingCard && window.AssignmentExtensions?.preserveCard(existingCard, assign, mySub, cardHash)) {
             existingCard.style.order = assignmentOrder;
             return;
         }
@@ -10649,7 +10649,7 @@ ${window.getSubmissionEssayDisplay(mySub, assign).trim() ? `<div class="ql-edito
                     }
                     const timer = setInterval(() => {
                         const c = typeof getStudentSyncedNow === 'function' ? getStudentSyncedNow() : new Date();
-                        const effectiveEnd = window.AssignmentExtensions?.currentDeadline(assign.id, endTime.getTime()) ?? endTime.getTime();
+                        const effectiveEnd = endTime.getTime(); // K1 chưa mở; hạn gốc phải được Worker/Firebase khôi phục nếu đã bị thay đổi.
                         const timeLeft = effectiveEnd - c;
                         if (timeLeft > 15000) {
                             const button = document.getElementById(`btn-submit-${assign.id}`);
@@ -10704,7 +10704,8 @@ ${window.getSubmissionEssayDisplay(mySub, assign).trim() ? `<div class="ql-edito
         grades
     );
 
-    window.AssignmentExtensions?.mountStudent(assignments, submissions);
+    // Kế hoạch 1 chưa phát hành: không hiện nút Gia hạn.
+    // window.AssignmentExtensions?.mountStudent(assignments, submissions);
     // Khởi tạo editor: lazy khi bật tối ưu, giữ nguyên hành vi cũ khi tắt.
     initStudentQuillEditors(document);
 
@@ -18799,6 +18800,7 @@ async function cancelStudentUnpaidPurchase(username,itemId,operationId,isCurrent
 }
 
 async function grantStudentPaidPurchase(username, itemId, operation) {
+    if (window.PreReleasePolicy?.isBlockedItem(itemId) || /_plan4_|caelion/i.test(String(itemId || ''))) return false;
     if (operation?.atomicCharge !== true || operation.status !== 'paid' ||
         !operation.inventoryGrant || String(operation.inventoryGrant.id) !== String(itemId) || operation.inventoryGrant.purchaseOperationId !== operation.operationId) {
         throw new Error('PURCHASE_RECONCILIATION_REQUIRED');
@@ -18820,6 +18822,7 @@ async function grantStudentPaidPurchase(username, itemId, operation) {
 }
 
 async function recoverStudentPaidPurchase(itemId, username = String(currentUser.username), silent = false, isCurrent = () => String(currentUser?.username) === username) {
+    if (window.PreReleasePolicy?.isBlockedItem(itemId) || /_plan4_|caelion/i.test(String(itemId || ''))) return false; // không cấp lại/hoàn coin tự động; chờ đối soát máy chủ
     const ref = db.ref(`store_purchase_ops/${username}/${itemId}`);
     const operation = (await ref.once('value')).val();
     if (!isCurrent()) throw new Error('ACCOUNT_CHANGED');
@@ -18865,6 +18868,7 @@ async function grantStudentPaidTrial(username, itemId, operation) {
 }
 
 async function recoverStudentPaidTrial(itemId, username = String(currentUser.username), silent = false, isCurrent = () => String(currentUser?.username) === username) {
+    if (window.PreReleasePolicy?.isBlockedItem(itemId) || /_plan4_|caelion/i.test(String(itemId || ''))) return false; // không hồi phục giao dịch chưa phát hành
     const ref = db.ref(`store_trial_claims/${username}/${itemId}`);
     const operation = (await ref.once('value')).val();
     if (!isCurrent()) throw new Error('ACCOUNT_CHANGED');
@@ -19075,6 +19079,10 @@ async function reserveStudentStorePurchase(
 
 // 3. Logic kích hoạt dùng thử 1 Ngày (Nửa giá)
 window.trialItem = async function (itemId) {
+    if (window.PreReleasePolicy?.isBlockedItem(itemId) === true || /_plan4_|caelion/i.test(String(itemId || ''))) {
+        window.showToast?.('Vật phẩm chưa phát hành.', 'warning');
+        return false;
+    }
     if (!window.isStudentStoreSystemOpen()) {
         return window.showStudentStoreSystemLocked();
     }
@@ -19397,6 +19405,10 @@ window.trialItem = async function (itemId) {
 
 // 4. Logic Mua đứt và Bảng Thanh Toán (Có áp dụng Mã giảm giá)
 window.buyItem = async function (itemId, isUpgradingFromTrial = false) {
+    if (window.PreReleasePolicy?.isBlockedItem(itemId) === true || /_plan4_|caelion/i.test(String(itemId || ''))) {
+        window.showToast?.('Vật phẩm chưa phát hành.', 'warning');
+        return false;
+    }
     if (!window.isStudentStoreSystemOpen()) {
         return window.showStudentStoreSystemLocked();
     }
@@ -19669,6 +19681,7 @@ window.updateCheckoutPrice = function (basePrice) {
 
 // HÀM XỬ LÝ THANH TOÁN CUỐI CÙNG LÊN FIREBASE
 async function completeStudentServerStoreAction(action, args, username) {
+    if (window.PreReleasePolicy?.isBlockedItem(args?.itemId) || /_plan4_|caelion/i.test(String(args?.itemId || ''))) throw new Error('ITEM_NOT_RELEASED');
     let confirmed = false;
     try {
         const result = await window.EconomyClient.execute(action, args, {slot:'store:' + args.itemId});
@@ -19695,6 +19708,10 @@ window.processPayment = async function (
     currentCoins,
     isUpgrade = false
 ) {
+    if (window.PreReleasePolicy?.isBlockedItem(itemId) === true || /_plan4_|caelion/i.test(String(itemId || ''))) {
+        window.showToast?.('Vật phẩm chưa phát hành.', 'warning');
+        return false;
+    }
     if (
         window.isOffline ||
         !navigator.onLine
@@ -20282,6 +20299,7 @@ function installStudentStoreManagerOverrides() {
         const canFinishEquip = () => String(currentUser.username) === equipmentUsername && window.isStudentStoreGameAccessEnabled() &&
             accessEpoch === (window.__studentEquipmentAccessEpoch || 0);
         if (!canFinishEquip()) return false;
+        if (window.PreReleasePolicy?.isBlockedItem(itemId) || /_plan4_|caelion/i.test(String(itemId || ''))) return false;
         const item = StoreManager.getItemById(itemId);
         if (!item) return false;
 
@@ -20491,6 +20509,7 @@ function getStudentRenderableEquippedInventory(inventory, now = Date.now()) {
 
     return inventory.filter(item => {
         if (!item || item.isEquipped !== true) return false;
+        if (window.PreReleasePolicy?.isBlockedItem(item.id) || /_plan4_|caelion/i.test(String(item.id || ''))) return false;
         if (item.isTrial !== true) return true;
 
         const expiry = Number(item.trialExpiry);
@@ -29513,6 +29532,7 @@ window
     };
 
 async function redeemStudentServerEventItem(action,args) {
+    if (window.PreReleasePolicy?.isBlockedItem(args?.itemId) || /_plan4_|caelion/i.test(String(args?.itemId || ''))) return false;
     const item=StoreManager.getItemById(args.itemId),username=String(currentUser.username);
     if(!item)return;
     if(!await AppDialog.confirm(`Đổi Xu để nhận “${item.name}”?`))return;

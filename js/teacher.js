@@ -5484,7 +5484,7 @@ async function loadAssignedList(isLoadMore = false) {
                 <div class="teacher-assignment-actions" style="text-align: right; margin-bottom: 15px; display: flex; gap: 10px; justify-content: flex-end;">
                     <button class="btn-approve" style="padding: 6px 15px; font-size: 0.9em; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white;" onclick="openAssignmentStatusModal('${assign.id}')">📊 Trạng thái</button>
                     <button class="btn-approve" style="padding:6px 15px;font-size:0.9em;" onclick="toggleAssignmentLock('${assign._fbKey}')">${assign.isLocked ? '🔓 Mở khóa' : '🔒 Khóa bài'}</button>
-                    <button type="button" class="btn-approve" data-extension-seed="${window.escapeHTML(String(assign._fbKey))}" style="padding:6px 15px;font-size:0.9em;">Mốc gia hạn</button>
+                    <!-- Gia hạn: tạm ẩn cho đến ngày phát hành chính thức. -->
                     <button class="btn-approve" style="padding: 6px 15px; font-size: 0.9em; background: linear-gradient(135deg, #f6d365 0%, #fda085 100%); color: white;" onclick="openEditAssignmentModal('${assign._fbKey}')">✏️ Sửa bài</button>
                     <button class="btn-reject" style="padding: 6px 15px; font-size: 0.9em;" onclick="deleteAssignment('${assign._fbKey}')">🗑 Xóa bài</button>
                 </div>
@@ -7530,7 +7530,7 @@ style="
             ${studentFileHTML}
             ${missingRequiredFileHTML}
         </div>
-        ${window.AssignmentExtensions?.teacherInfo(sub) || ''}
+        ${'' /* kế hoạch 1 chưa công bố */}
     </div>
 </div>
                 <div style="background: rgba(255,255,255,0.6); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.9);">

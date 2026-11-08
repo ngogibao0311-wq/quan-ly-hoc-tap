@@ -922,7 +922,6 @@ html[data-app-role="student"] body .dashboard > .content > :is(
          * EffectQualityManager chỉ quyết định mật độ/chi phí hiệu ứng sau khi runtime đã nạp.
          */
         async 'theme-runtime'() {
-            await loadScript('js/plan4-items.js?v='+"20261029.plan4.2");
             await loadScript(SCRIPT.thatTich);
             await loadScript(SCRIPT.huyenMinh);
             await loadScript(SCRIPT.chronos);
@@ -943,7 +942,6 @@ html[data-app-role="student"] body .dashboard > .content > :is(
         },
 
         async 'effect-runtime'() {
-            await loadScript('js/plan4-items.js?v=20261029.plan4.2');
             await loadScript(SCRIPT.thatTich);
             await loadScript(SCRIPT.huyenMinh);
             await loadScript(SCRIPT.chronos);
@@ -967,7 +965,6 @@ html[data-app-role="student"] body .dashboard > .content > :is(
         },
 
         async 'pet-runtime'() {
-            await loadScript('js/plan4-items.js?v=20261029.plan4.2');
             await loadScript(SCRIPT.thatTich);
             await loadScript(SCRIPT.huyenMinh);
             await loadScript(SCRIPT.chronos);
@@ -992,7 +989,6 @@ html[data-app-role="student"] body .dashboard > .content > :is(
         },
 
         async 'frame-background-runtime'() {
-            await loadScript('js/plan4-items.js?v=20261029.plan4.2');
             await loadScript(SCRIPT.thatTich);
             await loadScript(SCRIPT.huyenMinh);
             await loadScript(SCRIPT.chronos);
@@ -1180,15 +1176,6 @@ html[data-app-role="student"] body .dashboard > .content > :is(
     }
 
     const LUXURY_ITEM_IDS = new Set([
-        'pet_plan4_alger_premium',
-        'pet_plan4_emlyn_premium',
-        'pet_plan4_liu_xiao_premium',
-        'pet_plan4_qiao_ling_premium',
-        'pet_plan4_hemera_premium',
-        'pet_plan4_greed_premium',
-        'pet_plan4_noctyriel_premium',
-        'pet_plan4_noel_nam_premium',
-        'pet_plan4_noel_nu_premium',
         'pet_nguu_lang_premium_1',
         'pet_chuc_nu_premium_1',
         'pet_huyen_minh_premium_1',
@@ -1270,7 +1257,9 @@ html[data-app-role="student"] body .dashboard > .content > :is(
             (Array.isArray(items) ? items : [])
                 .filter(item =>
                     item &&
-                    item.isEquipped === true
+                    item.isEquipped === true &&
+                    !/_plan4_|caelion/i.test(String(item.id || '')) &&
+                    window.PreReleasePolicy?.isBlockedItem(item.id) !== true
                 );
 
         if (!equipped.length) {
@@ -1394,7 +1383,7 @@ html[data-app-role="student"] body .dashboard > .content > :is(
                 ? String(itemOrId).trim()
                 : String(itemOrId?.id || '').trim();
 
-        if (!id) return false;
+        if (!id || /_plan4_|caelion/i.test(id) || window.PreReleasePolicy?.isBlockedItem(id)) return false;
 
         await ensure('frame-background-runtime');
 
@@ -1433,7 +1422,7 @@ html[data-app-role="student"] body .dashboard > .content > :is(
 
     async function ensureForItem(itemId) {
         const id = String(itemId || '').trim();
-        if (!id) return false;
+        if (!id || /_plan4_|caelion/i.test(id) || window.PreReleasePolicy?.isBlockedItem(id)) return false;
 
         /*
          * Dùng cùng bộ phân loại với startup:

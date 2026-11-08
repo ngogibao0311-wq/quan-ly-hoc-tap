@@ -33,15 +33,6 @@
     // ========================================================
     // Muốn món nào xuất hiện thì ghi ID món đó vào đây.
     const LUXURY_ITEM_IDS = [
-        'pet_plan4_alger_premium',
-        'pet_plan4_emlyn_premium',
-        'pet_plan4_liu_xiao_premium',
-        'pet_plan4_qiao_ling_premium',
-        'pet_plan4_hemera_premium',
-        'pet_plan4_greed_premium',
-        'pet_plan4_noctyriel_premium',
-        'pet_plan4_noel_nam_premium',
-        'pet_plan4_noel_nu_premium',
         'pet_huyen_minh_premium_1',
         'pet_chronos_premium_3',
         'pet_audrey_hall_premium_2',

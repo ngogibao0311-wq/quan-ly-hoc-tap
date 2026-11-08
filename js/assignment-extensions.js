@@ -1,6 +1,18 @@
 /* Paid deadlines. All eligibility, prices and balance changes are decided by Worker. */
 (() => {
     'use strict';
+    // ROLLOUT LOCK: kế hoạch 1 chưa công bố; không tạo nút, không gọi Worker.
+    // Lịch sử vẫn ở Firebase để quản trị viên đối soát (không ghi hoàn coin).
+    const PLAN1_NOT_RELEASED = true;
+    if (PLAN1_NOT_RELEASED) {
+        window.AssignmentExtensions = Object.freeze({
+            version: 1, paused: true,
+            mountStudent() {}, preserveCard() { return false; },
+            teacherInfo() { return ''; },
+            currentDeadline(_assignmentId, originalDeadline) { return originalDeadline; }
+        });
+        return;
+    }
     const snapshots=new WeakMap(), minute=60000, vn=25200000;
     let dialogHost=null;
     const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
