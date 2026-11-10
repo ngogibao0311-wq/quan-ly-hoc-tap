@@ -116,3 +116,59 @@ test('guide awaits tab runtime and does not bypass denied navigation', async () 
     await assert.rejects(context.openGuideTab('tab-store'), /Chưa thể mở mục/);
 });
 
+function transactionShieldHarness(file, enabled) {
+    const calls = [];
+    const window = {
+        ECONOMY_SERVER_ENABLED: enabled,
+        EconomyClient: {execute: async (...args) => {
+            calls.push({kind:'worker',action:args[0]});
+            return {ok:true};
+        }}
+    };
+    const database = {ref: () => {
+        calls.push({kind:'firebase'});
+        throw Error('Direct Firebase access is forbidden in a monetary mutation');
+    }};
+    const sandbox = {
+        window, db: database,
+        firebase: {auth: () => ({currentUser:{uid:'test-uid'}})},
+        localStorage: {getItem:()=>null,setItem(){},removeItem(){}},
+        document: {readyState:'loading',addEventListener(){}},
+        navigator: {locks:{request:async (_key,fn)=>fn()}},
+        console
+    };
+    vm.runInNewContext(read(file), sandbox, {filename:file});
+    return {window,calls};
+}
+
+test('Transaction Safety Shield refuses cash mutations before Firebase when Worker is unconfirmed', async () => {
+    const h = transactionShieldHarness('js/cash-ledger.js', false);
+    await assert.rejects(h.window.CashLedger.approve('request1','alice'), /TRANSACTION_SHIELD_UNAVAILABLE/);
+    await assert.rejects(h.window.CashLedger.submit({amount:100,studentUsername:'alice'}), /TRANSACTION_SHIELD_UNAVAILABLE/);
+    assert.deepEqual(h.calls,[]);
+});
+
+test('Transaction Safety Shield refuses teacher asset mutations before Firebase when Worker is unconfirmed', async () => {
+    const h = transactionShieldHarness('js/teacher-ledger.js', false);
+    await assert.rejects(h.window.TeacherLedger.commit({
+        id:'operation1',username:'alice',type:'coin',delta:100,reason:'Kiểm thử'
+    }), /TRANSACTION_SHIELD_UNAVAILABLE/);
+    assert.deepEqual(h.calls,[]);
+});
+
+test('Transaction Safety Shield routes cash and teacher adjustments exclusively through Worker', async () => {
+    const cash = transactionShieldHarness('js/cash-ledger.js', true);
+    await cash.window.CashLedger.approve('request1','alice');
+    await cash.window.CashLedger.submit({amount:100,studentUsername:'alice'});
+    assert.deepEqual(cash.calls.map(x=>x.action),['cash_approve','cash_request']);
+    const teacher = transactionShieldHarness('js/teacher-ledger.js', true);
+    await teacher.window.TeacherLedger.commit({
+        id:'operation1',username:'alice',type:'coin',delta:100,reason:'Kiểm thử'
+    });
+    await teacher.window.TeacherLedger.commit({
+        id:'operation2',username:'alice',type:'ticket',delta:1,
+        reason:'Kiểm thử',kind:'ticket_adjust'
+    });
+    assert.deepEqual(teacher.calls.map(x=>x.action),['teacher_adjust','teacher_tickets']);
+    assert.equal([...cash.calls,...teacher.calls].some(x=>x.kind==='firebase'),false);
+});

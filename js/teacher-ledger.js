@@ -3,7 +3,13 @@
     'use strict';
     const paths = { coin: 'student_coins', ticket: 'student_bonus_tickets', money: 'student_money_offset' };
     const units = { coin: 'Coin', ticket: 'Vé', money: 'đ' };
-    const inFlight = new Map();
+    function requireTransactionShield() {
+        if (window.ECONOMY_SERVER_ENABLED !== true || typeof window.EconomyClient?.execute !== 'function') {
+            const error = Error('TRANSACTION_SHIELD_UNAVAILABLE');
+            error.code = 'TRANSACTION_SHIELD_UNAVAILABLE';
+            throw error;
+        }
+    }
     const read = async path => (await db.ref(path).once('value')).val();
     const batchLock = task => typeof navigator !== 'undefined' && navigator.locks
         ? navigator.locks.request('teacher-penalty-batch', task) : Promise.resolve().then(task);
@@ -22,69 +28,22 @@
         }) };
         });
     }
+    // Safety Shield: permissions, balance checks and commit must be atomic in Worker.
     async function commit(options) {
-        const { id, username, type, delta, reason, name = username, originalId = '' } = options;
+        const { id, username, type, delta, reason, originalId = '' } = options;
         const ticketAdjustment = options.kind === 'ticket_adjust';
-        const kind = ticketAdjustment ? 'ticket_adjust' : originalId ? 'counter' : 'penalty';
-        if (!id || !paths[type] || !Number.isSafeInteger(delta) || !delta || !reason.trim()) throw Error('Giao dịch không hợp lệ');
+        if (!id || !paths[type] || !Number.isSafeInteger(delta) || !delta ||
+            typeof reason !== 'string' || !reason.trim()) throw Error('Giao dịch không hợp lệ');
         if (ticketAdjustment && (type !== 'ticket' || originalId)) throw Error('Điều chỉnh vé không hợp lệ');
-        if(window.ECONOMY_SERVER_ENABLED===true && ticketAdjustment)return window.EconomyClient.execute('teacher_tickets',{studentUsername:String(username),mode:delta>0?'add':'sub',amount:String(Math.abs(delta))},{slot:'teacher-tickets:'+username});
-        if(window.ECONOMY_SERVER_ENABLED===true)return window.EconomyClient.execute('teacher_adjust',{ledgerId:String(id),studentUsername:String(username),type:String(type),delta:String(delta),reason:String(reason),originalId:String(originalId||'none')},{slot:'teacher-ledger:'+id});
-        if (inFlight.has(id)) return inFlight.get(id);
-        const work = (async () => {
-            const receiptPath = `teacher_money_operations/${id}`;
-            const matches = receipt => receipt && receipt.username === username && receipt.type === type && receipt.delta === delta && receipt.kind === kind && (receipt.originalId || '') === originalId;
-            const existing = await read(receiptPath);
-            if (existing) { if (!matches(existing)) throw Error('Mã giao dịch đã được dùng cho nội dung khác'); return existing; }
-            if (originalId) {
-                const original = await read(`teacher_money_operations/${originalId}`);
-                if (!original || original.kind !== 'penalty' || original.delta !== -delta || original.username !== username || original.type !== type || id !== `counter_${originalId}`) throw Error('Khoản đối ứng không khớp giao dịch gốc');
-            }
-            const balancePath = `${paths[type]}/${username}`;
-            for (let attempt = 0; attempt < 5; attempt++) {
-                const before = Number(await read(balancePath) || 0), after = before + delta;
-                const ticketBase = ticketAdjustment ? Number(await read(`historical_grade_tickets/${username}`) || 0) : 0;
-                const ticketUsed = ticketAdjustment ? Number(await read(`spin_counts/${username}/count`) || 0) : 0;
-                if (ticketAdjustment && delta < 0 && ticketBase + after - ticketUsed < 0) {
-                    // Another tab may already have committed this same operation while these reads were in flight.
-                    const confirmed = await read(receiptPath);
-                    if (matches(confirmed)) return confirmed;
-                    const error = Error(`Học sinh hiện chỉ còn ${Math.max(0, ticketBase + before - ticketUsed)} vé, không đủ để trừ. Số vé đã được kiểm tra lại.`);
-                    error.code = 'TICKET_INSUFFICIENT';
-                    throw error;
-                }
-                const lower = type === 'ticket' ? -9999 : -9999999;
-                const upper = type === 'coin' ? 999999999 : -lower;
-                if (!Number.isSafeInteger(after) || after < lower || after > upper) {
-                    const error = Error('Khoản điều chỉnh vượt giới hạn số dư của hệ thống');
-                    error.code = 'LEDGER_BALANCE_LIMIT';
-                    throw error;
-                }
-                const now = Date.now(), user = JSON.parse(localStorage.getItem('currentUser') || '{}');
-                const actor = { uid: firebase.auth().currentUser.uid, username: String(user.username || ''), name: String(user.name || user.username || 'Giáo viên'), role: 'teacher' };
-                const receipt = { id, username, type, delta, before, after, kind, originalId, reason, actorUid: actor.uid, createdAt: firebase.database.ServerValue.TIMESTAMP };
-                if (ticketAdjustment) Object.assign(receipt, { ticketBase, ticketUsed });
-                const summary = `${ticketAdjustment ? 'Điều chỉnh vé' : originalId ? 'Đối ứng' : 'Trừ tài sản'}: ${delta > 0 ? '+' : ''}${delta.toLocaleString('vi-VN')} ${units[type]} — ${reason}`.slice(0, 500);
-                const log = { id, type: ticketAdjustment ? 'teacher_ticket_adjust' : originalId ? 'teacher_counter' : 'teacher_penalty', source: 'teacher_ledger', targetUsername: username, targetName: name, summary, actor, amount: delta, unit: units[type], before, after, reversible: false, status: 'active', createdAt: firebase.database.ServerValue.TIMESTAMP, createdAtClient: now, details: { operationId: id, originalId, penaltyType: type, balancePath, storageBefore: before, storageAfter: after } };
-                if (ticketAdjustment) Object.assign(log.details, { ticketBase, ticketUsed, remainingBefore: ticketBase + before - ticketUsed, remainingAfter: ticketBase + after - ticketUsed });
-                const message = { message: `${summary}\nMã giao dịch: ${id}${originalId ? `\nĐối ứng cho: ${originalId}` : ''}\n${type === 'coin' ? 'Số dư Coin' : 'Khoản điều chỉnh ' + units[type]}: ${before.toLocaleString('vi-VN')} → ${after.toLocaleString('vi-VN')}`, source: 'teacher_penalty', giftType: 'none', giftValue: '', penaltyApplied: true, penaltyOperationId: id, penaltyType: type, penaltyAmount: -delta, penaltyReason: reason, messageKind: 'penalty', penaltyNotice: true, timestamp: firebase.database.ServerValue.TIMESTAMP, timeString: new Date(now).toLocaleString('vi-VN'), skipInboxGiftAnimation: true, suppressInboxArrivalAnimation: true };
-                if (ticketAdjustment) Object.assign(message, { source: 'teacher_ticket_adjust', messageKind: 'ticket_adjust', penaltyNotice: false });
-                try {
-                    await db.ref().update({ [receiptPath]: receipt, [balancePath]: after, [`transaction_logs/${id}`]: log, [`inbox_messages/${username}/${id}`]: message });
-                    return receipt;
-                } catch (error) {
-                    // An acknowledgement can be lost after the server committed the write.
-                    const confirmed = await read(receiptPath);
-                    if (matches(confirmed)) return confirmed;
-                    const current = Number(await read(balancePath) || 0);
-                    const currentBase = ticketAdjustment ? Number(await read(`historical_grade_tickets/${username}`) || 0) : 0;
-                    const currentUsed = ticketAdjustment ? Number(await read(`spin_counts/${username}/count`) || 0) : 0;
-                    if ((current === before && currentBase === ticketBase && currentUsed === ticketUsed) || attempt === 4) throw Error(`Chưa xác nhận giao dịch ${id}. Giữ nguyên mã để thử lại. Kiểm tra kết nối và Publish database.rules.patched.json mới. ${error.message || ''}`);
-                }
-            }
-        })();
-        inFlight.set(id, work);
-        try { return await work; } finally { inFlight.delete(id); }
+        requireTransactionShield();
+        if (ticketAdjustment) return window.EconomyClient.execute('teacher_tickets', {
+            studentUsername:String(username), mode:delta>0?'add':'sub',
+            amount:String(Math.abs(delta))
+        }, {slot:'teacher-tickets:'+username});
+        return window.EconomyClient.execute('teacher_adjust', {
+            ledgerId:String(id), studentUsername:String(username), type:String(type),
+            delta:String(delta), reason:String(reason), originalId:String(originalId||'none')
+        }, {slot:'teacher-ledger:'+id});
     }
     const ticketActions = new Map();
     async function adjustTickets({ username, mode, amount, name = username }) {
