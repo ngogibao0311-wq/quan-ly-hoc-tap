@@ -5921,6 +5921,181 @@ window.deleteMaterial =
         }
     };
 
+// An assignment can disappear while its exam session/lock survives in Firebase.
+// The account-access Worker checks server state, not the visible assignment list.
+// Only the teacher may inspect and reconcile these records. No browser permission
+// is granted by this helper, and it never changes account-access session ownership.
+function planOrphanExamReconciliation(assignments, sessions, locks, submissions, now) {
+    const liveIds = new Set();
+    for (const [key, assignment] of Object.entries(assignments || {})) {
+        liveIds.add(String(key));
+        if (assignment && assignment.id !== undefined && assignment.id !== null) {
+            liveIds.add(String(assignment.id));
+        }
+    }
+    const submissionKeys = new Set();
+    const unknownOwnerIds = new Set();
+    for (const submission of Object.values(submissions || {})) {
+        if (!submission || typeof submission !== 'object') continue;
+        const assignmentId = String(getCompatSubmissionAssignmentId(submission) || '');
+        const username = String(getCompatSubmissionUsername(submission) || '');
+        if (!assignmentId) continue;
+        if (username) submissionKeys.add(username + '\u0000' + assignmentId);
+        else unknownOwnerIds.add(assignmentId);
+    }
+    const groups = new Map();
+    const groupFor = (username, assignmentId) => {
+        const token = username + '\u0000' + assignmentId;
+        if (!groups.has(token)) groups.set(token, {
+            username, assignmentId, records: [], reasons: []
+        });
+        return groups.get(token);
+    };
+    for (const [username, records] of Object.entries(sessions || {})) {
+        if (!records || typeof records !== 'object') continue;
+        for (const [key, session] of Object.entries(records)) {
+            if (!session || typeof session !== 'object') continue;
+            const id = String(session.assignmentId || key);
+            const refKey = String(session.assignmentKey || '');
+            if (!id || liveIds.has(id) || (refKey && liveIds.has(refKey))) continue;
+            const group = groupFor(username, id);
+            group.records.push({path:'exam_sessions/' + username + '/' + key, data:session});
+            if (submissionKeys.has(username + '\u0000' + id) || unknownOwnerIds.has(id)) {
+                group.reasons.push('Còn bài nộp liên quan');
+            }
+            if (String(session.status || '') === 'finalizing') {
+                group.reasons.push('Phiên thi đang/đã bắt đầu chốt bài, phải kiểm tra thủ công');
+            }
+            if (Number(session.ownerLeaseUntil || 0) > now || Number(session.finalizeLeaseUntil || 0) > now) {
+                group.reasons.push('Quyền xử lý phiên thi chưa hết hạn');
+            }
+        }
+    }
+    for (const [username, lock] of Object.entries(locks || {})) {
+        if (!lock || typeof lock !== 'object') continue;
+        const id = String(lock.assignmentId || '');
+        if (!id || liveIds.has(id)) continue;
+        const group = groupFor(username, id);
+        group.records.push({path:'exam_active_locks/' + username, data:lock});
+        if (submissionKeys.has(username + '\u0000' + id) || unknownOwnerIds.has(id)) {
+            group.reasons.push('Còn bài nộp liên quan');
+        }
+        if (String(lock.status || '') === 'active' && Number(lock.leaseUntil || 0) > now) {
+            group.reasons.push('Khóa bài thi đang còn hiệu lực');
+        }
+    }
+    const safe = [], review = [];
+    for (const group of groups.values()) {
+        group.reasons = [...new Set(group.reasons)];
+        (group.reasons.length ? review : safe).push(group);
+    }
+    const byKey = (a,b) => (a.username + '/' + a.assignmentId).localeCompare(b.username + '/' + b.assignmentId);
+    safe.sort(byKey); review.sort(byKey);
+    return {safe, review};
+}
+
+async function readExamReconciliationInput() {
+    // Teacher-only reads. Do not use cached assignments to decide whether an exam was deleted.
+    const [assignments, sessions, locks, submissions, serverOffset] = await Promise.all([
+        db.ref('assignments').once('value'),
+        db.ref('exam_sessions').once('value'),
+        db.ref('exam_active_locks').once('value'),
+        db.ref('submissions').once('value'),
+        db.ref('.info/serverTimeOffset').once('value')
+    ]);
+    return {
+        assignments: assignments.val() || {},
+        sessions: sessions.val() || {},
+        locks: locks.val() || {},
+        submissions: submissions.val() || {},
+        now: Date.now() + (Number(serverOffset.val()) || 0)
+    };
+}
+
+function saveExamReconciliationBackup(groups) {
+    const payload = {
+        exportedAt: new Date().toISOString(),
+        notice: 'Sao lưu các bản ghi phiên thi mồ côi trước khi đối soát. Không chứa mật khẩu hoặc mã khôi phục.',
+        groups
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'sao-luu-phien-thi-mo-coi-' + new Date().toISOString().slice(0,10) + '.json';
+    document.body.append(a);
+    a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+// Existing deleted assignments: teacher-initiated, audited repair; never silently
+// clean a live exam, an unresolved finalization, or a surviving submission.
+window.reconcileDeletedExamSessions = async function () {
+    try {
+        const first = await readExamReconciliationInput();
+        const plan = planOrphanExamReconciliation(first.assignments, first.sessions, first.locks, first.submissions, first.now);
+        const safePaths = plan.safe.flatMap(group => group.records.map(record => record.path));
+        const blockedSummary = plan.review.slice(0, 8).map(group =>
+            group.username + ' / ' + group.assignmentId + ': ' + group.reasons.join(', ')
+        ).join('\n');
+        if (!safePaths.length) {
+            await AppDialog.alert('Không có bản ghi phiên thi mồ côi đủ điều kiện dọn tự động.' +
+                (plan.review.length ? '\n\nCó ' + plan.review.length + ' trường hợp cần kiểm tra thủ công:\n' + blockedSummary :
+                    '\nNếu vẫn báo lỗi, cần kiểm tra nhật ký và mã Worker /account-access.'));
+            return;
+        }
+        const message = 'Đối soát phát hiện ' + plan.safe.length + ' phiên/khóa bài thi của bài ĐÃ XÓA (' + safePaths.length + ' bản ghi). ' +
+            'Có ' + plan.review.length + ' trường hợp được GIỮ NGUYÊN vì đang chốt bài, chưa hết quyền xử lý hoặc còn bài nộp.' +
+            '\n\nTiếp tục sẽ tải bản sao lưu các bản ghi có thể dọn. Chưa thay đổi dữ liệu.';
+        if (!await AppDialog.confirm(message)) return;
+        saveExamReconciliationBackup(plan.safe);
+        if (!await AppDialog.confirm('Hãy xác nhận bản sao lưu JSON đã được tải và lưu ở nơi an toàn. ' +
+            'Chỉ xóa dữ liệu phiên thi MỒ CÔI đã kiểm tra, không sửa điểm, Coin, bài nộp hoặc quyền đăng nhập. Tiếp tục?')) return;
+        // Re-read after user interaction. Abort if any candidate changed/was revived.
+        const latest = await readExamReconciliationInput();
+        const rechecked = planOrphanExamReconciliation(latest.assignments, latest.sessions, latest.locks, latest.submissions, latest.now);
+        if (JSON.stringify(plan.safe) !== JSON.stringify(rechecked.safe)) {
+            await AppDialog.alert('Dữ liệu đã đổi trong lúc kiểm tra. Chưa xóa gì; hãy chạy đối soát lại.');
+            return;
+        }
+        const updates = {};
+        for (const path of safePaths) updates[path] = null;
+        await db.ref().update(updates);
+        await AppDialog.alert('Đã dọn ' + safePaths.length + ' bản ghi phiên thi/khóa mồ côi. ' +
+            'Giữ nguyên ' + plan.review.length + ' trường hợp cần kiểm tra thủ công. ' +
+            'Học sinh hãy tải lại trang và thử chuyển quyền. Nếu Worker còn báo lỗi, phải kiểm tra trạng thái phía Worker.');
+    } catch (error) {
+        console.error('[Exam reconciliation]', error);
+        await AppDialog.alert('Đối soát chưa hoàn tất, không được coi là đã giải phóng quyền: ' + error.message);
+    }
+};
+
+async function findDeletedAssignmentExamRecords(assignment) {
+    const ids = new Set(getCompatAssignmentIds(assignment));
+    const [sessions, locks] = await Promise.all([
+        db.ref('exam_sessions').once('value'),
+        db.ref('exam_active_locks').once('value')
+    ]);
+    const paths = [];
+    const unsafe = [];
+    const now = Date.now();
+    for (const [username, records] of Object.entries(sessions.val() || {})) {
+        for (const [id, session] of Object.entries(records || {})) {
+            if (!session || ![id, session.assignmentId, session.assignmentKey].some(value => ids.has(String(value || '')))) continue;
+            paths.push('exam_sessions/' + username + '/' + id);
+            if (session.status === 'finalizing' || Number(session.ownerLeaseUntil || 0) > now || Number(session.finalizeLeaseUntil || 0) > now) {
+                unsafe.push(username + '/' + id);
+            }
+        }
+    }
+    for (const [username, lock] of Object.entries(locks.val() || {})) {
+        if (!lock || !ids.has(String(lock.assignmentId || ''))) continue;
+        paths.push('exam_active_locks/' + username);
+        if (lock.status === 'active' && Number(lock.leaseUntil || 0) > now) unsafe.push(username + '/khóa đang hiệu lực');
+    }
+    return {paths: [...new Set(paths)], unsafe: [...new Set(unsafe)]};
+}
+
 window.deleteAssignment =
     async function (assignId) {
         if (
@@ -5971,6 +6146,20 @@ window.deleteAssignment =
                     submissionsByAssignment
                 );
 
+            // Exam session records do not disappear just because assignments do.
+            // Refuse to discard an active finalization or active lease; after
+            // confirmation, delete inactive records atomically with the assignment.
+            const relatedExamRecords = await findDeletedAssignmentExamRecords(assignment);
+            if (relatedExamRecords.unsafe.length) {
+                await AppDialog.alert('Không thể xóa khi còn phiên thi đang chốt bài hoặc còn khóa thao tác. ' +
+                    'Hãy đối soát trước để tránh mất bài làm: ' + relatedExamRecords.unsafe.slice(0, 6).join(', '));
+                return;
+            }
+            if (relatedExamRecords.paths.length && !(await AppDialog.confirm(
+                'Bài này còn ' + relatedExamRecords.paths.length + ' bản ghi phiên thi/khóa đã hết quyền xử lý. ' +
+                'Nếu tiếp tục xóa bài, các bản ghi này cũng được dọn để không chặn chuyển thiết bị về sau. Xác nhận?'
+            ))) return;
+
             // Bảo vệ sổ cái thưởng/phạt trước khi xóa bài.
             // Nếu học sinh đang bấm nhận quà, dừng thao tác xóa để tránh race.
             for (const submission of relatedSubmissions) {
@@ -6019,6 +6208,8 @@ window.deleteAssignment =
                     }
                 }
             );
+
+            for (const path of relatedExamRecords.paths) updates[path] = null;
 
             await db.ref().update(
                 updates
