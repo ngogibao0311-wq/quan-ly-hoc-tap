@@ -2180,6 +2180,12 @@ if (loginForm) {
                     errorMsg.textContent = 'Phiên đã hết hạn hoặc bị thu hồi. Đóng web quá 1 phút hoặc không hoạt động 20 phút sẽ cần đăng nhập lại.';
                 } else if (reason === 'session_changed') {
                     errorMsg.textContent = 'Tài khoản hoặc phiên đăng nhập đã thay đổi ở tab khác. Hãy đăng nhập lại đúng tài khoản. Dùng hai hồ sơ trình duyệt riêng để mở giáo viên và học sinh cùng lúc.';
+                } else if (reason === 'logout_server_unconfirmed') {
+                    errorMsg.textContent = 'Đã đăng xuất tại trình duyệt này nhưng máy chủ chưa xác nhận kết thúc phiên. Phiên cũ có thể còn giữ quyền thao tác đến khi hết hạn; liên hệ giáo viên nếu lần đăng nhập tiếp theo vẫn chỉ xem.';
+                    errorMsg.style.color = '#d97706';
+                } else if (reason === 'logout_auth_failed') {
+                    errorMsg.textContent = 'Chưa xác nhận được đăng xuất Firebase trên thiết bị này. Hãy kiểm tra kết nối, tải lại trang rồi đăng xuất lại; nếu vẫn còn phiên, liên hệ giáo viên.';
+                    errorMsg.style.color = '#b91c1c';
                 }
             }
         }
@@ -2253,9 +2259,11 @@ if (loginForm) {
             const snapshot = await db.ref('users/' + uid).once('value');
             const user = snapshot.val();
 
-            if (!user) {
-                errorMsg.innerHTML = '❌ Tài khoản không tồn tại dữ liệu trên máy chủ!';
+            if (!user || !['student', 'teacher'].includes(user.role)) {
+                errorMsg.textContent = '❌ Không tìm thấy tài khoản hoặc vai trò hợp lệ trên máy chủ!';
                 errorMsg.style.color = 'red';
+                await firebase.auth().signOut();
+                localStorage.removeItem('currentUser');
                 return;
             }
 
@@ -2263,6 +2271,7 @@ if (loginForm) {
                 errorMsg.innerHTML = '🔒 LỖI: Tài khoản đã bị khóa.<br>Vui lòng liên hệ Giáo viên để giải quyết!';
                 errorMsg.style.color = 'red';
                 await firebase.auth().signOut();
+                localStorage.removeItem('currentUser');
                 return;
             }
 
@@ -2531,43 +2540,51 @@ window.addEventListener('beforeunload', function () {
 
 window.logout = async function () {
     const accepted = await (AppDialog.confirmLogout?.() ?? AppDialog.confirm('Bạn có chắc chắn muốn đăng xuất?'));
-
     if (!accepted) return;
-    if (/student\.html$/.test(window.location.pathname)) {
-        try { await window.StudentAccountAccess?.releaseSession(); }
-        catch (_) {
-            await AppDialog.alert('Chưa báo đăng xuất được với máy chủ. Bạn vẫn sẽ đăng xuất trên thiết bị này; phiên trên máy chủ sẽ kết thúc khi hết hạn. Các giao dịch đang chờ được giữ lại để kiểm tra sau.');
+
+    // A read-only / orphaned session must always be able to log out locally.
+    // The Worker may be unavailable or may reject release_session; never make
+    // Firebase sign-out depend on acknowledgement from that separate service.
+    let serverReleaseUnconfirmed = false;
+    if (/student\.html$/.test(window.location.pathname) && window.StudentAccountAccess?.releaseSession) {
+        let timeoutId;
+        try {
+            await Promise.race([
+                window.StudentAccountAccess.releaseSession(),
+                new Promise((_, reject) => {
+                    timeoutId = setTimeout(() => reject(new Error('SESSION_RELEASE_TIMEOUT')), 7000);
+                })
+            ]);
+        } catch (error) {
+            serverReleaseUnconfirmed = true;
+            console.warn('[Logout] Chưa xác nhận giải phóng phiên trên máy chủ:', error);
+        } finally {
+            clearTimeout(timeoutId);
         }
     }
 
+    // Cleanup and Firebase sign-out are independent. A broken listener must
+    // never prevent the browser from ending its authentication state.
     try {
-        // Gỡ các listener Realtime Database.
-        if (
-            typeof window.cleanupFirebaseListeners ===
-            'function'
-        ) {
-            window.cleanupFirebaseListeners();
-        }
+        window.cleanupFirebaseListeners?.();
+    } catch (error) {
+        console.warn('[Logout] Không thể gỡ hết listener:', error);
+    }
 
-        // Đăng xuất Firebase Authentication.
-        if (
-            typeof firebase !== 'undefined' &&
-            typeof firebase.auth === 'function'
-        ) {
+    let authSignOutFailed = false;
+    try {
+        if (typeof firebase !== 'undefined' && typeof firebase.auth === 'function') {
             await firebase.auth().signOut();
         }
     } catch (error) {
-        console.error(
-            'Không thể đăng xuất xác thực đám mây:',
-            error
-        );
+        authSignOutFailed = true;
+        console.error('[Logout] Không thể đăng xuất Firebase:', error);
     } finally {
-        // Không xóa toàn bộ localStorage vì còn giao diện,
-        // cài đặt và dữ liệu không liên quan đến đăng nhập.
+        // Keep unrelated UI preferences and pending economy operation receipts.
         localStorage.removeItem('currentUser');
-
-        // replace để người dùng không bấm Back quay lại trang cũ.
-        window.location.replace('index.html');
+        const reason = authSignOutFailed ? '?reason=logout_auth_failed'
+            : serverReleaseUnconfirmed ? '?reason=logout_server_unconfirmed' : '';
+        window.location.replace('index.html' + reason);
     }
 };
 
