@@ -1342,6 +1342,14 @@
                     <button class="btn-student-filter active" data-id="all"
                         onclick="setStudentFilter('all', this, 'assigned')">Tất cả</button>
                 </div>
+                <div style="margin:10px 0 16px;">
+                    <button type="button" onclick="reconcileDeletedExamSessions()" class="btn-secondary" style="padding:8px 14px;">
+                        🔍 Đối soát phiên thi của bài đã xóa
+                    </button>
+                    <p style="font-size:0.85em;color:#64748b;margin:6px 0 0;">
+                        Kiểm tra bản ghi mồ côi trên máy chủ. Có bản sao lưu và xác nhận riêng trước khi dọn; phiên thi còn chốt bài được giữ nguyên.
+                    </p>
+                </div>
                 <div id="assignedListContainer"></div>
             </div>
 
@@ -3902,7 +3910,7 @@
 <script src="js/teacher-ledger.js?v=20261017.production.split1"></script>
 <script src="js/cash-ledger.js?v=20261019.loading1"></script>
 <script src="js/page-work-coordinator.js?v=20261017.production.split1"></script>
-<script src="js/teacher.js?v=20261028.plan2.files1"></script>
+<script src="js/teacher.js?v=20261113.exam-orphan-reconcile1"></script>
     <script src="js/huong-dan-nguoi-moi.js?v=20261017.production.split1"></script>
 
 <link rel="stylesheet" href="css/collection-rewards.css?v=20261003.cleanup1">
