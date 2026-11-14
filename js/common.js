@@ -2159,7 +2159,7 @@ async function clearAllLockouts() {
 if (loginForm) {
     if (new URLSearchParams(window.location.search).get('reason') === 'update_required') {
         const notice = document.getElementById('errorMsg');
-        if (notice) notice.textContent = 'Website đã cập nhật cơ chế bảo vệ. Nhấn Ctrl+F5 rồi đăng nhập lại bằng tài khoản, mật khẩu và mã đã lưu.';
+        if (notice) notice.textContent = 'Website đã cập nhật cơ chế đăng nhập. Nhấn Ctrl+F5 rồi đăng nhập lại bằng tài khoản và mật khẩu.';
     }
     try {
         const urlParams = new URLSearchParams(window.location.search);
@@ -5732,11 +5732,10 @@ window.securityHotfix = Object.freeze({
     });
     const message=error=>messages[error?.message] || 'Chưa xác nhận được thao tác. Kiểm tra kết nối và thử lại.';
     function enabled() {
-        // The per-account latch is authoritative even if the global switch is off.
-        return Promise.all([
-            firebase.database().ref('account_access_config/enabled').once('value'),
-            uid() ? firebase.database().ref('account_access_accounts/'+uid()+'/requiredClientVersion').once('value') : null
-        ]).then(([config, required]) => config.val() === true || Number(required?.val()) >= 2);
+        // Emergency maintenance override: only the server-owned config can
+        // disable the recovery-code/device-session policy. Never use a local flag.
+        return firebase.database().ref('account_access_config/enabled')
+            .once('value').then(snapshot => snapshot.val() === true);
     }
     function endpoint() {
         const configured=window.ACCOUNT_ACCESS_WORKERS?.[project()];
@@ -6214,6 +6213,9 @@ window.securityHotfix = Object.freeze({
     }
     async function ensure() {
         if (await window.PageAuthReady === false || window.pageAuthBlocked) return false;
+        // Do this before the account's sticky requiredClientVersion check, so
+        // a previously enrolled student can use normal password auth when OFF.
+        if (!(await enabled())) { accessEnforced = false; return true; }
         const required = Number((await firebase.database().ref('account_access_accounts/'+uid()+'/requiredClientVersion').once('value')).val()) || 0;
         if (!policyCodeReady()) {
             if (required >= 2) throw Error(messages.CLIENT_UPDATE_REQUIRED);
@@ -6423,6 +6425,7 @@ window.securityHotfix = Object.freeze({
     }
 
     async function generateRecoveryCode() {
+        if (!(await window.StudentAccountAccess.enabled())) return;
         if (recoveryBusy) return;
         setRecoveryBusy(true);
         let ctx;
@@ -6657,6 +6660,14 @@ window.securityHotfix = Object.freeze({
         row.querySelector('[data-network-refresh]').addEventListener('click', () => { void refresh(); });
         row.querySelector('[data-device-copy]').addEventListener('click', () => { void copyDeviceId(); });
         row.querySelector('[data-device-generate]').addEventListener('click', () => { void generateRecoveryCode(); });
+        // Hide the obsolete recovery-code controls while maintenance mode is OFF.
+        void window.StudentAccountAccess.enabled().then(active => {
+            const section = row.querySelector('.connection-recovery');
+            if (section) section.hidden = !active;
+        }).catch(() => {
+            const section = row.querySelector('.connection-recovery');
+            if (section) section.hidden = true;
+        });
         void ensureDevice();
         window.addEventListener('storage', event => {
             if (event.key === DEVICE_KEY || event.key === linkKey() || (event.key === null && event.storageArea === window.localStorage)) {

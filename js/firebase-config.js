@@ -46,7 +46,12 @@ window.PageAuthReady = (() => {
             if (!identity) {
                 const profile = (await db.ref('users/' + user.uid).once('value')).val();
                 if (version !== epoch || blocked) return;
-                const requiredVersion = role === 'student'
+                // The server-owned OFF switch supersedes prior per-user
+                // activation; do not reject a valid Firebase password session.
+                const sessionPolicyEnabled = role === 'student'
+                    ? (await db.ref('account_access_config/enabled').once('value')).val() === true
+                    : false;
+                const requiredVersion = role === 'student' && sessionPolicyEnabled
                     ? Number((await db.ref('account_access_accounts/' + user.uid + '/requiredClientVersion').once('value')).val()) || 0 : 0;
                 if (version !== epoch || blocked) return;
                 if (!profile || profile.role !== role || profile.username !== expected.username ||

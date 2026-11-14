@@ -156,8 +156,12 @@
         mount();
         if(api()?.protocol()>=3)connect();
     });
-    // Keep the entry visible even before activation, and explain availability.
-    mount();
-    document.addEventListener('DOMContentLoaded',mount,{once:true});
+    // During maintenance OFF there is no device-session management to show.
+    // The module stays loaded so a later enabled deployment needs no HTML edit.
+    function mountIfActive() {
+        void api()?.enabled().then(active => { if (active) mount(); }).catch(() => {});
+    }
+    mountIfActive();
+    document.addEventListener('DOMContentLoaded',mountIfActive,{once:true});
     (window.SessionPolicyModules ||= {}).devices='20261024.session3';
 })();
