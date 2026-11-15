@@ -12494,26 +12494,31 @@ async function saveStudentSubmissionAtomicCore(assignment, previous, payload) {
     let listener;
 
     try {
-        const snapshot =
-            await new Promise(
-                (resolve, reject) => {
-                    listener = resolve;
+        // A new submission is not readable at submissions/<key> yet:
+        // the student's per-record .read rule requires stored studentUsername.
+        // Never grant read access to nonexistent records to work around that.
+        // The Economy Worker authoritatively validates the deterministic key,
+        // owner, assignment and duplicate state before committing a new record.
+        // Existing submissions (redo) still get the optimistic read/version check.
+        if (livePrevious) {
+            const snapshot =
+                await new Promise(
+                    (resolve, reject) => {
+                        listener = resolve;
 
-                    ref.on(
-                        'value',
-                        listener,
-                        reject
-                    );
-                }
-            );
+                        ref.on(
+                            'value',
+                            listener,
+                            reject
+                        );
+                    }
+                );
 
-        if (
-            studentSubmissionCanonical(
-                snapshot.val()
-            ) !==
-            expectedVersion
-        ) {
-            throw conflict();
+            if (
+                studentSubmissionCanonical(snapshot.val()) !== expectedVersion
+            ) {
+                throw conflict();
+            }
         }
 
         const patch = {
