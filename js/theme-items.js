@@ -1,4 +1,4 @@
-// js/theme-items.js?v=20261029.plan4.2
+// js/theme-items.js?v=20261108.clean1
 
 class ThemeManager {
     static themes = {
@@ -2079,7 +2079,16 @@ class ThemeManager {
     }
 
     static applyTheme(themeId) {
-        if (String(themeId).startsWith('theme_plan4_')) window.Plan4Runtime?.ensureCSS();
+        if (Object.hasOwn(this.themes, themeId) && String(themeId).startsWith('theme_plan4_')) {
+            window.Plan4Runtime?.ensureCSS();
+            if (!document.getElementById('plan4-theme-experience-css')) {
+                const link = document.createElement('link');
+                link.id = 'plan4-theme-experience-css';
+                link.rel = 'stylesheet';
+                link.href = 'css/plan4-theme-experience.css?v=20261108.clean1';
+                document.head.append(link);
+            }
+        }
         if (['theme_valentine_cupid_regular_1','theme_valentine_juliet_regular_2','theme_valentine_romeo_regular_2'].includes(themeId)) {
             if (!document.getElementById('valentine-regular-css')) {
                 const link=document.createElement('link');link.id='valentine-regular-css';link.rel='stylesheet';

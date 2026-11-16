@@ -24,9 +24,7 @@
         pet_food: 'Đang xác nhận cho thú cưng ăn…', pet_unlock: 'Đang mở tương tác thú cưng…'
     };
     const accountLabels = {
-        verify:'Đang xác minh mã khôi phục…', enroll:'Đang lưu mã khôi phục…',
-        reset_device:'Đang xác nhận thiết bị…', rotate:'Đang đổi mã khôi phục…',
-        request_device:'Đang gửi yêu cầu hỗ trợ…', request_password:'Đang báo quên mật khẩu…',
+        password_login:'Đang xác nhận phiên đăng nhập…', request_password:'Đang báo quên mật khẩu…',
         teacher_decide:'Đang xác nhận yêu cầu hỗ trợ…', release_session:'Đang xác nhận đăng xuất…'
     };
     function render() {

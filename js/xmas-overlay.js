@@ -1,16 +1,6 @@
 /* Trang trí độc lập. Xóa dòng nhúng script để gỡ. Không dùng dịch vụ bên ngoài. */
 (() => {
   'use strict';
-  // Trang trí Noel trong đợt chưa công bố: không khởi tạo DOM, không cho ?xmas=1 bật.
-  const PRE_RELEASE_XMAS_DISABLED = true;
-  if (PRE_RELEASE_XMAS_DISABLED) {
-    window['xmas-overlay'] = Object.freeze({
-      paused: true,
-      status: () => ({ blocked: true, reason: 'not_released', message: 'Chưa phát hành' }),
-      preview: () => 'Chưa phát hành', destroy() {}
-    });
-    return;
-  }
   const CONFIG = {
     forceOn: false, // Xem thử bằng true hoặc thêm ?xmas=1 vào URL; không lưu ép bật.
     season: { start: [12, 20], end: [1, 5] }, // [tháng, ngày], gồm cả ngày cuối.
@@ -36,8 +26,8 @@
   if (window[KEY]) return; // Nhúng nhầm hai lần cũng chỉ có một bộ hiệu ứng.
   let destroyed = false, booted = false, enabled = true, active = false;
   let previewOnly = false; // Chỉ trong bộ nhớ trang; reload tự kết thúc.
-  let host, shadow, style, canvas, ctx, lights, hat, banner, button, motion;
-  let frame = 0, layoutFrame = 0, clock = 0, timer = 0, width = 0, height = 0;
+  let host, shadow, style, canvas, ctx, gpuCanvas, gpu = null, gpuUnavailable = false, gpuRestores = 0, lights, hat, banner, button, motion;
+  let frame = 0, frameTask = null, layoutFrame = 0, clock = 0, timer = 0, width = 0, height = 0;
   let last = 0, elapsed = 0, flakes = [], small = false, reduced = false;
   const cleanups = [], source = document.currentScript;
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -231,7 +221,69 @@
     todo: 'tree', grades: 'star', materials: 'bear', roadmap: 'reindeer',
     game: 'gingerbread', store: 'cat', history: 'penguin', settings: 'snowman'
   };
+  const panelTrims = new Map();
+  const PANEL_SELECTOR = '.tab-content.active .card, .tab-content.active .form-container, .login-container, .modal-content, .popup-content, dialog[open]';
+  function removePanelTrim(target, entry) {
+    entry.trim.remove();
+    // Restore only the anchoring value we own; never undo a later layout change.
+    if (entry.anchored && target.style.position === 'relative') {
+      if (entry.position) target.style.setProperty('position', entry.position, entry.priority);
+      else target.style.removeProperty('position');
+    }
+    panelTrims.delete(target);
+  }
+  function clearPanelArt() {
+    for (const [target, entry] of panelTrims) removePanelTrim(target, entry);
+  }
+  function decoratePanels() {
+    if (!active || window.currentActiveExamId) { clearPanelArt(); return; }
+    const targets = query(PANEL_SELECTOR);
+    // AppDialog uses a native top-layer dialog in Shadow DOM. The trim must
+    // live inside it, not in the page's fixed decoration layer.
+    for (const host of query('.app-dialog-host')) {
+      const dialog = host.shadowRoot?.querySelector('dialog[open], dialog:popover-open');
+      if (dialog) targets.push(dialog);
+    }
+    const live = new Set();
+    let cards = 0;
+    for (const target of targets) {
+      if (!visible(target) || target.closest?.('.ql-container, .store-item-card, .luxury-product-card')) continue;
+      const popup = target.matches?.('dialog, .modal-content, .popup-content');
+      if (!popup && target.parentElement?.closest('.card, .form-container, .modal-content, .popup-content')) continue;
+      const rect = target.getBoundingClientRect();
+      if (rect.width < 200 || rect.height < 70 || rect.bottom < 0 || rect.top > height) continue;
+      if (!popup && cards++ >= (small ? 3 : 8)) continue;
+      live.add(target);
+      if (panelTrims.has(target)) continue;
+      const trim = element('span', 'panel-trim');
+      trim.removeAttribute('id');
+      trim.setAttribute('aria-hidden', 'true');
+      trim.style.cssText = 'position:absolute;inset:0;display:block;pointer-events:none;overflow:hidden;border-radius:inherit;z-index:1;';
+      const css = element('style', 'panel-style');
+      if (source?.nonce) css.nonce = source.nonce;
+      // Narrow edge artwork leaves headings, close buttons and form controls clear.
+      const sprig = encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 26"><path d="M4 22Q45 4 116 10" fill="none" stroke="#385d46" stroke-width="2"/><g fill="none" stroke="#427657" stroke-width="2"><path d="M12 19l3-12m4 10l8-13m-1 11l13-11m-5 9l14-10m-6 8l15-9m-6 8l17-8m-8 7l18-6m-10 6l18-4m-10 4l19-2M18 17l13 5m-5-8l17 7m-9-8l19 6m-10-8l18 6m-9-7l20 5m-10-5l20 5m-9-6l20 4m-8-4l20 3"/></g><g fill="#ac3448" stroke="#f3d6a0" stroke-width=".6"><circle cx="29" cy="14" r="4"/><circle cx="36" cy="16" r="3"/><circle cx="82" cy="9" r="4"/></g><g fill="#d4ae62"><circle cx="54" cy="8" r="2"/><circle cx="102" cy="10" r="2"/></g><path d="M57 9Q43-1 43 9Q45 18 57 9Q71-1 71 9Q69 18 57 9M56 10l-4 12 6-4 5 4-4-12" fill="#a92f45"/></svg>');
+      css.textContent = `:host,*{box-sizing:border-box;pointer-events:none!important}
+        .frame{position:absolute;inset:0;border:1px solid #c5a96f;border-radius:inherit;box-shadow:inset 0 0 0 4px #fffaf333,inset 0 0 0 5px #d4b97944}
+        .sprig{position:absolute;width:112px;height:24px;background:url("data:image/svg+xml,${sprig}") center/contain no-repeat;bottom:0;left:6px}
+        .right{left:auto;right:6px;transform:scaleX(-1)}
+        .top{bottom:auto;top:0;transform:scaleY(-1)}.top.right{transform:scale(-1)}
+        .popup{border:2px solid #b49a60;box-shadow:inset 0 0 0 5px #fff9e844,inset 0 0 0 6px #b49a6055}
+        @media(max-width:640px){.sprig{width:76px;height:17px}.frame{box-shadow:inset 0 0 0 3px #d4b97933}}
+        @media print{:host{display:none!important}}`;
+      const art = element('span', 'frame'); art.removeAttribute('id');
+      art.className = 'frame' + (popup ? ' popup' : '');
+      art.innerHTML = '<i class="sprig"></i><i class="sprig right"></i>' + (popup ? '<i class="sprig top"></i><i class="sprig top right"></i>' : '');
+      trim.attachShadow({ mode: 'open' }).append(css, art);
+      const anchored = getComputedStyle(target).position === 'static';
+      const entry = { trim, anchored, position: target.style.getPropertyValue('position'), priority: target.style.getPropertyPriority('position') };
+      if (anchored) target.style.setProperty('position', 'relative');
+      target.append(trim); panelTrims.set(target, entry);
+    }
+    for (const [target, entry] of panelTrims) if (!live.has(target)) removePanelTrim(target, entry);
+  }
   function clearControlArt() {
+    clearPanelArt();
     for (const style of signalStyles.values()) style.remove();
     for (const node of actionTrims.values()) node.remove();
     signalStyles.clear(); actionTrims.clear();
@@ -451,6 +503,7 @@
     if (!allowed() || document.hidden || destroyed) return;
     if (hasLuxuryPriority() !== luxuryBlocked) { sync(); return; }
     decorateControls();
+    decoratePanels();
     const anchor = active && CONFIG.hat.enabled && query(CONFIG.hat.selector).find(visible);
     hat.hidden = !anchor;
     if (anchor) {
@@ -498,7 +551,123 @@
       r: CONFIG.snow.minSize + Math.random() * (CONFIG.snow.maxSize - CONFIG.snow.minSize),
       phase: Math.random() * Math.PI * 2, speed: CONFIG.snow.speed * (0.6 + Math.random()) }));
   }
+  // Optional single-draw WebGL2 snow; the original Canvas 2D stays alive as fallback.
+  // WebGPU is not used here: this scene is too small to justify a separate WebGPU pipeline.
+  function createGpuRenderer() {
+    if (gpu || gpuUnavailable || !gpuCanvas) return gpu;
+    let gl, program, buffer, vao;
+    const shaders = [];
+    try {
+      gl = gpuCanvas.getContext('webgl2', { alpha: true, antialias: false, depth: false, stencil: false });
+      if (!gl || gl.getParameter(gl.ALIASED_POINT_SIZE_RANGE)[1] < 24) throw Error('WebGL2 point sprites unsupported');
+      const compile = (type, source) => {
+        const shader = gl.createShader(type);
+        shaders.push(shader);
+        gl.shaderSource(shader, source); gl.compileShader(shader);
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+          const reason = gl.getShaderInfoLog(shader);
+          throw Error(reason || 'Shader error');
+        }
+        return shader;
+      };
+      const vertex = compile(gl.VERTEX_SHADER, `#version 300 es
+        in vec2 a_pos; in float a_size;
+        uniform vec2 u_viewport; uniform float u_dpr;
+        void main(){
+          vec2 uv = a_pos / u_viewport;
+          gl_Position = vec4(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0, 0.0, 1.0);
+          gl_PointSize = a_size * u_dpr * 2.4;
+        }`);
+      const fragment = compile(gl.FRAGMENT_SHADER, `#version 300 es
+        precision mediump float;
+        out vec4 outColor;
+        void main(){
+          vec2 q = gl_PointCoord * 2.0 - 1.0;
+          float r = length(q);
+          float core = 1.0 - smoothstep(0.06, 0.16, r);
+          float rays = pow(max(0.0, cos(6.0 * atan(q.y, q.x))), 24.0) * (1.0 - smoothstep(0.75, 0.98, r));
+          float opacity = max(core, rays * 0.80) * 0.85;
+          if(opacity < 0.02) discard;
+          outColor = vec4(0.60, 0.81, 0.87, opacity);
+        }`);
+      program = gl.createProgram();
+      gl.attachShader(program, vertex); gl.attachShader(program, fragment);
+      gl.linkProgram(program);
+      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw Error(gl.getProgramInfoLog(program));
+      buffer = gl.createBuffer(); vao = gl.createVertexArray();
+      if (!buffer || !vao) throw Error('WebGL2 resource allocation failed');
+      gl.bindVertexArray(vao); gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+      const data = new Float32Array(180 * 3);
+      gl.bufferData(gl.ARRAY_BUFFER, data.byteLength, gl.DYNAMIC_DRAW);
+      for (const [name, size, offset] of [['a_pos', 2, 0], ['a_size', 1, 8]]) {
+        const index = gl.getAttribLocation(program, name);
+        if (index < 0) throw Error('Missing attribute: ' + name);
+        gl.enableVertexAttribArray(index);
+        gl.vertexAttribPointer(index, size, gl.FLOAT, false, 12, offset);
+      }
+      gl.bindVertexArray(null);
+      gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      gpu = {gl, program, buffer, vao, data,
+        view:gl.getUniformLocation(program, 'u_viewport'),
+        dpr:gl.getUniformLocation(program, 'u_dpr')};
+    } catch (error) {
+      // Failed initialization never reaches releaseGpu(); release partial allocations here.
+      if (gl) {
+        if (buffer) gl.deleteBuffer(buffer);
+        if (vao) gl.deleteVertexArray(vao);
+        if (program) gl.deleteProgram(program);
+      }
+      gpuUnavailable = true;
+      console.warn('[HAAEE] WebGL2 snow unavailable, using Canvas 2D:', error);
+    } finally {
+      if (gl) shaders.forEach(shader => { if (shader) gl.deleteShader(shader); });
+    }
+    return gpu;
+  }
+  function wantsGpu() {
+    return active && !document.hidden && !reduced && decorationBudget.animated &&
+      window.EffectQualityManager?.getRendererPreference?.() === 'webgl2';
+  }
+  function selectSnowRenderer() {
+    const enabled = wantsGpu() && Boolean(createGpuRenderer());
+    if (canvas) canvas.hidden = !active || !CONFIG.snow.enabled || enabled;
+    if (gpuCanvas) gpuCanvas.hidden = !active || !CONFIG.snow.enabled || !enabled;
+    return enabled;
+  }
+  function releaseGpu() {
+    if (!gpu) return;
+    const {gl, buffer, vao, program} = gpu;
+    gl.deleteBuffer(buffer); gl.deleteVertexArray(vao); gl.deleteProgram(program);
+    gpu = null;
+  }
+  function drawGpuSnow(dt) {
+    const {gl, program, buffer, vao, data, view, dpr} = gpu;
+    let index = 0;
+    for (const p of flakes) {
+      p.y += p.speed * dt;
+      if (p.y > height + p.r) p.y = -p.r;
+      data[index++] = p.x + Math.sin(elapsed * .7 + p.phase) * (4 + p.r);
+      data[index++] = p.y;
+      data[index++] = p.r;
+    }
+    gl.viewport(0, 0, gpuCanvas.width, gpuCanvas.height);
+    gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.useProgram(program); gl.bindVertexArray(vao);
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.bufferSubData(gl.ARRAY_BUFFER, 0, data.subarray(0, index));
+    gl.uniform2f(view, width, height);
+    gl.uniform1f(dpr, Math.min(window.devicePixelRatio || 1, CONFIG.snow.maxDpr));
+    gl.drawArrays(gl.POINTS, 0, index / 3);
+    gl.bindVertexArray(null);
+  }
   function paint(dt) {
+    if (selectSnowRenderer()) {
+      try { drawGpuSnow(dt); return; }
+      catch (error) {
+        gpuUnavailable = true; releaseGpu(); selectSnowRenderer();
+        console.warn('[HAAEE] WebGL2 render failed, using Canvas 2D:', error);
+      }
+    }
     if (!ctx) return;
     ctx.clearRect(0, 0, width, height);
     ctx.globalAlpha = CONFIG.snow.opacity;
@@ -521,13 +690,31 @@
   }
   function tick(now) {
     frame = 0;
-    if (!active || document.hidden || reduced || !decorationBudget.animated || !ctx || !CONFIG.snow.enabled) return;
-    if (last && now - last < 1000 / decorationBudget.fps - 1) { frame = requestAnimationFrame(tick); return; }
+    if (!ctx && !gpu) {
+      if (frameTask) window.EffectQualityManager?.cancelFrameTask?.(frameTask);
+      frameTask = null;
+      return;
+    }
+    if (!active || document.hidden || reduced || !decorationBudget.animated || !CONFIG.snow.enabled) return;
+    if (last && now - last < 1000 / decorationBudget.fps - 1) {
+      if (!frameTask) frame = requestAnimationFrame(tick);
+      return;
+    }
     const dt = last ? Math.min((now - last) / 1000, 0.04) : 0;
     last = now; elapsed += dt; paint(dt);
-    frame = requestAnimationFrame(tick);
+    if (!frameTask) frame = requestAnimationFrame(tick);
+  }
+  function startSnow() {
+    if (!active || reduced || !decorationBudget.animated || !CONFIG.snow.enabled || (!ctx && !gpu)) return;
+    const scheduler = window.EffectQualityManager;
+    if (scheduler?.scheduleFrameTask) {
+      frameTask = scheduler.scheduleFrameTask('xmas-snow', tick,
+        {priority:10, interval:1000 / decorationBudget.fps});
+    } else frame = requestAnimationFrame(tick);
   }
   function stop() {
+    if (frameTask) window.EffectQualityManager?.cancelFrameTask?.(frameTask);
+    frameTask = null;
     cancelAnimationFrame(frame); cancelAnimationFrame(layoutFrame);
     frame = layoutFrame = last = 0;
     clearInterval(timer); timer = 0;
@@ -539,6 +726,7 @@
       width = w; height = h; small = w <= 768;
       const dpr = Math.min(window.devicePixelRatio || 1, CONFIG.snow.maxDpr);
       canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
+      if (gpuCanvas) { gpuCanvas.width = canvas.width; gpuCanvas.height = canvas.height; }
       if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       makeFlakes(); drawLights();
     }
@@ -562,7 +750,7 @@
     backgroundStyle.textContent = active && CONFIG.background.enabled ? backgroundCSS() : '';
     ornaments.hidden = vignette.hidden = !active || !CONFIG.ornaments.enabled;
     garlands.hidden = !active || !CONFIG.garlands.enabled || document.hidden;
-    canvas.hidden = !active || !CONFIG.snow.enabled;
+    selectSnowRenderer();
     lights.hidden = !active || !CONFIG.lights.enabled;
     hat.hidden = !active || !CONFIG.hat.enabled;
     banner.hidden = !active || !CONFIG.banner.enabled;
@@ -575,7 +763,7 @@
     updateBanner();
     if (season && !document.hidden) {
       resize();
-      if (active && !reduced && decorationBudget.animated && CONFIG.snow.enabled && ctx) frame = requestAnimationFrame(tick);
+      startSnow();
       timer = setInterval(positionExtras, 1000); // Theo tên đổi/chèn muộn; không quét toàn cây mỗi frame.
     }
   }
@@ -600,7 +788,7 @@
     if (source?.nonce) style.nonce = source.nonce;
     style.textContent = `
       :host{display:contents;pointer-events:none}
-      .xmas-ornaments,.xmas-vignette,.xmas-snow,.xmas-lights,.xmas-hat,.xmas-banner,.xmas-toggle{box-sizing:border-box;position:fixed;pointer-events:none;margin:0}
+      .xmas-ornaments,.xmas-vignette,.xmas-snow,.xmas-snow-gpu,.xmas-lights,.xmas-hat,.xmas-banner,.xmas-toggle{box-sizing:border-box;position:fixed;pointer-events:none;margin:0}
       [hidden]{display:none!important}
       .xmas-garlands{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:125;contain:layout style paint}
       .xmas-garlands *{pointer-events:none!important;box-sizing:border-box}
@@ -629,6 +817,7 @@
       @keyframes xmas-glow{0%,100%{opacity:.35;filter:none}45%,60%{opacity:1;filter:drop-shadow(0 0 3px currentColor)}}
       .xmas-paused .xmas-bulb{animation-play-state:paused}
       .xmas-still .xmas-bulb{animation:none;opacity:1;filter:drop-shadow(0 0 2px currentColor)}
+      .xmas-snow-gpu{inset:0;width:100%;height:100%;z-index:${CONFIG.layers.snow}}
       .xmas-hat{width:${CONFIG.hat.width}px;height:${CONFIG.hat.width * 0.75}px;transform:rotate(${CONFIG.hat.rotation}deg);transform-origin:50% 80%;z-index:${CONFIG.layers.hat}}
       .xmas-banner{top:${CONFIG.banner.top}px;left:50%;transform:translateX(-50%);max-width:calc(100% - 32px);padding:2px 10px;border-radius:10px;background:${CONFIG.banner.background};color:${CONFIG.banner.color};font:12px/18px system-ui,sans-serif;text-align:center;z-index:${CONFIG.layers.banner}}
       .xmas-toggle{${CONFIG.button.side === 'right' ? 'right' : 'left'}:${CONFIG.button.inset}px;bottom:${CONFIG.button.bottom}px;width:44px;height:44px;display:grid;place-items:center;border:1px solid #ffffff9c;border-radius:50%;background:${CONFIG.button.color};color:#fff6e5;box-shadow:0 3px 10px #17233d25;pointer-events:auto;cursor:pointer;z-index:${CONFIG.layers.button};touch-action:manipulation;padding:10px}
@@ -636,19 +825,29 @@
       .xmas-toggle:focus-visible{outline:3px solid #d7972d;outline-offset:3px}
       .xmas-toggle svg{width:22px;height:22px;pointer-events:none}
       @media(prefers-reduced-motion:reduce){.xmas-bulb{animation:none}}
-      @media print{.xmas-ornaments,.xmas-vignette,.xmas-snow,.xmas-lights,.xmas-hat,.xmas-banner,.xmas-toggle{display:none!important}}
+      @media print{.xmas-ornaments,.xmas-vignette,.xmas-snow,.xmas-snow-gpu,.xmas-lights,.xmas-hat,.xmas-banner,.xmas-toggle{display:none!important}}
     `;
     garlands = element('div', 'garlands');
-    canvas = element('canvas', 'snow'); lights = element('div', 'lights');
+    canvas = element('canvas', 'snow'); gpuCanvas = element('canvas', 'snow-gpu'); lights = element('div', 'lights');
+    gpuCanvas.hidden = true;
     ornaments = element('div', 'ornaments'); vignette = element('div', 'vignette');
     hat = element('div', 'hat'); banner = element('div', 'banner'); button = element('button', 'toggle');
-    for (const node of [canvas, lights, hat, banner, ornaments, vignette, garlands]) node.setAttribute('aria-hidden', 'true');
+    for (const node of [canvas, gpuCanvas, lights, hat, banner, ornaments, vignette, garlands]) node.setAttribute('aria-hidden', 'true');
     button.type = 'button';
     const icon = svg('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.5, 'stroke-linecap': 'round', 'aria-hidden': 'true' });
     icon.append(svg('path', { d: 'M12 2v20M3.34 7l17.32 10M3.34 17L20.66 7M9 4l3 3 3-3M9 20l3-3 3 3M4 10l4-1-1-4M17 19l-1-4 4-1M4 14l4 1-1 4M17 5l-1 4 4 1' }));
-    button.append(icon); drawHat(); shadow.append(style, canvas, ornaments, vignette, garlands, lights, hat, banner, button);
+    button.append(icon); drawHat(); shadow.append(style, canvas, gpuCanvas, ornaments, vignette, garlands, lights, hat, banner, button);
     document.body.append(host);
     try { ctx = canvas.getContext('2d'); } catch (_) { ctx = null; }
+    listen(gpuCanvas, 'webglcontextlost', event => {
+      event.preventDefault(); gpu = null; gpuUnavailable = true;
+      if (canvas) canvas.hidden = !active;
+      gpuCanvas.hidden = true;
+    });
+    listen(gpuCanvas, 'webglcontextrestored', () => {
+      if (destroyed || ++gpuRestores > 1) return;
+      gpuUnavailable = false; selectSnowRenderer();
+    });
     motion = matchMedia('(prefers-reduced-motion: reduce)'); reduced = motion.matches;
     const motionChange = () => { reduced = motion.matches; sync(); };
     if (motion.addEventListener) listen(motion, 'change', motionChange);
@@ -683,7 +882,7 @@
   window[KEY] = {
     status() {
       const blocked = hasLuxuryPriority();
-      return { version: '20261023.garland1', blocked, reason: priorityReason, message: priorityMessage() };
+      return { version: '20261110.haaee1', blocked, reason: priorityReason, message: priorityMessage() };
     },
     preview() {
       if (destroyed) return;
@@ -694,7 +893,7 @@
       return 'Đã bật Noel xem thử. Tải lại trang để trở về lịch tự động.';
     },
     destroy() {
-      destroyed = true; stop(); clearTimeout(clock); cleanups.splice(0).forEach(fn => fn());
+      destroyed = true; stop(); releaseGpu(); clearTimeout(clock); cleanups.splice(0).forEach(fn => fn());
       clearControlArt();
       garlandPieces.clear();
       backgroundStyle?.remove();

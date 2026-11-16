@@ -1195,131 +1195,25 @@
     }
 
     async function undo(logId) {
-        if (
-            actor().role !==
-            'teacher'
-        ) {
-            (await AppDialog.alert(
-                '⛔ Chỉ giáo viên được hoàn tác.'
-            ));
-            return;
-        }
-
-        if (
-            state.undoing.has(
-                logId
-            )
-        ) {
-            return;
-        }
-
-        if (
-            !(await AppDialog.confirm(
-                'Bạn chắc chắn muốn hoàn tác giao dịch này?'
-            ))
-        ) {
-            return;
-        }
-
-        state.undoing.add(
-            logId
-        );
-
-        /*
-         * Chỉ phục hồi trạng thái active nếu
-         * bước lock đã thành công nhưng quá trình
-         * hoàn tác phía sau gặp lỗi.
-         */
-        let lockAcquired = false;
-        let mutationStarted = false;
-
+        if (actor().role !== 'teacher' || state.undoing.has(logId)) return;
+        if (!(await AppDialog.confirm('Bạn chắc chắn muốn hoàn tác giao dịch này?'))) return;
+        state.undoing.add(logId);
         try {
-            const log =
-                await lock(logId);
-
-            lockAcquired = true;
-            mutationStarted = true;
-
-            if (
-                [
-                    'coin_adjustment',
-                    'coin_change'
-                ].includes(log.type)
-            ) {
-                await undoCoin(log);
-
-            } else if (
-                log.type ===
-                'grade_change'
-            ) {
-                await undoGrade(log);
-
-            } else if (
-                log.type ===
-                'profile_request_decision'
-            ) {
-                await undoProfile(log);
-
-            } else if (
-                log.type ===
-                'store_purchase'
-            ) {
-                await undoPurchase(log);
-
-            } else if (
-                log.type ===
-                'coin_conversion'
-            ) {
-                await undoConversion(log);
-
-            } else if (
-                log.type ===
-                'gift_sent'
-            ) {
-                await undoGiftSent(log);
-
-            } else {
-                throw new Error(
-                    'Loại giao dịch này chưa hỗ trợ hoàn tác.'
-                );
+            if (window.ECONOMY_SERVER_ENABLED !== true || !window.EconomyClient?.execute) {
+                throw new Error('Chưa kết nối máy chủ xác nhận giao dịch.');
             }
-
-            (await AppDialog.alert(
-                '✅ Hoàn tác thành công.'
-            ));
-
+            const log = (await db.ref(ROOT + '/' + logId).once('value')).val();
+            if (!log || log.type !== 'gift_sent') {
+                throw new Error('Máy chủ chưa hỗ trợ hoàn tác loại giao dịch này. Không có dữ liệu nào bị thay đổi.');
+            }
+            // Worker validates the authoritative log, permission and gift state atomically.
+            await window.EconomyClient.execute('teacher_gift_revoke', {logId:String(logId)}, {slot:'revoke-gift:'+logId});
+            await AppDialog.alert('✅ Hoàn tác thành công.');
             await loadTeacherLogs();
-
         } catch (error) {
-            console.error(error);
-
-            /*
-             * Không gọi activeAgain khi lock thất bại.
-             * Nếu không, giao dịch đã hoàn tác có thể
-             * bị đổi nhầm về active.
-             */
-            if (lockAcquired && !mutationStarted) {
-                await activeAgain(
-                    logId,
-                    error
-                );
-            }
-
-            /*
-             * Tải lại danh sách để loại bỏ
-             * nút Hoàn tác đã cũ.
-             */
-            await loadTeacherLogs()
-                .catch(console.error);
-
-            (await AppDialog.alert(
-                `❌ Không thể hoàn tác: ${error.message}`
-            ));
-
+            await AppDialog.alert('Không thể hoàn tác: ' + error.message);
         } finally {
-            state.undoing.delete(
-                logId
-            );
+            state.undoing.delete(logId);
         }
     }
 
@@ -2198,6 +2092,9 @@
     }
 
     async function adjustCoinFromTeacher() {
+        await AppDialog.alert('Điều chỉnh Coin trực tiếp đã bị chặn. Hãy dùng chức năng xử lý Coin qua máy chủ; không có dữ liệu nào bị thay đổi.');
+        return;
+
         if (
             actor().role !==
             'teacher'

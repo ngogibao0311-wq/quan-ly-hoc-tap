@@ -19,16 +19,42 @@
         if(!endpoint)throw Error('Chưa tải được cấu hình học tập. Hãy tải lại trang khi đã lưu bài.');
         const url=new URL(endpoint+'/student-study-data');url.searchParams.set('resource',resource);
         for(const [key,value] of Object.entries(extra))if(value)url.searchParams.set(key,value);
-        const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);
-        try {
-            const response=await fetch(url,{headers:{Authorization:'Bearer '+await user.getIdToken()},cache:'no-store',signal:controller.signal});
-            let data;try{data=await response.json();}catch(_){throw Error('Dịch vụ học tập chưa được cập nhật. Hãy báo giáo viên.');}
-            if(!response.ok||data?.ok!==true)throw Error(messages[data?.error]||'Không tải được dữ liệu học tập ('+(data?.error||response.status)+').');
-            if(firebase.auth().currentUser?.uid!==user.uid||window.pageAuthBlocked||window.testPageAuthBlocked)throw Error('Tài khoản đã thay đổi. Hãy đăng nhập lại.');
-            return data;
-        }finally{clearTimeout(timer);}
+        const token=await user.getIdToken();
+        const checkAccount=()=>{
+            if(firebase.auth().currentUser?.uid!==expectedUid||window.pageAuthBlocked||window.testPageAuthBlocked)throw Error('Tài khoản đã thay đổi. Hãy đăng nhập lại.');
+        };
+        // Retry only this authenticated GET, never a permission denial or a write.
+        for(let attempt=0;attempt<2;attempt++){
+            checkAccount();
+            const controller=new AbortController();let timedOut=false;
+            const timer=setTimeout(()=>{timedOut=true;controller.abort();},20000);
+            let networkError;
+            try {
+                const response=await fetch(url,{headers:{Authorization:'Bearer '+token},cache:'no-store',signal:controller.signal});
+                let data;try{data=await response.json();}catch(error){
+                    if(error?.name==='SyntaxError')throw Error('Phản hồi dữ liệu học tập không hợp lệ. Hãy báo giáo viên.');
+                    throw error;
+                }
+                if(!response.ok||data?.ok!==true)throw Error(messages[data?.error]||'Không tải được dữ liệu học tập ('+(data?.error||response.status)+').');
+                checkAccount();return data;
+            }catch(error){
+                if(!timedOut&&error?.name!=='AbortError'&&error?.name!=='TypeError')throw error;
+                networkError=Object.assign(Error(timedOut
+                    ? 'Dịch vụ học tập phản hồi quá chậm. Vui lòng kiểm tra mạng và thử lại.'
+                    : 'Không kết nối được dịch vụ học tập. Vui lòng kiểm tra mạng và thử lại.'),
+                    {code:timedOut?'STUDY_DATA_TIMEOUT':'STUDY_DATA_NETWORK',cause:error});
+            }finally{clearTimeout(timer);}
+            checkAccount();
+            if(attempt===1)throw networkError;
+            await new Promise(resolve=>setTimeout(resolve,500));
+        }
     }
-    async function read(path) {
+    async function read(path, {silent=false}={}) {
+        const labels={assignments:'bài tập',submissions:'bài nộp',materials:'tài liệu',schedule:'lịch học',global_notifications:'thông báo',global_surveys:'khảo sát'};
+        const finish=silent?null:window.LoadingStatus?.begin(labels[path.split('/')[0]]||'dữ liệu học tập');
+        try{return await readRecords(path);}finally{finish?.();}
+    }
+    async function readRecords(path) {
         const uid=firebase.auth().currentUser?.uid;
         if(path==='submissions')return snapshot((await request('submissions')).records);
         const [resource,key,...rest]=path.split('/');
@@ -48,27 +74,29 @@
         return {on(event,callback,cancel){
             if(event!=='value')throw Error('Sự kiện học tập không hỗ trợ.');
             if(listeners.has(callback))return;
-            let stopped=false,running=false,queued=false,previous,reported=false;
+            let stopped=false,running=false,queued=false,previous,reported=false,endLoading=null;
             const refresh=async()=>{
                 if(stopped||document.visibilityState==='hidden')return;
                 if(running){queued=true;return;}
                 running=true;
+                const finish=previous===undefined?window.LoadingStatus?.begin({assignments:"bài tập",submissions:"bài nộp",materials:"tài liệu",schedule:"lịch học",global_notifications:"thông báo",global_surveys:"khảo sát"}[resource]||"dữ liệu học tập"):null;
+                endLoading=finish;
                 try{
-                    const data=await read(resource),text=JSON.stringify(data.val());
+                    const data=await read(resource,{silent:true}),text=JSON.stringify(data.val());
                     if(!stopped&&text!==previous){previous=text;await callback(data);}
                     reported=false;
                 }catch(error){if(!stopped&&!reported){reported=true;if(typeof cancel==='function')cancel(error);else window.showToast?.(error.message);console.warn('[Study data]',error.message);}}
-                finally{running=false;if(queued){queued=false;refresh();}}
+                finally{finish?.();endLoading=null;running=false;if(queued){queued=false;refresh();}}
             };
             const timer=setInterval(refresh,30000);
-            window.addEventListener('focus',refresh);document.addEventListener('visibilitychange',refresh);
+            window.addEventListener('focus',refresh);window.addEventListener('online',refresh);document.addEventListener('visibilitychange',refresh);
             window.addEventListener('student-study-refresh',refresh);
             // Keep immediate notifications for current records, while polling also
             // includes old owner-field formats that cannot use the raw query.
             const user=typeof currentUser==='undefined'?null:currentUser?.username;
             const changes=resource==='submissions'&&user&&typeof db!=='undefined'?db.ref('submissions').orderByChild('studentUsername').equalTo(user):null;
             changes?.on('value',refresh,()=>{});
-            listeners.set(callback,()=>{stopped=true;clearInterval(timer);window.removeEventListener('focus',refresh);document.removeEventListener('visibilitychange',refresh);window.removeEventListener('student-study-refresh',refresh);changes?.off('value',refresh);});
+            listeners.set(callback,()=>{stopped=true;endLoading?.();endLoading=null;clearInterval(timer);window.removeEventListener('focus',refresh);window.removeEventListener('online',refresh);document.removeEventListener('visibilitychange',refresh);window.removeEventListener('student-study-refresh',refresh);changes?.off('value',refresh);});
             refresh();
         },off(event,callback){if(callback){listeners.get(callback)?.();listeners.delete(callback);}else{for(const stop of listeners.values())stop();listeners.clear();}}};
     }

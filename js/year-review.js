@@ -55,7 +55,7 @@
             YEAR_REVIEW_START_REQUIRED:'Hãy đóng rồi mở lại sự kiện.',UNKNOWN_ACTION:'Worker chưa được cập nhật cho sự kiện này.',
             SERVER_REQUIRED:'Giao dịch máy chủ chưa sẵn sàng. Hãy thử lại sau.',SERVER_MONEY_NOT_READY:'Giao dịch máy chủ chưa sẵn sàng. Hãy thử lại sau.',
             READ_ONLY_SESSION:'Phiên này chỉ được xem. Hãy dùng phiên đăng nhập chính đã xác minh.',
-            DEVICE_VERIFICATION_REQUIRED:'Hãy hoàn tất xác minh thiết bị bằng mã khôi phục trước khi nhận quà.'})[error?.code || error?.message]
+            DEVICE_VERIFICATION_REQUIRED:'Phiên đăng nhập không còn hợp lệ. Hãy đăng nhập lại bằng tài khoản và mật khẩu.'})[error?.code || error?.message]
             || 'Chưa xác nhận được kết quả. Bấm lại để kiểm tra giao dịch cũ; phần thưởng sẽ không được cộng trùng.';
     }
     async function activate() {

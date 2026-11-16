@@ -33,6 +33,16 @@
     // ========================================================
     // Muốn món nào xuất hiện thì ghi ID món đó vào đây.
     const LUXURY_ITEM_IDS = [
+        'pet_caelion_premium',
+        'pet_plan4_alger_premium',
+        'pet_plan4_emlyn_premium',
+        'pet_plan4_liu_xiao_premium',
+        'pet_plan4_qiao_ling_premium',
+        'pet_plan4_hemera_premium',
+        'pet_plan4_greed_premium',
+        'pet_plan4_noctyriel_premium',
+        'pet_plan4_noel_nam_premium',
+        'pet_plan4_noel_nu_premium',
         'pet_huyen_minh_premium_1',
         'pet_chronos_premium_3',
         'pet_audrey_hall_premium_2',
@@ -8334,7 +8344,8 @@ if (isNationalDay) {
             TAMON_PINKSTATIC_PET,
             MID_AUTUMN_MOON_PET,
             MID_AUTUMN_CUOI_PET,
-            LINKCLICK_CHENG_XIAOSHI_PET
+            LINKCLICK_CHENG_XIAOSHI_PET,
+            ...(window.Caelion ? [{...window.Caelion.look}] : [])
         ].forEach(itemDefinition => {
             window.StoreTags?.normalizeItem(itemDefinition);
             const existing = StoreConfig.items.find(
@@ -9179,7 +9190,7 @@ if (isNationalDay) {
             const action = isEquipped ? `StoreManager.unapplyItem('${id}')` : `StoreManager.applyItem('${id}')`;
             return `<article class="luxury-product-card"><div class="luxury-product-price">🎁 THẤT ĐẠI TỘI: TU VIỆN BELLUM</div><button type="button" class="luxury-unified-action${isEquipped ? ' is-equipped' : ''}" ${isOwned ? 'onclick="'+action+'"' : 'disabled'}>${isOwned ? (isEquipped ? '✕ Tháo trang bị' : '✦ Mặc ngay') : 'Nhận từ sự kiện Bellum'}</button></article>`;
         }
-        if (item.id.startsWith('pet_plan4_') || item.id === VALENTINE_PREMIUM_PET.id || item.id === ETERNAL_WINTER_PET.id || item.id === TINH_MONG_PREMIUM_PET.id || item.id === THANH_LANH_PREMIUM_PET.id || item.id === ACEDIA_PREMIUM_PET.id || item.id === KIM_LIEN_PREMIUM_PET.id) {
+        if (item.id === 'pet_caelion_premium' || item.id.startsWith('pet_plan4_') || item.id === VALENTINE_PREMIUM_PET.id || item.id === ETERNAL_WINTER_PET.id || item.id === TINH_MONG_PREMIUM_PET.id || item.id === THANH_LANH_PREMIUM_PET.id || item.id === ACEDIA_PREMIUM_PET.id || item.id === KIM_LIEN_PREMIUM_PET.id) {
             const price = Number(item.price).toLocaleString('vi-VN');
             const action = !isOwned
                 ? `window.LuxuryStore.buyItemSafely('${id}')`
@@ -10838,6 +10849,7 @@ if (isNationalDay) {
                 })
                 .join('');
 
+        window.Caelion?.decorate(grid.querySelector('[data-item-id="pet_caelion_premium"]'), getLuxuryInventoryItem('pet_caelion_premium'));
         window.EternalWinter?.decorateCards(grid, getLuxuryInventoryItem(ETERNAL_WINTER_PET.id));
 
         // A trial is not permanent ownership. Offer the existing upgrade flow.

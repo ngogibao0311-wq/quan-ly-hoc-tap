@@ -1,31 +1,19 @@
 /* Paid deadlines. All eligibility, prices and balance changes are decided by Worker. */
 (() => {
     'use strict';
-    // ROLLOUT LOCK: kế hoạch 1 chưa công bố; không tạo nút, không gọi Worker.
-    // Lịch sử vẫn ở Firebase để quản trị viên đối soát (không ghi hoàn coin).
-    const PLAN1_NOT_RELEASED = true;
-    if (PLAN1_NOT_RELEASED) {
-        window.AssignmentExtensions = Object.freeze({
-            version: 1, paused: true,
-            mountStudent() {}, preserveCard() { return false; },
-            teacherInfo() { return ''; },
-            currentDeadline(_assignmentId, originalDeadline) { return originalDeadline; }
-        });
-        return;
-    }
     const snapshots=new WeakMap(), minute=60000, vn=25200000;
     let dialogHost=null;
     const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const format=t=>t?new Date(t).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'}):'Không giới hạn';
     const localValue=t=>new Date(t+vn).toISOString().slice(0,16);
-    const parse=v=>Date.parse(v+'+07:00');
+    const parse=v=>Date.parse(/(?:Z|[+-]\d\d:\d\d)$/.test(v)?v:v+'+07:00');
     const messages={
         EXTENSION_NOT_READY:'Chức năng gia hạn chưa được mở hoặc đang bảo trì. Coin của bạn chưa bị trừ.',
         EXTENSION_ORIGINAL_MISSING:'Bài này chưa có ngày giao và hạn nộp ban đầu được xác nhận. Coin chưa bị trừ. Giáo viên cần mở bài này, bấm “Mốc gia hạn”, nhập đúng hai mốc gốc rồi xác nhận. Sau đó học sinh đóng và mở lại Gia hạn.',
         EXTENSION_ORIGINAL_ALREADY_SET:'Bài đã có mốc gốc được lưu cố định; không ghi đè các mốc này.',
         EXTENSION_BALANCE_ON_HOLD:'Số dư đang chờ đối soát do chấm lại bài. Hãy đợi giáo viên hoàn tất trước khi trả coin gia hạn.',
         EXTENSION_QUOTE_CHANGED:'Thông tin bài hoặc số dư đã thay đổi. Hãy kiểm tra thông tin mới rồi xác nhận lại.',
-        EXTENSION_INVALID_TIME:'Hạn mới phải muộn hơn hạn hiện tại và hiện giờ, trong 14 ngày từ lúc giao và trong tháng giao bài.',
+        EXTENSION_INVALID_TIME:'Hạn mới phải muộn hơn hạn hiện tại và hiện giờ, không quá 23:59 Chủ nhật của tuần giao bài (giờ Việt Nam).',
         EXTENSION_LIMIT:'Bài này đã dùng đủ 2 lần gia hạn.',EXTENSION_NO_TIME:'Không còn thời điểm hợp lệ để gia hạn.',
         EXTENSION_ALREADY_SUBMITTED:'Bài đã nộp không được gia hạn, kể cả khi được làm lại.',
         EXTENSION_ANSWERS_VISIBLE:'Bài đã công bố đáp án hoặc lời giải nên không thể gia hạn.',
@@ -144,7 +132,7 @@
             const sub=submissions.find(s=>String(s.assignmentId??s.assignId??s.assignmentKey)===String(a.id)&&String(s.studentUsername??s.username??s.studentUser??s.studentId)===currentUser.username);
             const pending=hasPendingPayment(a);
             const disabled=(!!sub||a.isLocked===true||Number(a.extension?.count)>=2)&&!pending;
-            const noteText=pending?'Có yêu cầu đang chờ kiểm tra':sub?'Bài đã nộp':a.isLocked?'Bài đang khóa':a.extension?.count?`Đã gia hạn ${a.extension.count}/2 lần`:'100 coin/giờ · Tối đa 2 lần';
+            const noteText=pending?'Có yêu cầu đang chờ kiểm tra':sub?'Bài đã nộp':a.isLocked?'Bài đang khóa':a.extension?.count?`Đã gia hạn ${a.extension.count}/2 lần`:'100 coin/giờ · Tối đa 2 lần · Trong tuần giao bài';
             snapshots.set(card,{signature:signature(a,sub),due:a.endDate});
             const prior=card.querySelector('.assignment-extension-control');
             if(prior){
@@ -165,6 +153,35 @@
                 meta.classList.add('assignment-extension-meta');meta.append(details,wrap);
             }else card.append(wrap);
         }
+    }
+
+    const teacherCards=new Set();let teacherSweep=null;
+    function privateAssignment(a){const t=[...new Set((Array.isArray(a?.targetStudent)?a.targetStudent:[a?.targetStudent||'all']).flatMap(v=>String(v).split(',')).map(v=>v.trim()).filter(Boolean))];return t.length===1&&t[0]!=='all';}
+    function effectiveTeacherDue(a,r){const common=a?.endDate?parse(a.endDate.replace(' ','T')):0;return !common?0:privateAssignment(a)&&r?.teacherDueAt!==undefined?common:Math.max(common,Number(r?.paidUntil)||0);}
+    function watchTeacherCard(card,a){
+        const uid=firebase.auth().currentUser?.uid;if(!uid)return;
+        const box=document.createElement('div');box.className='assignment-extension-note';card.append(box);
+        let assignment=a,records={};
+        const render=()=>{if(firebase.auth().currentUser?.uid!==uid)return;box.replaceChildren();
+            for(const [username,r]of Object.entries(records||{})){if(!r?.count)continue;const line=document.createElement('div');line.textContent=username+' · Có gia hạn · Hạn áp dụng: '+(effectiveTeacherDue(assignment,r)?format(effectiveTeacherDue(assignment,r)):'Không giới hạn');box.append(line);}
+            if(Object.keys(records||{}).length){const note=document.createElement('small');note.textContent=privateAssignment(assignment)?'Sửa bài → Hạn nộp: học sinh dùng hạn giáo viên sửa, không hoàn Coin.':'Sửa bài → Hạn nộp: mỗi học sinh dùng hạn muộn hơn giữa hạn chung và hạn gia hạn, không hoàn Coin.';box.append(note);}
+            const label=card.querySelector('.accordion-meta strong');if(label&&privateAssignment(assignment)){const r=Object.values(records||{})[0];label.textContent=effectiveTeacherDue(assignment,r)?format(effectiveTeacherDue(assignment,r)):'Không giới hạn';}
+        };
+        const ar=db.ref('assignments/'+a._fbKey),rr=db.ref('assignment_extension_records/'+a._fbKey);
+        const af=snap=>{assignment=snap.val();render();},rf=snap=>{records=snap.val()||{};render();};
+        const error=()=>{box.textContent='Chưa tải được hạn gia hạn. Hãy kiểm tra kết nối và quyền truy cập.';};
+        ar.on('value',af,error);rr.on('value',rf,error);
+        teacherCards.add({card,uid,stop(){ar.off('value',af);rr.off('value',rf);}});
+        if(!teacherSweep)teacherSweep=setInterval(()=>{for(const item of teacherCards)if(!item.card.isConnected||firebase.auth().currentUser?.uid!==item.uid){item.stop();teacherCards.delete(item);}if(!teacherCards.size){clearInterval(teacherSweep);teacherSweep=null;}},1000);
+    }
+    async function teacherEditDeadline(a){
+        if(!privateAssignment(a))return a.endDate||'';
+        const uid=firebase.auth().currentUser?.uid;
+        const snapshot=await db.ref('assignment_extension_records/'+a._fbKey).once('value');
+        if(firebase.auth().currentUser?.uid!==uid)throw Error('Tài khoản đã thay đổi.');
+        const targets=(Array.isArray(a.targetStudent)?a.targetStudent:[a.targetStudent]).flatMap(v=>String(v).split(',')).map(v=>v.trim()).filter(Boolean);
+        const due=effectiveTeacherDue(a,snapshot.val()?.[targets[0]]);
+        return due?localValue(due):'';
     }
     function teacherInfo(sub) {
         if(!sub.assignmentExtension?.count)return '';
@@ -187,9 +204,10 @@
             const r=stored.val(),a=assignment.val();
             if(!r)throw Error('Chưa tải được lịch sử gia hạn.');
             const common=a?.endDate?parse(a.endDate.replace(' ','T')):0;
-            const effective=!a?'Bài đã thu hồi':a.isLocked?'Bài đang khóa':common?format(Math.max(common,Number(r.paidUntil)||0)):'Không giới hạn';
+            const effective=!a?'Bài đã thu hồi':a.isLocked?'Bài đang khóa':common?format(effectiveTeacherDue(a,r)):'Không giới hạn';
             view.body.innerHTML=`<p>Hạn ban đầu: ${esc(format(r.originalDueAt))}<br>Hạn riêng đã mua: ${r.paidUntil?esc(format(r.paidUntil)):'Đã hủy khi hoàn coin'}<br>Hạn nộp/hạn sửa đang áp dụng cho học sinh: ${esc(effective)}<br>Đã trả: ${r.paid} coin · Đã hoàn: ${r.refunded} coin</p>`;
             for(const h of Object.values(r.history||{})){const p=document.createElement('p');p.textContent=`${format(h.at)}: ${format(h.from)} → ${format(h.to)} · ${h.coins} coin`;view.body.append(p);}
+            for(const h of Object.values(r.teacherChanges||{})){const p=document.createElement('p');p.textContent=format(h.at)+': giáo viên sửa hạn thành '+format(h.dueAt)+' · Không hoàn Coin';view.body.append(p);}
             for(const h of Object.values(r.refunds||{})){const p=document.createElement('p');p.textContent=`${format(h.at)}: hoàn ${h.coins} coin (${({thu_hoi_bai:'thu hồi bài',rut_ngan_han:'rút ngắn hạn',khoa_bai:'khóa bài',them_thoi_gian_mien_phi:'thêm thời gian miễn phí'})[h.reason]||h.reason})`;view.body.append(p);}
         }catch(e){view.status.textContent=explain(e);}
     }
@@ -218,6 +236,6 @@
         if(detail){e.stopPropagation();void teacherDetails(detail.dataset.extensionRecord,detail.dataset.extensionStudent);}
         else if(setup){e.stopPropagation();void seed(setup.dataset.extensionSeed);}
     });
-    window.AssignmentExtensions=Object.freeze({version:1,mountStudent,preserveCard,teacherInfo,
+    window.AssignmentExtensions=Object.freeze({version:1,mountStudent,preserveCard,teacherInfo,watchTeacherCard,teacherEditDeadline,
         currentDeadline:(id,fallback)=>{const a=(window.cachedAssignments||[]).find(x=>String(x.id)===String(id));if(!a)return fallback;if(!a.endDate)return Infinity;const s=a.endDate.replace(' ','T');return Date.parse(/(?:Z|[+-]\d\d:\d\d)$/.test(s)?s:s+'+07:00');}});
 })();

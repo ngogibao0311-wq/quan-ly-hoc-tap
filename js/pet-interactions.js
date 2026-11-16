@@ -497,72 +497,20 @@ class PetInteractionManager {
     }
 
     static async saveHungerToDB() {
-        if(window.ECONOMY_SERVER_ENABLED===true) {
-            const petId=localStorage.getItem('active_pet');if(!petId)return;
-            try {
-                const result=await window.EconomyClient.execute('pet_status',{petId},{slot:'pet-status:'+petId});
-                if(localStorage.getItem('active_pet')===petId){this.hunger=result.energy;this.lastHungerUpdate=result.updatedAt;this.updateHungerUI();}
-            }catch(error){console.error('Chưa đồng bộ được trạng thái thú cưng:',error);}
-            return;
-        }
-        const user = JSON.parse(
-            localStorage.getItem('currentUser')
-        );
-
-        if (
-            !user?.username ||
-            typeof db === 'undefined'
-        ) {
-            return;
-        }
-
+        // Current energy is authoritative only in the Worker. Do not let
+        // background timers or direct JS calls write self-declared energy.
+        if (window.ECONOMY_SERVER_ENABLED !== true || typeof window.EconomyClient?.execute !== 'function') return;
+        const petId = localStorage.getItem('active_pet');
+        if (!petId) return;
         try {
-            const activePetId =
-                localStorage.getItem(
-                    'active_pet'
-                );
-
-            const safeEnergy =
-                Math.max(
-                    0,
-                    Math.min(
-                        100,
-                        Number(this.hunger) || 0
-                    )
-                );
-
-            const safeUpdatedAt =
-                Number(this.lastHungerUpdate) ||
-                this.getNow();
-
-            /*
-             * Tiểu Hoa Mộng dùng hai field riêng trên cùng nhánh
-             * student_pet_status để không ghi đè Độ no/Tinh lực
-             * của các pet cũ và không cần mở thêm Firebase path.
-             */
-            const payload =
-                activePetId ===
-                'pet_premium_mua_xuan'
-                    ? {
-                        springDreamEnergy:
-                            safeEnergy,
-                        springDreamLastUpdate:
-                            safeUpdatedAt
-                    }
-                    : {
-                        hunger: safeEnergy,
-                        lastUpdate:
-                            safeUpdatedAt
-                    };
-
-            await db.ref(
-                `student_pet_status/${user.username}`
-            ).update(payload);
+            const result = await window.EconomyClient.execute('pet_status', {petId}, {slot:'pet-status:'+petId});
+            if (localStorage.getItem('active_pet') === petId) {
+                this.hunger = result.energy;
+                this.lastHungerUpdate = result.updatedAt;
+                this.updateHungerUI();
+            }
         } catch (error) {
-            console.error(
-                'Không thể lưu trạng thái thú cưng:',
-                error
-            );
+            console.error('Chưa đồng bộ được trạng thái thú cưng:', error);
         }
     }
 
@@ -1069,6 +1017,12 @@ class PetInteractionManager {
     }
 
     static async buyServerFood(price, kind) {
+        // Prices and energy are calculated by Worker. Never accept browser-supplied
+        // amounts as a fallback when the shield has not been confirmed.
+        if (window.ECONOMY_SERVER_ENABLED !== true || typeof window.EconomyClient?.execute !== 'function') {
+            await AppDialog.alert('SHIELD_POLICY_UNAVAILABLE: Chưa xác minh được lá chắn giao dịch. Không trừ hoặc cộng Coin.');
+            return;
+        }
         if (this.purchaseInProgress) return;
         const petId = localStorage.getItem('active_pet');
         const expectedKind = petId === 'pet_premium_mua_xuan' ? 'spring' : petId === 'pet_truyenthuyet_1' ? 'stellar' : 'normal';
@@ -1091,32 +1045,8 @@ class PetInteractionManager {
         } finally { this.purchaseInProgress = false; }
     }
 
-    static async buyFood(price, hungerGain) {
-        if (window.ECONOMY_SERVER_ENABLED === true) return this.buyServerFood(price, 'normal');
-        const user = JSON.parse(localStorage.getItem('currentUser'));
-        if (!user) return;
-
-        if (this.hunger >= 100) return (await AppDialog.alert("Thú cưng đang no căng bụng rồi! Không ăn thêm được đâu."));
-
-        const coinRef = db.ref(`student_coins/${user.username}`);
-        const snap = await coinRef.once('value');
-        let currentCoins = snap.val() || 0;
-
-        if (currentCoins < price) return (await AppDialog.alert(`❌ Không đủ Coin! Bạn còn thiếu ${price - currentCoins} 🪙.`));
-
-        if ((await AppDialog.confirm(`Thanh toán ${price} Coin để mua món này?`))) {
-            await coinRef.set(currentCoins - price);
-            this.hunger = Math.min(100, this.hunger + hungerGain);
-            this.saveHungerToDB();
-            this.updateHungerUI();
-            this.resetIdle();
-            (await AppDialog.alert(`Ăn ngon quá! Đã hồi phục năng lượng.`));
-
-            if (this.hunger > 50) {
-                const container = document.getElementById('virtual-pet-container');
-                if (container) this.spawnParticles(container, '💖');
-            }
-        }
+    static async buyFood(price, _hungerGain) {
+        return this.buyServerFood(price, 'normal');
     }
 
     static openStellarFoodShop() {
@@ -1200,115 +1130,8 @@ class PetInteractionManager {
         modal.classList.add('active');
     }
 
-    static async buyStellarFood(
-        price,
-        energyGain,
-        itemName,
-        symbol
-    ) {
-        if (window.ECONOMY_SERVER_ENABLED === true) return this.buyServerFood(price, 'stellar');
-        const user =
-            this.getCurrentUser();
-
-        if (
-            !user?.username ||
-            typeof db === 'undefined'
-        ) {
-            (await AppDialog.alert(
-                '❌ Không tìm thấy tài khoản.'
-            ));
-
-            return;
-        }
-
-        if (this.hunger >= 100) {
-            (await AppDialog.alert(
-                'Kỳ Lân đang tràn đầy Tinh lực.'
-            ));
-
-            return;
-        }
-
-        const accepted =
-            (await AppDialog.confirm(
-                `Dùng ${price} Coin để mua ${itemName}?`
-            ));
-
-        if (!accepted) return;
-
-        const coinRef =
-            db.ref(
-                `student_coins/${user.username}`
-            );
-
-        try {
-            const result =
-                await coinRef.transaction(
-                    currentValue => {
-                        const balance =
-                            Number(
-                                currentValue
-                            ) || 0;
-
-                        if (
-                            balance <
-                            Number(price)
-                        ) {
-                            return;
-                        }
-
-                        return (
-                            balance -
-                            Number(price)
-                        );
-                    }
-                );
-
-            if (!result.committed) {
-                (await AppDialog.alert(
-                    '❌ Bạn không đủ Coin.'
-                ));
-
-                return;
-            }
-
-            this.hunger =
-                Math.min(
-                    100,
-                    this.hunger +
-                    Number(energyGain)
-                );
-
-            this.lastHungerUpdate =
-                this.getNow();
-
-            await this.saveHungerToDB();
-
-            this.updateHungerUI();
-            this.resetIdle();
-
-            document
-                .getElementById(
-                    'stellarFoodShopModal'
-                )
-                ?.classList.remove(
-                    'active'
-                );
-
-            this.playStellarFeedingRitual(
-                symbol,
-                itemName
-            );
-        } catch (error) {
-            console.error(
-                'Lỗi tiếp Tinh lực:',
-                error
-            );
-
-            (await AppDialog.alert(
-                '❌ Không thể tiếp Tinh lực.'
-            ));
-        }
+    static async buyStellarFood(price, _energyGain, _itemName, _symbol) {
+        return this.buyServerFood(price, 'stellar');
     }
 
     static playStellarFeedingRitual(
@@ -2241,207 +2064,43 @@ class PetInteractionManager {
         modal.classList.add('active');
     }
 
-    static async buyInteraction(
-        petId,
-        price
-    ) {
+    static async buyInteraction(petId, price) {
         if (this.purchaseInProgress) return;
-
         const user = this.getCurrentUser();
-
-        if (
-            !user?.username ||
-            typeof db === 'undefined' ||
-            !this.isSupported(petId)
-        ) {
-            (await AppDialog.alert(
-                '❌ Không xác định được tài khoản hoặc thú cưng.'
-            ));
-
+        if (!user?.username || !this.isSupported(petId)) {
+            await AppDialog.alert('❌ Không xác định được tài khoản hoặc thú cưng.');
             return;
         }
-
         if (this.isUnlocked(petId)) {
-            (await AppDialog.alert(
-                '✅ Tương tác này đã được mở khóa.'
-            ));
-
+            await AppDialog.alert('✅ Tương tác này đã được mở khóa.');
             return;
         }
-
-        const safePrice = Math.max(
-            0,
-            Math.round(Number(price) || 0)
-        );
-
-        const accepted = (await AppDialog.confirm(
-            `Dùng ${safePrice} Coin để mở khóa vĩnh viễn tương tác?`
-        ));
-
-        if (!accepted) return;
-
-        if (window.ECONOMY_SERVER_ENABLED === true) {
-            this.purchaseInProgress = true;
-            try {
-                await window.EconomyClient.execute('pet_unlock', {petId}, {slot:'pet-unlock:'+petId});
-                this.unlockedInteractions = [...new Set([...this.unlockedInteractions, petId])];
-                this.savePetInteractionPreference(petId, true);
-                this.showInfo();
-                await AppDialog.alert('Đã mở khóa tương tác thú cưng.');
-            } catch (error) {
-                await AppDialog.alert('Chưa nhận được xác nhận: ' + error.message);
-            } finally { this.purchaseInProgress = false; }
+        // Never fall back to a separate coin debit + inventory unlock. The
+        // server must determine price and commit balance + entitlement together.
+        if (window.ECONOMY_SERVER_ENABLED !== true || typeof window.EconomyClient?.execute !== 'function') {
+            await AppDialog.alert('SHIELD_POLICY_UNAVAILABLE: Chưa xác minh được lá chắn giao dịch.');
             return;
         }
-
+        if (!Number.isSafeInteger(Number(price)) || Number(price) <= 0) {
+            await AppDialog.alert('Giá mở khóa không hợp lệ.');
+            return;
+        }
+        if (!await AppDialog.confirm(`Dùng ${price} Coin để mở khóa vĩnh viễn tương tác?`)) return;
         this.purchaseInProgress = true;
-
-        const coinRef = db.ref(
-            `student_coins/${user.username}`
-        );
-
-        const unlockRef = db.ref(
-            `student_pet_interactions/${user.username}/${petId}`
-        );
-
-        let coinWasDeducted = false;
-
         try {
-            const unlockSnapshot =
-                await unlockRef.once('value');
-
-            if (
-                unlockSnapshot.val() === true
-            ) {
-                this.unlockedInteractions = [
-                    ...new Set([
-                        ...this.unlockedInteractions,
-                        petId
-                    ])
-                ];
-
-                this.savePetInteractionPreference(
-                    petId,
-                    true
-                );
-
-                this.showInfo();
-                return;
-            }
-
-            /*
-             * Transaction tránh hai lần mua
-             * cùng đọc một số dư Coin.
-             */
-            const coinTransaction =
-                await coinRef.transaction(
-                    currentValue => {
-                        const balance =
-                            Number(currentValue) || 0;
-
-                        if (
-                            balance < safePrice
-                        ) {
-                            return;
-                        }
-
-                        return balance - safePrice;
-                    }
-                );
-
-            if (!coinTransaction.committed) {
-                (await AppDialog.alert('❌ Bạn không đủ Coin.'));
-                return;
-            }
-
-            coinWasDeducted = true;
-
-            await unlockRef.set(true);
-
-            this.unlockedInteractions = [
-                ...new Set([
-                    ...this.unlockedInteractions,
-                    petId
-                ])
-            ];
-
-            this.savePetInteractionPreference(
-                petId,
-                true
-            );
-
+            await window.EconomyClient.execute('pet_unlock', {petId}, {slot:'pet-unlock:'+petId});
+            this.unlockedInteractions = [...new Set([...this.unlockedInteractions, petId])];
+            this.savePetInteractionPreference(petId, true);
             this.showInfo();
-
-            const activePetId =
-                localStorage.getItem(
-                    'active_pet'
-                );
-
-            if (
-                activePetId === petId &&
-                this.usesHungerSystem(petId)
-            ) {
-                await this.initHungerSystem(
-                    user.username
-                );
-
-                if (
-                    petId ===
-                    'pet_premium_mua_xuan'
-                ) {
-                    this.mountSpringDreamSkillDock(
-                        document.getElementById(
-                            'virtual-pet-img'
-                        ),
-                        this.interactionAbortController
-                            ?.signal
-                    );
+            if (localStorage.getItem('active_pet') === petId && this.usesHungerSystem(petId)) {
+                await this.initHungerSystem(user.username);
+                if (petId === 'pet_premium_mua_xuan') {
+                    this.mountSpringDreamSkillDock(document.getElementById('virtual-pet-img'), this.interactionAbortController?.signal);
                 }
             }
-
-            (await AppDialog.alert(
-                '🎉 Đã mở khóa tương tác thú cưng!'
-            ));
+            await AppDialog.alert('Đã mở khóa tương tác thú cưng.');
         } catch (error) {
-            console.error(
-                'Lỗi mua tương tác thú cưng:',
-                error
-            );
-
-            /*
-             * Đã trừ Coin nhưng mở khóa thất bại
-             * thì tự hoàn lại Coin.
-             */
-            if (coinWasDeducted) {
-                try {
-                    await coinRef.transaction(
-                        value =>
-                            (Number(value) || 0) +
-                            safePrice
-                    );
-                } catch (rollbackError) {
-                    console.error(
-                        'Không hoàn Coin được:',
-                        rollbackError
-                    );
-                }
-            }
-
-            if (
-                error?.code ===
-                'PERMISSION_DENIED' ||
-                String(error?.message).includes(
-                    'PERMISSION_DENIED'
-                )
-            ) {
-                (await AppDialog.alert(
-                    '❌ quy tắc bảo mật đám mây chưa cho phép ghi dữ liệu tương tác pet.'
-                ));
-            } else {
-                (await AppDialog.alert(
-                    '❌ Không thể mở khóa tương tác.'
-                ));
-            }
+            await AppDialog.alert('Chưa xác nhận mở khóa: ' + error.message);
         } finally {
             this.purchaseInProgress = false;
         }
@@ -3772,127 +3431,8 @@ class PetInteractionManager {
         modal.classList.add('active');
     }
 
-    static async buySpringDreamFood(
-        price,
-        energyGain,
-        itemName,
-        symbol
-    ) {
-        if (window.ECONOMY_SERVER_ENABLED === true) return this.buyServerFood(price, 'spring');
-        const user =
-            this.getCurrentUser();
-
-        if (
-            !user?.username ||
-            typeof db === 'undefined' ||
-            localStorage.getItem(
-                'active_pet'
-            ) !==
-            'pet_premium_mua_xuan'
-        ) {
-            (await AppDialog.alert(
-                '❌ Tiểu Hoa Mộng hiện không hoạt động.'
-            ));
-
-            return;
-        }
-
-        if (this.hunger >= 100) {
-            (await AppDialog.alert(
-                'Tiểu Hoa Mộng đang tràn đầy Mộng lực.'
-            ));
-
-            return;
-        }
-
-        const safePrice =
-            Math.max(
-                0,
-                Math.round(
-                    Number(price) || 0
-                )
-            );
-
-        const accepted =
-            (await AppDialog.confirm(
-                `Dùng ${safePrice} Coin để mua ${itemName}?`
-            ));
-
-        if (!accepted) return;
-
-        const coinRef =
-            db.ref(
-                `student_coins/${user.username}`
-            );
-
-        try {
-            const result =
-                await coinRef.transaction(
-                    currentValue => {
-                        const balance =
-                            Number(
-                                currentValue
-                            ) || 0;
-
-                        if (
-                            balance <
-                            safePrice
-                        ) {
-                            return;
-                        }
-
-                        return (
-                            balance -
-                            safePrice
-                        );
-                    }
-                );
-
-            if (!result.committed) {
-                (await AppDialog.alert(
-                    '❌ Bạn không đủ Coin.'
-                ));
-
-                return;
-            }
-
-            this.hunger =
-                Math.min(
-                    100,
-                    this.hunger +
-                    Number(energyGain)
-                );
-
-            this.lastHungerUpdate =
-                this.getNow();
-
-            await this.saveHungerToDB();
-
-            this.updateHungerUI();
-            this.resetIdle();
-
-            document
-                .getElementById(
-                    'springDreamFoodShopModal'
-                )
-                ?.classList.remove(
-                    'active'
-                );
-
-            this.playSpringDreamFeedingRitual(
-                symbol,
-                itemName
-            );
-        } catch (error) {
-            console.error(
-                'Lỗi dưỡng Mộng lực:',
-                error
-            );
-
-            (await AppDialog.alert(
-                '❌ Không thể dưỡng Mộng lực.'
-            ));
-        }
+    static async buySpringDreamFood(price, _energyGain, _itemName, _symbol) {
+        return this.buyServerFood(price, 'spring');
     }
 
     static playSpringDreamFeedingRitual(

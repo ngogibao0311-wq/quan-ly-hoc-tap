@@ -317,67 +317,8 @@
             }
         }
 
-        /*
-         * Không hard-code ngày dương. Nếu lịch năm nay chưa tồn tại trên
-         * Firebase, dùng chính kết quả 15/8 âm lịch do MidAutumnCalendar tính.
-         * Từ D-5 đến hết ngày Trung Thu, thử đồng bộ bản ghi năm hiện tại để
-         * cả Đại Hội và cơ chế tự tặng Xu dùng chung một lịch server.
-         */
-        if (database && localInfo && !serverMode()) {
-            const t = now();
-            const canBootstrap =
-                t >= Number(localInfo.autoGrantStartAt) &&
-                t <= Number(localInfo.autoGrantEndAt);
-
-            if (canBootstrap) {
-                try {
-                    const calendarRef =
-                        database.ref(`mid_autumn_calendar/${year}`);
-
-                    const tx =
-                        await calendarRef.transaction(
-                            current => {
-                                if (current && typeof current === 'object') {
-                                    return current;
-                                }
-
-                                return {
-                                    year: String(year),
-                                    festivalDateKey: String(localInfo.festivalDateKey || ''),
-                                    festivalStartAt: Number(localInfo.festivalStartAt),
-                                    festivalEndAt: Number(localInfo.festivalEndAt),
-                                    autoGrantStartAt: Number(localInfo.autoGrantStartAt),
-                                    autoGrantEndAt: Number(localInfo.autoGrantEndAt),
-                                    updatedAt: t
-                                };
-                            },
-                            undefined,
-                            false
-                        );
-
-                    const synced = tx.snapshot?.val();
-                    if (
-                        synced &&
-                        Number(synced.festivalStartAt) > 0 &&
-                        Number(synced.festivalEndAt) > 0
-                    ) {
-                        state.calendar = {
-                            ...localInfo,
-                            ...synced,
-                            year: Number(synced.year || year),
-                            remoteConfigured: true
-                        };
-                        return state.calendar;
-                    }
-                } catch (error) {
-                    console.warn(
-                        '[Đại Hội Trung Thu] Chưa thể tự đồng bộ lịch năm hiện tại:',
-                        error
-                    );
-                }
-            }
-        }
-
+        // Calendar bootstrap is a server-owned policy. A browser-computed
+        // festival date cannot authorize a remote calendar creation.
         state.calendar = localInfo ? { ...localInfo, remoteConfigured: serverMode() } : null;
         return state.calendar;
     }
@@ -516,6 +457,7 @@
             }
             markAttemptCompleted();return true;
         }
+        if (!state.testMode) throw Error('SHIELD_POLICY_UNAVAILABLE');
         if (attempt.settling) return attempt.settling;
 
         const silent = options.silent === true;
@@ -583,6 +525,8 @@
     async function reconcileAbandonedAttempt() {
         if (state.testMode) return;
         if(serverMode()) {clearPendingAttemptStorage();return;}
+        // Preserve the operation ID for Worker reconciliation; no direct ticket debit.
+        return;
         const pending = readPendingAttemptStorage();
         if (!pending || pending.settled) {
             clearPendingAttemptStorage();
@@ -600,6 +544,7 @@
     async function ensureAnnualState(status) {
         if (!status?.active) return null;
         if(serverMode()) {const r=await serverAction('festival_open');state.annual=r.annual;state.serverResume=r.session;return state.annual;}
+        if (!state.testMode) throw Error('SHIELD_POLICY_UNAVAILABLE');
 
         if (state.testMode) {
             if (
@@ -931,95 +876,40 @@
         state.busy = true;
         const button = document.getElementById('mafBuyTicketBtn');
         if (button) button.disabled = true;
-
-        let coinDebited = false;
         try {
             const status = await getEventStatus();
-
+            // Test mode only changes local simulated state and never awards real Coin.
             if (state.testMode) {
-                if (!state.annual) {
-                    await ensureAnnualState(status);
-                }
-
-                if (
-                    Number(
-                        state.annual
-                            .ticketsPurchased || 0
-                    ) >=
-                    CONFIG.maxExtraTickets
-                ) {
-                    throw new Error(
-                        'PURCHASE_LIMIT'
-                    );
-                }
-
-                state.annual = {
-                    ...state.annual,
-                    ticketsPurchased:
-                        Number(
-                            state.annual
-                                .ticketsPurchased || 0
-                        ) + 1,
-                    updatedAt: now()
-                };
-
-                showToast(
-                    `🧪 TEST: +1 vé thử. Không trừ ${CONFIG.extraTicketPrice} Coin thật.`,
-                    'success'
-                );
-
+                if (!state.annual) await ensureAnnualState(status);
+                if (Number(state.annual.ticketsPurchased || 0) >= CONFIG.maxExtraTickets)
+                    throw Error('PURCHASE_LIMIT');
+                state.annual = {...state.annual,
+                    ticketsPurchased:Number(state.annual.ticketsPurchased || 0) + 1,
+                    updatedAt:now()};
+                showToast('🧪 TEST: +1 vé thử. Không trừ Coin thật.', 'success');
                 renderDashboard(status);
                 return;
             }
-            if (!status.active) throw new Error('EVENT_CLOSED');
+            // A client-side coin debit followed by a ticket grant cannot be rolled
+            // back reliably if the second write or its response is lost.
+            if (!serverMode() || typeof window.EconomyClient?.execute !== 'function')
+                throw Error('SHIELD_POLICY_UNAVAILABLE');
+            if (!status.active) throw Error('EVENT_CLOSED');
             if (!state.annual) await ensureAnnualState(status);
-
-            if (Number(state.annual.ticketsPurchased || 0) >= CONFIG.maxExtraTickets) {
-                throw new Error('PURCHASE_LIMIT');
-            }
-
-            if (!(await AppDialog.confirm(`Dùng ${CONFIG.extraTicketPrice} Coin để mua 1 Vé Đại Hội Trung Thu?\nMỗi năm chỉ mua tối đa ${CONFIG.maxExtraTickets} vé.`))) return;
-
-            if(serverMode()) {
-                const result=await serverAction('festival_ticket');state.annual=result.annual;
-                showToast('🎟️ Mua vé thành công! Đã trừ 4 Coin.','success');renderDashboard(status);return;
-            }
-
-            const coinRef = getDatabase().ref(`student_coins/${username()}`);
-            const coinTx = await coinRef.transaction(current => {
-                const balance = Number(current || 0);
-                if (balance < CONFIG.extraTicketPrice) return;
-                return balance - CONFIG.extraTicketPrice;
-            });
-            if (!coinTx.committed) throw new Error('INSUFFICIENT_COINS');
-            coinDebited = true;
-
-            const eventTx = await stateRef(status.year).transaction(current => {
-                if (!current || Number(current.ticketsPurchased || 0) >= CONFIG.maxExtraTickets) return;
-                return {
-                    ...current,
-                    ticketsPurchased: Number(current.ticketsPurchased || 0) + 1,
-                    updatedAt: now()
-                };
-            }, undefined, false);
-
-            if (!eventTx.committed) throw new Error('PURCHASE_LIMIT');
-            state.annual = eventTx.snapshot.val();
-            coinDebited = false;
+            if (Number(state.annual.ticketsPurchased || 0) >= CONFIG.maxExtraTickets)
+                throw Error('PURCHASE_LIMIT');
+            if (!await AppDialog.confirm(`Dùng ${CONFIG.extraTicketPrice} Coin để mua 1 Vé Đại Hội Trung Thu?
+Mỗi năm chỉ mua tối đa ${CONFIG.maxExtraTickets} vé.`)) return;
+            const result = await serverAction('festival_ticket');
+            state.annual = result.annual;
             showToast(`🎟️ Mua vé thành công! Đã trừ ${CONFIG.extraTicketPrice} Coin.`, 'success');
             renderDashboard(status);
         } catch (error) {
-            if (coinDebited) {
-                try {
-                    await getDatabase().ref(`student_coins/${username()}`).transaction(current => Number(current || 0) + CONFIG.extraTicketPrice);
-                } catch (rollbackError) {
-                    console.error('[Đại Hội Trung Thu] Không hoàn Coin được:', rollbackError);
-                }
-            }
             const messages = {
-                EVENT_CLOSED: 'Sự kiện hiện chưa mở.',
-                PURCHASE_LIMIT: 'Bạn đã mua tối đa 4 vé trong sự kiện năm nay.',
-                INSUFFICIENT_COINS: `Bạn không đủ ${CONFIG.extraTicketPrice} Coin để mua vé.`
+                EVENT_CLOSED:'Sự kiện hiện chưa mở.',
+                PURCHASE_LIMIT:'Bạn đã mua tối đa 4 vé trong sự kiện năm nay.',
+                INSUFFICIENT_COINS:`Bạn không đủ ${CONFIG.extraTicketPrice} Coin để mua vé.`,
+                SHIELD_POLICY_UNAVAILABLE:'Lá chắn chưa được xác nhận. Chưa thực hiện giao dịch.'
             };
             showToast(messages[error.message] || `Không mua được vé: ${error.message}`, 'error');
         } finally {
@@ -1055,6 +945,7 @@
     }
 
     async function reserveClaim(year, milestone) {
+        if (!state.testMode) throw Error('SHIELD_POLICY_UNAVAILABLE');
         const m = CONFIG.milestones.find(row => row.score === milestone);
         if (!m) throw new Error('INVALID_MILESTONE');
         let itemId = '';
@@ -1080,6 +971,7 @@
     }
 
     async function completeClaim(year, milestone, extras = {}) {
+        if (!state.testMode) throw Error('SHIELD_POLICY_UNAVAILABLE');
         const ref = claimRef(year, milestone);
         await ref.transaction(current => {
             if (!current) return;
@@ -1096,6 +988,7 @@
     }
 
     async function grantWalletEventCoin(year, milestone) {
+        if (!state.testMode) throw Error('SHIELD_POLICY_UNAVAILABLE');
         const database = getDatabase();
         const rewardId = `${year}_${milestone}`;
         const ref = walletRef();
@@ -1145,6 +1038,7 @@
     }
 
     async function applyClaim(year, milestone) {
+        if (!state.testMode) throw Error('SHIELD_POLICY_UNAVAILABLE');
         const claim = state.claims[String(milestone)] || await reserveClaim(year, milestone);
         if (!claim) throw new Error('CLAIM_NOT_FOUND');
         if (claim.status === 'completed') return;
@@ -1242,13 +1136,11 @@
         try {
             const status = await getEventStatus();
             if (!status.active) throw new Error('EVENT_CLOSED');
-            if(serverMode()) {
-                const result=await serverAction('festival_claim',{milestone:String(milestone)});state.annual=result.annual;
-                showToast('🎁 Đã nhận thưởng mốc '+milestone+' điểm.','success');
-            }else {
-                await reserveClaim(status.year, milestone);
-                await applyClaim(status.year, milestone);
-            }
+            if (!serverMode() || typeof window.EconomyClient?.execute !== 'function')
+                throw Error('SHIELD_POLICY_UNAVAILABLE');
+            const result=await serverAction('festival_claim',{milestone:String(milestone)});
+            state.annual=result.annual;
+            showToast('🎁 Đã nhận thưởng mốc '+milestone+' điểm.','success');
             await loadClaims(status.year);
             renderDashboard(status);
         } catch (error) {
@@ -1267,6 +1159,7 @@
     }
 
     async function commitGameScore(gameId, rawScore) {
+        if (!state.testMode) throw Error('SHIELD_POLICY_UNAVAILABLE');
         if(serverMode())throw new Error('SERVER_GAME_REQUIRED');
         const status = await getEventStatus();
         if (!status.active) throw new Error('EVENT_CLOSED');
@@ -1928,6 +1821,10 @@
 
     function startGame(gameId) {
         if(serverMode()) {startServerGame(gameId).catch(e=>showToast('Chưa mở được lượt chơi: '+e.message,'error'));return;}
+        if (!state.testMode) {
+            showToast('Lá chắn giao dịch chưa xác minh. Chưa sử dụng vé hoặc thay đổi điểm.', 'error');
+            return;
+        }
         if (!state.annual || ticketsRemaining() <= 0) {
             showToast('Bạn đã hết vé Đại Hội Trung Thu.', 'warning');
             return;

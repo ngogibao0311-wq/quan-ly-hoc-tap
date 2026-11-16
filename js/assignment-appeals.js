@@ -154,13 +154,12 @@ window.getSubmissionEssayDisplay = function (submission, assignment) {
                     // Decision and its notification commit together; deterministic key prevents duplicate mail.
                     const current=(await ref.once('value')).val();
                     if(current?.status!=='reviewing'){panel.close();await open(key);return;}
-                    if(window.ECONOMY_SERVER_ENABLED===true){
-                        await window.EconomyClient.execute('appeal_decide',{submissionKey:key,decision,basis:decision==='approved'?basis.value:'rejected',reason:reason.value.trim()},{slot:'appeal-decision:'+key});
-                        panel.close();await open(key);return;
-                    }
-                    const completed={...current,status:'completed',decision,decisionReason:reason.value.trim(),decisionBasis:decision==='approved'?basis.value:'rejected',decidedBy:firebase.auth().currentUser.uid,decidedAt:firebase.database.ServerValue.TIMESTAMP,settlementStatus:decision==='approved'?'pending_review':'not_applicable'};
-                    const message={message:'Kháng cáo bài '+String(submission.assignmentId||key)+' đã hoàn tất. Kết quả: '+(decision==='approved'?'Đồng ý':'Từ chối')+'.\nLý do: '+reason.value.trim()+(decision==='approved'?'\nQuyền lợi đang chờ giáo viên xác minh và đối soát.':''),giftType:'none',giftValue:0,source:'submission_appeal_completed',submissionKey:key,skipInboxGiftAnimation:true,suppressInboxArrivalAnimation:true,timestamp:firebase.database.ServerValue.TIMESTAMP,timeString:new Date().toLocaleString('vi-VN')};
-                    await db.ref().update({['submission_appeals/'+key]:completed,['inbox_messages/'+current.studentUsername+'/appeal_completed_'+key]:message});
+                    if (window.ECONOMY_SERVER_ENABLED !== true || typeof window.EconomyClient?.execute !== 'function')
+                        throw Error('SHIELD_POLICY_UNAVAILABLE');
+                    await window.EconomyClient.execute('appeal_decide', {
+                        submissionKey:key,decision,basis:decision==='approved'?basis.value:'rejected',
+                        reason:reason.value.trim()
+                    }, {slot:'appeal-decision:'+key});
                     panel.close();await open(key);
                 }catch(error){text(panel,'Chưa xác nhận quyết định đã lưu. Đóng rồi mở lại để kiểm tra. '+error.message);buttons.forEach(b=>b.disabled=false);}
             };
@@ -188,30 +187,12 @@ window.getSubmissionEssayDisplay = function (submission, assignment) {
             reconcile.onclick = async () => {
                 reconcile.disabled = true;
                 try {
-                    if(window.ECONOMY_SERVER_ENABLED===true){
-                        await window.EconomyClient.execute('appeal_settle',{submissionKey:key,amounts:'{}',reason:'Xác minh lỗi ghi nhận nhầm theo quyết định kháng cáo.'},{slot:'appeal-settle:'+key});
-                        panel.close();await open(key);return;
-                    }
-                    await pardonTeacherSubmissionWithAudit(key);
-                    const fresh = (await db.ref('submissions/' + key).once('value')).val();
-                    if (!fresh || fresh.grade === null || fresh.grade === undefined || fresh.grade === '')
-                        throw Error('Đã xóa lỗi; cần giáo viên chấm và lưu điểm để đối soát.');
-                    const sub = {...fresh, _fbKey:key};
-                    const result = await issueTeacherGradeRewardV2(sub, fresh.grade, fresh.gradedAt || Date.now());
-                    // The balance adjustment already committed in the grading ledger.
-                    // This zero-value appeal receipt records completion without crediting twice.
-                    const [coins,tickets] = await Promise.all([
-                        db.ref('student_coins/' + username).once('value'),
-                        db.ref('student_bonus_tickets/' + username).once('value')
-                    ]);
-                    await settlementRef.set({submissionKey:key,studentUsername:username,
-                        actorUid:firebase.auth().currentUser.uid,decisionBasis:appeal.decisionBasis,
-                        rewardCoins:0,rewardTickets:0,refundCoins:0,refundTickets:0,coinDelta:0,ticketDelta:0,
-                        previousCoins:coins.val() || 0,previousTickets:tickets.val() || 0,
-                        source:'grade_settlement_v5',rewardRevision:result.revision,
-                        reason:`Đã xóa lỗi ghi nhận nhầm và đối soát theo sổ thưởng/phạt, phiên bản ${result.revision}. Xem thư thông báo chi tiết.`,
-                        createdAt:firebase.database.ServerValue.TIMESTAMP});
-                    text(panel, `Đã đối soát theo điểm ${result.score}. Kết quả ròng của bài: ${result.ticketDelta} vé, ${result.coinReward} Coin. Hộp thư ghi rõ phần chênh lệch vừa xử lý.`);
+                    if (window.ECONOMY_SERVER_ENABLED !== true || typeof window.EconomyClient?.execute !== 'function')
+                        throw Error('SHIELD_POLICY_UNAVAILABLE');
+                    await window.EconomyClient.execute('appeal_settle', {
+                        submissionKey:key,amounts:'{}',reason:'Xác minh lỗi ghi nhận nhầm theo quyết định kháng cáo.'
+                    }, {slot:'appeal-settle:'+key});
+                    panel.close();await open(key);
                 } catch (error) {
                     text(panel, 'Chưa xác nhận hoàn tất. Mở lại để kiểm tra và thử tiếp; sổ đối soát sẽ không cộng trùng. ' + error.message);
                 }
@@ -238,16 +219,11 @@ window.getSubmissionEssayDisplay = function (submission, assignment) {
             if(!(await AppDialog.confirm(`Xác nhận cộng ${coinDelta} Coin và ${ticketDelta} vé sau khi đã kiểm tra lịch sử? Quyết định đối soát này chỉ thực hiện một lần.`)))return;
             save.disabled=true;
             try {
-                if(window.ECONOMY_SERVER_ENABLED===true){
-                    await window.EconomyClient.execute('appeal_settle',{submissionKey:key,amounts:JSON.stringify(amounts),reason:reason.value.trim()},{slot:'appeal-settle:'+key});
-                    panel.close();await open(key);return;
-                }
-                const [coinSnap,ticketSnap,proof]=await Promise.all([db.ref('student_coins/'+username).once('value'),db.ref('student_bonus_tickets/'+username).once('value'),settlementRef.once('value')]);
-                if(proof.exists()){panel.close();await open(key);return;}
-                const previousCoins=coinSnap.val()??0,previousTickets=ticketSnap.val()??0;
-                if(!Number.isFinite(previousCoins)||!Number.isFinite(previousTickets))throw Error('Số dư không hợp lệ, cần kiểm tra dữ liệu.');
-                const record={submissionKey:key,studentUsername:username,actorUid:firebase.auth().currentUser.uid,decisionBasis:appeal.decisionBasis,...amounts,coinDelta,ticketDelta,previousCoins,previousTickets,reason:reason.value.trim(),createdAt:firebase.database.ServerValue.TIMESTAMP};
-                await db.ref().update({['submission_appeal_settlements/'+key]:record,['student_coins/'+username]:previousCoins+coinDelta,['student_bonus_tickets/'+username]:previousTickets+ticketDelta});
+                if (window.ECONOMY_SERVER_ENABLED !== true || typeof window.EconomyClient?.execute !== 'function')
+                    throw Error('SHIELD_POLICY_UNAVAILABLE');
+                await window.EconomyClient.execute('appeal_settle', {
+                    submissionKey:key,amounts:JSON.stringify(amounts),reason:reason.value.trim()
+                }, {slot:'appeal-settle:'+key});
                 panel.close();await open(key);
             }catch(error){
                 text(panel,'Chưa xác nhận đối soát. Đóng và mở lại để đọc biên nhận trước khi thao tác tiếp. '+error.message);
@@ -275,8 +251,8 @@ window.getSubmissionEssayDisplay = function (submission, assignment) {
         button.disabled=true;
         try {
             const ref=db.ref('submissions/'+button.dataset.repairRedo);
-            if(window.ECONOMY_SERVER_ENABLED===true)await runServerTeacherSubmission(button.dataset.repairRedo,'repair_audit');
-            else await transaction(ref,current=>current?.isRedoing && current.violationAudit && typeof current.violationAudit==='object' ? {...current,violationAudit:JSON.stringify(current.violationAudit)} : undefined);
+            if (window.ECONOMY_SERVER_ENABLED !== true) throw Error('SHIELD_POLICY_UNAVAILABLE');
+            await runServerTeacherSubmission(button.dataset.repairRedo,'repair_audit');
             text(button.parentElement,'Đã giữ nguyên lịch sử và khôi phục định dạng. Học sinh tải lại trang để nộp lại.');
         }catch(error){(await AppDialog.alert(error.message));button.disabled=false;}
     });

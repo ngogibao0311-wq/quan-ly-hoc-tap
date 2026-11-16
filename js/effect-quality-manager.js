@@ -14,7 +14,7 @@
 
     if (window.EffectQualityManager) return;
 
-    const VERSION = '2.3.0-adaptive';
+    const VERSION = '2.4.0-haaee';
     const STORAGE_PREFIX = 'effectQualityManager:v1';
     const STYLE_ID = 'effect-quality-manager-style';
     const SETTINGS_ROW_ID = 'effectQualitySettingsRow';
@@ -64,6 +64,11 @@
         // EFFECT BUDGET v2
         // Một scheduler duy nhất cho các emitter của EffectManager.
         emitters: new Map(),
+        frameJobs: new Map(),
+        nextFrameJobId: 1,
+        lastFrameAt: 0,
+        lastTickGapMs: 0,
+        lastFrameCostMs: 0,
         nextEmitterId: 1,
         schedulerHandle: null,
         schedulerWakeHandle: null,
@@ -332,38 +337,62 @@ html.fxq-luxury-low [data-luxury-quality-layer] [data-fxq-weight="secondary"]{di
     display: none !important;
 }
 
-#${LEVELS_ID} .fxq-level-btn {
+html body #${SETTINGS_ROW_ID} #${LEVELS_ID} .fxq-level-btn {
     width: 100% !important;
-    min-height: 42px;
+    min-height: 82px;
+    min-width: 0;
     margin: 0 !important;
-    padding: 8px 9px !important;
-    border: 1px solid rgba(102,126,234,.20) !important;
-    border-radius: 10px !important;
-    background: rgba(255,255,255,.72) !important;
-    color: #475569 !important;
+    padding: 12px !important;
+    border: 2px solid #cbd5e1 !important;
+    border-radius: 12px !important;
+    background: #f8fafc !important;
+    color: #334155 !important;
     box-shadow: none !important;
+    text-shadow: none !important;
+    transform: none !important;
+    filter: none !important;
+    white-space: normal !important;
+    letter-spacing: normal !important;
+    text-transform: none !important;
     font: inherit;
     cursor: pointer;
 }
 
-#${LEVELS_ID} .fxq-level-btn strong {
+html body #${SETTINGS_ROW_ID} #${LEVELS_ID} .fxq-level-btn strong {
     display: block;
-    color: inherit;
+    color: inherit !important;
     font-size: .88rem;
 }
 
-#${LEVELS_ID} .fxq-level-btn small {
+html body #${SETTINGS_ROW_ID} #${LEVELS_ID} .fxq-level-btn small {
     display: block;
     margin-top: 2px;
-    color: #64748b;
-    font-size: .70rem;
-    line-height: 1.25;
+    color: #475569 !important;
+    font-size: .76rem;
+    line-height: 1.45;
 }
 
-#${LEVELS_ID} .fxq-level-btn.is-active {
-    border-color: rgba(79,70,229,.48) !important;
-    background: linear-gradient(135deg, rgba(99,102,241,.13), rgba(139,92,246,.12)) !important;
-    color: #4f46e5 !important;
+html body #${SETTINGS_ROW_ID} #${LEVELS_ID} .fxq-level-btn[aria-pressed="true"] {
+    border-color: #4338ca !important;
+    background: #4338ca !important;
+    color: #fff !important;
+}
+html body #${SETTINGS_ROW_ID} #${LEVELS_ID} .fxq-level-btn[aria-pressed="true"] small {
+    color: #fff !important;
+}
+html body #${SETTINGS_ROW_ID} #${LEVELS_ID} .fxq-level-btn[aria-pressed="true"] strong::before {
+    content: '✓ ';
+}
+html body #${SETTINGS_ROW_ID} #${LEVELS_ID} .fxq-level-btn:hover {
+    border-color: #6366f1 !important;
+}
+html body #${SETTINGS_ROW_ID} #${LEVELS_ID} .fxq-level-btn:focus-visible {
+    outline: 3px solid #818cf8 !important;
+    outline-offset: 3px;
+}
+html body #${SETTINGS_ROW_ID} #${LEVELS_ID} .fxq-level-btn::before,
+html body #${SETTINGS_ROW_ID} #${LEVELS_ID} .fxq-level-btn::after {
+    content: none !important;
 }
 
 /* ---------- WEB ANIMATIONS: MEDIUM ---------- */
@@ -1055,7 +1084,7 @@ html.fxq-enabled.fxq-low [data-fxq-store-card="1"] [class*="shape"]::after {
     function ensureScheduler() {
         if (
             state.schedulerRunning ||
-            state.emitters.size === 0 ||
+            (state.emitters.size === 0 && state.frameJobs.size === 0) ||
             state.visibilityPaused ||
             document.visibilityState === 'hidden'
         ) {
@@ -1078,6 +1107,7 @@ html.fxq-enabled.fxq-low [data-fxq-store-card="1"] [class*="shape"]::after {
             for (const emitter of state.emitters.values()) {
                 if (!emitter.cancelled) nextAt = Math.min(nextAt, emitter.nextAt);
             }
+            for (const job of state.frameJobs.values()) nextAt = Math.min(nextAt, job.nextAt);
             if (!Number.isFinite(nextAt)) { state.schedulerRunning = false; return; }
             state.schedulerWakeHandle = window.setTimeout(() => {
                 state.schedulerWakeHandle = null;
@@ -1086,7 +1116,8 @@ html.fxq-enabled.fxq-low [data-fxq-store-card="1"] [class*="shape"]::after {
                     return;
                 }
                 state.schedulerHandle = raf(tick);
-            }, Math.max(0, nextAt - now));
+            // rAF lands on the *next* vsync, so wake a little early for 30/60 fps effects.
+            }, Math.max(0, nextAt - now - (state.frameJobs.size ? 12 : 0)));
         };
 
         const tick = now => {
@@ -1102,6 +1133,32 @@ html.fxq-enabled.fxq-low [data-fxq-store-card="1"] [class*="shape"]::after {
 
             state.reservedParticlesThisFrame = 0;
             compactLiveParticles();
+
+            // Tasks here are purely visual; business timers and study input never use this queue.
+            const started = performance.now();
+            const gap = state.lastFrameAt ? now - state.lastFrameAt : 0;
+            state.lastFrameAt = now;
+            state.lastTickGapMs = Math.max(0, gap);
+            const level = getEffectiveLevel();
+            const budget = (level === 'low' ? 1.5 : level === 'medium' ? 3 : 5) *
+                (gap > 40 ? 0.6 : 1);
+            for (const job of [...state.frameJobs.values()].sort((a, b) => b.priority - a.priority)) {
+                if (!state.frameJobs.has(job.token) || now < job.nextAt) continue;
+                job.nextAt = now + job.interval;
+                if (job.priority < 90 && performance.now() - started >= budget) {
+                    job.skipped++; continue;
+                }
+                try {
+                    job.handler(now, Math.min(0.08, Math.max(0, (now - job.lastAt) / 1000)));
+                    job.lastAt = now;
+                    job.executed++;
+                    job.failures = 0;
+                } catch (error) {
+                    console.error('[EffectQualityManager] Frame task lỗi:', job.owner, error);
+                    if (++job.failures >= 3) state.frameJobs.delete(job.token);
+                }
+            }
+            state.lastFrameCostMs = Math.max(0, performance.now() - started);
 
             for (const emitter of state.emitters.values()) {
                 if (
@@ -1143,17 +1200,19 @@ html.fxq-enabled.fxq-low [data-fxq-store-card="1"] [class*="shape"]::after {
                     );
 
                     emitter.executed += 1;
+                    emitter.failures = 0;
                 } catch (error) {
                     console.error(
                         '[EffectQualityManager] Emitter lỗi:',
                         emitter.owner,
                         error
                     );
+                    if (++emitter.failures >= 3) state.emitters.delete(emitter.token);
                 }
             }
 
             if (
-                state.emitters.size > 0 &&
+                (state.emitters.size > 0 || state.frameJobs.size > 0) &&
                 !state.visibilityPaused
             ) {
                 queueTick(now);
@@ -1225,6 +1284,7 @@ html.fxq-enabled.fxq-low [data-fxq-store-card="1"] [class*="shape"]::after {
                 nextAt:
                     now + interval,
                 executed: 0,
+                failures: 0,
                 skipped: 0,
                 cancelled: false
             }
@@ -1251,7 +1311,7 @@ html.fxq-enabled.fxq-low [data-fxq-store-card="1"] [class*="shape"]::after {
 
         emitter.cancelled = true;
         state.emitters.delete(token);
-        if (state.emitters.size === 0) stopEmitterScheduler();
+        if (state.emitters.size === 0 && state.frameJobs.size === 0) stopEmitterScheduler();
 
         return true;
     }
@@ -1278,8 +1338,70 @@ html.fxq-enabled.fxq-low [data-fxq-store-card="1"] [class*="shape"]::after {
             }
         }
 
-        if (state.emitters.size === 0) stopEmitterScheduler();
+        for (const [token, job] of state.frameJobs) {
+            if (!prefix || job.owner.startsWith(prefix)) {
+                state.frameJobs.delete(token);
+                count += 1;
+            }
+        }
+        if (state.emitters.size === 0 && state.frameJobs.size === 0) stopEmitterScheduler();
         return count;
+    }
+
+    // Global frame scheduler: register visual frame callbacks without monkey-patching rAF.
+    // Reuses the existing emitter wake/visibility infrastructure.
+    function scheduleFrameTask(owner, handler, options = {}) {
+        if (typeof handler !== 'function') throw TypeError('Frame task phải là function.');
+        const token = 'haaee-frame-' + state.nextFrameJobId++;
+        const priority = Math.min(100, Math.max(0, Number(options.priority) || 20));
+        const interval = Math.max(16, Math.min(1000, Number(options.interval) || 16));
+        const now = performance.now();
+        state.frameJobs.set(token, {token, owner:String(owner || 'visual'), handler,
+            priority, interval, nextAt:now + interval, lastAt:now,
+            failures:0, executed:0, skipped:0});
+        if (state.schedulerWakeHandle !== null) {
+            window.clearTimeout(state.schedulerWakeHandle);
+            state.schedulerWakeHandle = null;
+            state.schedulerRunning = false;
+        }
+        ensureScheduler();
+        return token;
+    }
+
+    function cancelFrameTask(token) {
+        const removed = state.frameJobs.delete(token);
+        if (removed && !state.frameJobs.size && !state.emitters.size) stopEmitterScheduler();
+        return removed;
+    }
+
+    function getHardwareProfile() {
+        // Browser hints are approximate; never claim physical GPU/CPU usage readings.
+        const cores = Number(navigator.hardwareConcurrency) || null;
+        const memoryGb = Number(navigator.deviceMemory) || null;
+        return Object.freeze({
+            cores, memoryGb,
+            webgpu: Boolean(window.isSecureContext && navigator.gpu?.requestAdapter),
+            webgl2: typeof window.WebGL2RenderingContext === 'function',
+            offscreenCanvas: typeof window.OffscreenCanvas === 'function',
+            reducedMotion: Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches),
+            effectiveLevel: getEffectiveLevel()
+        });
+    }
+
+    function getRendererPreference() {
+        const caps = getHardwareProfile();
+        // WebGPU is intentionally not selected until an effect actually implements it.
+        // A renderer must have a working fallback before opting into WebGL2.
+        return window.WebPerformanceOptimizer?.isEnabled?.() &&
+            caps.webgl2 && !caps.reducedMotion && caps.effectiveLevel !== 'low'
+            ? 'webgl2' : 'canvas2d';
+    }
+
+    function getFrameStats() {
+        return {jobs:state.frameJobs.size, lastTickGapMs:state.lastTickGapMs,
+            lastFrameCostMs:state.lastFrameCostMs, paused:state.visibilityPaused,
+            tasks:[...state.frameJobs.values()].map(job => ({owner:job.owner,
+                priority:job.priority, executed:job.executed, skipped:job.skipped}))};
     }
 
     function stopEmitterScheduler() {
@@ -1291,6 +1413,7 @@ html.fxq-enabled.fxq-low [data-fxq-store-card="1"] [class*="shape"]::after {
         state.schedulerWakeHandle = null;
         state.schedulerHandle = null;
         state.schedulerRunning = false;
+        state.lastFrameAt = 0;
     }
 
     function pauseEffectBudget() {
@@ -1324,13 +1447,10 @@ html.fxq-enabled.fxq-low [data-fxq-store-card="1"] [class*="shape"]::after {
          * Reset nextAt để không sinh bù một loạt hạt sau khi tab visible.
          */
         state.emitters.forEach(emitter => {
-            emitter.nextAt =
-                now +
-                normalizeEmitterInterval(
-                    emitter.delay
-                );
+            emitter.nextAt = now + normalizeEmitterInterval(emitter.delay);
         });
-
+        state.frameJobs.forEach(job => { job.nextAt = now + job.interval; job.lastAt = now; });
+        state.lastFrameAt = 0;
         ensureScheduler();
     }
 
@@ -1788,7 +1908,7 @@ html.fxq-enabled.fxq-low [data-fxq-store-card="1"] [class*="shape"]::after {
                 </label>
             </div>
 
-            <div id="${LEVELS_ID}" hidden aria-label="Chọn mức hiệu ứng">
+            <div id="${LEVELS_ID}" class="ui-theme-immune" hidden role="group" aria-label="Chọn mức hiệu ứng">
                 <button type="button" class="fxq-level-btn" data-fxq-level="high" aria-pressed="false">
                     <strong>🌟 Cao</strong>
                     <small>Đầy đủ hiệu ứng</small>
@@ -1960,6 +2080,11 @@ html.fxq-enabled.fxq-low [data-fxq-store-card="1"] [class*="shape"]::after {
         requestParticleQuota,
         scheduleEmitter,
         cancelEmitter,
+        scheduleFrameTask,
+        cancelFrameTask,
+        getFrameStats,
+        getHardwareProfile,
+        getRendererPreference,
         cancelScope,
         pause: pauseEffectBudget,
         resume: resumeEffectBudget,

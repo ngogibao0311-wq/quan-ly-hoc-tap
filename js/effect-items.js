@@ -1,4 +1,4 @@
-// js/effect-items.js?v=20261029.plan4.2
+// js/effect-items.js?v=20261104.plan4.3
 const IS_MOBILE_EFFECT = window.matchMedia(
     '(max-width: 768px), (pointer: coarse)'
 ).matches;

@@ -1,4 +1,4 @@
-// js/pet-items.js?v=20261029.plan4.2
+// js/pet-items.js?v=20261104.plan4.3
 
 
 // =========================================================
@@ -113,6 +113,13 @@ class PetManager {
             }
         } catch (_) {}
         return Math.ceil(base);
+    }
+
+    static shortSceneAllowed() {
+        return !document.hidden && !window.currentActiveExamId && !window.isExamVisualItemsSuspended &&
+            !document.body.matches('.exam-active,.wfx-low-power') &&
+            !window.matchMedia('(prefers-reduced-motion: reduce)').matches &&
+            window.EffectQualityManager?.getLuxuryPolicy?.().level !== 'low';
     }
 
     static interactionAbortController = null;
@@ -1115,6 +1122,7 @@ class PetManager {
     }
 
     static spawnPet(petData) {
+        window.Caelion?.clear();
         window.Plan4Runtime?.clearPet();
         window.JulietRuntime?.clearPet();
         window.RomeoRuntime?.clearPet();
@@ -1891,7 +1899,7 @@ class PetManager {
             let mafcClickLocked = false;
 
             petElement.addEventListener('click', event => {
-                if (mafcClickLocked) return;
+                if (mafcClickLocked || !this.shortSceneAllowed()) return;
 
                 if (
                     typeof PetInteractionManager !== 'undefined' &&
@@ -2228,7 +2236,7 @@ class PetManager {
             let macc2ClickLocked = false;
 
             petElement.addEventListener('click', event => {
-                if (macc2ClickLocked) return;
+                if (macc2ClickLocked || !this.shortSceneAllowed()) return;
 
                 if (
                     typeof PetInteractionManager !== 'undefined' &&
@@ -2560,7 +2568,7 @@ class PetManager {
 
             let tamonBsideChibiClickLocked = false;
             petElement.addEventListener('click', event => {
-                if (tamonBsideChibiClickLocked) return;
+                if (tamonBsideChibiClickLocked || !this.shortSceneAllowed()) return;
                 if (
                     typeof PetInteractionManager !== 'undefined' &&
                     PetInteractionManager.isPetDragging
@@ -4500,7 +4508,7 @@ class PetManager {
             let autreg5CastLocked = false;
 
             petElement.addEventListener('click', event => {
-                if (autreg5CastLocked) return;
+                if (autreg5CastLocked || !this.shortSceneAllowed()) return;
 
                 if (
                     typeof PetInteractionManager !== 'undefined' &&
@@ -5303,6 +5311,7 @@ class PetManager {
         this.container.style.pointerEvents = 'auto';
         this.container.removeAttribute('hidden');
         this.container.setAttribute('aria-hidden', 'false');
+        if (petData.id === 'pet_caelion_premium') window.Caelion?.mount(petElement, petElement.tagName === 'IMG' ? petElement : petElement.querySelector('img'));
         if (window.Plan4Runtime?.supports(petData.id)) window.Plan4Runtime.mountPet(petData.id);
         if (petData.id === 'pet_valentine_cupid_regular_1') window.ValentineRegularRuntime?.mountPet();
         if (petData.id === 'pet_valentine_romeo_regular_2') window.RomeoRuntime?.mountRegularPet();

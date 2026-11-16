@@ -58,7 +58,7 @@
         body.replaceChildren();
         if(!data.request)sessionStorage.removeItem(key('transfer'));
         if(data.currentSessionId===data.primarySessionId)sessionStorage.removeItem(key('recover'));
-        body.append(node('p','Mỗi lần đăng nhập là một phiên. Mã khôi phục dùng chung không chứng minh đó là cùng một thiết bị.','session-device-help'));
+        body.append(node('p','Mỗi lần đăng nhập bằng tài khoản và mật khẩu là một phiên. Phiên mới không tự lấy quyền của phiên chính còn hoạt động.','session-device-help'));
         const list=node('ul',null,'session-device-list');
         data.sessions.forEach((s,index)=>{
             const row=node('li'),info=node('div');
@@ -92,23 +92,15 @@
             if(data.primarySessionId && data.sessions.some(s=>s.id===data.primarySessionId)) {
                 body.append(safeButton('Xin quyền từ phiên chính',()=>void act('session_request_transfer',{requestId:requestId('transfer')})));
             } else {
-                body.append(node('p','Phiên chính đã hết hạn hoặc đã đăng xuất. Bạn có thể nhập mã bên dưới để lấy lại quyền. Lần đăng nhập mới bằng mật khẩu và mã khôi phục cũng sẽ kiểm tra để cấp lại quyền.'));
+                body.append(node('p','Phiên chính đã hết hạn hoặc đã đăng xuất. Đăng xuất rồi đăng nhập lại bằng tài khoản và mật khẩu để máy chủ kiểm tra quyền. Khóa thi và giao dịch đang chờ vẫn được giữ.'));
                 if(data.pendingCount || data.activeRequestCount)body.append(node('p','Khi khôi phục quyền, hệ thống sẽ đối chiếu các giao dịch đang chờ. Giao dịch đã có kết quả sẽ được xác nhận; yêu cầu chưa rõ kết quả vẫn được giữ để kiểm tra.'));
             }
-            const form=node('form'),heading=node('h3','Không còn dùng được phiên chính?'),help=node('p','Chỉ khôi phục khi phiên chính đã hết hạn hoặc đăng xuất. Hệ thống kiểm tra bài thi và đối chiếu giao dịch trước khi cấp quyền.');
-            const input=node('input');input.id='sessionTransferRecovery';input.type='password';input.autocomplete='off';input.maxLength=64;input.placeholder='REC-…';
-            api().registerSessionControl(input);
-            const text=node('label','Nhập lại mã khôi phục');text.htmlFor=input.id;api().registerSessionControl(text);
-            const submit=safeButton('Xác nhận để khôi phục quyền',()=>{const code=input.value;input.value='';void act('session_recover_transfer',{requestId:requestId('recover'),code});});
-            input.addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.isComposing){event.preventDefault();submit.click();}});
-            form.addEventListener('submit',event=>event.preventDefault());form.append(heading,help,text,input,submit);body.append(form);
         }
     }
     function closePanel(){
         if(!panel)return;
         if(panel.open)panel.close();panel.hidden=true;
         button.setAttribute('aria-expanded','false');
-        const recovery=panel.querySelector('input[type="password"]');if(recovery)recovery.value='';
         button.focus({preventScroll:true});
     }
     function mount(){
@@ -156,12 +148,8 @@
         mount();
         if(api()?.protocol()>=3)connect();
     });
-    // During maintenance OFF there is no device-session management to show.
-    // The module stays loaded so a later enabled deployment needs no HTML edit.
-    function mountIfActive() {
-        void api()?.enabled().then(active => { if (active) mount(); }).catch(() => {});
-    }
-    mountIfActive();
-    document.addEventListener('DOMContentLoaded',mountIfActive,{once:true});
+    // Keep the entry visible even before activation, and explain availability.
+    mount();
+    document.addEventListener('DOMContentLoaded',mount,{once:true});
     (window.SessionPolicyModules ||= {}).devices='20261024.session3';
 })();

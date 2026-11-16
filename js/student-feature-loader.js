@@ -58,7 +58,7 @@
     let storeCardCssPinned = false;
 
     const CSS = Object.freeze({
-        storeBase: 'css/store-items.css?v=20261029.plan3.fonts1',
+        storeBase: 'css/store-items.css?v=20261105.vfx2',
         effectsBase: 'css/effects-pets.css?v=20261019.motion1',
 
         royalBall: 'css/royal-ball.css?v=3.8',
@@ -101,12 +101,12 @@
         valentine:'js/valentine.js?v=20261029.plan3.fonts1',
         eternalWinter:'js/eternal-winter.js?v=20261017.production.split1',
         tinhMong:'js/tinh-mong.js?v=20261017.production.split1',
-        themeItems: 'js/theme-items.js?v=20261029.plan4.2',
-        effectItems: 'js/effect-items.js?v=20261029.plan4.2',
-        petItems: 'js/pet-items.js?v=20261029.plan4.2',
-        petInteractions: 'js/pet-interactions.js?v=20261017.production.split1',
+        themeItems: 'js/theme-items.js?v=20261108.clean1',
+        effectItems: 'js/effect-items.js?v=20261104.plan4.3',
+        petItems: 'js/pet-items.js?v=20261115.caelion1',
+        petInteractions: 'js/pet-interactions.js?v=20261110.plan5.audit3',
         musicManager: 'js/music-manager.js?v=20261017.production.split1',
-        storeManager: 'js/store-manager.js?v=20261029.plan4.2',
+        storeManager: 'js/store-manager.js?v=20261116.plan4cards1',
 
         regularArt: 'js/regular-store-art.js?v=20261017.production.split1',
         kimLien: 'js/premium-kim-lien.js?v=20261017.production.split1',
@@ -118,17 +118,17 @@
         audrey: 'js/audrey-hall.js?v=20261017.production.split1',
         hacMongRegular: 'js/hac-mong-regular.js?v=20261017.production.split1',
         distinctScenes: 'js/luxury-distinct-scenes.js?v=20261017.production.split1',
-        luxuryStore: 'js/luxury-store.js?v=20261029.plan4.2',
-        collections: 'js/store-collections.js?v=20261018.economy5031',
+        luxuryStore: 'js/luxury-store.js?v=20261115.caelion1',
+        collections: 'js/store-collections.js?v=20261116.hardening1',
 
-        royalBall: 'js/royal-ball.js?v=20261017.production.split1',
+        royalBall: 'js/royal-ball.js?v=20261116.hardening1',
         leaderboard: 'js/leaderboard.js?v=20261025.studyread1',
-        painting: 'js/painting.js?v=20261017.production.split1',
+        painting: 'js/painting.js?v=20261116.hardening1',
         history: 'js/lich-su-hao-hung.js?v=20261017.production.split1',
         bellum: 'js/bellum-event.js?v=20261017.production.split1',
-        midAutumnFestival: 'js/mid-autumn-festival.js?v=20261017.production.split1',
+        midAutumnFestival: 'js/mid-autumn-festival.js?v=20261110.plan5.audit3',
 
-        dailyLogin: 'js/daily-login.js?v=20261017.production.split1',
+        dailyLogin: 'js/daily-login.js?v=20261114.security1',
         guide: 'js/huong-dan-nguoi-moi.js?v=20261017.production.split1'
     });
 
@@ -922,6 +922,7 @@ html[data-app-role="student"] body .dashboard > .content > :is(
          * EffectQualityManager chỉ quyết định mật độ/chi phí hiệu ứng sau khi runtime đã nạp.
          */
         async 'theme-runtime'() {
+            await loadScript('js/plan4-items.js?v=20261108.clean1');
             await loadScript(SCRIPT.thatTich);
             await loadScript(SCRIPT.huyenMinh);
             await loadScript(SCRIPT.chronos);
@@ -942,6 +943,7 @@ html[data-app-role="student"] body .dashboard > .content > :is(
         },
 
         async 'effect-runtime'() {
+            await loadScript('js/plan4-items.js?v=20261108.clean1');
             await loadScript(SCRIPT.thatTich);
             await loadScript(SCRIPT.huyenMinh);
             await loadScript(SCRIPT.chronos);
@@ -965,6 +967,7 @@ html[data-app-role="student"] body .dashboard > .content > :is(
         },
 
         async 'pet-runtime'() {
+            await loadScript('js/plan4-items.js?v=20261108.clean1');
             await loadScript(SCRIPT.thatTich);
             await loadScript(SCRIPT.huyenMinh);
             await loadScript(SCRIPT.chronos);
@@ -989,6 +992,7 @@ html[data-app-role="student"] body .dashboard > .content > :is(
         },
 
         async 'frame-background-runtime'() {
+            await loadScript('js/plan4-items.js?v=20261108.clean1');
             await loadScript(SCRIPT.thatTich);
             await loadScript(SCRIPT.huyenMinh);
             await loadScript(SCRIPT.chronos);
@@ -1176,6 +1180,16 @@ html[data-app-role="student"] body .dashboard > .content > :is(
     }
 
     const LUXURY_ITEM_IDS = new Set([
+        'pet_caelion_premium',
+        'pet_plan4_alger_premium',
+        'pet_plan4_emlyn_premium',
+        'pet_plan4_liu_xiao_premium',
+        'pet_plan4_qiao_ling_premium',
+        'pet_plan4_hemera_premium',
+        'pet_plan4_greed_premium',
+        'pet_plan4_noctyriel_premium',
+        'pet_plan4_noel_nam_premium',
+        'pet_plan4_noel_nu_premium',
         'pet_nguu_lang_premium_1',
         'pet_chuc_nu_premium_1',
         'pet_huyen_minh_premium_1',
@@ -1257,9 +1271,7 @@ html[data-app-role="student"] body .dashboard > .content > :is(
             (Array.isArray(items) ? items : [])
                 .filter(item =>
                     item &&
-                    item.isEquipped === true &&
-                    !/_plan4_|caelion/i.test(String(item.id || '')) &&
-                    window.PreReleasePolicy?.isBlockedItem(item.id) !== true
+                    item.isEquipped === true
                 );
 
         if (!equipped.length) {
@@ -1383,7 +1395,7 @@ html[data-app-role="student"] body .dashboard > .content > :is(
                 ? String(itemOrId).trim()
                 : String(itemOrId?.id || '').trim();
 
-        if (!id || /_plan4_|caelion/i.test(id) || window.PreReleasePolicy?.isBlockedItem(id)) return false;
+        if (!id) return false;
 
         await ensure('frame-background-runtime');
 
@@ -1422,7 +1434,7 @@ html[data-app-role="student"] body .dashboard > .content > :is(
 
     async function ensureForItem(itemId) {
         const id = String(itemId || '').trim();
-        if (!id || /_plan4_|caelion/i.test(id) || window.PreReleasePolicy?.isBlockedItem(id)) return false;
+        if (!id) return false;
 
         /*
          * Dùng cùng bộ phân loại với startup:

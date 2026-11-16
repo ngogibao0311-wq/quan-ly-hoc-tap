@@ -1,4 +1,4 @@
-// js/daily-login.js?v=20261017.production.split1
+// js/daily-login.js?v=20261114.security1
 
 class DailyLoginManager {
     static daysOfWeek = [
@@ -520,6 +520,11 @@ class DailyLoginManager {
         const btn = document.querySelector('.dl-btn-claim');
 
         if (!btn || btn.disabled) return;
+
+        if (window.ECONOMY_SERVER_ENABLED !== true || !window.EconomyClient?.execute) {
+            await AppDialog.alert('Chưa xác nhận được máy chủ giao dịch. Chưa điểm danh hoặc trao quà; hãy thử lại sau.');
+            return;
+        }
 
         if (window.ECONOMY_SERVER_ENABLED === true) {
             btn.disabled = true;

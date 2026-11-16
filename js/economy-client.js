@@ -3,6 +3,8 @@
     'use strict';
     const active = new Map();
     const reported = new Map();
+    // Never trust a prior user's globally cached ready flag.
+    let confirmedUid = null;
     // Shared across tabs: an unavailable Worker must not be hammered by every
     // video timer / wallet listener. Pending operation IDs remain untouched.
     function retryKey(uid) { return 'economy_retry_v1:' + uid; }
@@ -24,6 +26,8 @@
         return until;
     }
     function explainError(error) {
+        const shieldMessages={TRANSACTION_SHIELD_UNAVAILABLE:'Chưa xác nhận được lá chắn giao dịch trên máy chủ, không thực hiện thay đổi.',SHIELD_ATOMIC_BATCH_REQUIRED:'Không thể xóa hàng loạt an toàn: máy chủ chưa hỗ trợ ghi nguyên tử cho đợt này. Chưa có thay đổi nào được gửi.',SOURCE_CHANGED:'Dữ liệu vừa thay đổi ở thiết bị khác. Chưa ghi đè. Hãy tải lại trang rồi kiểm tra trước khi thực hiện thao tác mới.',SHIELD_RATE_LIMIT:'Bạn thao tác quá nhanh. Giữ nguyên yêu cầu và thử lại sau một phút.',SHIELD_GROUP_PAUSED:'Chức năng này đang tạm khóa để kiểm tra an toàn. Yêu cầu chờ được giữ nguyên.',SHIELD_UPDATE_REQUIRED:'Cần tải đầy đủ phiên bản lá chắn mới để tiếp tục giao dịch.',SHIELD_POLICY_UNAVAILABLE:'Chưa xác minh được chính sách bảo vệ. Chưa thực hiện thay đổi mới.',SHIELD_PATCH_REJECTED:'Lá chắn đã chặn thay đổi không hợp lệ; cần giáo viên kiểm tra.'};
+        if(shieldMessages[error?.message]||shieldMessages[error?.reason])return shieldMessages[error.message]||shieldMessages[error.reason];
         const sessionMessages={VIDEO_PLAYBACK_BUSY:'Một tab khác đang tính thời gian video. Dừng video ở tab đó và đợi 15 giây trước khi xem tiếp.',VIDEO_WATCH_REQUIRED:'Thời lượng xem trên máy chủ chưa đủ để nộp bài.',SESSION_OPERATION_CANCELLED:'Yêu cầu này đã được đối soát và hủy. Bạn có thể bắt đầu thao tác mới.',SESSION_PENDING_OPERATIONS:'Còn giao dịch đang chờ. Mở Thiết bị đang đăng nhập để đối soát.',SESSION_TRANSITION_BUSY:'Đang chuyển quyền thiết bị. Hãy đợi xác nhận từ máy chủ.'};
         if(sessionMessages[error?.message])return sessionMessages[error.message];
         if (error?.message === 'ECONOMY_UNCONFIRMED_RETRY_SAME_OPERATION') {
@@ -84,6 +88,8 @@
         return undefined;
     }
     async function initialize() {
+        window.ECONOMY_SERVER_ENABLED = false;
+        confirmedUid = null;
         const user=firebase.auth().currentUser;
         if(!user)throw Error('Cần đăng nhập lại.');
         const endpoint=String(window.R2_CONFIG?.workerUrl||'https://school-r2-files.ngogibao0311.workers.dev').replace(/\/$/,'');
@@ -94,12 +100,23 @@
             if(!response.ok||!status.ok||status.protocol!==3||typeof status.enabled!=='boolean')throw Error('Chưa xác nhận được trạng thái giao dịch trên máy chủ.');
             if(firebase.auth().currentUser?.uid!==user.uid)throw Error('Tài khoản vừa thay đổi.');
             window.__economyRole=(await db.ref('users/'+user.uid).once('value')).val()?.role;
+            if(firebase.auth().currentUser?.uid!==user.uid)throw Error('Tài khoản vừa thay đổi.');
             const key='economy_server_mode_v2:'+user.uid;
-            if(status.enabled){localStorage.setItem(key,'enabled');window.ECONOMY_SERVER_ENABLED=true;}
-            else {
-                if(localStorage.getItem(key)==='enabled')throw Error('Máy chủ đang bảo trì giao dịch. Vui lòng thử lại sau.');
-                window.ECONOMY_SERVER_ENABLED=false;
+            if(!status.enabled){
+                throw Error('SHIELD_POLICY_UNAVAILABLE'); // Never enter legacy write mode.
             }
+            // A successful economy/status response alone does not prove the shield is ready.
+            // Fail closed if the Worker did not advertise its protection contract.
+            if(!status.shield || !window.TransactionShield?.initialize || window.TransactionShield.version!==1)
+                throw Error('SHIELD_UPDATE_REQUIRED');
+            if(status.shield.protocol!==1 || typeof status.shield.available!=='boolean' ||
+                typeof status.shield.required!=='boolean' ||
+                (!status.shield.required && !status.shield.available))throw Error('SHIELD_POLICY_UNAVAILABLE');
+            await window.TransactionShield.initialize(status.shield);
+            if(firebase.auth().currentUser?.uid!==user.uid)throw Error('Tài khoản vừa thay đổi.');
+            localStorage.setItem(key,'enabled');
+            confirmedUid = user.uid;
+            window.ECONOMY_SERVER_ENABLED = true;
             return status;
         }finally{clearTimeout(timer);}
     }
@@ -113,14 +130,18 @@
         const task = () => executeCore(action, args, options);
         return window.ServerActivity ? window.ServerActivity.economy(action, task, options) : task();
     }
-    async function acknowledgeOperation(id) {
+    async function acknowledgeOperation(id, uid) {
+        if(firebase.auth().currentUser?.uid!==uid)throw Error('Tài khoản vừa thay đổi. Giữ giao dịch chờ để đối soát.');
         if(window.StudentAccountAccess?.protocol?.()>=3)await window.StudentAccountAccess.call('session_ack_operation',{operationId:id});
+        if(firebase.auth().currentUser?.uid!==uid)throw Error('Tài khoản vừa thay đổi. Giữ giao dịch chờ để đối soát.');
     }
     async function executeCore(action, args = {}, {slot = action} = {}) {
         assertMutationSession();
 
         const user = firebase.auth().currentUser;
         if (!user) throw Error('Cần đăng nhập lại.');
+        if(window.ECONOMY_SERVER_ENABLED!==true || confirmedUid!==user.uid)
+            throw Error('SHIELD_POLICY_UNAVAILABLE');
         const storageKey = `economy_pending_v1:${user.uid}:${slot}`;
         const intent = JSON.stringify({action, ...args});
         if (active.has(storageKey)) {
@@ -133,6 +154,7 @@
         const observedLast = localStorage.getItem(lastKey);
         const task = navigator.locks.request(storageKey, async () => {
             if (firebase.auth().currentUser?.uid !== user.uid) throw Error('Tài khoản vừa thay đổi.');
+            if(window.ECONOMY_SERVER_ENABLED!==true || confirmedUid!==user.uid)throw Error('SHIELD_POLICY_UNAVAILABLE');
             assertMutationSession();
             const latest = localStorage.getItem(lastKey);
             // A tab that waited for the same in-flight action joins its outcome.
@@ -164,7 +186,7 @@
                 for(let attempt=0;attempt<3;attempt++){
                     if(firebase.auth().currentUser?.uid!==user.uid)throw Error('Tài khoản vừa thay đổi.');
                     try {
-                        response=await fetch(endpoint+'/economy',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(saved.body),signal:controller.signal});
+                        response=await fetch(endpoint+'/economy',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json',...(window.TransactionShield?.version===1?{'X-Transaction-Shield':'1'}:{})},body:JSON.stringify(saved.body),signal:controller.signal});
                         data=await response.json();
                         if (!data || typeof data !== 'object') throw Error('INVALID_ECONOMY_RESPONSE');
                     } catch (_) {
@@ -183,7 +205,7 @@
                 }
                 if (!response.ok || !data.ok) {
                     if (data.settled === true) {
-                        await acknowledgeOperation(saved.body.operationId);
+                        await acknowledgeOperation(saved.body.operationId, user.uid);
                         localStorage.setItem(lastKey,JSON.stringify({operationId:saved.body.operationId,intent,error:data.error}));
                         if (localStorage.getItem(storageKey) === JSON.stringify(saved)) localStorage.removeItem(storageKey);
                     }
@@ -195,7 +217,7 @@
                     if (data.error === 'ACCOUNT_NOT_ALLOWED') error.reason = data.reason || await accountErrorReason(user);
                     throw error;
                 }
-                await acknowledgeOperation(saved.body.operationId);
+                await acknowledgeOperation(saved.body.operationId, user.uid);
                 localStorage.removeItem(retryKey(user.uid));
                 reported.clear();
                 localStorage.setItem(lastKey,JSON.stringify({operationId:saved.body.operationId,intent,result:data.result}));
@@ -209,12 +231,15 @@
         active.set(storageKey,{intent,task});
         try { return await task; } finally { active.delete(storageKey); }
     }
-    async function resume(slot) {
+    async function resume(slot, expected = null) {
         const uid=firebase.auth().currentUser?.uid;
         if(!uid)throw Error('Cần đăng nhập lại.');
         const raw=localStorage.getItem(`economy_pending_v1:${uid}:${slot}`);
         if(!raw)return null;
         const saved=JSON.parse(raw),{action,operationId,...args}=saved.body;
+        // Check the requested edit before retrying an older durable operation.
+        if(expected && (action!==expected.action || Object.entries(expected.args || {}).some(([key,value])=>args[key]!==value)))
+            throw Error('SOURCE_PENDING_DIFFERENT_INTENT');
         return {result:await execute(action,args,{slot}),action,args};
     }
     async function batch(scope,signature,recipients){

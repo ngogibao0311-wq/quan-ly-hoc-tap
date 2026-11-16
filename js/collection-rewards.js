@@ -30,41 +30,11 @@
         const path = 'collection_reward_purchases/' + username + '/' + itemId;
         purchaseBusy.add(itemId); render();
         try {
-            if (window.ECONOMY_SERVER_ENABLED === true) {
-                await window.EconomyClient.execute('collection_buy', {setId,itemId}, {slot:'collection-buy:'+itemId});
-                if (session !== epoch) return;
-                localStorage.removeItem(key);
-                notice('Đã mua nền với giá 5.000 Coin. Bạn có thể sử dụng nền.');
-                return;
-            }
-            const receipt = (await db.ref(path).once('value')).val();
+            if (window.ECONOMY_SERVER_ENABLED !== true || !window.EconomyClient?.execute) throw Error('Máy chủ giao dịch chưa sẵn sàng. Vui lòng thử lại; chưa gửi giao dịch.');
+            await window.EconomyClient.execute('collection_buy', {setId,itemId}, {slot:'collection-buy:'+itemId});
             if (session !== epoch) return;
-            if (receipt) { localStorage.removeItem(key); notice('Nền này đã mua thành công. Không trừ Coin lần nữa.'); return; }
-            const set = sets[setId], unlocked = claims[setId];
-            if (!set || set.deleted || !unlocked || set.choices.length < 2 || !set.choices.includes(itemId) || !set.choices.includes(unlocked.itemId) || unlocked.itemId === itemId)
-                throw Error('Bộ đã thay đổi hoặc bạn chưa nhận nền miễn phí trong bộ này.');
-            const [owned, balance, payment] = await Promise.all([
-                db.ref('student_inventory/' + username + '/' + itemId).once('value'),
-                db.ref('student_coins/' + username).once('value'),
-                db.ref('collection_reward_payments/' + username).once('value')
-            ]);
-            if (session !== epoch) return;
-            if (owned.exists()) { localStorage.removeItem(key); notice('Bạn đã sở hữu nền này. Không cần mua lại.'); return; }
-            if (!connected) throw Error('Mất kết nối. Chưa gửi giao dịch.');
-            const coins = balance.val(), revision = Number(payment.val()?.revision || 0) + 1;
-            if (!Number.isFinite(coins) || coins < 5000) throw Error('Cần ít nhất 5.000 Coin để mua nền.');
-            localStorage.setItem(key, JSON.stringify({setId}));
-            const timestamp = firebase.database.ServerValue.TIMESTAMP;
-            await db.ref().update({
-                [path]: {itemId,setId,setRevision:revisionOf(set),studentUid:uid,amount:5000,createdAt:timestamp,paymentRevision:revision},
-                ['collection_reward_payments/' + username]: {itemId,revision},
-                // Dùng increment thay vì ghi đè (coins - 5000): tránh đọc-ghi không nguyên tử
-                // khiến 2 tab cùng mua chỉ trả tiền 1 lần. Rules vẫn kiểm tra số dư >= 0.
-                ['student_coins/' + username]: firebase.database.ServerValue.increment(-5000),
-                ['student_inventory/' + username + '/' + itemId]: {id:itemId,type:'background',source:'collection_reward',rewardPurchase:true,collectionSetId:setId,purchaseTime:timestamp,isEquipped:false}
-            });
-            if (session !== epoch) return;
-            localStorage.removeItem(key); notice('Đã mua nền với giá 5.000 Coin. Bạn có thể sử dụng nền.');
+            localStorage.removeItem(key);
+            notice('Đã mua nền với giá 5.000 Coin. Bạn có thể sử dụng nền.');
         } catch (error) {
             if (session === epoch) notice('Chưa xác nhận mua nền. ' + error.message + ' Bấm Kiểm tra mua để đối soát nếu giao dịch đang chờ; không mua lại ở bộ khác.');
         } finally { if (session === epoch) { purchaseBusy.delete(itemId); refresh(); } }
@@ -174,35 +144,12 @@
         const storageKey = pendingKey(setId), token = {itemId};
         busy.set(setId, token); failed.delete(setId); render();
         try {
-            if(window.ECONOMY_SERVER_ENABLED===true) {
-                localStorage.setItem(storageKey,itemId);
-                await window.EconomyClient.execute('collection_claim',{setId,itemId},{slot:'collection-claim:'+setId});
-                if(session!==epoch)return;
-                localStorage.removeItem(storageKey);notice('Đã xác nhận mở khóa nền thưởng. Bạn có thể sử dụng nền.');return;
-            }
-            const existing = (await db.ref(path).once('value')).val();
-            if (session !== epoch) return;
-            if (existing) { claims[setId] = existing; localStorage.removeItem(storageKey); return; }
-            if (!connected) throw Error('Kết nối bị gián đoạn trước khi gửi.');
-            const set = sets[setId];
-            if (!set || set.deleted === true || !enough(set) || !set.choices.includes(itemId) || !catalog[itemId]) {
-                localStorage.removeItem(storageKey); selections.delete(setId);
-                throw Error('Bộ đã thay đổi hoặc chưa đủ điều kiện. Kiểm tra lại danh sách và chọn phần thưởng.');
-            }
-            // Only an explicit Receive click may create or retry a claim.
-            localStorage.setItem(storageKey, itemId);
-            const record = {setId, itemId, setRevision: revisionOf(set), studentUid: account.uid, createdAt: firebase.database.ServerValue.TIMESTAMP};
-            const updates = {[path]: record};
-            // A background reused in another set must not overwrite existing equipment.
-            if (!ownsReward(itemId)) updates['student_inventory/' + username + '/' + itemId] = {
-                id: itemId, type: 'background', source: 'collection_reward', collectionSetId: setId,
-                purchaseTime: firebase.database.ServerValue.TIMESTAMP, isEquipped: false
-            };
-            // Rules check both paths and reject replacing an existing unlock.
-            await db.ref().update(updates);
-            if (session !== epoch) return;
+            if (window.ECONOMY_SERVER_ENABLED !== true || !window.EconomyClient?.execute) throw Error('Máy chủ giao dịch chưa sẵn sàng. Vui lòng thử lại; chưa gửi giao dịch.');
+            localStorage.setItem(storageKey,itemId);
+            await window.EconomyClient.execute('collection_claim',{setId,itemId},{slot:'collection-claim:'+setId});
+            if(session!==epoch)return;
             localStorage.removeItem(storageKey);
-            notice('Đã xác nhận mở khóa ' + catalog[itemId].name + '. Bạn có thể sử dụng nền.');
+            notice('Đã xác nhận mở khóa nền thưởng. Bạn có thể sử dụng nền.');
         } catch (error) {
             if (session !== epoch) return;
             failed.add(setId); // Do not spin on permission or configuration failures.
@@ -332,6 +279,7 @@
         const item = catalog[itemId], owned = ownsReward(itemId) && !purchaseBusy.has(itemId) && ![...busy.values()].some(token => token.itemId === itemId);
         const card = el('article', '', 'cr-item'), art = el('div', '', 'cr-art' + (owned ? '' : ' cr-locked'));
         if (owned && safeURL(item?.value)) {
+            if (/^reward_bg_poster_(giang_sinh|juliet|romeo|noctyriel|huyen_minh)$/.test(itemId)) art.dataset.poster = itemId.slice('reward_bg_poster_'.length);
             const image = el('img'); image.src = safeURL(item.value); image.alt = item.name;
             image.loading = 'lazy'; image.decoding = 'async'; art.append(image);
         }

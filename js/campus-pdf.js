@@ -20,7 +20,7 @@
    doc.body.append(content);
    const source=[...document.scripts].find(s=>s.src.includes('html2pdf'));
    if(!source)throw new Error('Không tìm thấy thư viện xuất PDF.');
-   await new Promise((resolve,reject)=>{const script=doc.createElement('script');const timeout=setTimeout(()=>reject(new Error('Tải bộ xuất PDF quá lâu. Hãy kiểm tra kết nối.')),20000);script.onload=()=>{clearTimeout(timeout);resolve();};script.onerror=()=>{clearTimeout(timeout);reject(new Error('Không tải được bộ xuất PDF.'));};script.src=source.src;doc.head.append(script);});
+   await new Promise((resolve,reject)=>{const script=doc.createElement('script');const timeout=setTimeout(()=>reject(new Error('Tải bộ xuất PDF quá lâu. Hãy kiểm tra kết nối.')),20000);script.onload=()=>{clearTimeout(timeout);resolve();};script.onerror=()=>{clearTimeout(timeout);reject(new Error('Không tải được bộ xuất PDF.'));};script.src=source.src;if(source.integrity){script.integrity=source.integrity;script.crossOrigin=source.crossOrigin||'anonymous';}doc.head.append(script);});
    await new Promise(resolve=>setTimeout(resolve,60));
    const blob = await frame.contentWindow.html2pdf().set({...options,image:{type:'jpeg',quality:.9},html2canvas:{scale:1.25,useCORS:true,logging:false},pagebreak:{mode:['css','legacy'],avoid:'tr'}}).from(content).outputPdf('blob');
    const url=URL.createObjectURL(blob);

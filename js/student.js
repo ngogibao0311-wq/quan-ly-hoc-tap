@@ -48,7 +48,7 @@ window.getStudentPasswordPolicyError = getStudentPasswordPolicyError;
 window.studentStoreCanUseItemSync = function (itemId) {
     if (window.isStudentStoreGameAccessEnabled?.() === false) return false;
     const id = String(itemId || '');
-    if (!id || /^(?:pet|theme|effect|frame|background)_plan4_|caelion/i.test(id) || window.PreReleasePolicy?.isBlockedItem(id)) return false;
+    if (!id) return false;
 
     const inventory = Array.isArray(window.myInventory) ? window.myInventory : [];
     const owned = inventory.find(entry => entry && String(entry.id || '') === id);
@@ -423,6 +423,10 @@ function applyStudentCachedStoreSettingsToRuntime() {
             }
         }
 
+        if (item.id === 'pet_caelion_premium') {
+            item.isLocked = itemSettings?.isLocked !== false;
+            return;
+        }
         item.isLocked =
             window.normalizeStoreItemLockState(
                 itemSettings?.isLocked
@@ -1022,6 +1026,7 @@ window.clearStudentStoreEquipmentRuntime = function () {
     window.EternalWinterPremiumRuntime?.clear();
     window.ValentinePremiumRuntime?.clear();
     window.JulietRuntime?.clearPet();
+        window.Caelion?.clear();
         window.Plan4Runtime?.clearPet();
         window.RomeoRuntime?.clearPet();
     window.ValentineRegularRuntime?.clearPet();
@@ -9469,7 +9474,7 @@ async function loadAssignmentsCore() {
             return; // Trả về ngay, bảo vệ con trỏ chuột và text đang gõ của học sinh
         }
         // A changed personal deadline must not replace the editor or a selected file.
-        if (false && existingCard && window.AssignmentExtensions?.preserveCard(existingCard, assign, mySub, cardHash)) {
+        if (existingCard && window.AssignmentExtensions?.preserveCard(existingCard, assign, mySub, cardHash)) {
             existingCard.style.order = assignmentOrder;
             return;
         }
@@ -10649,7 +10654,7 @@ ${window.getSubmissionEssayDisplay(mySub, assign).trim() ? `<div class="ql-edito
                     }
                     const timer = setInterval(() => {
                         const c = typeof getStudentSyncedNow === 'function' ? getStudentSyncedNow() : new Date();
-                        const effectiveEnd = endTime.getTime(); // K1 chưa mở; hạn gốc phải được Worker/Firebase khôi phục nếu đã bị thay đổi.
+                        const effectiveEnd = window.AssignmentExtensions?.currentDeadline(assign.id, endTime.getTime()) ?? endTime.getTime();
                         const timeLeft = effectiveEnd - c;
                         if (timeLeft > 15000) {
                             const button = document.getElementById(`btn-submit-${assign.id}`);
@@ -10704,8 +10709,7 @@ ${window.getSubmissionEssayDisplay(mySub, assign).trim() ? `<div class="ql-edito
         grades
     );
 
-    // Kế hoạch 1 chưa phát hành: không hiện nút Gia hạn.
-    // window.AssignmentExtensions?.mountStudent(assignments, submissions);
+    window.AssignmentExtensions?.mountStudent(assignments, submissions);
     // Khởi tạo editor: lazy khi bật tối ưu, giữ nguyên hành vi cũ khi tắt.
     initStudentQuillEditors(document);
 
@@ -12494,31 +12498,26 @@ async function saveStudentSubmissionAtomicCore(assignment, previous, payload) {
     let listener;
 
     try {
-        // A new submission is not readable at submissions/<key> yet:
-        // the student's per-record .read rule requires stored studentUsername.
-        // Never grant read access to nonexistent records to work around that.
-        // The Economy Worker authoritatively validates the deterministic key,
-        // owner, assignment and duplicate state before committing a new record.
-        // Existing submissions (redo) still get the optimistic read/version check.
-        if (livePrevious) {
-            const snapshot =
-                await new Promise(
-                    (resolve, reject) => {
-                        listener = resolve;
+        const snapshot =
+            await new Promise(
+                (resolve, reject) => {
+                    listener = resolve;
 
-                        ref.on(
-                            'value',
-                            listener,
-                            reject
-                        );
-                    }
-                );
+                    ref.on(
+                        'value',
+                        listener,
+                        reject
+                    );
+                }
+            );
 
-            if (
-                studentSubmissionCanonical(snapshot.val()) !== expectedVersion
-            ) {
-                throw conflict();
-            }
+        if (
+            studentSubmissionCanonical(
+                snapshot.val()
+            ) !==
+            expectedVersion
+        ) {
+            throw conflict();
         }
 
         const patch = {
@@ -18309,6 +18308,7 @@ function renderStudentStoreNow(type) {
     // Đổi màu nút tab hiện tại
     const buttons = document.querySelectorAll('#tab-store .btn-approve');
     buttons.forEach(btn => {
+        btn.setAttribute('aria-pressed', String((btn.getAttribute('onclick') || '').includes(`'${type}'`)));
         if ((btn.getAttribute('onclick') || '').includes(`'${type}'`)) {
             btn.style.background = '#667eea'; btn.style.color = 'white';
         } else {
@@ -18805,7 +18805,6 @@ async function cancelStudentUnpaidPurchase(username,itemId,operationId,isCurrent
 }
 
 async function grantStudentPaidPurchase(username, itemId, operation) {
-    if (window.PreReleasePolicy?.isBlockedItem(itemId) || /_plan4_|caelion/i.test(String(itemId || ''))) return false;
     if (operation?.atomicCharge !== true || operation.status !== 'paid' ||
         !operation.inventoryGrant || String(operation.inventoryGrant.id) !== String(itemId) || operation.inventoryGrant.purchaseOperationId !== operation.operationId) {
         throw new Error('PURCHASE_RECONCILIATION_REQUIRED');
@@ -18827,7 +18826,6 @@ async function grantStudentPaidPurchase(username, itemId, operation) {
 }
 
 async function recoverStudentPaidPurchase(itemId, username = String(currentUser.username), silent = false, isCurrent = () => String(currentUser?.username) === username) {
-    if (window.PreReleasePolicy?.isBlockedItem(itemId) || /_plan4_|caelion/i.test(String(itemId || ''))) return false; // không cấp lại/hoàn coin tự động; chờ đối soát máy chủ
     const ref = db.ref(`store_purchase_ops/${username}/${itemId}`);
     const operation = (await ref.once('value')).val();
     if (!isCurrent()) throw new Error('ACCOUNT_CHANGED');
@@ -18873,7 +18871,6 @@ async function grantStudentPaidTrial(username, itemId, operation) {
 }
 
 async function recoverStudentPaidTrial(itemId, username = String(currentUser.username), silent = false, isCurrent = () => String(currentUser?.username) === username) {
-    if (window.PreReleasePolicy?.isBlockedItem(itemId) || /_plan4_|caelion/i.test(String(itemId || ''))) return false; // không hồi phục giao dịch chưa phát hành
     const ref = db.ref(`store_trial_claims/${username}/${itemId}`);
     const operation = (await ref.once('value')).val();
     if (!isCurrent()) throw new Error('ACCOUNT_CHANGED');
@@ -19084,10 +19081,6 @@ async function reserveStudentStorePurchase(
 
 // 3. Logic kích hoạt dùng thử 1 Ngày (Nửa giá)
 window.trialItem = async function (itemId) {
-    if (window.PreReleasePolicy?.isBlockedItem(itemId) === true || /_plan4_|caelion/i.test(String(itemId || ''))) {
-        window.showToast?.('Vật phẩm chưa phát hành.', 'warning');
-        return false;
-    }
     if (!window.isStudentStoreSystemOpen()) {
         return window.showStudentStoreSystemLocked();
     }
@@ -19234,6 +19227,7 @@ window.trialItem = async function (itemId) {
             return;
         }
 
+        if (window.ECONOMY_SERVER_ENABLED !== true) throw new Error('STORE_SERVER_PURCHASE_REQUIRED');
         trialReservation =
             await reserveStudentStoreTrial(
                 item,
@@ -19410,10 +19404,6 @@ window.trialItem = async function (itemId) {
 
 // 4. Logic Mua đứt và Bảng Thanh Toán (Có áp dụng Mã giảm giá)
 window.buyItem = async function (itemId, isUpgradingFromTrial = false) {
-    if (window.PreReleasePolicy?.isBlockedItem(itemId) === true || /_plan4_|caelion/i.test(String(itemId || ''))) {
-        window.showToast?.('Vật phẩm chưa phát hành.', 'warning');
-        return false;
-    }
     if (!window.isStudentStoreSystemOpen()) {
         return window.showStudentStoreSystemLocked();
     }
@@ -19604,6 +19594,7 @@ window.openPaymentModal = function (item, basePrice, currentCoins, discounts, is
             
             <div style="background: rgba(0,0,0,0.03); padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid rgba(0,0,0,0.05);">
                 <p style="margin: 0 0 10px 0; font-size: 1.05em; color: #444;"><strong>Vật phẩm:</strong> <span style="color: #667eea; font-weight: bold;">${item.name}</span> ${isUpgrade ? '<span style="color:#e83e8c; font-size:0.85em;">(Nâng cấp)</span>' : ''}</p>
+                ${item.id === 'pet_caelion_premium' ? '<p style="margin:0 0 10px;color:#334155">Sở hữu vĩnh viễn cả Ánh Sáng và Bóng Tối. Khi trang bị, Caelion đổi trạng thái mỗi 60 giây.</p>' : ''}
                 <p style="margin: 0; color: #444;"><strong>Số dư của bạn:</strong> <span style="color: #2ecc71; font-weight: bold;">${currentCoins} 🪙</span></p>
             </div>
 
@@ -19686,7 +19677,6 @@ window.updateCheckoutPrice = function (basePrice) {
 
 // HÀM XỬ LÝ THANH TOÁN CUỐI CÙNG LÊN FIREBASE
 async function completeStudentServerStoreAction(action, args, username) {
-    if (window.PreReleasePolicy?.isBlockedItem(args?.itemId) || /_plan4_|caelion/i.test(String(args?.itemId || ''))) throw new Error('ITEM_NOT_RELEASED');
     let confirmed = false;
     try {
         const result = await window.EconomyClient.execute(action, args, {slot:'store:' + args.itemId});
@@ -19713,10 +19703,6 @@ window.processPayment = async function (
     currentCoins,
     isUpgrade = false
 ) {
-    if (window.PreReleasePolicy?.isBlockedItem(itemId) === true || /_plan4_|caelion/i.test(String(itemId || ''))) {
-        window.showToast?.('Vật phẩm chưa phát hành.', 'warning');
-        return false;
-    }
     if (
         window.isOffline ||
         !navigator.onLine
@@ -19790,6 +19776,7 @@ window.processPayment = async function (
             }, operationUser.username);
             return;
         }
+        if (window.ECONOMY_SERVER_ENABLED !== true) throw new Error('STORE_SERVER_PURCHASE_REQUIRED');
         if (await recoverStudentPaidPurchase(itemId, operationUser.username)) {
             document.getElementById('checkoutModal')?.remove();
             return;
@@ -20299,12 +20286,12 @@ function installStudentStoreManagerOverrides() {
     }
 
     StoreManager.applyItem = async function (itemId) {
+        const initialFace = window.Caelion?.selectedFace();
         const equipmentUsername = String(currentUser.username);
         const accessEpoch = window.__studentEquipmentAccessEpoch || 0;
         const canFinishEquip = () => String(currentUser.username) === equipmentUsername && window.isStudentStoreGameAccessEnabled() &&
             accessEpoch === (window.__studentEquipmentAccessEpoch || 0);
         if (!canFinishEquip()) return false;
-        if (window.PreReleasePolicy?.isBlockedItem(itemId) || /_plan4_|caelion/i.test(String(itemId || ''))) return false;
         const item = StoreManager.getItemById(itemId);
         if (!item) return false;
 
@@ -20365,7 +20352,7 @@ function installStudentStoreManagerOverrides() {
 
         try {
             return await window.StoreConcurrency.equipment(String(currentUser.username), String(itemId), true,
-                id => StoreManager.getItemById(id), canFinishEquip);
+                id => StoreManager.getItemById(id), canFinishEquip, initialFace);
         } catch (error) {
             console.error('[Equipment]', error);
             window.showToast?.('Chưa lưu được trang bị. Hãy thử lại; kiểm tra quy tắc bảo mật đám mây nếu lỗi quyền.', 'error');
@@ -20422,6 +20409,7 @@ window.suspendExamVisualItems = function () {
     window.EternalWinterPremiumRuntime?.clear();
     window.ValentinePremiumRuntime?.clear();
     window.JulietRuntime?.clearPet();
+        window.Caelion?.clear();
         window.Plan4Runtime?.clearPet();
         window.RomeoRuntime?.clearPet();
     window.ValentineRegularRuntime?.clearPet();
@@ -20490,6 +20478,7 @@ window.restoreExamVisualItems = function () {
     window.EternalWinterPremiumRuntime?.clear();
     window.ValentinePremiumRuntime?.clear();
     window.JulietRuntime?.clearPet();
+        window.Caelion?.clear();
         window.Plan4Runtime?.clearPet();
         window.RomeoRuntime?.clearPet();
     window.ValentineRegularRuntime?.clearPet();
@@ -20514,7 +20503,6 @@ function getStudentRenderableEquippedInventory(inventory, now = Date.now()) {
 
     return inventory.filter(item => {
         if (!item || item.isEquipped !== true) return false;
-        if (window.PreReleasePolicy?.isBlockedItem(item.id) || /_plan4_|caelion/i.test(String(item.id || ''))) return false;
         if (item.isTrial !== true) return true;
 
         const expiry = Number(item.trialExpiry);
@@ -20556,7 +20544,7 @@ window.applyEquippedItems = async function (options = {}) {
     const equipmentSignature = JSON.stringify([
         typeof currentUser !== 'undefined' ? currentUser?.username : '',
         mustSuspendVisualItems,
-        renderableInventory.map(item => [item.id, StoreManager.getItemById(item.id)])
+        renderableInventory.map(item => [item.id, StoreManager.getItemById(item.id), item.caelionCycle])
     ]);
     // Background inventory/wallet synchronization must not tear down and spawn
     // every pet/effect again. Explicit equip/restore calls still force a mount.
@@ -20574,6 +20562,7 @@ window.applyEquippedItems = async function (options = {}) {
     window.EternalWinterPremiumRuntime?.clear();
     window.ValentinePremiumRuntime?.clear();
     window.JulietRuntime?.clearPet();
+        window.Caelion?.clear();
         window.Plan4Runtime?.clearPet();
         window.RomeoRuntime?.clearPet();
     window.ValentineRegularRuntime?.clearPet();
@@ -29537,7 +29526,6 @@ window
     };
 
 async function redeemStudentServerEventItem(action,args) {
-    if (window.PreReleasePolicy?.isBlockedItem(args?.itemId) || /_plan4_|caelion/i.test(String(args?.itemId || ''))) return false;
     const item=StoreManager.getItemById(args.itemId),username=String(currentUser.username);
     if(!item)return;
     if(!await AppDialog.confirm(`Đổi Xu để nhận “${item.name}”?`))return;
@@ -30818,22 +30806,9 @@ window.sellDiscountCardFromPopup = async function (discountKey, _percent, _sellP
         }
         const amount = Math.max(1, Math.min(10, Math.floor(percent / 10)));
         if (!(await AppDialog.confirm(`Thanh lý thẻ giảm giá ${percent}% đã hết hạn để nhận ${amount} Coin?`))) return;
-        if (window.ECONOMY_SERVER_ENABLED === true) {
-            const result = await window.EconomyClient.execute('discount_sell', {discountKey}, {slot:'discount:'+discountKey});
-            await AppDialog.alert(`Đã thanh lý thẻ, nhận ${result.amount} Coin.`);
-            window.closeBagItemPopup?.();
-            await window.renderStudentBag?.();
-            return;
-        }
-        const updates = {
-            [`student_discounts/${username}/${discountKey}`]: null,
-            [`student_coins/${username}`]: firebase.database.ServerValue.increment(amount),
-            [`discount_sale_receipts/${username}/${discountKey}`]: {
-                version: 1, amount, percent, soldAt: Date.now()
-            }
-        };
-        await db.ref().update(updates);
-        (await AppDialog.alert(`Đã thanh lý thẻ, nhận ${amount} Coin.`));
+        if (window.ECONOMY_SERVER_ENABLED !== true || !window.EconomyClient?.execute) throw Error('Máy chủ giao dịch chưa sẵn sàng. Vui lòng thử lại; chưa gửi giao dịch.');
+        const result = await window.EconomyClient.execute('discount_sell', {discountKey}, {slot:'discount:'+discountKey});
+        await AppDialog.alert(`Đã thanh lý thẻ, nhận ${result.amount} Coin.`);
         window.closeBagItemPopup?.();
         await window.renderStudentBag?.();
     } catch (error) {
@@ -31340,6 +31315,7 @@ async function renderStudentBagNow(renderId, bagUsername) {
 
         gridHtml += '</div>';
         container.innerHTML = gridHtml;
+        window.Caelion?.addBagCard(container, Object.values(inventory).find(item => item?.id === 'pet_caelion_premium'));
 
     } catch (error) {
         console.error("Lỗi kết xuất túi lưới đồ: ", error);
@@ -32140,66 +32116,16 @@ function saveLocalVideoProgress(assignId, seconds) {
 
 function saveVideoProgressToFirebase(assignId, seconds) {
     if (!canTrackAssignmentVideo()) return Promise.resolve(normalizeVideoProgressSeconds(lastSavedTime[assignId]));
-    if(window.ECONOMY_SERVER_ENABLED===true || window.StudentAccountAccess?.protocol?.()>=3) {
-        return commitVerifiedVideoProgress(assignId,seconds).then(result=>result.snapshot.val()).catch(error=>{
-            if(window.EconomyClient?.reportError)window.EconomyClient.reportError('Chưa xác nhận tiến độ xem video:',error);
-            else console.error('Chưa xác nhận tiến độ xem video:',error);
-            return normalizeVideoProgressSeconds(lastSavedTime[assignId]);
-        });
-    }
-    const safeSeconds = Math.max(
-        normalizeVideoProgressSeconds(
-            watchDurations[assignId]
-        ),
-        normalizeVideoProgressSeconds(seconds)
-    );
-
-    if (safeSeconds <= 0) {
-        return Promise.resolve(0);
-    }
-
-    watchDurations[assignId] = safeSeconds;
-    saveLocalVideoProgress(assignId, safeSeconds);
-
-    return db.ref(
-        `video_tracking/${assignId}/${currentUser.username}`
-    ).transaction(oldValue => {
-        return Math.max(
-            normalizeVideoProgressSeconds(oldValue),
-            safeSeconds
-        );
-    }).then(result => {
-        if (result.committed) {
-            lastSavedTime[assignId] = Math.max(
-                normalizeVideoProgressSeconds(
-                    lastSavedTime[assignId]
-                ),
-                normalizeVideoProgressSeconds(
-                    result.snapshot.val()
-                )
-            );
-        }
-
-        return normalizeVideoProgressSeconds(
-            result.snapshot?.val()
-        );
-    }).catch(error => {
-        console.error(
-            'Không thể lưu tiến độ xem video:',
-            error
-        );
-
-        return normalizeVideoProgressSeconds(
-            lastSavedTime[assignId]
-        );
+    return commitVerifiedVideoProgress(assignId, seconds).then(result => result.snapshot.val()).catch(error => {
+        if (window.EconomyClient?.reportError) window.EconomyClient.reportError('Chưa xác nhận tiến độ xem video:', error);
+        return normalizeVideoProgressSeconds(lastSavedTime[assignId]);
     });
 }
 
 const verifiedVideoPlaybackId=crypto.randomUUID();
 async function commitVerifiedVideoProgress(assignId,seconds) {
     if (!canTrackAssignmentVideo()) return {committed:false,snapshot:{val:()=>normalizeVideoProgressSeconds(lastSavedTime[assignId])}};
-    if(window.StudentAccountAccess?.protocol?.()>=3 && window.ECONOMY_SERVER_ENABLED!==true)throw Error('Chưa kết nối máy chủ xác nhận video.');
-    if(window.ECONOMY_SERVER_ENABLED!==true)return db.ref(`video_tracking/${assignId}/${currentUser.username}`).transaction(old=>Math.max(Number(old)||0,Number(seconds)||0));
+    if(window.ECONOMY_SERVER_ENABLED!==true)throw Error('Chưa kết nối máy chủ xác nhận video.');
     const pending=await window.EconomyClient.resume?.('video-progress:'+assignId);
     const result=pending?.result || await window.EconomyClient.execute('video_tick',{assignmentId:String(assignId),playbackId:verifiedVideoPlaybackId},{slot:'video-progress:'+assignId});
     const saved=normalizeVideoProgressSeconds(result.seconds);

@@ -1,16 +1,6 @@
 /* Màn chào 31/12. Hình vẽ SVG + canvas, không mạng, không ghi dữ liệu tài khoản. */
 (() => {
   'use strict';
-  // Kế hoạch 5 chưa phát hành; giữ API ready để không treo startup.
-  const PRE_RELEASE_WELCOME_DISABLED = true;
-  if (PRE_RELEASE_WELCOME_DISABLED) {
-    window.ChristmasWelcome = Object.freeze({
-      paused: true, ready: Promise.resolve(), start: async () => false,
-      preview: () => 'Chưa phát hành', isWelcomeDay: () => false,
-      isActive: () => false, close() {}, version: '20261108.prerelease-off'
-    });
-    return;
-  }
   const CONFIG = {
     enabled: true,
     timeZone: 'Asia/Ho_Chi_Minh',
@@ -155,14 +145,16 @@
     const done = new Promise(r => { resolve = r; });
     const current = { done, finish: null };
     scene = current;
-    let dialog, frame = 0, timer = 0, startTime = 0, remaining = CONFIG.durationMs;
+    let dialog, frame = 0, frameTask = null, timer = 0, startTime = 0, remaining = CONFIG.durationMs;
     let previousFrame = 0, flakes = [], ctx, width = 0, height = 0;
     const cleanups = [], focusBefore = document.activeElement;
     const listen = (target, type, fn) => { target.addEventListener(type, fn); cleanups.push(() => target.removeEventListener(type, fn)); };
     function finish() {
       if (scene !== current) return;
       scene = null;
-      cancelAnimationFrame(frame); clearTimeout(timer);
+      cancelAnimationFrame(frame);
+      if (frameTask) window.EffectQualityManager?.cancelFrameTask?.(frameTask);
+      frameTask = null; clearTimeout(timer);
       cleanups.splice(0).forEach(fn => fn());
       try { if (dialog?.open) dialog.close(); } catch (_) {}
       dialog?.remove();
@@ -225,7 +217,13 @@
         if (!previousFrame || now - previousFrame >= 1000 / quality.fps - 1) {
           paint(previousFrame ? Math.min((now - previousFrame) / 1000, .08) : 0); previousFrame = now;
         }
-        frame = requestAnimationFrame(tick);
+        if (!frameTask) frame = requestAnimationFrame(tick);
+      }
+      function startSnow() {
+        const manager = window.EffectQualityManager;
+        if (manager?.scheduleFrameTask) frameTask = manager.scheduleFrameTask(
+          'xmas-welcome-snow', tick, {priority:65, interval:1000 / quality.fps});
+        else frame = requestAnimationFrame(tick);
       }
       function deadline() {
         timer = 0;
@@ -235,7 +233,9 @@
         timer = setTimeout(deadline, Math.min(250, remaining));
       }
       function refresh() {
-        cancelAnimationFrame(frame); clearTimeout(timer); frame = timer = previousFrame = 0;
+        cancelAnimationFrame(frame);
+        if (frameTask) window.EffectQualityManager?.cancelFrameTask?.(frameTask);
+        frameTask = null; clearTimeout(timer); frame = timer = previousFrame = 0;
         quality = policy();
         stage.classList.toggle('xmas-welcome-still', still());
         stage.classList.toggle('xmas-welcome-paused', document.hidden);
@@ -245,7 +245,7 @@
         }
         if (startTime) remaining -= Math.max(0, performance.now() - startTime);
         startTime = performance.now(); resize(); deadline();
-        if (scene === current && !still() && ctx) frame = requestAnimationFrame(tick);
+        if (scene === current && !still() && ctx) startSnow();
       }
       listen(button, 'click', finish);
       listen(dialog, 'cancel', event => { event.preventDefault(); finish(); });
@@ -297,7 +297,7 @@
     container.prepend(button);
   }
   window.ChristmasWelcome = Object.freeze({ start, ready, preview, isWelcomeDay,
-    isActive: () => !!scene, close: () => scene?.finish(), version: '20261022.welcome-restored1' });
+    isActive: () => !!scene, close: () => scene?.finish(), version: '20261110.haaee1' });
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', addPreviewButton, { once: true });
   else addPreviewButton();
 })();

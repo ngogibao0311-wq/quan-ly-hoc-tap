@@ -281,7 +281,7 @@
             if (!rawEntry || typeof rawEntry !== 'object') return;
 
             const itemId = String(rawEntry.id || key || '').trim();
-            if (!itemId || window.PreReleasePolicy?.isBlockedItem(itemId) || /_plan4_|caelion/i.test(itemId)) return;
+            if (!itemId) return;
 
             /*
              * Dùng thử không được tính vào Sưu tầm. Mọi vật phẩm sở hữu
@@ -365,134 +365,10 @@
         collection,
         milestone
     ) {
-        // A module can load before startup has established the economy mode.
-        // Unknown mode must never silently start a legacy Firebase transaction.
-        if (typeof window.ECONOMY_SERVER_ENABLED !== 'boolean') {
-            if (!window.EconomyClient?.initialize) throw new Error('Chưa xác nhận được chế độ giao dịch. Vui lòng đăng nhập lại.');
-            await window.EconomyClient.initialize();
-            if (typeof window.ECONOMY_SERVER_ENABLED !== 'boolean') throw new Error('Chưa xác nhận được chế độ giao dịch.');
-        }
-        if (window.ECONOMY_SERVER_ENABLED === true) {
-            const result = await window.EconomyClient.execute('collection_milestone', {collectionId:collection.id,count:String(milestone.count)}, {slot:`collection:${collection.id}:${milestone.count}`});
-            setLocalRewardClaim(collection.id, milestone.count, {status:'sent'});
-            return result;
-        }
-        const rewardCoins =
-            getCollectionRewardCoins(
-                collection,
-                milestone
-            );
-        const milestoneKey = String(milestone.count);
-        const claimPath = buildRewardClaimPath(
-            username,
-            collection.id,
-            milestone.count
-        );
-        const claimRef = database.ref(claimPath);
-        const claimToken = createClaimToken();
-        const now = Date.now();
-        const messageKey = buildRewardMessageKey(
-            collection.id,
-            milestone.count
-        );
-
-        /*
-         * Bước 1: giữ chỗ mốc bằng transaction. Chỉ tab giữ đúng claimToken
-         * mới được đi tiếp, nên mở nhiều tab cũng không cộng trùng Coin.
-         */
-        const reservation = await claimRef.transaction(current => {
-            if (current?.status === 'sent') return;
-
-            if (current?.status === 'reserved') {
-                const age = now - Number(current.reservedAt || 0);
-
-                // Một tab khác vẫn đang xử lý; không tranh quyền trong 15 giây.
-                if (age >= 0 && age < 15000) return;
-
-                /*
-                 * Nếu lần trước dừng giữa chừng, cho phép tiếp quản. Giữ nguyên
-                 * các trường bất biến để phù hợp Firebase Rules hiện tại.
-                 */
-                return {
-                    ...current,
-                    status: 'reserved',
-                    collectionId: current.collectionId,
-                    collectionLabel: current.collectionLabel,
-                    milestone: current.milestone,
-                    milestoneKey: current.milestoneKey,
-                    rewardCoins: current.rewardCoins,
-                    reservedAt: current.reservedAt,
-                    messageKey: current.messageKey,
-                    rewardVersion: current.rewardVersion,
-                    claimToken
-                };
-            }
-
-            return {
-                status: 'reserved',
-                collectionId: collection.id,
-                collectionLabel: collection.label,
-                milestone: milestone.count,
-                milestoneKey,
-                rewardCoins: rewardCoins,
-                reservedAt: now,
-                messageKey,
-                rewardVersion: 1,
-                claimToken
-            };
-        });
-
-        const reserved = reservation.snapshot?.val?.() || null;
-
-        if (
-            !reservation.committed ||
-            !reserved ||
-            reserved.status !== 'reserved' ||
-            reserved.claimToken !== claimToken
-        ) {
-            return { credited: false, coins: 0 };
-        }
-
-        /*
-         * Bước 2: cộng Coin và đổi trạng thái sang sent trong CÙNG một update.
-         * ServerValue.increment tránh ghi đè khi số dư thay đổi ở tab khác.
-         * Hai thay đổi thành công cùng nhau hoặc thất bại cùng nhau.
-         */
-        const sentAt = getServerTimestamp();
-        const updates = {};
-
-        updates[`student_coins/${username}`] = getServerIncrement(
-            rewardCoins
-        );
-
-        updates[claimPath] = {
-            status: 'sent',
-            collectionId: collection.id,
-            collectionLabel: collection.label,
-            milestone: milestone.count,
-            milestoneKey,
-            rewardCoins: rewardCoins,
-            reservedAt: Number(reserved.reservedAt) || now,
-            sentAt,
-            messageKey,
-            rewardVersion: 1,
-            claimToken
-        };
-
-        await database.ref().update(updates);
-
-        setLocalRewardClaim(
-            collection.id,
-            milestone.count,
-            updates[claimPath]
-        );
-
-        return {
-            credited: true,
-            coins: rewardCoins,
-            collectionLabel: collection.label,
-            milestone: milestone.count
-        };
+        if (window.ECONOMY_SERVER_ENABLED !== true || !window.EconomyClient?.execute) throw Error('Máy chủ giao dịch chưa sẵn sàng. Vui lòng thử lại; chưa gửi giao dịch.');
+        const result = await window.EconomyClient.execute('collection_milestone', {collectionId:collection.id,count:String(milestone.count)}, {slot:`collection:${collection.id}:${milestone.count}`});
+        setLocalRewardClaim(collection.id, milestone.count, {status:'sent'});
+        return result;
     }
 
     async function checkCollectionMilestoneRewards() {
