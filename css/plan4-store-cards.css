@@ -1,0 +1,88 @@
+[data-special-card="plan4-alger"] {
+    --set-ink: #082235; --set-mid: #24586c; --set-light: #9ae2e2; --set-metal: #e1c48e;
+    --set-scene: url("../assets/plan4-environments/alger.svg"); --set-position: 50% 36%;
+}
+[data-special-card="plan4-emlyn"] {
+    --set-ink: #2b1021; --set-mid: #713747; --set-light: #f5b8cc; --set-metal: #ecc6a5;
+    --set-scene: url("../assets/plan4-environments/emlyn.svg"); --set-position: 50% 28%;
+}
+[data-special-card="plan4-liu_xiao"] {
+    --set-ink: #1c1732; --set-mid: #453971; --set-light: #d7c8ff; --set-metal: #c0c4e6;
+    --set-scene: url("../assets/plan4-environments/liu_xiao.svg"); --set-position: 50% 35%;
+}
+[data-special-card="plan4-qiao_ling"] {
+    --set-ink: #341b27; --set-mid: #85463c; --set-light: #ffd2a7; --set-metal: #efc78f;
+    --set-scene: url("../assets/plan4-environments/qiao_ling.svg"); --set-position: 50% 30%;
+}
+[data-special-card="plan4-hemera"] {
+    --set-ink: #35240e; --set-mid: #7a4b20; --set-light: #ffe0a4; --set-metal: #ffe1a6;
+    --set-scene: url("../assets/plan4-environments/hemera.svg"); --set-position: 50% 22%;
+}
+[data-special-card="plan4-greed"] {
+    --set-ink: #092a25; --set-mid: #295a43; --set-light: #b0ebc2; --set-metal: #e3c17d;
+    --set-scene: url("../assets/plan4-environments/greed.svg"); --set-position: 50% 37%;
+}
+[data-special-card="plan4-noctyriel"] {
+    --set-ink: #19142f; --set-mid: #423b72; --set-light: #d1ceff; --set-metal: #d6c7ac;
+    --set-scene: url("../assets/plan4-environments/noctyriel.svg"); --set-position: 50% 28%;
+}
+[data-special-card="plan4-noel_nam"] {
+    --set-ink: #102b37; --set-mid: #2e5d65; --set-light: #b5edee; --set-metal: #e1d2a9;
+    --set-scene: url("../assets/plan4-environments/noel_nam.svg"); --set-position: 50% 32%;
+}
+[data-special-card="plan4-noel_nu"] {
+    --set-ink: #36172e; --set-mid: #77405e; --set-light: #ffd1e6; --set-metal: #f3cfad;
+    --set-scene: url("../assets/plan4-environments/noel_nu.svg"); --set-position: 50% 29%;
+}
+
+html body .store-item-card.plan4-set-card {
+    background: linear-gradient(180deg, #0002, var(--set-ink) 59%),
+        var(--set-scene) var(--set-position) / auto 68% no-repeat, var(--set-ink) !important;
+    color: #fff8ee !important;
+    border: 1px solid var(--set-metal) !important;
+    border-radius: 12px 26px !important;
+    box-shadow: inset 0 0 0 4px var(--set-ink), inset 0 0 0 5px var(--set-metal), 0 7px 18px #10182538 !important;
+}
+html body .plan4-set-card .card-glow { display: none !important; }
+html body .plan4-set-card .plan4-set-tag {
+    position: relative !important;
+    inset: auto !important;
+    width: fit-content !important;
+    max-width: 100%;
+    margin: 0 auto 12px !important;
+    padding: 5px 10px !important;
+    transform: none !important;
+    background: var(--set-ink) !important;
+    color: var(--set-light) !important;
+    border: 1px solid var(--set-metal);
+    border-radius: 4px 12px;
+    font: 700 11px/1.35 system-ui, sans-serif !important;
+    text-shadow: none !important;
+}
+html body .plan4-set-card .item-icon-wrapper {
+    border: 1px solid var(--set-metal);
+    border-radius: 38% 38% 14px 14px;
+    background: radial-gradient(ellipse, var(--set-mid), var(--set-ink)) !important;
+}
+html body .plan4-set-card .item-name {
+    color: #fff8ee !important;
+    -webkit-text-fill-color: #fff8ee !important;
+    font: 700 1rem/1.35 Georgia, serif !important;
+    background: none !important;
+    text-shadow: none !important;
+}
+html body .plan4-set-card .item-type-label {
+    color: var(--set-light) !important;
+    background: var(--set-ink) !important;
+}
+html body .plan4-set-card .item-actions button {
+    background: linear-gradient(135deg, var(--set-mid), var(--set-ink)) !important;
+    color: #fff8ee !important;
+    border: 1px solid var(--set-metal) !important;
+    border-radius: 6px 14px !important;
+}
+html body .plan4-set-card .item-actions button:focus-visible {
+    outline: 2px solid var(--set-light);
+    outline-offset: 2px;
+}
+html body .plan4-set-card .item-actions button:disabled { opacity: .65; }

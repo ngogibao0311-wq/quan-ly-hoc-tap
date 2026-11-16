@@ -2,13 +2,15 @@
 <html lang="vi" data-app-role="student">
 
 <head>
+    <link rel="stylesheet" href="css/noel-workshop.css?v=20261115.noel2">
     <link rel="stylesheet" href="css/app-dialog.css?v=20261003.cleanup1">
     <script src="js/grade-presentation.js?v=20261017.production.split1"></script>
     <script src="js/app-dialog.js?v=20261024.pendingdialog1"></script>
-    <script src="js/server-activity.js?v=20261027.extension1"></script>
+    <script src="js/server-activity.js?v=20261116.password-session1"></script>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="base-uri 'self'; object-src 'none'; script-src 'self' https://www.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.quilljs.com https://www.youtube.com https://s.ytimg.com https://apis.google.com 'unsafe-inline'; worker-src 'self' blob:">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="application-version" content="4.4.0">
+    <meta name="application-version" content="4.4.5">
     <title>Trang Học Sinh</title>
     <!-- Kết nối sớm tới CDN lõi; không tải thêm tài nguyên và không đổi chức năng -->
     <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
@@ -21,7 +23,7 @@
     <link rel="stylesheet" href="css/avatar-frame-base.css?v=20261014.frame1">
     <link id="linkclick-cheng-premium-style" rel="stylesheet" href="css/link-click-cheng-xiaoshi.css?v=20261003.aclp3">
     <!-- Core-first loader: CSS/module đặc biệt chỉ tải khi cần -->
-    <script src="js/student-feature-loader.js?v=20261029.plan4.2"></script>
+    <script src="js/student-feature-loader.js?v=20261116.plan4cards1"></script>
     <script>
         MathJax = {
             tex: {
@@ -30,10 +32,10 @@
             }
         };
     </script>
-    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js?v=20261017.production.split1"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js" integrity="sha384-Wuix6BuhrWbjDBs24bXrjf4ZQ5aFeFWBuKkFekO2t8xFU0iNaLQfp2K6/1Nxveei" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js?v=20261017.production.split1" integrity="sha384-Yv5O+t3uE3hunW8uyrbpPW3iw6/5/Y7HitWJBLgqfMoA36NogMmy+8wWZMpn3HWc" crossorigin="anonymous"></script>
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-    <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/quill@1.3.6/dist/quill.js" integrity="sha384-0zm5QqnR2gL4GY5AwreU3xp5AEGWqkdbamrRLeXwWwepp4JqmPRawLJFD8Cm802W" crossorigin="anonymous"></script>
 
     <style id="appStartupLoaderStyles">
         #appStartupLoader {
@@ -242,6 +244,9 @@
 <link rel="stylesheet" href="css/assignment-appeals.css?v=20261003.cleanup1">
 <link rel="stylesheet" href="css/dashboard-refresh.css?v=20261007.phone1">
 <script>(window.SessionPolicyModules ||= {}).html = '20261024.session3';</script>
+<meta name="plan4-unity" content="enabled">
+<script src="js/loading-status.js?v=20261108.loading1"></script>
+    <link rel="stylesheet" href="css/plan4-store-cards.css?v=20261116.plan4cards1">
 </head>
 
 <body class="campus-modern">
@@ -829,6 +834,8 @@
                             kiện
                             trò chơi tích điểm và đổi tiền thưởng Lộ trình một cách chủ động.</p>
                     </div>
+                    <section class="noel-card ui-theme-immune" data-theme-immune="true"><div><span class="noel-eyebrow">GIÁNG SINH · GHÉP 3</span><h3>Xưởng Quà Noel</h3><p>Ghép quà, dọn tuyết, tích Kẹo Noel và khám phá 12 màn chơi.</p><small>20/12–1/1 hằng năm · 2 lượt/ngày · Mỗi lần thắng nhận 1–23 Kẹo.</small></div><button type="button" class="noel-button" onclick="NoelWorkshop.open()">Ghé thăm xưởng →</button></section>
+
 
                     <div class="card"
                         style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px; background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%);">
@@ -1558,13 +1565,13 @@
     </div>
 
     <!-- 1. Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js" integrity="sha384-v3Z/Xdw1sCeo6M/geW7sn1Lt9obIm7MhAk8laVV+rvYFmzuWDELOiygx7dVte2dX" crossorigin="anonymous"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js" integrity="sha384-p62xBRve8PdqGDGASZtZMuHgPsyPcT5VsFwgmz2p4zaFdEtt5ZzNqxK+CLzQS7xP" crossorigin="anonymous"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js" integrity="sha384-fuqdSwJXSvcAuKu5FbSJcHqHK474liv5ji8tuDnHz1rpfrnuXZPdM0oRaSK6c95L" crossorigin="anonymous"></script>
 
     <!-- 2. Khởi tạo Firebase -->
-    <script src="js/firebase-config.js?v=20261114.disable-recovery-maintenance1"></script>
-<script src="js/student-study-data.js?v=20261025.studyread1"></script>
+    <script src="js/firebase-config.js?v=20261025.studyread1"></script>
+<script src="js/student-study-data.js?v=20261108.loading1"></script>
     <script src="js/asset-history.js?v=20261017.production.split1"></script>
     <script src="js/cloudinary-storage.js?v=20261017.production.split1"></script>
 
@@ -1575,19 +1582,19 @@
     </script>
 
     <script src="js/cloudflare-r2-storage.js?v=20261025.storageconfig1"></script>
-    <script src="js/private-file-access.js?v=20261028.plan2.files1"></script>
+    <script src="js/private-file-access.js?v=20261114.security1"></script>
 
     <!-- 3. Thư viện đọc file DOCX -->
-    <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js" integrity="sha384-/cXAMbzovUIKbBERjPmR3SnPTh8siWr5lsvFYj1Uq4XP0yaJUZJmsh0YXyGv5P0y" crossorigin="anonymous"></script>
 
     <!-- Thư viện chống chèn mã HTML/XSS -->
-    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.4.7/dist/purify.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.4.7/dist/purify.min.js" integrity="sha384-C5g1ZoYBpnvKyArNZI21kaBEk3egHOYfHj/cUOHmyJ7CSDMyNMyM+STqfkBt8m2Y" crossorigin="anonymous"></script>
 
     <!-- 4. Mã nền tảng -->
     <script>
         // Phiên bản thực sự của bộ HTML/JS đang chạy.
-        // common.js?v=20261024.session3 cũ đọc appVersion từ localStorage, nên đồng bộ trước khi nạp common.js?v=20261024.session3
-        window.APP_VERSION = '4.4.0';
+        // common.js?v=20261114.security1 cũ đọc appVersion từ localStorage, nên đồng bộ trước khi nạp common.js?v=20261114.security1
+        window.APP_VERSION = '4.4.5';
         // Remove saved progress for the retired garden prototype on this origin.
         try {
             localStorage.setItem('appVersion', window.APP_VERSION);
@@ -1595,53 +1602,57 @@
     </script>
     
     <script src="js/random-exam-engine.js?v=20261017.production.split1"></script>
-<script src="js/campus-pdf.js?v=20261017.production.split1"></script>
-<script src="js/common.js?v=20261114.disable-recovery-maintenance1"></script>
+<script src="js/campus-pdf.js?v=20261116.hardening2"></script>
+<script src="js/common.js?v=20261116.password-session1"></script>
 <script src="js/startup-data-coordinator.js?v=20261017.production.split1"></script>
-<script src="js/session-devices.js?v=20261114.disable-recovery-maintenance1"></script>
-<script src="js/economy-client.js?v=20261028.teacher-seed1"></script>
+<script src="js/session-devices.js?v=20261116.password-session1"></script>
+<script src="js/transaction-shield.js?v=20261116.hardening1"></script>
+<script src="js/economy-client.js?v=20261114.security1"></script>
 <script src="js/that-tich-wallet.js?v=20261024.pendingdialog1"></script>
     <script src="js/history-retention.js?v=20261017.production.split1"></script>
     <script src="js/update-manager.js?v=20261017.production.split1"></script>
     <script src="js/web-animations.js?v=20261019.motion1"></script>
     <!-- Tối ưu hiệu năng: mặc định tắt; dùng trạng thái đã lưu trong Cài đặt. Phát hiện mobile/thiết bị yếu chỉ áp dụng sau khi tính năng đã được bật. -->
     <script src="js/web-performance-optimizer.js?v=20261021.welcome1"></script>
-    <script src="js/transaction-history.js?v=20261017.production.split1"></script>
+    <script src="js/transaction-history.js?v=20261114.security1"></script>
 
     <!-- 4. EffectQualityManager là core; các module tính năng khác do StudentFeatureLoader lazy-load -->
     <!-- Điều chỉnh riêng mức hiệu ứng vật phẩm + Web Animations; không đụng theme/logic -->
-    <script src="js/effect-quality-manager.js?v=20261017.production.split1"></script>
+    <script src="js/effect-quality-manager.js?v=20261114.security1"></script>
 
     <!-- YouTube API không phụ thuộc Firebase -->
     <script src="https://www.youtube.com/iframe_api"></script>
 
     <!-- 5. Logic chính của trang học sinh luôn đặt cuối -->
-    <script src="js/assignment-appeals.js?v=20261017.production.session1"></script>
+    <script src="js/assignment-appeals.js?v=20261110.plan5.audit3"></script>
     <script src="js/mc-workspace.js?v=20261017.production.split1"></script>
 <script src="js/page-work-coordinator.js?v=20261017.production.split1"></script>
 <script src="js/student-asset-history.js?v=20261017.production.split1"></script>
 <script src="js/study-reliability.js?v=20261025.studyread1"></script>
 <script src="js/pending-mechanism-reconciliation.js?v=20261017.production.split1"></script>
-<script src="js/cash-ledger.js?v=20261019.loading1"></script>
+<script src="js/cash-ledger.js?v=20261110.plan5.safety2"></script>
 <script src="js/inbox-ledger.js?v=20261017.production.split1"></script>
 <script src="js/student-view-performance.js?v=20261017.production.split1"></script>
 <script src="js/oct20-gift.js?v=20261024.mail1"></script>
-<script src="js/christmas-welcome.js?v=20261022.welcome-restored1"></script>
+<script src="js/christmas-welcome.js?v=20261110.haaee1"></script>
+<script src="js/noel-match3.js?v=20261116.hardening1"></script>
+<script src="js/noel-workshop.js?v=20261116.hardening1"></script>
 <script src="js/year-review.js?v=20261022.review6"></script>
-<script src="js/assignment-extensions.js?v=20261028.extension-note4"></script>
-<script src="js/student.js?v=20261029.plan4.2"></script>
+<script src="js/assignment-extensions.js?v=20261116.hardening1"></script>
+<script src="js/caelion.js?v=20261115.caelion4"></script>
+<script src="js/student.js?v=20261116.hardening1"></script>
 
 
-<link rel="stylesheet" href="css/collection-rewards.css?v=20261003.cleanup1">
-<script src="js/collection-reward-catalog.js?v=20261029.plan4.2"></script>
-<script src="js/collection-rewards.js?v=20261017.production.split1"></script>
+<link rel="stylesheet" href="css/collection-rewards.css?v=20261105.vfx2">
+<script src="js/collection-reward-catalog.js?v=20261104.plan4.3"></script>
+<script src="js/collection-rewards.js?v=20261116.hardening1"></script>
 <script src="js/list-media-performance.js?v=20261017.production.split1"></script>
 <link rel="stylesheet" href="css/campus-design.css?v=20261007.phone1">
 <script src="js/campus-design.js?v=20261017.production.split1"></script>
 <link rel="stylesheet" href="css/mobile.css?v=20261007.phone6">
 <script src="js/mobile-layout.js?v=20261024.viewnav1"></script>
 <script src="js/release-history.js?v=20261027.extension1"></script>
-<script defer src="js/xmas-overlay.js?v=20261023.garland1"></script>
+<script defer src="js/xmas-overlay.js?v=20261114.security1"></script>
 </body>
 
 </html>

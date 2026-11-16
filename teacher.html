@@ -5,10 +5,11 @@
     <link rel="stylesheet" href="css/app-dialog.css?v=20261003.cleanup1">
     <script src="js/grade-presentation.js?v=20261017.production.split1"></script>
     <script src="js/app-dialog.js?v=20261024.pendingdialog1"></script>
-    <script src="js/server-activity.js?v=20261027.extension1"></script>
+    <script src="js/server-activity.js?v=20261116.password-session1"></script>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="base-uri 'self'; object-src 'none'; script-src 'self' https://www.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.quilljs.com https://www.youtube.com https://s.ytimg.com https://apis.google.com 'unsafe-inline'; worker-src 'self' blob:">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="application-version" content="4.4.0">
+    <meta name="application-version" content="4.4.5">
     <title>Trang Giáo Viên</title>
     <!-- Kết nối sớm tới CDN lõi; không tải thêm tài nguyên và không đổi chức năng -->
     <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
@@ -17,7 +18,7 @@
     <link rel="icon" type="image/png" href="assets/icon.png">
     <link rel="stylesheet" href="css/common.css?v=20261029.plan3.fonts1">
     <link rel="stylesheet" href="css/web-animations.css?v=20261003.cleanup2">
-    <link rel="stylesheet" href="css/store-items.css?v=20261029.plan3.fonts1">
+    <link rel="stylesheet" href="css/store-items.css?v=20261105.vfx2">
     <link rel="stylesheet" href="css/effects-pets.css?v=20261019.motion1">
     <link rel="stylesheet" href="css/daily-login.css?v=20261003.cleanup1">
     <link rel="stylesheet" href="css/painting.css?v=20261003.cleanup1">
@@ -93,10 +94,10 @@
             }
         };
     </script>
-    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js?v=20261017.production.split1"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js" integrity="sha384-Wuix6BuhrWbjDBs24bXrjf4ZQ5aFeFWBuKkFekO2t8xFU0iNaLQfp2K6/1Nxveei" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js?v=20261017.production.split1" integrity="sha384-Yv5O+t3uE3hunW8uyrbpPW3iw6/5/Y7HitWJBLgqfMoA36NogMmy+8wWZMpn3HWc" crossorigin="anonymous"></script>
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-    <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/quill@1.3.6/dist/quill.js" integrity="sha384-0zm5QqnR2gL4GY5AwreU3xp5AEGWqkdbamrRLeXwWwepp4JqmPRawLJFD8Cm802W" crossorigin="anonymous"></script>
 
     <style id="teacherAssignmentWorkspaceStyles">
         .teacher-assignment-heading-row {
@@ -489,6 +490,8 @@
 <link rel="stylesheet" href="css/mc-workspace.css?v=20261007.phone1">
 <link rel="stylesheet" href="css/assignment-appeals.css?v=20261003.cleanup1">
 <link rel="stylesheet" href="css/dashboard-refresh.css?v=20261007.phone1">
+<meta name="plan4-unity" content="enabled">
+<script src="js/loading-status.js?v=20261108.loading1"></script>
 </head>
 
 <body class="teacher-workspace-refresh campus-modern">
@@ -711,7 +714,7 @@
 
                         try {
                             /*
-                             * common.js?v=20261017.production.split1 là nơi duy nhất thực hiện registration.
+                             * common.js?v=20261114.security1 là nơi duy nhất thực hiện registration.
                              * Loader chỉ chờ kết quả để tránh đăng ký trùng.
                              */
                             if (
@@ -726,7 +729,7 @@
                             }
 
                             /*
-                             * Dự phòng nếu common.js?v=20261017.production.split1 chưa sẵn sàng.
+                             * Dự phòng nếu common.js?v=20261114.security1 chưa sẵn sàng.
                              * URL vẫn được tính theo document.baseURI,
                              * tương thích GitHub Pages project site.
                              */
@@ -1341,14 +1344,6 @@
                     style="display: flex; gap: 10px; margin-bottom: 15px; overflow-x: auto; padding-bottom: 5px;">
                     <button class="btn-student-filter active" data-id="all"
                         onclick="setStudentFilter('all', this, 'assigned')">Tất cả</button>
-                </div>
-                <div style="margin:10px 0 16px;">
-                    <button type="button" onclick="reconcileDeletedExamSessions()" class="btn-secondary" style="padding:8px 14px;">
-                        🔍 Đối soát phiên thi của bài đã xóa
-                    </button>
-                    <p style="font-size:0.85em;color:#64748b;margin:6px 0 0;">
-                        Kiểm tra bản ghi mồ côi trên máy chủ. Có bản sao lưu và xác nhận riêng trước khi dọn; phiên thi còn chốt bài được giữ nguyên.
-                    </p>
                 </div>
                 <div id="assignedListContainer"></div>
             </div>
@@ -3823,12 +3818,12 @@
             </div>
 
     <!-- 1. Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js" integrity="sha384-v3Z/Xdw1sCeo6M/geW7sn1Lt9obIm7MhAk8laVV+rvYFmzuWDELOiygx7dVte2dX" crossorigin="anonymous"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js" integrity="sha384-p62xBRve8PdqGDGASZtZMuHgPsyPcT5VsFwgmz2p4zaFdEtt5ZzNqxK+CLzQS7xP" crossorigin="anonymous"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js" integrity="sha384-fuqdSwJXSvcAuKu5FbSJcHqHK474liv5ji8tuDnHz1rpfrnuXZPdM0oRaSK6c95L" crossorigin="anonymous"></script>
 
     <!-- 2. Khởi tạo Firebase -->
-    <script src="js/firebase-config.js?v=20261114.disable-recovery-maintenance1"></script>
+    <script src="js/firebase-config.js?v=20261025.studyread1"></script>
     <script src="js/asset-history.js?v=20261017.production.split1"></script>
     <script src="js/cloudinary-storage.js?v=20261017.production.split1"></script>
 
@@ -3839,83 +3834,84 @@
     </script>
 
     <script src="js/cloudflare-r2-storage.js?v=20261025.storageconfig1"></script>
-    <script src="js/private-file-access.js?v=20261028.plan2.files1"></script>
+    <script src="js/private-file-access.js?v=20261114.security1"></script>
 
-    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.4.7/dist/purify.min.js">
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.4.7/dist/purify.min.js" integrity="sha384-C5g1ZoYBpnvKyArNZI21kaBEk3egHOYfHj/cUOHmyJ7CSDMyNMyM+STqfkBt8m2Y" crossorigin="anonymous">
     </script>
 
     <!-- 3. Mã nền tảng -->
-    <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js" integrity="sha384-/cXAMbzovUIKbBERjPmR3SnPTh8siWr5lsvFYj1Uq4XP0yaJUZJmsh0YXyGv5P0y" crossorigin="anonymous"></script>
     <script>
         // Phiên bản thực sự của bộ HTML/JS đang chạy.
-        // common.js?v=20261017.production.split1 cũ đọc appVersion từ localStorage, nên đồng bộ trước khi nạp common.js?v=20261017.production.split1.
-        window.APP_VERSION = '4.4.0';
+        // common.js?v=20261114.security1 cũ đọc appVersion từ localStorage, nên đồng bộ trước khi nạp common.js?v=20261114.security1
+        window.APP_VERSION = '4.4.5';
         try {
             localStorage.setItem('appVersion', window.APP_VERSION);
         } catch (_) {}
     </script>
     <script src="js/random-exam-engine.js?v=20261017.production.split1"></script>
-<script src="js/campus-pdf.js?v=20261017.production.split1"></script>
-<script src="js/common.js?v=20261114.disable-recovery-maintenance1"></script>
+<script src="js/campus-pdf.js?v=20261116.hardening2"></script>
+<script src="js/common.js?v=20261116.password-session1"></script>
 <script src="js/startup-data-coordinator.js?v=20261017.production.split1"></script>
-<script src="js/economy-client.js?v=20261028.teacher-seed1"></script>
-<script src="js/economy-source-bridge.js?v=20261017.production.split1"></script>
-<script src="js/assignment-extensions.js?v=20261028.extension-note4"></script>
+<script src="js/transaction-shield.js?v=20261116.hardening1"></script>
+<script src="js/economy-client.js?v=20261114.security1"></script>
+<script src="js/economy-source-bridge.js?v=20261114.security1"></script>
+<script src="js/assignment-extensions.js?v=20261116.hardening1"></script>
     <script src="js/history-retention.js?v=20261017.production.split1"></script>
     <script src="js/update-manager.js?v=20261017.production.split1"></script>
     <script src="js/web-animations.js?v=20261019.motion1"></script>
     <!-- Tối ưu hiệu năng: mặc định tắt; dùng trạng thái đã lưu trong Cài đặt. Phát hiện mobile/thiết bị yếu chỉ áp dụng sau khi tính năng đã được bật. -->
     <script src="js/web-performance-optimizer.js?v=20261021.welcome1"></script>
-    <script src="js/transaction-history.js?v=20261017.production.split1"></script>
+    <script src="js/transaction-history.js?v=20261114.security1"></script>
     <script>
         // security.js nạp trước teacher.js: đánh dấu rõ đây là trang Giáo viên đang chờ xác thực.
         window.__APP_PAGE_ROLE__ = 'teacher';
         window.__teacherSecurityVerificationState =
             window.__teacherSecurityVerificationState || 'pending';
     </script>
-    <script src="js/security.js?v=20261017.production.split1"></script>
+    <script src="js/security.js?v=20261114.security1"></script>
 
     <!-- 4. Các module tính năng -->
-    <script src="js/daily-login.js?v=20261017.production.split1"></script>
-    <script src="js/plan4-items.js?v=20261029.plan4.2"></script>
-    <script src="js/theme-items.js?v=20261029.plan4.2"></script>
+    <script src="js/daily-login.js?v=20261114.security1"></script>
+    <script src="js/plan4-items.js?v=20261108.clean1"></script>
+    <script src="js/theme-items.js?v=20261108.clean1"></script>
     <script src="js/regular-store-art.js?v=20261017.production.split1"></script>
-    <script src="js/effect-items.js?v=20261029.plan4.2"></script>
+    <script src="js/effect-items.js?v=20261104.plan4.3"></script>
     <script src="js/that-tich.js?v=20261017.production.split1"></script>
     <link rel="stylesheet" href="css/that-tich.css?v=20261012.thattich3">
     <script src="js/audrey-hall.js?v=20261017.production.split1"></script>
     <link rel="stylesheet" href="css/audrey-hall.css?v=20261012.audrey1">
-    <script src="js/pet-items.js?v=20261029.plan4.2"></script>
+    <script src="js/pet-items.js?v=20261105.vfx2"></script>
     <!-- Điều chỉnh riêng mức hiệu ứng vật phẩm + Web Animations; không đụng theme/logic -->
-    <script src="js/effect-quality-manager.js?v=20261017.production.split1"></script>
-    <script src="js/royal-ball.js?v=20261017.production.split1"></script>
+    <script src="js/effect-quality-manager.js?v=20261114.security1"></script>
+    <script src="js/royal-ball.js?v=20261116.hardening1"></script>
     <script src="js/music-manager.js?v=20261017.production.split1"></script>
-    <script src="js/store-manager.js?v=20261029.plan4.2"></script>
-    <script src="js/painting.js?v=20261017.production.split1"></script>
+    <script src="js/store-manager.js?v=20261114.security1"></script>
+    <script src="js/painting.js?v=20261116.hardening1"></script>
     <script src="js/luxury-distinct-scenes.js?v=20261017.production.split1"></script>
     <script src="js/tinh-mong.js?v=20261017.production.split1"></script>
     <script src="js/valentine.js?v=20261029.plan3.fonts1"></script>
     <script src="js/eternal-winter.js?v=20261017.production.split1"></script>
-    <script src="js/luxury-store.js?v=20261029.plan4.2"></script>
+    <script src="js/luxury-store.js?v=20261104.plan4.3"></script>
 
     <!-- 5. Logic chính của trang giáo viên luôn đặt cuối -->
     <!-- Hotfix: xác nhận cài đặt lộ trình trước khi teacher.js chờ loader -->
     <script src="js/roadmap-startup-fix.js?v=20261017.production.split1"></script>
 
-    <script src="js/assignment-appeals.js?v=20261017.production.session1"></script>
+    <script src="js/assignment-appeals.js?v=20261110.plan5.audit3"></script>
     <script src="js/mc-workspace.js?v=20261017.production.split1"></script>
 <script src="js/video-duration.js?v=20261017.production.split1"></script>
 <script src="js/student-deletion-client.js?v=20261017.production.split1"></script>
 <script src="js/cash-request-pages.js?v=20261017.production.split1"></script>
-<script src="js/teacher-ledger.js?v=20261017.production.split1"></script>
-<script src="js/cash-ledger.js?v=20261019.loading1"></script>
+<script src="js/teacher-ledger.js?v=20261110.plan5.safety2"></script>
+<script src="js/cash-ledger.js?v=20261110.plan5.safety2"></script>
 <script src="js/page-work-coordinator.js?v=20261017.production.split1"></script>
-<script src="js/teacher.js?v=20261113.exam-orphan-reconcile1"></script>
+<script src="js/teacher.js?v=20261116.hardening1"></script>
     <script src="js/huong-dan-nguoi-moi.js?v=20261017.production.split1"></script>
 
-<link rel="stylesheet" href="css/collection-rewards.css?v=20261003.cleanup1">
-<script src="js/collection-reward-catalog.js?v=20261029.plan4.2"></script>
-<script src="js/collection-rewards.js?v=20261017.production.split1"></script>
+<link rel="stylesheet" href="css/collection-rewards.css?v=20261105.vfx2">
+<script src="js/collection-reward-catalog.js?v=20261104.plan4.3"></script>
+<script src="js/collection-rewards.js?v=20261116.hardening1"></script>
 <script src="js/list-media-performance.js?v=20261017.production.split1"></script>
 <link rel="stylesheet" href="css/campus-design.css?v=20261007.phone1">
 <script src="js/campus-design.js?v=20261017.production.split1"></script>
@@ -3924,7 +3920,7 @@
 <link rel="stylesheet" href="css/mobile.css?v=20261007.phone6">
 <script src="js/mobile-layout.js?v=20261017.production.split1"></script>
 <script src="js/release-history.js?v=20261027.extension1"></script>
-<script defer src="js/xmas-overlay.js?v=20261023.garland1"></script>
+<script defer src="js/xmas-overlay.js?v=20261114.security1"></script>
 </body>
 
 </html>

@@ -1,10 +1,22 @@
-const APP_VERSION = '4.4.0';
-const APP_BUILD = '20261114.disable-recovery-maintenance1';
-const CACHE_VERSION = `qlbt-production-shell-v${APP_VERSION}-${APP_BUILD}`;
+const APP_VERSION = '4.4.5';
+const APP_BUILD = '20261116.password-session1';
+const CACHE_VERSION = `qlbt-production-shell-v${APP_VERSION}-${APP_BUILD}-privacy2`;
 const OFFLINE_CACHE = `${CACHE_VERSION}-offline`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const OFFLINE_PAGE = './offline.html';
 const MAX_RUNTIME_ENTRIES = 120;
+
+function mayCacheResponse(response) {
+    return !!response && response.ok && response.type !== 'opaque' &&
+        !response.headers.has('Set-Cookie') &&
+        !/(?:^|,)\s*(?:no-store|private|no-cache)(?:\s*(?:=|,|$))/i.test(response.headers.get('Cache-Control') || '') &&
+        !response.headers.has('Vary');
+}
+async function rememberPublicResponse(cache, request, response) {
+    if (!mayCacheResponse(response)) { await cache.delete(request); return; }
+    await cache.put(request, response.clone());
+    await pruneRuntimeCache();
+}
 
 self.addEventListener('install', event => {
     event.waitUntil((async () => {
@@ -44,7 +56,7 @@ async function buildFallbackResponse(mode, failedUrl, status) {
     }
 
     let html = await cached.text();
-    const injection = `<script>window.__APP_SW_ERROR_MODE__=${JSON.stringify(mode)};window.__APP_FAILED_URL__=${JSON.stringify(failedUrl)};<\/script>`;
+    const injection = `<script>window.__APP_SW_ERROR_MODE__=${JSON.stringify(mode)};window.__APP_FAILED_URL__=${JSON.stringify(failedUrl).replace(/</g, '\\u003c')};<\/script>`;
     html = html.replace('</head>', injection + '</head>');
 
     return new Response(html, {
@@ -59,79 +71,9 @@ async function buildFallbackResponse(mode, failedUrl, status) {
 }
 
 async function networkFirstNavigation(request) {
-    const url = new URL(request.url);
-    const cache = await caches.open(RUNTIME_CACHE);
-
-    if (url.pathname.endsWith('/offline.html')) {
-        try {
-            const response = await fetch(request);
-            if (response && response.ok) return response;
-        } catch (_) {}
-
-        const cachedOffline = await (await caches.open(OFFLINE_CACHE)).match(
-            OFFLINE_PAGE,
-            { ignoreSearch: true }
-        );
-
-        return cachedOffline ||
-            buildFallbackResponse(
-                'offline',
-                request.url,
-                503
-            );
-    }
-
-    try {
-        const response = await fetch(request);
-
-        if (response && response.ok) {
-            cache.put(
-                request,
-                response.clone()
-            )
-                .then(pruneRuntimeCache)
-                .catch(() => {});
-
-            return response;
-        }
-
-        // Server có phản hồi nhưng trang đang lỗi:
-        // ưu tiên bản cache tốt gần nhất nếu đã từng tải thành công.
-        if (
-            response.status === 404 ||
-            response.status === 410 ||
-            response.status >= 500
-        ) {
-            const cached = await cache.match(request);
-
-            if (cached) {
-                return cached;
-            }
-
-            return buildFallbackResponse(
-                response.status === 404 ||
-                response.status === 410
-                    ? '404'
-                    : 'server',
-                request.url,
-                response.status
-            );
-        }
-
-        return response;
-    } catch (error) {
-        const cached = await cache.match(request);
-
-        if (cached) {
-            return cached;
-        }
-
-        return buildFallbackResponse(
-            'offline',
-            request.url,
-            503
-        );
-    }
+    // Account pages never reuse a document from a previous login, even offline.
+    try { return await fetch(request); }
+    catch (_) { return buildFallbackResponse('offline', request.url, 503); }
 }
 
 async function networkFirstStatic(request) {
@@ -141,12 +83,7 @@ async function networkFirstStatic(request) {
         const response = await fetch(request);
 
         if (response && response.ok) {
-            cache.put(
-                request,
-                response.clone()
-            )
-                .then(pruneRuntimeCache)
-                .catch(() => {});
+            await rememberPublicResponse(cache, request, response);
 
             return response;
         }
@@ -184,9 +121,7 @@ async function staleWhileRevalidate(request) {
     const cached = await cache.match(request);
     const networkPromise = fetch(request)
         .then(response => {
-            if (response && response.ok) {
-                cache.put(request, response.clone()).then(pruneRuntimeCache).catch(() => {});
-            }
+            if (response) rememberPublicResponse(cache, request, response).catch(() => {});
             return response;
         })
         .catch(() => null);
@@ -204,6 +139,10 @@ self.addEventListener('fetch', event => {
     if (request.method !== 'GET') return;
 
     const url = new URL(request.url);
+    // Authenticated or capability-bearing resources must never enter the shared shell cache.
+    if (request.headers.has('Authorization') || request.cache === 'no-store' ||
+        /(?:^|\/)(?:files|economy|transaction-shield|student-study-data|account-access)(?:\/|$)/.test(url.pathname) ||
+        [...url.searchParams.keys()].some(key => /^(?:token|access_token|id_token|auth|signature)$/i.test(key))) return;
 
     // Không can thiệp Firebase, Cloudflare R2, CDN hoặc API bên ngoài.
     // Dữ liệu đám mây phải luôn đi trực tiếp tới dịch vụ gốc.

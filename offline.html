@@ -3,8 +3,9 @@
 
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="base-uri 'self'; object-src 'none'; script-src 'self' https://www.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.quilljs.com https://www.youtube.com https://s.ytimg.com https://apis.google.com 'unsafe-inline'; worker-src 'self' blob:">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="application-version" content="4.4.0">
+    <meta name="application-version" content="4.4.5">
     <meta name="theme-color" content="#07111f">
     <title>Trạng thái hệ thống</title>
     <style>
@@ -224,7 +225,7 @@
     <script>
         (() => {
             'use strict';
-            const appVersion = '4.4.0';
+            const appVersion = '4.4.5';
             const injectedMode = window.__APP_SW_ERROR_MODE__ || '';
             const failedUrl = window.__APP_FAILED_URL__ || new URLSearchParams(location.search).get('from') || location.href;
             let mode = injectedMode || (navigator.onLine ? 'status' : 'offline');
@@ -342,7 +343,7 @@
             render();
         })();
     </script>
-    <script src="js/security.js?v=20261017.production.split1"></script>
+    <script src="js/security.js?v=20261114.security1"></script>
 </body>
 
 </html>

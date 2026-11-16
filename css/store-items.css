@@ -7013,3 +7013,37 @@ body.theme-saturn-observatory
         height: 104px;
     }
 }
+
+/* Existing frame IDs select the finish; the original frame image and hit box stay intact. */
+[data-avatar-frame-id^="frame_plan4_"] > .avatar-frame-aura {background:var(--frame-finish)!important;animation:none!important;filter:drop-shadow(0 1px 2px #181c2740)!important;opacity:.78;transition:transform .35s ease}
+[data-avatar-frame-id^="frame_plan4_"] > .avatar-frame-decoration {animation:none!important;filter:drop-shadow(0 2px 3px #1c1c2440)!important}
+[data-avatar-frame-id^="frame_plan4_"] > .avatar-frame-spark {display:none!important}
+[data-avatar-frame-id^="frame_plan4_"]:is(:hover,:focus-visible) > .avatar-frame-aura {transform:translate(-50%,-50%) scale(1.04) rotate(5deg)!important}
+[data-avatar-frame-id="frame_plan4_alger"] {--frame-finish:repeating-conic-gradient(from -1deg,#c8ab71 0 1deg,transparent 1deg 30deg); }
+[data-avatar-frame-id="frame_plan4_emlyn"] {--frame-finish:conic-gradient(from -30deg,#851638,#dfac99,#4f1c36,#dfac99,#851638)}
+[data-avatar-frame-id="frame_plan4_liu_xiao"] {--frame-finish:repeating-conic-gradient(#ccabc8 0 7deg,transparent 7deg 15deg)}
+[data-avatar-frame-id="frame_plan4_qiao_ling"] {--frame-finish:repeating-linear-gradient(130deg,#edd9bd 0 4px,transparent 4px 8px)}
+[data-avatar-frame-id="frame_plan4_hemera"] {--frame-finish:repeating-conic-gradient(from 180deg at 50% 85%,#f4ce85 0 4deg,transparent 4deg 15deg)}
+[data-avatar-frame-id="frame_plan4_greed"] {--frame-finish:conic-gradient(from 45deg,#164638,#caac61,#92d6a1,#315c4b,#e2bd6d,#164638)}
+[data-avatar-frame-id="frame_plan4_noctyriel"] {--frame-finish:repeating-radial-gradient(ellipse at 32% 63%,transparent 0 5px,#baa7db 6px 7px,transparent 8px 14px)}
+[data-avatar-frame-id="frame_plan4_noel_nam"] {--frame-finish:conic-gradient(from 45deg,#a6ddd5,transparent 14%,#dfd2a4 25%,transparent 39%,#9dbbd6 50%,transparent 64%,#dfd2a4 75%,transparent 89%,#a6ddd5)}
+[data-avatar-frame-id^="frame_plan4_"] > .avatar-frame-aura {mask:radial-gradient(ellipse,transparent 53%,#000 57% 64%,transparent 69%)}
+[data-avatar-frame-id="frame_plan4_emlyn"] > .avatar-frame-aura {border-radius:50% 50% 42% 42%!important}
+[data-avatar-frame-id="frame_plan4_qiao_ling"] > .avatar-frame-aura {border-radius:5px!important;mask:linear-gradient(45deg,#000 9%,transparent 10% 90%,#000 91%)}
+[data-avatar-frame-id="frame_plan4_greed"] > .avatar-frame-aura {clip-path:polygon(25% 0,75% 0,100% 25%,100% 75%,75% 100%,25% 100%,0 75%,0 25%)}
+@media (prefers-reduced-motion:reduce) {[data-avatar-frame-id^="frame_plan4_"] > .avatar-frame-aura {transition:none}}
+
+/* A narrow border plane adds depth to the equipped background without moving the original art or the page. */
+html:has(>body[data-store-background-id^="background_plan4_"]:not(.exam-active,.wfx-low-power))::before {content:"";position:fixed;inset:0;z-index:1;pointer-events:none;background-image:var(--p4-margin-art);opacity:.24;mask-image:linear-gradient(90deg,#000,transparent min(5vw,54px),transparent calc(100% - min(5vw,54px)),#000);animation:p4MarginWind 20s ease-in-out infinite alternate}
+html:has(body[data-store-background-id="background_plan4_alger"]) {--p4-margin-art:repeating-radial-gradient(ellipse at -12% 80%,transparent 0 13px,#afd4d1 14px 15px,transparent 16px 30px)}
+html:has(body[data-store-background-id="background_plan4_emlyn"]) {--p4-margin-art:repeating-linear-gradient(65deg,transparent 0 48px,#ae7890 48px 51px,transparent 51px 85px),repeating-linear-gradient(-65deg,transparent 0 50px,#d8bac4 51px 53px,transparent 54px 82px)}
+html:has(body[data-store-background-id="background_plan4_liu_xiao"]) {--p4-margin-art:repeating-linear-gradient(0deg,#bf9fda 0 2px,transparent 2px 21px)}
+html:has(body[data-store-background-id="background_plan4_qiao_ling"]) {--p4-margin-art:repeating-linear-gradient(0deg,#eedcc5 0 9px,transparent 9px 26px)}
+html:has(body[data-store-background-id="background_plan4_hemera"]) {--p4-margin-art:repeating-conic-gradient(at 75% -10%,#f1d499 0 3deg,transparent 4deg 13deg)}
+html:has(body[data-store-background-id="background_plan4_greed"]) {--p4-margin-art:repeating-linear-gradient(45deg,transparent 0 21px,#b99853 22px 24px,transparent 25px 48px),repeating-linear-gradient(-45deg,transparent 0 21px,#76b295 22px 24px,transparent 25px 48px)}
+html:has(body[data-store-background-id="background_plan4_noctyriel"]) {--p4-margin-art:repeating-radial-gradient(ellipse at 15% 72%,transparent 0 38px,#ada2c3 39px 40px,transparent 41px 75px)}
+html:has(body[data-store-background-id="background_plan4_noel_nam"]) {--p4-margin-art:repeating-linear-gradient(125deg,transparent 0 60px,#b1ddc9 62px 65px,transparent 70px 112px)}
+@keyframes p4MarginWind {to {background-position:0 18px}}
+@media (max-width:600px),(prefers-reduced-motion:reduce) {html:has(>body[data-store-background-id^="background_plan4_"])::before {animation:none!important}}
+
+body:has(.mafc-screen-ultimate,.macc2-screen-ultimate,.tbc1-fullscreen-ultimate,.autreg5-screen-ultimate) #virtual-pet-container {visibility:hidden!important}

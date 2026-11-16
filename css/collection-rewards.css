@@ -84,3 +84,14 @@ html[class*="equipped"] #tab-collection-rewards .cr-help :is(summary, p) {
     color: #17384b !important;
     text-shadow: none !important;
 }
+
+/* Passe-partout for unlocked Plan 4 posters; the locked card never requests its original. */
+.cr-art[data-poster] {--mount:#afa38f;background:linear-gradient(125deg,#191f2b,#373f4e);isolation:isolate;border:1px solid var(--mount);padding:8px;box-sizing:border-box}
+.cr-art[data-poster]>img {object-fit:contain;position:relative;z-index:1}
+.cr-art[data-poster]::before {content:"";position:absolute;inset:4px;border:1px solid var(--mount);pointer-events:none;opacity:.66}
+.cr-art[data-poster] .cr-tag {z-index:2}
+.cr-art[data-poster="giang_sinh"] {--mount:#c8b486;background:linear-gradient(135deg,#274b45,#152c34)}
+.cr-art[data-poster="juliet"] {--mount:#dfabb7;background:radial-gradient(ellipse at 12% 87%,#874458,#30222c 68%)}
+.cr-art[data-poster="romeo"] {--mount:#ba9c70;background:linear-gradient(115deg,#182b41,#30536a 46%,#172636)}
+.cr-art[data-poster="noctyriel"] {--mount:#c0b6db;background:radial-gradient(ellipse at 72% 32%,#57446e,#161525 72%)}
+.cr-art[data-poster="huyen_minh"] {--mount:#c7b89a;background:repeating-linear-gradient(110deg,#25242c 0 20px,#272832 21px 23px)}

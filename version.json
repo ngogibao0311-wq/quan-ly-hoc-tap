@@ -1,28 +1,36 @@
 {
-  "version": "4.4.0",
-  "build": "20261027.extension1",
-  "channel": "stable",
-  "releasedAt": "2026-10-27T00:00:00+07:00",
-  "title": "Phiên bản 4.4.0 · T12 · Gia hạn nộp bài",
-  "summary": "Học sinh gia hạn riêng từng bài bằng coin, với hạn mức rõ ràng và lịch sử cho giáo viên.",
+  "version": "4.4.5",
+  "build": "20261116.password-session1",
+  "channel": "preview",
+  "releasedAt": "2026-11-16T00:00:00+07:00",
+  "title": "Phiên bản 4.4.5 — bản vá bảo mật cục bộ",
+  "summary": "Chặn một số đường ghi dự phòng, bảo vệ nội dung xem trước và giao dịch đang chờ. Chưa nghiệm thu online.",
   "mandatory": false,
   "minSupportedVersion": "3.0.0",
   "changes": [
-    "Thêm nút Gia hạn ở Bài tập cần làm, chọn ngày giờ và xem phí trước khi xác nhận.",
-    "Tối đa 2 lần cho mỗi bài; không quá 14 ngày từ giờ giao và không sang tháng kế tiếp.",
-    "Phí 100 coin/giờ, tính lẻ theo phút; chỉ thu thêm phần chưa trả và không thu lại thời gian giáo viên cho miễn phí.",
-    "Giáo viên xem Có gia hạn, hạn riêng và lịch sử thanh toán, hoàn coin.",
-    "Bài cũ thiếu mốc gốc có bước xác nhận của giáo viên trước khi cho gia hạn."
+    "Bỏ mã REC, đăng nhập bằng tài khoản và mật khẩu; giữ khóa phiên, khóa thi và đối soát giao dịch. Chưa xác minh online.",
+    "Ghim MathJax 3.2.2, kiểm tra SRI cho CDN, CSP chuyển tiếp; sửa đối soát biên nhận phiên và hoàn tiền khi thu hồi bài cả lớp. Chưa phát hành.",
+    "Gia hạn tối đa 2 lần, trong tuần giao bài đến Chủ nhật 23:59 giờ Việt Nam; sửa hạn không hoàn Coin.",
+    "Đóng các nhánh giao dịch dự phòng; không cache trang tài khoản; xác nhận trước điều khiển lá chắn.",
+    "Noel tăng độ khó cho ván mới, giữ 2 lượt/ngày và thưởng mỗi thắng 2×màn−1 Kẹo.",
+    "Caelion: giao diện Galaxy UI, quầng pet nhiều lớp, hiệu ứng nền/click/di chuột chi tiết hơn; bỏ nhãn đếm ngược nổi.",
+    "Caelion: Ultimate thuần hiệu ứng không ảnh nhân vật, nền động, vệt chuột và giao diện đầy đủ cho cả hai dạng.",
+    "Caelion: 24.000 Coin cho hai dạng, Ultimate toàn màn hình, click và nền theo chu kỳ 60 giây giờ máy chủ.",
+    "Xưởng Quà Noel: lịch 20/12–1/1 hằng năm, 2 lượt/ngày, thưởng mỗi lần thắng 1–23 Kẹo; chưa mở sự kiện.",
+    "Bản vá kiểm toán KH5/KH7/KH8; chưa triển khai Worker hoặc Rules.",
+    "Thêm Xưởng Quà Noel ở mục Trò chơi: 12 màn ghép 3, băng và biểu tượng đặc biệt.",
+    "Máy chủ xác nhận từng nước đi, lưu tiến độ theo tài khoản và chống nhận thưởng trùng.",
+    "Giáo viên xem và sửa hạn học sinh đã gia hạn; sửa hạn không hoàn Coin."
   ],
   "resolvedIssues": [
     "Giữ cùng yêu cầu khi mất kết nối để không trừ coin hoặc hoàn coin trùng.",
-    "Trừ coin và lưu hạn riêng cùng nhau; hoàn coin cùng thay đổi của giáo viên.",
+    "Sửa hạn không hoàn Coin: bài riêng theo giáo viên; bài chung lấy hạn muộn hơn.",
     "Giữ nội dung và tệp đang chọn khi hạn nộp thay đổi.",
     "Gia hạn không tăng đồng hồ làm bài, không mở bài đã nộp và không xóa lỗi quá hạn đã có."
   ],
   "knownIssues": [
-    "Chức năng chỉ mở sau khi máy chủ và quyền truy cập đã được cập nhật, và từng tài khoản nhận xác nhận.",
-    "Bài đã bị thu tự động được tính là đã nộp và không thể gia hạn."
+    "Bản trên máy: chưa phát hành hay xác minh online.",
+    "Sự kiện chỉ mở khi lịch, mức thưởng, danh sách quà và luật đã được chốt phía máy chủ."
   ],
   "plannedImprovements": []
 }
