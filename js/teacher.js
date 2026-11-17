@@ -15140,37 +15140,6 @@ window.updateStoreItem = async function () {
     }
 };
 
-// Bộ lắng nghe tự động cập nhật bảng quản lý của giáo viên khi database có thay đổi
-listenFirebase(db.ref('store_settings'), 'value', (snapshot) => {
-    const settings = snapshot.val();
-
-    StoreConfig.items.forEach(item => {
-        const itemSettings =
-            settings &&
-            settings[item.id] &&
-            typeof settings[item.id] === 'object'
-                ? settings[item.id]
-                : null;
-
-        if (itemSettings) {
-            if (itemSettings.price !== undefined) item.price = itemSettings.price;
-            if (itemSettings.startDate !== undefined) item.startDate = itemSettings.startDate;
-            if (itemSettings.endDate !== undefined) item.endDate = itemSettings.endDate;
-        }
-
-        item.isLocked = item.id === 'pet_caelion_premium'
-            ? itemSettings?.isLocked !== false
-            : window.normalizeStoreItemLockState(itemSettings?.isLocked);
-    });
-
-    if (typeof initTeacherStoreManagement === 'function') {
-        initTeacherStoreManagement();
-    }
-    if (typeof initTeacherLuxuryStoreManagement === 'function') {
-        initTeacherLuxuryStoreManagement();
-    }
-});
-
 window.deleteStoreItem = async function (fbKey) {
     if ((await AppDialog.confirm("Chắc chắn muốn xóa vật phẩm này khỏi cửa hàng?"))) {
         await removeDB('store_items', fbKey);
