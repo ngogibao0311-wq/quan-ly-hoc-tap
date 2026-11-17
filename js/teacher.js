@@ -3792,10 +3792,9 @@ window.onload = async function () {
                 if (itemSettings.endDate !== undefined) item.endDate = itemSettings.endDate;
             }
 
-            item.isLocked =
-                window.normalizeStoreItemLockState(
-                    itemSettings?.isLocked
-                );
+            item.isLocked = item.id === 'pet_caelion_premium'
+                ? itemSettings?.isLocked !== false
+                : window.normalizeStoreItemLockState(itemSettings?.isLocked);
         });
 
         if (typeof initTeacherStoreManagement === 'function') initTeacherStoreManagement();
@@ -15159,10 +15158,9 @@ listenFirebase(db.ref('store_settings'), 'value', (snapshot) => {
             if (itemSettings.endDate !== undefined) item.endDate = itemSettings.endDate;
         }
 
-        item.isLocked =
-            window.normalizeStoreItemLockState(
-                itemSettings?.isLocked
-            );
+        item.isLocked = item.id === 'pet_caelion_premium'
+            ? itemSettings?.isLocked !== false
+            : window.normalizeStoreItemLockState(itemSettings?.isLocked);
     });
 
     if (typeof initTeacherStoreManagement === 'function') {
