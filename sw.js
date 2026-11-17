@@ -1,5 +1,5 @@
-const APP_VERSION = '4.4.5';
-const APP_BUILD = '20261116.password-session1';
+const APP_VERSION = '4.4.6';
+const APP_BUILD = '20261117.store-session1';
 const CACHE_VERSION = `qlbt-production-shell-v${APP_VERSION}-${APP_BUILD}-privacy2`;
 const OFFLINE_CACHE = `${CACHE_VERSION}-offline`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
