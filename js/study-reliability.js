@@ -90,7 +90,12 @@
             if (live.isLocked === true || live.teacherLocked === true) throw Error('Giáo viên đã khóa bài');
             const now = Date.now();
             if (live.startDate && new Date(live.startDate).getTime() > now) throw Error('Chưa đến giờ bắt đầu');
-            if (live.endDate && new Date(live.endDate).getTime() <= now) throw Error('Đã hết hạn nộp');
+            if (live.endDate && new Date(live.endDate).getTime() <= now) {
+                const submission = await timeout(window.getLiveStudentExamSubmission(assignment.id));
+                if (submission?.isRedoing !== true || (submission.grade != null && submission.grade !== '')) {
+                    throw Error('Đã hết hạn nộp');
+                }
+            }
         });
         paragraph('Các quyền nộp bài và phiên thi tiếp tục được kiểm tra khi vào thi. Bước này không tạo phiên thi mới. Nếu đang tiếp tục bài, thời gian còn lại vẫn tính theo phiên trước.');
         if (!panel.open) { busy = false; return null; }
