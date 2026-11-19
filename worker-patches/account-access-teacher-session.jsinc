@@ -1,0 +1,77 @@
+// Inject inside accountAccess() after actor profile lookup.
+// Requires existing accessProfile, sessionKey, sessionLive, assertNoExam and editSessionAccount.
+if (["teacher_session_list","teacher_session_revoke","teacher_session_cancel_operation"].includes(action)) {
+  if (actor?.role !== "teacher") throw accessError("TEACHER_REQUIRED", 403);
+  if (!sessionKey(input.studentUid)) throw accessError("INVALID_REQUEST", 400);
+  const student = await accessProfile(admin, input.studentUid);
+  if (student.role !== "student") throw accessError("STUDENT_REQUIRED", 403);
+  const studentPath = "account_access_accounts/" + input.studentUid;
+  const state = (await admin.database(studentPath)).value;
+  if (!(state?.requiredClientVersion >= 3)) throw accessError("CLIENT_UPDATE_REQUIRED", 409);
+  if (action === "teacher_session_list") {
+    return {
+      status: "verified",
+      sessions: Object.entries(state.sessions || {})
+        .filter(([, entry]) => sessionLive(entry, state.version, now))
+        .slice(0, 20)
+        .map(([id, entry]) => ({
+          id, primary: id === state.primarySessionId,
+          createdAt: entry.createdAt || null,
+          lastSeenAt: entry.lastSeenAt || entry.createdAt || null
+        })),
+      // No atomic commit-vs-cancel fence exists yet: never enable cancellation.
+      pendingOperations: Object.entries(state.pendingOperations || {}).slice(0, 32)
+        .map(([id, entry]) => ({
+          id, kind: String(entry.action || "economy"),
+          status: entry.cancelled ? "reconcile_required" : "pending",
+          cancellable: false
+        }))
+    };
+  }
+  if (action === "teacher_session_cancel_operation") {
+    if (!sessionKey(input.operationId)) throw accessError("INVALID_REQUEST", 400);
+    throw accessError("OPERATION_NOT_CANCELLABLE", 409);
+  }
+  if (!sessionKey(input.sessionId) || !sessionKey(input.requestId) ||
+      typeof input.reason !== "string" ||
+      input.reason.trim().length < 10 || input.reason.trim().length > 240)
+    throw accessError("INVALID_REQUEST", 400);
+  await assertNoExam(admin, student.username);
+  let outcome = "revoked";
+  await editSessionAccount(admin, studentPath, (current) => {
+    if (!(current?.requiredClientVersion >= 3) || current.transition)
+      throw sessionFault("SESSION_TRANSITION_BUSY", 409);
+    const actions = current.teacherSessionActions ||= {};
+    const prior = actions[input.requestId];
+    if (prior) {
+      if (prior.actor !== claims.sub || prior.sessionId !== input.sessionId ||
+          prior.reason !== input.reason.trim()) throw sessionFault("OPERATION_ID_REUSED", 409);
+      outcome = prior.outcome;
+      return;
+    }
+    if (Object.keys(actions).length >= 64) throw sessionFault("ACCESS_BUSY", 409);
+    // All outstanding operations must settle before revoking *any* session.
+    if (Object.keys(current.pendingOperations || {}).length ||
+        Object.keys(current.activeRequests || {}).length)
+      throw sessionFault("SESSION_PENDING_OPERATIONS", 409);
+    const target = current.sessions?.[input.sessionId];
+    if (!target || !sessionLive(target, current.version, now)) {
+      outcome = "already_inactive";
+    } else {
+      delete current.sessions[input.sessionId];
+      if (current.primarySessionId === input.sessionId) {
+        current.primarySessionId = null;
+        current.writerAssigned = false;
+        delete current.transferRequest;
+      } else if (current.transferRequest?.target === input.sessionId) {
+        delete current.transferRequest;
+      }
+    }
+    actions[input.requestId] = {
+      actor: claims.sub, sessionId: input.sessionId,
+      reason: input.reason.trim(), outcome, createdAt: now
+    };
+    return current;
+  });
+  return {status: outcome};
+}
