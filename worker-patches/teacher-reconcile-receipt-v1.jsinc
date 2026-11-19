@@ -18,8 +18,46 @@ if (action === "teacher_session_reconcile_operation") {
     throw accessError("OPERATION_NOT_SUPPORTED", 409);
   // Missing receipt is never evidence of failure. No writes, no synthetic receipt.
   const receiptPath = "economy_receipts/" + input.studentUid + "/" + input.operationId;
-  const receipt = (await admin.database(receiptPath)).value;
-  if (!receipt) return { status: "unconfirmed" };
+  let receipt = (await admin.database(receiptPath)).value;
+  if (!receipt) {
+    // A missing receipt is not by itself an abort signal. This recovery applies
+    // ONLY to an old, explicitly cancelled submission from a dead origin session.
+    // The economy commit already guards pending.cancelled at its Firebase write.
+    if (pending.action !== "submission_submit" || pending.cancelled !== true ||
+        !Number.isSafeInteger(pending.createdAt) || now - pending.createdAt < 600000 ||
+        Object.keys(snapshot.activeRequests || {}).length || snapshot.transition ||
+        (snapshot.sessions?.[pending.sessionId] &&
+         sessionLive(snapshot.sessions[pending.sessionId], snapshot.version, now)))
+      return { status: "unconfirmed" };
+    const lock = (await admin.database("exam_active_locks/" + student.username)).value;
+    if (lock?.status === "active" && !(Number(lock.leaseUntil) > 0 && Number(lock.leaseUntil) <= now))
+      return { status: "unconfirmed" };
+    // Conditional receipt creation. A concurrently committed receipt always wins.
+    const fetched = await admin.database(receiptPath, "GET", undefined,
+                                          { "X-Firebase-ETag": "true" });
+    if (fetched.value) {
+      receipt = fetched.value;
+    } else {
+      if (typeof fetched.etag !== "string" || !fetched.etag)
+        return { status: "unconfirmed" };
+      const latest = (await admin.database(path)).value;
+      const entry = latest?.pendingOperations?.[input.operationId];
+      if (!entry || entry.cancelled !== true || entry.action !== pending.action ||
+          entry.intentHash !== pending.intentHash || entry.nonce !== pending.nonce ||
+          entry.sessionId !== pending.sessionId || Object.keys(latest.activeRequests || {}).length ||
+          latest.transition || (latest.sessions?.[entry.sessionId] &&
+           sessionLive(latest.sessions[entry.sessionId], latest.version, now)))
+        return { status: "unconfirmed" };
+      const cancellation = {
+        version: 1, action: pending.action, intentHash: pending.intentHash,
+        createdAt: now, error: "SESSION_OPERATION_CANCELLED", status: 409
+      };
+      const stored = await admin.database(receiptPath, "PUT", cancellation,
+                                          { "if-match": fetched.etag });
+      receipt = stored.conflict ? (await admin.database(receiptPath)).value : cancellation;
+      if (!receipt) return { status: "unconfirmed" };
+    }
+  }
   if (receipt.action !== pending.action)
     throw accessError("OPERATION_RECEIPT_MISMATCH", 409);
   const actualHash = receipt.intentHash ||
