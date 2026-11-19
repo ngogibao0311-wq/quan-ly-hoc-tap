@@ -134,9 +134,9 @@
             const response = await call(action, payload);
             if (request.key) sessionStorage.removeItem(request.key);
             const labels = {
-                settled: 'Đã đối soát bằng biên nhận máy chủ; bản ghi chờ đã được giải phóng. Không thay đổi bài nộp, Coin hoặc điểm.',
+                settled: 'Đã đối soát/kết thúc an toàn trên máy chủ. Không xóa bài nộp hay Coin.',
                 already_settled: 'Giao dịch đã được đối soát trước đó.',
-                unconfirmed: 'Chưa có biên nhận xác thực. Worker đã giữ nguyên dữ liệu và yêu cầu chờ để kiểm tra thêm.',
+                unconfirmed: 'Giao dịch chưa đủ điều kiện kết thúc an toàn. Worker giữ nguyên dữ liệu và bản ghi chờ.',
                 cancel_requested: 'Đã ghi nhận yêu cầu dừng. Chưa xác nhận giao dịch bị hủy; vui lòng kiểm tra lại.'
             };
             report(labels[response.status] || 'Máy chủ đã xử lý yêu cầu. Hãy kiểm tra lại trạng thái mới.', response.status === 'unconfirmed');
@@ -174,11 +174,11 @@
         detail.append(text('strong', String(row.kind || 'Giao dịch') + ' · ' + String(row.status || 'chờ xử lý')));
         detail.append(text('span', 'Mã giao dịch: ' + id));
         item.append(detail);
-        const reconcile = text('button', 'Đối soát với biên nhận');
+        const reconcile = text('button', 'Đối soát / kết thúc an toàn');
         reconcile.type = 'button';
         reconcile.addEventListener('click', () => void mutate(
             ACTIONS.reconcile, id,
-            'Đối chiếu mã giao dịch với biên nhận máy chủ? Nếu biên nhận hợp lệ, Worker chỉ dọn bản ghi chờ mà không hủy kết quả nộp bài.'
+            'Máy chủ kiểm tra biên nhận. Nếu yêu cầu nộp cũ đã đánh dấu hủy, đủ lâu và không còn phiên xử lý, Worker có thể ghi biên nhận hủy có điều kiện và giải phóng bản ghi chờ. Không xóa bài nộp hay Coin.'
         ));
         item.append(reconcile);
         if (row.kind === 'submission_submit') item.append(text('span', 'Nếu là lượt làm lại: không mở lượt mới khi giao dịch nộp bài trước chưa được xác minh.', 'teacher-session-warning'));
