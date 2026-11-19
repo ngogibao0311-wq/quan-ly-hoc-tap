@@ -12245,14 +12245,18 @@ window.closePracticeRedo = function () {
     );
 };
 
-// Coalesce repeated manual clicks before upload. Auto-submit keeps its independent exam path.
+// One per-assignment queue for manual, deadline and anti-cheat submissions.
+// Auto/cheat requests wait for the earlier attempt, even when it fails.
 const studentSubmissionInFlight = new Map();
 function submitAssignment(assignId, isAuto = false, isCheat = false) {
     if (!window.StudentAccountAccess.requireWrite()) return Promise.resolve(false);
-    if (isAuto || isCheat) return submitAssignmentCore(assignId, isAuto, isCheat);
     const key = String(assignId);
-    if (studentSubmissionInFlight.has(key)) return studentSubmissionInFlight.get(key);
-    const pending = Promise.resolve().then(() => submitAssignmentCore(assignId, isAuto, isCheat));
+    const previous = studentSubmissionInFlight.get(key);
+    if (previous && !isAuto && !isCheat) return previous;
+    const run = () => submitAssignmentCore(assignId, isAuto, isCheat);
+    const pending = previous
+        ? previous.catch(() => {}).then(run)
+        : Promise.resolve().then(run);
     const tracked = pending.finally(() => {
         if (studentSubmissionInFlight.get(key) === tracked) studentSubmissionInFlight.delete(key);
     });

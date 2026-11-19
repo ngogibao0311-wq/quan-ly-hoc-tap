@@ -1,0 +1,56 @@
+// Replace registerSessionOperation in the Worker module (not only the client).
+// Duplicate operation IDs backed by receipts are replay-only and never queued again.
+// Preflight rejection happens before creating a new pending record.
+async function registerSessionOperation(admin, uid, claims, input, now = Date.now(), intent = "") {
+  const path = "account_access_accounts/" + uid;
+  const required = (await admin.database(path + "/requiredClientVersion")).value;
+  if (!(required >= 3)) return;
+  const hash = await intentHash(intent);
+  if (input.action === "submission_submit") {
+    // A known result (success OR error) can be replayed without resurrecting
+    // pendingOperations after teacher/student reconciliation.
+    const receipt = (await admin.database(
+      "economy_receipts/" + uid + "/" + input.operationId
+    )).value;
+    if (receipt) {
+      const recordedHash = receipt.intentHash ||
+        (typeof receipt.intent === "string" ? await intentHash(receipt.intent) : null);
+      if (recordedHash !== hash || receipt.action !== input.action)
+        throw sessionFault("OPERATION_ID_REUSED", 409);
+      return;
+    }
+    // Validate teacher lock and redo generation before touching session state.
+    // Final planner repeats these checks and Firebase commit uses guard snapshots.
+    const assignment = (await admin.database("assignments/" + input.assignmentKey)).value;
+    if (!assignment || assignment.isLocked === true)
+      throw sessionFault("ASSIGNMENT_TEACHER_LOCKED", 409);
+    const assignmentId = String(assignment.id ?? input.assignmentKey);
+    if ((await admin.database("assignment_locks/" + assignmentId)).value === true)
+      throw sessionFault("ASSIGNMENT_TEACHER_LOCKED", 409);
+    const submission = (await admin.database("submissions/" + input.submissionKey)).value;
+    if (submission && String(submission.redoStartedAt || 0) !== String(input.redoStartedAt))
+      throw sessionFault("SUBMISSION_CHANGED_ELSEWHERE", 409);
+  }
+  await editSessionAccount(admin, path, (state) => {
+    authorizeSession(state, claims, now);
+    const pending = state.pendingOperations ||= {};
+    const old = pending[input.operationId];
+    if (old) {
+      if (old.sessionId !== claims.deviceSession || old.action !== input.action ||
+          old.intentHash !== hash)
+        throw sessionFault("OPERATION_ID_REUSED", 409);
+      // Explicitly cancelled requests must not be resubmitted before a
+      // server-created cancellation receipt is durably recorded.
+      if (old.cancelled === true) throw sessionFault("SESSION_OPERATION_CANCELLED", 409);
+      return;
+    }
+    if (Object.keys(pending).length >= 32)
+      throw sessionFault("SESSION_PENDING_OPERATIONS", 409);
+    pending[input.operationId] = {
+      sessionId: claims.deviceSession, action: input.action,
+      createdAt: now, intentHash: hash, nonce: crypto.randomUUID()
+    };
+    return state;
+  });
+}
+__name(registerSessionOperation, "registerSessionOperation");
