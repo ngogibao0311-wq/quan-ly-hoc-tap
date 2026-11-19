@@ -7,11 +7,7 @@ const registration = fs.readFileSync(path.join(root, 'worker-patches/submission-
 const reconciliation = fs.readFileSync(path.join(root, 'worker-patches/teacher-reconcile-receipt-v1.jsinc'), 'utf8');
 const student = fs.readFileSync(path.join(root, 'js/student.js'), 'utf8');
 
-function compile(source, prelude) {
-  return new Function('ctx', prelude + source);
-}
 async function testRegistration() {
-  const make = compile(registration, \`const {admin,uid,claims,input,now,intent,sessionFault,intentHash,editSessionAccount,authorizeSession,crypto}=ctx;const __name=x=>x;\` + '\n');
   for (const t of [
     {name:'receipt replay is not requeued', receipt:true, error:null, pending:false},
     {name:'locked assignment is not requeued', locked:true, error:'ASSIGNMENT_TEACHER_LOCKED', pending:false},
@@ -32,7 +28,7 @@ async function testRegistration() {
       intentHash:async()=> 'hash',editSessionAccount:async(_admin,_path,fn)=>fn(state)};
     let caught=null;
     try {
-      const fn = new Function('ctx', \`const {admin,uid,claims,input,now,intent,sessionFault,intentHash,editSessionAccount,authorizeSession,crypto}=ctx;const __name=x=>x;\`+registration+'\nreturn registerSessionOperation(admin,uid,claims,input,now,intent)');
+      const fn = new Function('ctx', `const {admin,uid,claims,input,now,intent,sessionFault,intentHash,editSessionAccount,authorizeSession,crypto}=ctx;const __name=x=>x;`+registration+'\nreturn registerSessionOperation(admin,uid,claims,input,now,intent)');
       await fn(ctx);
     } catch(e){caught=e.message}
     assert.equal(caught,t.error,t.name);
