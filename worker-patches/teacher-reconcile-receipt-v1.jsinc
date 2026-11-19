@@ -1,0 +1,71 @@
+// Account Access v3: teacher-initiated receipt reconciliation, not cancellation.
+// Insert after actor profile lookup inside accountAccess(), before teacher_session_*.
+// Requires authenticated Firebase ID token + trusted accessProfile and ETag editing.
+if (action === "teacher_session_reconcile_operation") {
+  if (actor?.role !== "teacher") throw accessError("TEACHER_REQUIRED", 403);
+  if (!sessionKey(input.studentUid) || !sessionKey(input.operationId) ||
+      !sessionKey(input.requestId) || typeof input.reason !== "string" ||
+      input.reason.trim().length < 10 || input.reason.trim().length > 240)
+    throw accessError("INVALID_REQUEST", 400);
+  const student = await accessProfile(admin, input.studentUid);
+  if (student.role !== "student") throw accessError("STUDENT_REQUIRED", 403);
+  const path = "account_access_accounts/" + input.studentUid;
+  const snapshot = (await admin.database(path)).value;
+  if (!(snapshot?.requiredClientVersion >= 3)) throw accessError("CLIENT_UPDATE_REQUIRED", 409);
+  const pending = snapshot.pendingOperations?.[input.operationId];
+  if (!pending) return { status: "already_settled" };
+  if (!["submission_submit", "year_review_activate"].includes(pending.action))
+    throw accessError("OPERATION_NOT_SUPPORTED", 409);
+  // Missing receipt is never evidence of failure. No writes, no synthetic receipt.
+  const receiptPath = "economy_receipts/" + input.studentUid + "/" + input.operationId;
+  const receipt = (await admin.database(receiptPath)).value;
+  if (!receipt) return { status: "unconfirmed" };
+  if (receipt.action !== pending.action)
+    throw accessError("OPERATION_RECEIPT_MISMATCH", 409);
+  const actualHash = receipt.intentHash ||
+      (typeof receipt.intent === "string" ? await intentHash(receipt.intent) : null);
+  if (!actualHash || actualHash !== pending.intentHash)
+    throw accessError("OPERATION_RECEIPT_MISMATCH", 409);
+  if (pending.action === "submission_submit" && !receipt.error) {
+    const submissionKey = receipt.result?.submissionKey;
+    if (!sessionKey(submissionKey)) throw accessError("SUBMISSION_RECONCILE_REQUIRED", 409);
+    const submission = (await admin.database("submissions/" + submissionKey)).value;
+    if (!submission || submission.studentUsername !== student.username ||
+        submission.autoGradeAuthority?.operationId !== input.operationId)
+      throw accessError("SUBMISSION_RECONCILE_REQUIRED", 409);
+  }
+  const reason = input.reason.trim();
+  let responseStatus = "settled";
+  await editSessionAccount(admin, path, (state) => {
+    if (!(state?.requiredClientVersion >= 3) || state.transition)
+      throw sessionFault("SESSION_TRANSITION_BUSY", 409);
+    const previous = state.teacherSessionActions?.[input.requestId];
+    if (previous) {
+      if (previous.actor !== claims.sub || previous.operationId !== input.operationId ||
+          previous.reason !== reason || previous.action !== action)
+        throw sessionFault("OPERATION_ID_REUSED", 409);
+      responseStatus = previous.outcome;
+      return;
+    }
+    if (Object.keys(state.activeRequests || {}).length)
+      throw sessionFault("SESSION_PENDING_OPERATIONS", 409);
+    const still = state.pendingOperations?.[input.operationId];
+    if (!still) {
+      responseStatus = "already_settled";
+    } else {
+      if (still.action !== pending.action || still.intentHash !== pending.intentHash ||
+          still.sessionId !== pending.sessionId || still.nonce !== pending.nonce ||
+          Boolean(still.cancelled) !== Boolean(pending.cancelled))
+        throw sessionFault("OPERATION_CHANGED", 409);
+      delete state.pendingOperations[input.operationId];
+    }
+    const audit = state.teacherSessionActions ||= {};
+    if (Object.keys(audit).length >= 64) throw sessionFault("ACCESS_BUSY", 409);
+    audit[input.requestId] = {
+      actor: claims.sub, action, operationId: input.operationId,
+      reason, outcome: responseStatus, createdAt: now
+    };
+    return state;
+  });
+  return { status: responseStatus, operationId: input.operationId };
+}
