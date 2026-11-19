@@ -1,0 +1,23 @@
+name: Submission pending fence regression
+on:
+  pull_request:
+    paths:
+      - 'js/student.js'
+      - 'worker-patches/**'
+      - 'tests/submission-pending-fence.test.cjs'
+      - '.github/workflows/submission-pending-fence.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  node-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check js/student.js
+      - run: node --check js/teacher-session-admin.js
+      - run: node tests/submission-pending-fence.test.cjs
