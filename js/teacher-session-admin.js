@@ -6,7 +6,8 @@
     const ACTIONS = Object.freeze({
         list: 'teacher_session_list',
         revoke: 'teacher_session_revoke',
-        cancel: 'teacher_session_cancel_operation'
+        cancel: 'teacher_session_cancel_operation',
+        reconcile: 'teacher_session_reconcile_operation'
     });
     const text = (tag, value, className) => {
         const el = document.createElement(tag);
@@ -34,7 +35,10 @@
             SESSION_PENDING_OPERATIONS: 'Còn giao dịch chưa rõ kết quả. Phải đối soát trước khi ngắt phiên.',
             SESSION_OPERATION_UNCONFIRMED: 'Chưa xác định được giao dịch đã ghi hay chưa. Không được hủy trực tiếp.',
             OPERATION_ALREADY_COMMITTED: 'Giao dịch đã ghi thành công. Không thể hủy; cần xử lý bằng giao dịch đối soát riêng.',
-            OPERATION_NOT_CANCELLABLE: 'Giao dịch đã qua điểm có thể dừng an toàn. Chưa thay đổi dữ liệu.',
+            OPERATION_NOT_CANCELLABLE: 'Worker chưa hỗ trợ hủy an toàn giao dịch nộp bài. Không có dữ liệu nào bị xóa.',
+            OPERATION_UNCONFIRMED: 'Chưa có biên nhận giao dịch. Không thể xác nhận hoặc xóa yêu cầu treo; cần tiếp tục đối soát.',
+            OPERATION_CHANGED: 'Giao dịch đã thay đổi trong lúc kiểm tra. Không sửa dữ liệu, hãy tải lại.',
+            OPERATION_NOT_FOUND: 'Không còn giao dịch đang chờ. Hãy tải lại danh sách.',
             SHIELD_GROUP_PAUSED: 'Nhóm giao dịch này đang tạm khóa để kiểm tra an toàn.'
         };
         return known[code] || 'Máy chủ không xác nhận thao tác. Giữ nguyên trạng thái, tải lại danh sách để kiểm tra.';
@@ -129,9 +133,13 @@
             else payload.operationId = targetId;
             const response = await call(action, payload);
             if (request.key) sessionStorage.removeItem(request.key);
-            report(response.status === 'cancel_requested' ?
-                'Máy chủ đã ghi nhận yêu cầu dừng. Giao dịch chưa được xác nhận là đã hủy; hãy kiểm tra lại.' :
-                'Máy chủ đã trả kết quả. Hãy kiểm tra danh sách cập nhật để xác nhận trạng thái cuối.');
+            const labels = {
+                settled: 'Đã đối soát bằng biên nhận máy chủ; bản ghi chờ đã được giải phóng. Không thay đổi bài nộp, Coin hoặc điểm.',
+                already_settled: 'Giao dịch đã được đối soát trước đó.',
+                unconfirmed: 'Chưa có biên nhận xác thực. Worker đã giữ nguyên dữ liệu và yêu cầu chờ để kiểm tra thêm.',
+                cancel_requested: 'Đã ghi nhận yêu cầu dừng. Chưa xác nhận giao dịch bị hủy; vui lòng kiểm tra lại.'
+            };
+            report(labels[response.status] || 'Máy chủ đã xử lý yêu cầu. Hãy kiểm tra lại trạng thái mới.', response.status === 'unconfirmed');
         } catch (error) {
             // Preserve requestId if the response was lost; retries must be idempotent.
             report(explain(error), true);
@@ -166,6 +174,14 @@
         detail.append(text('strong', String(row.kind || 'Giao dịch') + ' · ' + String(row.status || 'chờ xử lý')));
         detail.append(text('span', 'Mã giao dịch: ' + id));
         item.append(detail);
+        const reconcile = text('button', 'Đối soát với biên nhận');
+        reconcile.type = 'button';
+        reconcile.addEventListener('click', () => void mutate(
+            ACTIONS.reconcile, id,
+            'Đối chiếu mã giao dịch với biên nhận máy chủ? Nếu biên nhận hợp lệ, Worker chỉ dọn bản ghi chờ mà không hủy kết quả nộp bài.'
+        ));
+        item.append(reconcile);
+        if (row.kind === 'submission_submit') item.append(text('span', 'Nếu là lượt làm lại: không mở lượt mới khi giao dịch nộp bài trước chưa được xác minh.', 'teacher-session-warning'));
         if (row.cancellable === true) {
             const cancel = text('button', 'Yêu cầu dừng an toàn');
             cancel.type = 'button';
@@ -174,7 +190,7 @@
             ));
             item.append(cancel);
         } else {
-            item.append(text('span', 'Chỉ được đối soát, không thể hủy trực tiếp.', 'teacher-session-warning'));
+            item.append(text('span', 'Chưa cho phép hủy. Nếu thiếu biên nhận, giao dịch sẽ được giữ để kiểm tra.', 'teacher-session-warning'));
         }
         return item;
     }
