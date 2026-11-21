@@ -1,204 +1,30 @@
-const APP_VERSION = '4.4.6';
-const APP_BUILD = '20261117.store-session1';
-const CACHE_VERSION = `qlbt-production-shell-v${APP_VERSION}-${APP_BUILD}-privacy2`;
-const OFFLINE_CACHE = `${CACHE_VERSION}-offline`;
-const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
-const OFFLINE_PAGE = './offline.html';
-const MAX_RUNTIME_ENTRIES = 120;
-
-function mayCacheResponse(response) {
-    return !!response && response.ok && response.type !== 'opaque' &&
-        !response.headers.has('Set-Cookie') &&
-        !/(?:^|,)\s*(?:no-store|private|no-cache)(?:\s*(?:=|,|$))/i.test(response.headers.get('Cache-Control') || '') &&
-        !response.headers.has('Vary');
-}
-async function rememberPublicResponse(cache, request, response) {
-    if (!mayCacheResponse(response)) { await cache.delete(request); return; }
-    await cache.put(request, response.clone());
-    await pruneRuntimeCache();
-}
-
-self.addEventListener('install', event => {
-    event.waitUntil((async () => {
-        const cache = await caches.open(OFFLINE_CACHE);
-        await cache.add(new Request(OFFLINE_PAGE, { cache: 'reload' }));
-        await self.skipWaiting();
-    })());
+// Maintenance mode: replace all previously cached application pages with the pause notice.
+const MAINTENANCE_HTML = "<!doctype html>\n<html lang=\"vi\">\n<head>\n  <meta charset=\"utf-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n  <meta name=\"robots\" content=\"noindex, nofollow\">\n  <meta name=\"theme-color\" content=\"#071426\">\n  <meta http-equiv=\"Cache-Control\" content=\"no-cache, no-store, must-revalidate\">\n  <meta name=\"description\" content=\"Wed đã tạm dừng. Hãy chờ đợi giáo viên sẽ cấp 1 wed mới\">\n  <title>Website đã tạm dừng</title>\n  <style>\n    *, *::before, *::after { box-sizing: border-box; }\n    html, body { margin: 0; min-height: 100%; }\n    body {\n      min-height: 100vh; min-height: 100dvh; display: grid; place-items: center;\n      padding: 24px; font-family: system-ui, -apple-system, \"Segoe UI\", Arial, sans-serif;\n      color: #f8fafc; background:\n      radial-gradient(ellipse 60% 50% at 16% 16%, rgba(56, 189, 248, .15), transparent),\n      radial-gradient(ellipse 60% 60% at 85% 85%, rgba(129, 140, 248, .16), transparent),\n      #071426;\n    }\n    main { width: min(100%, 620px); padding: clamp(32px, 7vw, 64px) clamp(24px, 6vw, 48px);\n      text-align: center; border-radius: 26px; background: rgba(15, 31, 55, .92);\n      border: 1px solid rgba(148, 163, 184, .18); box-shadow: 0 25px 80px rgba(0, 0, 0, .28);\n    }\n    .icon { display: grid; place-items: center; width: 76px; height: 76px;\n      margin: 0 auto 24px; border: 1px solid rgba(125, 211, 252, .35);\n      border-radius: 23px; background: rgba(56, 189, 248, .12); color: #7dd3fc;\n    }\n    .icon svg { width: 34px; height: 34px; }\n    .status { margin: 0 0 14px; font-size: 12px; font-weight: 800; letter-spacing: .14em;\n      text-transform: uppercase; color: #7dd3fc; }\n    h1 { margin: 0 0 18px; font-weight: 750; font-size: clamp(27px, 5vw, 40px);\n      line-height: 1.25; letter-spacing: -.03em; }\n    p.message { margin: 0; font-size: clamp(17px, 2.8vw, 20px); line-height: 1.8; color: #cbd5e1; }\n    .line { width: 70px; height: 3px; margin: 30px auto 0; border-radius: 99px; background: #38bdf8; }\n    @media (prefers-reduced-motion: no-preference) { main { animation: show .45s ease-out both; }\n      @keyframes show { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } } }\n  </style>\n</head>\n<body>\n  <main role=\"main\" aria-labelledby=\"pause-title\">\n    <div class=\"icon\" aria-hidden=\"true\">\n      <svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\">\n        <rect x=\"4\" y=\"4\" width=\"16\" height=\"16\" rx=\"4\"></rect><path d=\"M10 8v8M14 8v8\"></path>\n      </svg>\n    </div>\n    <p class=\"status\">Thông báo hệ thống</p>\n    <h1 id=\"pause-title\">Wed đã tạm dừng.</h1>\n    <p class=\"message\">Hãy chờ đợi giáo viên sẽ cấp 1 wed mới</p>\n    <div class=\"line\" aria-hidden=\"true\"></div>\n  </main>\n  <script>\n    if ('serviceWorker' in navigator) {\n      addEventListener('load', () => {\n        navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).catch(() => {});\n      });\n    }\n  </script>\n</body>\n</html>\n";
+const RESPONSE_HEADERS = {
+  'Content-Type': 'text/html; charset=utf-8',
+  'Cache-Control': 'no-store, max-age=0, must-revalidate',
+  'X-Robots-Tag': 'noindex, nofollow',
+};
+self.addEventListener('install', (event) => { event.waitUntil(self.skipWaiting()); });
+self.addEventListener('activate', (event) => {
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(key =>
+      key.startsWith('qlbt-') || key.startsWith('qlbt_')
+    ).map(key => caches.delete(key)));
+    await self.clients.claim();
+    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    await Promise.all(windows.map(async client => {
+      try {
+        if (new URL(client.url).origin === self.location.origin && client.navigate) {
+          await client.navigate(client.url);
+        }
+      } catch (_) { /* Browser may deny navigation for a closing tab. */ }
+    }));
+  })());
 });
-
-self.addEventListener('activate', event => {
-    event.waitUntil((async () => {
-        const names = await caches.keys();
-        await Promise.all(
-            names
-                .filter(name => name.startsWith('qlbt-production-') && ![OFFLINE_CACHE, RUNTIME_CACHE].includes(name))
-                .map(name => caches.delete(name))
-        );
-        await self.clients.claim();
-    })());
-});
-
-async function pruneRuntimeCache() {
-    const cache = await caches.open(RUNTIME_CACHE);
-    const keys = await cache.keys();
-    if (keys.length <= MAX_RUNTIME_ENTRIES) return;
-    const overflow = keys.length - MAX_RUNTIME_ENTRIES;
-    await Promise.all(keys.slice(0, overflow).map(request => cache.delete(request)));
-}
-
-async function buildFallbackResponse(mode, failedUrl, status) {
-    const cached = await (await caches.open(OFFLINE_CACHE)).match(OFFLINE_PAGE, { ignoreSearch: true });
-    if (!cached) {
-        return new Response(
-            '<!doctype html><meta charset="utf-8"><title>Lỗi hệ thống</title><h1>Không thể tải trang</h1><p>Không có trang dự phòng trong cache.</p>',
-            { status: status || 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
-        );
-    }
-
-    let html = await cached.text();
-    const injection = `<script>window.__APP_SW_ERROR_MODE__=${JSON.stringify(mode)};window.__APP_FAILED_URL__=${JSON.stringify(failedUrl).replace(/</g, '\\u003c')};<\/script>`;
-    html = html.replace('</head>', injection + '</head>');
-
-    return new Response(html, {
-        status: status || (mode === '404' ? 404 : 503),
-        statusText: mode === '404' ? 'Not Found' : 'Service Unavailable',
-        headers: {
-            'Content-Type': 'text/html; charset=utf-8',
-            'Cache-Control': 'no-store',
-            'X-App-Fallback': mode
-        }
-    });
-}
-
-async function networkFirstNavigation(request) {
-    // Account pages never reuse a document from a previous login, even offline.
-    try { return await fetch(request); }
-    catch (_) { return buildFallbackResponse('offline', request.url, 503); }
-}
-
-async function networkFirstStatic(request) {
-    const cache = await caches.open(RUNTIME_CACHE);
-
-    try {
-        const response = await fetch(request);
-
-        if (response && response.ok) {
-            await rememberPublicResponse(cache, request, response);
-
-            return response;
-        }
-
-        // 404/410/5xx không xóa khả năng dùng bản JS/CSS đã cache tốt.
-        if (
-            response &&
-            (
-                response.status === 404 ||
-                response.status === 410 ||
-                response.status >= 500
-            )
-        ) {
-            const cached = await cache.match(request);
-
-            if (cached) {
-                return cached;
-            }
-        }
-
-        return response;
-    } catch (error) {
-        const cached = await cache.match(request);
-
-        if (cached) {
-            return cached;
-        }
-
-        throw error;
-    }
-}
-
-async function staleWhileRevalidate(request) {
-    const cache = await caches.open(RUNTIME_CACHE);
-    const cached = await cache.match(request);
-    const networkPromise = fetch(request)
-        .then(response => {
-            if (response) rememberPublicResponse(cache, request, response).catch(() => {});
-            return response;
-        })
-        .catch(() => null);
-
-    if (cached) {
-        // Trả cache ngay, đồng thời networkPromise âm thầm làm mới cache.
-        return cached;
-    }
-
-    return (await networkPromise) || Response.error();
-}
-
-self.addEventListener('fetch', event => {
-    const request = event.request;
-    if (request.method !== 'GET') return;
-
-    const url = new URL(request.url);
-    // Authenticated or capability-bearing resources must never enter the shared shell cache.
-    if (request.headers.has('Authorization') || request.cache === 'no-store' ||
-        /(?:^|\/)(?:files|economy|transaction-shield|student-study-data|account-access)(?:\/|$)/.test(url.pathname) ||
-        [...url.searchParams.keys()].some(key => /^(?:token|access_token|id_token|auth|signature)$/i.test(key))) return;
-
-    // Không can thiệp Firebase, Cloudflare R2, CDN hoặc API bên ngoài.
-    // Dữ liệu đám mây phải luôn đi trực tiếp tới dịch vụ gốc.
-    if (url.origin !== self.location.origin) return;
-
-    if (request.mode === 'navigate') {
-        event.respondWith(networkFirstNavigation(request));
-        return;
-    }
-
-    const destination = request.destination;
-
-    if (destination === 'script' || destination === 'style' || destination === 'worker') {
-        event.respondWith(networkFirstStatic(request));
-        return;
-    }
-
-    if (destination === 'image' || destination === 'font') {
-        event.respondWith(staleWhileRevalidate(request));
-    }
-});
-
-self.addEventListener('message', event => {
-    const type = event.data && event.data.type;
-
-    if (type === 'SKIP_WAITING') {
-        self.skipWaiting();
-        return;
-    }
-
-    if (type === 'CLEAR_RUNTIME_CACHE') {
-        event.waitUntil(caches.delete(RUNTIME_CACHE));
-        return;
-    }
-
-    if (type === 'PING') {
-        const payload = {
-            type: 'PONG',
-            requestId: event.data && event.data.requestId
-                ? event.data.requestId
-                : '',
-            appVersion: APP_VERSION,
-            build: APP_BUILD,
-            cacheVersion: CACHE_VERSION
-        };
-
-        // Health Center 2.0 dùng MessageChannel để nhận đúng phản hồi
-        // của lần quét hiện tại. Đây chỉ là đọc metadata, không đổi cache.
-        if (event.ports && event.ports[0]) {
-            event.ports[0].postMessage(payload);
-            return;
-        }
-
-        // Giữ tương thích với client PING cũ.
-        if (event.source) {
-            event.source.postMessage(payload);
-        }
-    }
+self.addEventListener('fetch', (event) => {
+  if (event.request.mode === 'navigate' && new URL(event.request.url).origin === self.location.origin) {
+    event.respondWith(new Response(MAINTENANCE_HTML, { status: 200, headers: RESPONSE_HEADERS }));
+  }
 });
